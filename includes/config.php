@@ -50,8 +50,13 @@ date_default_timezone_set('America/New_York');
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+// Memory and execution settings
+ini_set('memory_limit', '1G'); // Increase memory limit to prevent exhaustion
+ini_set('max_execution_time', 300); // 5 minutes max execution time
+
 // PHP 8.1 specific settings
-ini_set('zend.assertions', 1); // Enable assertions in development
+// Note: zend.assertions can only be set in php.ini, not at runtime
+// ini_set('zend.assertions', 1); // This causes warnings - remove for production
 
 // OPcache settings (only set if not already configured)
 if (function_exists('opcache_get_status') && !opcache_get_status()) {
@@ -65,8 +70,10 @@ if (function_exists('opcache_get_status') && opcache_get_status() && version_com
     // ini_set('opcache.jit', 'tracing');
 }
 
-// Session Configuration
-ini_set('session.cookie_httponly', 1);
-ini_set('session.cookie_secure', 0); // Set to 1 for HTTPS
-ini_set('session.use_strict_mode', 1);
-ini_set('session.cookie_samesite', 'Lax'); // PHP 7.3+ SameSite cookie attribute
+// Session Configuration - only set if session hasn't been started
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.cookie_httponly', 1);
+    ini_set('session.cookie_secure', 0); // Set to 1 for HTTPS
+    ini_set('session.use_strict_mode', 1);
+    ini_set('session.cookie_samesite', 'Lax'); // PHP 7.3+ SameSite cookie attribute
+}
