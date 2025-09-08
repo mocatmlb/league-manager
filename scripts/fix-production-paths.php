@@ -1,6 +1,6 @@
 <?php
 /**
- * Fix Production Paths Script
+ * Fix Production Paths Script - CORRECTED VERSION
  * 
  * This script fixes the include paths in production files to work with the
  * cPanel deployment structure where public/ files are copied to the root.
@@ -100,7 +100,8 @@ $fixedCount = 0;
 $errorCount = 0;
 
 foreach ($filesToFix as $file => $replacements) {
-    $filePath = __DIR__ . '/../' . $file;
+    // CORRECTED: Look in the same directory, not one level up
+    $filePath = __DIR__ . '/' . $file;
     
     if (!file_exists($filePath)) {
         echo "❌ File not found: $file\n";
