@@ -224,7 +224,7 @@ ini_set('session.use_strict_mode', 1);
 ```bash
 # Clone repository
 git clone https://github.com/your-org/d8tl.git
-cd d8tl/mvp-app
+cd d8tl
 
 # Install PHP dependencies
 composer install
@@ -238,7 +238,7 @@ cp includes/config.example.php includes/config.php
 mysql -u username -p database_name < database/schema.sql
 
 # Set up local web server
-# Point your local Apache to the mvp-app/public directory
+# Point your local Apache to the public directory
 # Or use PHP built-in server for development:
 php -S localhost:8000 -t public/
 ```
@@ -249,7 +249,7 @@ php -S localhost:8000 -t public/
 ```bash
 # Local development setup
 git clone https://github.com/your-org/d8tl.git
-cd d8tl/mvp-app
+cd d8tl
 
 # Create development branches
 git checkout -b develop

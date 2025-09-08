@@ -140,7 +140,6 @@ git checkout -b staging
 git push origin staging
 
 # Set up local development environment
-cd mvp-app
 composer install
 # Configure local database and settings
 ```
