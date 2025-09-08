@@ -185,21 +185,21 @@ class Auth {
         
         if (self::isAdmin()) {
             return [
-                'type' => UserType::ADMIN->value,
+                'type' => UserType::ADMIN,
                 'username' => $_SESSION['admin_username'] ?? '',
                 'id' => $_SESSION['admin_id'] ?? 0,
                 'user_type_enum' => UserType::ADMIN
             ];
         } elseif (self::isCoach()) {
             return [
-                'type' => UserType::COACH->value,
+                'type' => UserType::COACH,
                 'username' => 'Coach', // Generic username for coaches
                 'user_type_enum' => UserType::COACH
             ];
         }
         
         return [
-            'type' => UserType::PUBLIC->value,
+            'type' => UserType::PUBLIC,
             'user_type_enum' => UserType::PUBLIC
         ];
     }

@@ -1,8 +1,9 @@
 <?php
 /**
- * District 8 Travel League - PHP 8.1 Enums
+ * District 8 Travel League - Backwards Compatible Enums
  * 
- * Modern enum definitions for better type safety and code clarity
+ * Enum-like class definitions for better type safety and code clarity
+ * Compatible with PHP 7.4+ (no PHP 8.1 enum syntax)
  */
 
 // Prevent direct access
@@ -11,168 +12,227 @@ if (!defined('D8TL_APP')) {
 }
 
 /**
- * Game Status Enum
+ * Game Status Constants
  */
-enum GameStatus: string {
-    case ACTIVE = 'Active';
-    case COMPLETED = 'Completed';
-    case CANCELLED = 'Cancelled';
-    case POSTPONED = 'Postponed';
+class GameStatus {
+    const ACTIVE = 'Active';
+    const COMPLETED = 'Completed';
+    const CANCELLED = 'Cancelled';
+    const POSTPONED = 'Postponed';
     
-    public function getDisplayName(): string {
-        return match($this) {
-            self::ACTIVE => 'Active',
-            self::COMPLETED => 'Completed',
-            self::CANCELLED => 'Cancelled',
-            self::POSTPONED => 'Postponed'
-        };
+    public static function getDisplayName(string $status): string {
+        switch($status) {
+            case self::ACTIVE:
+                return 'Active';
+            case self::COMPLETED:
+                return 'Completed';
+            case self::CANCELLED:
+                return 'Cancelled';
+            case self::POSTPONED:
+                return 'Postponed';
+            default:
+                return $status;
+        }
     }
     
-    public function isFinished(): bool {
-        return match($this) {
-            self::COMPLETED, self::CANCELLED => true,
-            self::ACTIVE, self::POSTPONED => false
-        };
+    public static function isFinished(string $status): bool {
+        return in_array($status, [self::COMPLETED, self::CANCELLED]);
+    }
+    
+    public static function getAllStatuses(): array {
+        return [self::ACTIVE, self::COMPLETED, self::CANCELLED, self::POSTPONED];
     }
 }
 
 /**
- * Season Status Enum
+ * Season Status Constants
  */
-enum SeasonStatus: string {
-    case PLANNING = 'Planning';
-    case REGISTRATION = 'Registration';
-    case ACTIVE = 'Active';
-    case COMPLETED = 'Completed';
-    case CANCELLED = 'Cancelled';
+class SeasonStatus {
+    const PLANNING = 'Planning';
+    const REGISTRATION = 'Registration';
+    const ACTIVE = 'Active';
+    const COMPLETED = 'Completed';
+    const CANCELLED = 'Cancelled';
     
-    public function getDisplayName(): string {
-        return match($this) {
-            self::PLANNING => 'Planning',
-            self::REGISTRATION => 'Registration',
-            self::ACTIVE => 'Active',
-            self::COMPLETED => 'Completed',
-            self::CANCELLED => 'Cancelled'
-        };
+    public static function getDisplayName(string $status): string {
+        switch($status) {
+            case self::PLANNING:
+                return 'Planning';
+            case self::REGISTRATION:
+                return 'Registration';
+            case self::ACTIVE:
+                return 'Active';
+            case self::COMPLETED:
+                return 'Completed';
+            case self::CANCELLED:
+                return 'Cancelled';
+            default:
+                return $status;
+        }
     }
     
-    public function isActive(): bool {
-        return match($this) {
-            self::ACTIVE, self::REGISTRATION => true,
-            self::PLANNING, self::COMPLETED, self::CANCELLED => false
-        };
+    public static function isActive(string $status): bool {
+        return in_array($status, [self::ACTIVE, self::REGISTRATION]);
+    }
+    
+    public static function getAllStatuses(): array {
+        return [self::PLANNING, self::REGISTRATION, self::ACTIVE, self::COMPLETED, self::CANCELLED];
     }
 }
 
 /**
- * User Type Enum
+ * User Type Constants
  */
-enum UserType: string {
-    case PUBLIC = 'public';
-    case COACH = 'coach';
-    case ADMIN = 'admin';
+class UserType {
+    const PUBLIC = 'public';
+    const COACH = 'coach';
+    const ADMIN = 'admin';
     
-    public function getDisplayName(): string {
-        return match($this) {
-            self::PUBLIC => 'Public',
-            self::COACH => 'Coach',
-            self::ADMIN => 'Administrator'
-        };
+    public static function getDisplayName(string $type): string {
+        switch($type) {
+            case self::PUBLIC:
+                return 'Public';
+            case self::COACH:
+                return 'Coach';
+            case self::ADMIN:
+                return 'Administrator';
+            default:
+                return $type;
+        }
     }
     
-    public function hasCoachAccess(): bool {
-        return match($this) {
-            self::COACH, self::ADMIN => true,
-            self::PUBLIC => false
-        };
+    public static function hasCoachAccess(string $type): bool {
+        return in_array($type, [self::COACH, self::ADMIN]);
     }
     
-    public function hasAdminAccess(): bool {
-        return $this === self::ADMIN;
+    public static function hasAdminAccess(string $type): bool {
+        return $type === self::ADMIN;
+    }
+    
+    public static function getAllTypes(): array {
+        return [self::PUBLIC, self::COACH, self::ADMIN];
     }
 }
 
 /**
- * Log Level Enum
+ * Log Level Constants
  */
-enum LogLevel: int {
-    case DEBUG = 1;
-    case INFO = 2;
-    case WARN = 3;
-    case ERROR = 4;
-    case FATAL = 5;
+class LogLevel {
+    const DEBUG = 1;
+    const INFO = 2;
+    const WARN = 3;
+    const ERROR = 4;
+    const FATAL = 5;
     
-    public function getName(): string {
-        return match($this) {
-            self::DEBUG => 'DEBUG',
-            self::INFO => 'INFO',
-            self::WARN => 'WARN',
-            self::ERROR => 'ERROR',
-            self::FATAL => 'FATAL'
-        };
+    public static function getName(int $level): string {
+        switch($level) {
+            case self::DEBUG:
+                return 'DEBUG';
+            case self::INFO:
+                return 'INFO';
+            case self::WARN:
+                return 'WARN';
+            case self::ERROR:
+                return 'ERROR';
+            case self::FATAL:
+                return 'FATAL';
+            default:
+                return 'UNKNOWN';
+        }
     }
     
-    public function isHigherThan(LogLevel $other): bool {
-        return $this->value > $other->value;
+    public static function isHigherThan(int $level, int $other): bool {
+        return $level > $other;
+    }
+    
+    public static function getAllLevels(): array {
+        return [self::DEBUG, self::INFO, self::WARN, self::ERROR, self::FATAL];
     }
 }
 
 /**
- * Email Status Enum
+ * Email Status Constants
  */
-enum EmailStatus: string {
-    case PENDING = 'Pending';
-    case SENT = 'Sent';
-    case FAILED = 'Failed';
+class EmailStatus {
+    const PENDING = 'Pending';
+    const SENT = 'Sent';
+    const FAILED = 'Failed';
     
-    public function getDisplayName(): string {
-        return match($this) {
-            self::PENDING => 'Pending',
-            self::SENT => 'Sent',
-            self::FAILED => 'Failed'
-        };
+    public static function getDisplayName(string $status): string {
+        switch($status) {
+            case self::PENDING:
+                return 'Pending';
+            case self::SENT:
+                return 'Sent';
+            case self::FAILED:
+                return 'Failed';
+            default:
+                return $status;
+        }
     }
     
-    public function getBootstrapClass(): string {
-        return match($this) {
-            self::PENDING => 'warning',
-            self::SENT => 'success',
-            self::FAILED => 'danger'
-        };
+    public static function getBootstrapClass(string $status): string {
+        switch($status) {
+            case self::PENDING:
+                return 'warning';
+            case self::SENT:
+                return 'success';
+            case self::FAILED:
+                return 'danger';
+            default:
+                return 'secondary';
+        }
+    }
+    
+    public static function getAllStatuses(): array {
+        return [self::PENDING, self::SENT, self::FAILED];
     }
 }
 
 /**
- * Request Status Enum
+ * Request Status Constants
  */
-enum RequestStatus: string {
-    case PENDING = 'Pending';
-    case APPROVED = 'Approved';
-    case DENIED = 'Denied';
-    case CANCELLED = 'Cancelled';
+class RequestStatus {
+    const PENDING = 'Pending';
+    const APPROVED = 'Approved';
+    const DENIED = 'Denied';
+    const CANCELLED = 'Cancelled';
     
-    public function getDisplayName(): string {
-        return match($this) {
-            self::PENDING => 'Pending Review',
-            self::APPROVED => 'Approved',
-            self::DENIED => 'Denied',
-            self::CANCELLED => 'Cancelled'
-        };
+    public static function getDisplayName(string $status): string {
+        switch($status) {
+            case self::PENDING:
+                return 'Pending Review';
+            case self::APPROVED:
+                return 'Approved';
+            case self::DENIED:
+                return 'Denied';
+            case self::CANCELLED:
+                return 'Cancelled';
+            default:
+                return $status;
+        }
     }
     
-    public function getBootstrapClass(): string {
-        return match($this) {
-            self::PENDING => 'warning',
-            self::APPROVED => 'success',
-            self::DENIED => 'danger',
-            self::CANCELLED => 'secondary'
-        };
+    public static function getBootstrapClass(string $status): string {
+        switch($status) {
+            case self::PENDING:
+                return 'warning';
+            case self::APPROVED:
+                return 'success';
+            case self::DENIED:
+                return 'danger';
+            case self::CANCELLED:
+                return 'secondary';
+            default:
+                return 'secondary';
+        }
     }
     
-    public function isFinal(): bool {
-        return match($this) {
-            self::APPROVED, self::DENIED, self::CANCELLED => true,
-            self::PENDING => false
-        };
+    public static function isFinal(string $status): bool {
+        return in_array($status, [self::APPROVED, self::DENIED, self::CANCELLED]);
+    }
+    
+    public static function getAllStatuses(): array {
+        return [self::PENDING, self::APPROVED, self::DENIED, self::CANCELLED];
     }
 }

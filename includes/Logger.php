@@ -169,10 +169,10 @@ class Logger {
     }
     
     /**
-     * Log a message using LogLevel enum (PHP 8.1+)
+     * Log a message using LogLevel constants
      */
-    public static function logWithLevel(LogLevel $level, $message, $context = []) {
-        self::log($level->value, $message, $context);
+    public static function logWithLevel(int $level, $message, $context = []) {
+        self::log($level, $message, $context);
     }
     
     /**

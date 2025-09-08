@@ -41,7 +41,7 @@ define('SMTP_FROM_NAME', 'District 8 Travel League');
 
 // File Upload Configuration
 define('UPLOAD_MAX_SIZE', 5242880); // 5MB
-define('ALLOWED_FILE_TYPES', ['pdf', 'doc', 'docx', 'txt']);
+const ALLOWED_FILE_TYPES = ['pdf', 'doc', 'docx', 'txt'];
 
 // Timezone
 date_default_timezone_set('America/New_York');
