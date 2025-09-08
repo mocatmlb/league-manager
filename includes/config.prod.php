@@ -10,36 +10,38 @@ if (!defined('D8TL_APP')) {
     die('Direct access not permitted');
 }
 
-// Database Configuration - Production (MUST BE CONFIGURED)
-define('DB_HOST', 'localhost'); // Usually localhost for shared hosting
-define('DB_NAME', 'moc835_d8tl_prod');
-define('DB_USER', 'REPLACE_WITH_ACTUAL_DB_USERNAME');
-define('DB_PASS', 'REPLACE_WITH_ACTUAL_DB_PASSWORD');
-define('DB_CHARSET', 'utf8mb4');
+// Load environment variables from .htaccess SetEnv directives
+require_once __DIR__ . '/env-loader.php';
 
-// Application Configuration - Production
-define('APP_NAME', 'District 8 Travel League');
-define('APP_VERSION', '2.0.0-MVP');
-define('APP_URL', 'http://district8travelleague.com');
-define('APP_ENV', 'production');
+// Database Configuration - Load from environment variables set in .htaccess
+define('DB_HOST', EnvLoader::get('DB_HOST', 'localhost'));
+define('DB_NAME', EnvLoader::get('DB_NAME', 'moc835_d8tl_prod'));
+define('DB_USER', EnvLoader::get('DB_USER', 'REPLACE_WITH_ACTUAL_DB_USERNAME'));
+define('DB_PASS', EnvLoader::get('DB_PASS', 'REPLACE_WITH_ACTUAL_DB_PASSWORD'));
+define('DB_CHARSET', EnvLoader::get('DB_CHARSET', 'utf8mb4'));
 
-// Security Configuration - Production
-define('SESSION_TIMEOUT', 3600); // 1 hour for coaches
-define('ADMIN_SESSION_TIMEOUT', 7200); // 2 hours for admin
-define('CSRF_TOKEN_NAME', 'd8tl_csrf_token');
+// Application Configuration - Load from environment variables
+define('APP_NAME', EnvLoader::get('APP_NAME', 'District 8 Travel League'));
+define('APP_VERSION', EnvLoader::get('APP_VERSION', '2.0.0-MVP'));
+define('APP_URL', EnvLoader::get('APP_URL', 'http://district8travelleague.com'));
+define('APP_ENV', EnvLoader::get('APP_ENV', 'production'));
 
-// Production Passwords (CRITICAL: MUST BE CHANGED BEFORE DEPLOYMENT)
-// Use strong passwords with mixed case, numbers, and special characters
-define('DEFAULT_ADMIN_PASSWORD', 'REPLACE_WITH_STRONG_ADMIN_PASSWORD_MIN_12_CHARS');
-define('DEFAULT_COACHES_PASSWORD', 'REPLACE_WITH_STRONG_COACHES_PASSWORD_MIN_12_CHARS');
+// Security Configuration - Load from environment variables
+define('SESSION_TIMEOUT', EnvLoader::getInt('SESSION_TIMEOUT', 3600)); // 1 hour for coaches
+define('ADMIN_SESSION_TIMEOUT', EnvLoader::getInt('ADMIN_SESSION_TIMEOUT', 7200)); // 2 hours for admin
+define('CSRF_TOKEN_NAME', EnvLoader::get('CSRF_TOKEN_NAME', 'd8tl_csrf_token'));
 
-// Email Configuration - Production
-define('SMTP_HOST', 'mail.asmallorange.com');
-define('SMTP_PORT', 587);
-define('SMTP_USERNAME', 'REPLACE_WITH_ACTUAL_EMAIL_ADDRESS');
-define('SMTP_PASSWORD', 'REPLACE_WITH_ACTUAL_EMAIL_PASSWORD');
-define('SMTP_FROM_EMAIL', 'noreply@district8travelleague.com');
-define('SMTP_FROM_NAME', 'District 8 Travel League');
+// Default Passwords - Load from environment variables (CHANGE IN .htaccess!)
+define('DEFAULT_ADMIN_PASSWORD', EnvLoader::get('DEFAULT_ADMIN_PASSWORD', 'CHANGE_THIS_ADMIN_PASSWORD'));
+define('DEFAULT_COACHES_PASSWORD', EnvLoader::get('DEFAULT_COACHES_PASSWORD', 'CHANGE_THIS_COACHES_PASSWORD'));
+
+// Email Configuration - Load from environment variables
+define('SMTP_HOST', EnvLoader::get('SMTP_HOST', 'mail.asmallorange.com'));
+define('SMTP_PORT', EnvLoader::getInt('SMTP_PORT', 587));
+define('SMTP_USERNAME', EnvLoader::get('SMTP_USERNAME', 'REPLACE_WITH_ACTUAL_EMAIL_ADDRESS'));
+define('SMTP_PASSWORD', EnvLoader::get('SMTP_PASSWORD', 'REPLACE_WITH_ACTUAL_EMAIL_PASSWORD'));
+define('SMTP_FROM_EMAIL', EnvLoader::get('SMTP_FROM_EMAIL', 'noreply@district8travelleague.com'));
+define('SMTP_FROM_NAME', EnvLoader::get('SMTP_FROM_NAME', 'District 8 Travel League'));
 
 // File Upload Configuration
 define('UPLOAD_MAX_SIZE', 5242880); // 5MB

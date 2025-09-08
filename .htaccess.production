@@ -1,4 +1,9 @@
-# District 8 Travel League - URL Rewriting and Security
+# District 8 Travel League - Production .htaccess Template
+# 
+# INSTRUCTIONS:
+# 1. Copy this file to .htaccess on your production server
+# 2. Replace all REPLACE_WITH_ACTUAL_* values with your real credentials
+# 3. This file contains sensitive information - keep it secure!
 
 # Enable URL Rewriting
 RewriteEngine On
@@ -55,8 +60,7 @@ php_value session.cookie_secure 0
 php_value session.use_strict_mode 1
 
 # Environment Variables for Production (SECURE - NOT WEB ACCESSIBLE)
-# These values will be loaded automatically by PHP
-# REPLACE WITH YOUR ACTUAL CREDENTIALS BEFORE DEPLOYMENT
+# REPLACE ALL PLACEHOLDER VALUES WITH YOUR ACTUAL CREDENTIALS
 
 # Database Configuration
 SetEnv DB_HOST localhost
@@ -84,6 +88,6 @@ SetEnv SESSION_TIMEOUT 3600
 SetEnv ADMIN_SESSION_TIMEOUT 7200
 SetEnv CSRF_TOKEN_NAME d8tl_csrf_token
 
-# Default Passwords (CHANGE THESE!)
-SetEnv DEFAULT_ADMIN_PASSWORD CHANGE_THIS_ADMIN_PASSWORD
-SetEnv DEFAULT_COACHES_PASSWORD CHANGE_THIS_COACHES_PASSWORD
+# Default Passwords (CHANGE THESE TO STRONG PASSWORDS!)
+SetEnv DEFAULT_ADMIN_PASSWORD REPLACE_WITH_STRONG_ADMIN_PASSWORD
+SetEnv DEFAULT_COACHES_PASSWORD REPLACE_WITH_STRONG_COACHES_PASSWORD
