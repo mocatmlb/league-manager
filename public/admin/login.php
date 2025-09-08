@@ -3,7 +3,7 @@
  * District 8 Travel League - Admin Login Page
  */
 
-require_once '../../includes/bootstrap.php';
+require_once dirname(dirname(__DIR__)) . '/includes/bootstrap.php';
 
 $error = '';
 $success = '';

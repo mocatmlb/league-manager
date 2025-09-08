@@ -1,5 +1,5 @@
 <?php
-require_once '../../../includes/bootstrap.php';
+require_once dirname(dirname(dirname(__DIR__))) . '/includes/bootstrap.php';
 
 // Check admin authentication
 if (!Auth::isAdmin()) {

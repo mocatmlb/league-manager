@@ -3,7 +3,7 @@
  * District 8 Travel League - Public Standings Page
  */
 
-require_once '../includes/bootstrap.php';
+require_once dirname(__DIR__) . '/includes/bootstrap.php';
 
 // Initialize filter helpers
 FilterHelpers::init();

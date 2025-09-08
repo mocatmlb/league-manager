@@ -3,7 +3,7 @@
  * District 8 Travel League - Admin Logout
  */
 
-require_once '../../includes/bootstrap.php';
+require_once dirname(dirname(__DIR__)) . '/includes/bootstrap.php';
 
 // Log the logout activity
 if (Auth::isAdmin()) {

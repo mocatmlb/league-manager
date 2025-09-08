@@ -3,7 +3,7 @@
  * District 8 Travel League - Comprehensive Games Management
  */
 
-require_once '../../../includes/bootstrap.php';
+require_once dirname(dirname(dirname(__DIR__))) . '/includes/bootstrap.php';
 
 // Require admin authentication
 Auth::requireAdmin();

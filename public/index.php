@@ -3,7 +3,7 @@
  * District 8 Travel League - Public Home Page
  */
 
-require_once '../includes/bootstrap.php';
+require_once dirname(__DIR__) . '/includes/bootstrap.php';
 
 // Get today's games and upcoming games
 $todaysGames = getTodaysGames();
@@ -21,10 +21,10 @@ $pageTitle = "Home - " . APP_NAME;
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $pageTitle; ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="../assets/css/style.css" rel="stylesheet">
+    <link href="<?php echo dirname($_SERVER['SCRIPT_NAME']); ?>/../assets/css/style.css" rel="stylesheet">
 </head>
 <body>
-    <?php include '../includes/nav.php'; ?>
+    <?php include dirname(__DIR__) . '/includes/nav.php'; ?>
 
     <!-- Main Content -->
     <div class="container mt-4">
@@ -130,7 +130,7 @@ $pageTitle = "Home - " . APP_NAME;
                                     <div class="card-body">
                                         <h5 class="card-title"><?php echo sanitize($doc['title']); ?></h5>
                                         <p class="card-text text-muted"><?php echo sanitize($doc['description']); ?></p>
-                                        <a href="../uploads/documents/<?php echo sanitize($doc['filename']); ?>" 
+                                        <a href="<?php echo dirname($_SERVER['SCRIPT_NAME']); ?>/../uploads/documents/<?php echo sanitize($doc['filename']); ?>" 
                                            class="btn btn-primary btn-sm" target="_blank">Download</a>
                                     </div>
                                 </div>

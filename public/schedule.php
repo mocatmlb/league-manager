@@ -3,7 +3,7 @@
  * District 8 Travel League - Public Schedule Page
  */
 
-require_once '../includes/bootstrap.php';
+require_once dirname(__DIR__) . '/includes/bootstrap.php';
 
 // Initialize filter helpers
 FilterHelpers::init();
@@ -55,12 +55,12 @@ $pageTitle = "Schedule - " . APP_NAME;
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $pageTitle; ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="../assets/css/style.css" rel="stylesheet">
+    <link href="<?php echo dirname($_SERVER['SCRIPT_NAME']); ?>/../assets/css/style.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-    <?php include '../includes/nav.php'; ?>
+    <?php include dirname(__DIR__) . '/includes/nav.php'; ?>
 
     <!-- Main Content -->
     <div class="container mt-4">
