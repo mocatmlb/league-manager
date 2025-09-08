@@ -6,8 +6,8 @@ This guide walks you through setting up the Git-based deployment system for the 
 
 - A Small Orange shared hosting account with cPanel access
 - GitHub repository for the D8TL project
-- Domain: `district8travelleague.com`
-- Subdomain for staging: `staging.district8travelleague.com`
+- Domain: `http://district8travelleague.com`
+- Subdomain for staging: `http://staging.district8travelleague.com`
 
 ## Step 1: Create Subdomain for Staging
 

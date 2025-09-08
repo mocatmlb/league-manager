@@ -144,15 +144,16 @@ All core functionality tested and working:
 ### For Production Deployment:
 
 1. **PHP Version**: Ensure server runs PHP 8.1 or higher
-2. **php.ini Settings**: Add recommended OPcache/JIT settings:
+2. **Protocol**: Currently configured for HTTP (SSL certificate not yet installed)
+3. **php.ini Settings**: Add recommended OPcache/JIT settings:
    ```ini
    opcache.enable=1
    opcache.jit_buffer_size=256M
    opcache.jit=tracing
    opcache.validate_timestamps=0
    ```
-3. **Configuration**: Use `config.prod.php` for production
-4. **Composer**: Run `composer install --no-dev --optimize-autoloader`
+4. **Configuration**: Use `config.prod.php` for production
+5. **Composer**: Run `composer install --no-dev --optimize-autoloader`
 
 ### For Development:
 - Use `config.php` (development configuration)

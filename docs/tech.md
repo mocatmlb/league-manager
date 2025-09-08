@@ -191,9 +191,9 @@ define('ALLOWED_FILE_TYPES', ['pdf', 'doc', 'docx', 'txt']);
 // Timezone
 date_default_timezone_set('America/New_York');
 
-// Security Settings
+// Security Settings (HTTP compatible)
 ini_set('session.cookie_httponly', 1);
-ini_set('session.cookie_secure', 1); // For HTTPS
+ini_set('session.cookie_secure', 0); // Set to 1 when HTTPS is enabled
 ini_set('session.use_strict_mode', 1);
 ?>
 ```
@@ -202,7 +202,7 @@ ini_set('session.use_strict_mode', 1);
 - **PHP Version**: Set to 8.0+ via PHP Selector
 - **Database**: Create MySQL database and user via cPanel
 - **Email**: Configure email accounts for SMTP
-- **SSL**: Enable SSL certificate for secure connections
+- **SSL**: Optional - Enable SSL certificate for secure connections (currently using HTTP)
 - **File Permissions**: Set appropriate permissions for upload directories
 
 ## Development Setup
@@ -308,8 +308,8 @@ define('APP_ENV', 'staging');
 ## Git-Based Deployment Architecture
 
 ### Environment Overview
-- **Production**: `district8travelleague.com` (main branch)
-- **Staging**: `staging.district8travelleague.com` (staging branch)
+- **Production**: `http://district8travelleague.com` (main branch)
+- **Staging**: `http://staging.district8travelleague.com` (staging branch)
 - **Development**: Local environment (develop branch)
 
 ### Automated Deployment Configuration (.cpanel.yml)

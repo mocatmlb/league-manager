@@ -93,10 +93,10 @@ sed -i "s|dirname(dirname(__DIR__)) . '/includes/bootstrap\.php'|dirname(__DIR__
 
 ## Verification
 After applying the fixes:
-1. Visit `https://district8travelleague.com/` - should load without errors
-2. Visit `https://district8travelleague.com/schedule.php` - should load without errors
-3. Visit `https://district8travelleague.com/standings.php` - should load without errors
-4. Visit `https://district8travelleague.com/coaches/login.php` - should load without errors
+1. Visit `http://district8travelleague.com/` - should load without errors
+2. Visit `http://district8travelleague.com/schedule.php` - should load without errors
+3. Visit `http://district8travelleague.com/standings.php` - should load without errors
+4. Visit `http://district8travelleague.com/coaches/login.php` - should load without errors
 
 ## Future Deployments
 The `.cpanel.yml` file has been updated to automatically apply these fixes during future deployments, so this manual fix only needs to be done once.

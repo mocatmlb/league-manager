@@ -92,8 +92,8 @@ The system uses **automated Git-based deployment** with A Small Orange shared ho
 For detailed step-by-step remote installation instructions, see the **[Git Deployment Setup Guide](./GIT_DEPLOYMENT_SETUP.md)**.
 
 #### Environment Configuration
-- **Production**: `district8travelleague.com` (main branch)
-- **Staging**: `staging.district8travelleague.com` (staging branch)
+- **Production**: `http://district8travelleague.com` (main branch)
+- **Staging**: `http://staging.district8travelleague.com` (staging branch)
 - **Development**: Local environment (develop branch)
 
 ⚠️ **CRITICAL SECURITY NOTE**: All placeholder values in configuration files MUST be replaced with actual credentials before deployment. Never commit real credentials to version control.

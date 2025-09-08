@@ -7,8 +7,8 @@ This document summarizes the comprehensive Git-based deployment strategy develop
 ## Key Components
 
 ### 1. Multi-Environment Setup
-- **Production**: `district8travelleague.com` (main branch)
-- **Staging**: `staging.district8travelleague.com` (staging branch)  
+- **Production**: `http://district8travelleague.com` (main branch)
+- **Staging**: `http://staging.district8travelleague.com` (staging branch)  
 - **Development**: Local environment (develop branch)
 
 ### 2. Automated Deployment Pipeline

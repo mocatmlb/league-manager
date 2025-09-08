@@ -20,7 +20,7 @@ define('DB_CHARSET', 'utf8mb4');
 // Application Configuration - Production
 define('APP_NAME', 'District 8 Travel League');
 define('APP_VERSION', '2.0.0-MVP');
-define('APP_URL', 'https://district8travelleague.com');
+define('APP_URL', 'http://district8travelleague.com');
 define('APP_ENV', 'production');
 
 // Security Configuration - Production
@@ -64,11 +64,11 @@ ini_set('zend.assertions', -1); // Disable assertions in production for performa
 // opcache.jit=tracing
 // opcache.validate_timestamps=0
 
-// Session Configuration - Production (secure)
+// Session Configuration - Production (HTTP compatible)
 ini_set('session.cookie_httponly', 1);
-ini_set('session.cookie_secure', 1); // HTTPS required
+ini_set('session.cookie_secure', 0); // Set to 1 when HTTPS is enabled
 ini_set('session.use_strict_mode', 1);
-ini_set('session.cookie_samesite', 'Strict');
+ini_set('session.cookie_samesite', 'Lax'); // Lax for HTTP compatibility
 
 // Additional Production Security
 ini_set('expose_php', 0);
