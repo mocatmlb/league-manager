@@ -1,0 +1,447 @@
+# District 8 Travel League - Cursor Rules
+
+
+## Code Change Quality Assurance Rules
+
+### Rule 1: Mandatory QA Testing for All Code Changes
+
+**CRITICAL**: Every code change, regardless of size or scope, MUST undergo comprehensive QA testing before completion. No code changes are exempt from these requirements.
+
+#### A. Pre-Change Analysis Requirements
+Before making ANY code changes, you MUST:
+
+1. **Impact Assessment**: Analyze all potential impacts of the change
+   - [ ] Identify all affected files, functions, and components
+   - [ ] Map dependencies and integration points
+   - [ ] Assess security implications
+   - [ ] Evaluate performance impact
+   - [ ] Check for breaking changes
+
+2. **Test Planning**: Create a comprehensive test plan
+   - [ ] Define test scenarios for new functionality
+   - [ ] Identify regression test requirements
+   - [ ] Plan integration testing approach
+   - [ ] Document expected outcomes
+
+#### B. Mandatory Testing Categories
+
+**1. Functional Testing**
+- [ ] **Core Functionality**: Verify all new/modified features work as intended
+- [ ] **User Workflows**: Test complete user journeys end-to-end
+- [ ] **Edge Cases**: Test boundary conditions and error scenarios
+- [ ] **Input Validation**: Verify all data inputs are properly validated
+- [ ] **Output Verification**: Confirm all outputs match specifications
+
+**2. Data Integrity Testing**
+- [ ] **Data Validation**: Verify all data meets defined constraints and formats
+- [ ] **Database Integrity**: Check foreign key relationships and constraints
+- [ ] **Data Consistency**: Ensure data remains consistent across all operations
+- [ ] **Transaction Integrity**: Verify ACID properties are maintained
+- [ ] **Data Migration**: Test any schema or data migration scripts
+- [ ] **Backup/Recovery**: Verify data can be backed up and restored correctly
+
+**3. Integration Testing**
+- [ ] **API Integration**: Test all API endpoints and data exchange
+- [ ] **Database Integration**: Verify all database operations work correctly
+- [ ] **Third-party Services**: Test external service integrations
+- [ ] **Cross-Feature Integration**: Verify features work together properly
+- [ ] **Authentication Integration**: Test user authentication and authorization
+
+**4. Security Testing**
+- [ ] **Access Control**: Verify role-based permissions work correctly
+- [ ] **Input Sanitization**: Test for SQL injection, XSS, and other vulnerabilities
+- [ ] **Authentication**: Verify login/logout and session management
+- [ ] **Authorization**: Test permission checks for all protected resources
+- [ ] **Data Protection**: Verify sensitive data is properly encrypted/protected
+
+**5. Performance Testing**
+- [ ] **Load Testing**: Test system behavior under expected load
+- [ ] **Response Time**: Verify acceptable response times for all operations
+- [ ] **Resource Usage**: Monitor CPU, memory, and database performance
+- [ ] **Scalability**: Test system behavior as data/users increase
+- [ ] **Database Performance**: Verify query performance and indexing
+
+**6. User Interface Testing**
+- [ ] **Usability**: Verify interfaces are intuitive and user-friendly
+- [ ] **Accessibility**: Test compliance with accessibility standards
+- [ ] **Cross-browser**: Test in multiple browsers and devices
+- [ ] **Responsive Design**: Verify mobile and tablet compatibility
+- [ ] **Form Validation**: Test all form inputs and error messages
+
+#### C. Link and Reference Validation
+
+**MANDATORY** for every code change:
+
+1. **Internal Links Testing**
+   - [ ] Test ALL internal navigation links
+   - [ ] Verify relative path references work correctly
+   - [ ] Check form action URLs and redirects
+   - [ ] Test AJAX endpoints and API calls
+   - [ ] Verify file upload/download links
+
+2. **External Links Testing**
+   - [ ] Test all external service integrations
+   - [ ] Verify third-party API connections
+   - [ ] Check external resource references (CDNs, images, etc.)
+   - [ ] Test email links and templates
+
+3. **Database Reference Validation**
+   - [ ] Verify all foreign key relationships
+   - [ ] Test cascade operations (delete, update)
+   - [ ] Check referential integrity constraints
+   - [ ] Validate lookup table references
+
+#### D. Data Completeness and Consistency Checks
+
+**Required for ALL data-related changes:**
+
+1. **Completeness Validation**
+   - [ ] Verify all required fields are populated
+   - [ ] Check for missing or null values where not allowed
+   - [ ] Validate data migration completeness
+   - [ ] Ensure all related records are created/updated
+   - [ ] Verify backup data integrity
+
+2. **Consistency Validation**
+   - [ ] Check data consistency across related tables
+   - [ ] Verify calculated fields match their sources
+   - [ ] Validate date/time consistency and timezone handling
+   - [ ] Check enumeration values match defined lists
+   - [ ] Verify data format consistency (phone numbers, emails, etc.)
+
+3. **Business Rule Validation**
+   - [ ] Verify business logic constraints are enforced
+   - [ ] Check workflow state transitions
+   - [ ] Validate permission-based data access
+   - [ ] Test audit trail completeness
+   - [ ] Verify reporting data accuracy
+
+#### E. Regression Testing Requirements
+
+**MANDATORY** for every code change:
+
+1. **Existing Feature Testing**
+   - [ ] Test ALL existing features that could be affected
+   - [ ] Verify no existing functionality is broken
+   - [ ] Check that performance hasn't degraded
+   - [ ] Test all user roles and permissions
+   - [ ] Verify existing integrations still work
+
+2. **Cross-Platform Testing**
+   - [ ] Test on all supported browsers
+   - [ ] Verify mobile device compatibility
+   - [ ] Check different screen resolutions
+   - [ ] Test with different user agents
+
+#### F. Error Handling and Recovery Testing
+
+1. **Error Scenario Testing**
+   - [ ] Test invalid input handling
+   - [ ] Verify graceful error messages
+   - [ ] Test system behavior during failures
+   - [ ] Check error logging and monitoring
+   - [ ] Verify user-friendly error displays
+
+2. **Recovery Testing**
+   - [ ] Test system recovery from failures
+   - [ ] Verify data rollback capabilities
+   - [ ] Check backup and restore procedures
+   - [ ] Test failover mechanisms
+
+#### G. Documentation and Code Quality Checks
+
+1. **Code Quality Validation**
+   - [ ] Run all linting tools and fix issues
+   - [ ] Verify code follows project standards
+   - [ ] Check for security vulnerabilities
+   - [ ] Validate code comments and documentation
+   - [ ] Ensure proper error handling
+
+2. **Documentation Updates**
+   - [ ] Update technical documentation
+   - [ ] Verify API documentation accuracy
+   - [ ] Update user guides if needed
+   - [ ] Check inline code comments
+   - [ ] Update deployment instructions
+
+### Rule 2: QA Testing Execution Process
+
+#### A. Testing Execution Order
+Execute tests in this specific order:
+
+1. **Pre-deployment Testing** (Development Environment)
+   - Unit tests for individual components
+   - Integration tests for component interactions
+   - Functional tests for complete workflows
+   - Security and performance testing
+
+2. **Staging Environment Testing**
+   - Full regression testing suite
+   - User acceptance testing scenarios
+   - Load and stress testing
+   - Cross-browser and device testing
+
+3. **Production Deployment Validation**
+   - Smoke tests after deployment
+   - Critical path verification
+   - Performance monitoring
+   - Error rate monitoring
+
+#### B. Test Documentation Requirements
+
+For every code change, document:
+
+1. **Test Plan**
+   - [ ] List all test scenarios
+   - [ ] Define expected outcomes
+   - [ ] Specify test data requirements
+   - [ ] Document test environment setup
+
+2. **Test Results**
+   - [ ] Record all test executions
+   - [ ] Document any failures and resolutions
+   - [ ] Capture performance metrics
+   - [ ] Note any deviations from expected behavior
+
+3. **Sign-off Requirements**
+   - [ ] Technical validation complete
+   - [ ] Security review passed
+   - [ ] Performance benchmarks met
+   - [ ] Documentation updated
+
+### Rule 3: QA Failure Response Protocol
+
+#### When QA Testing Fails:
+
+1. **Immediate Actions**
+   - [ ] Stop deployment process immediately
+   - [ ] Document the failure in detail
+   - [ ] Assess impact and risk level
+   - [ ] Notify relevant stakeholders
+
+2. **Resolution Process**
+   - [ ] Fix the identified issues
+   - [ ] Re-run complete test suite
+   - [ ] Verify fix doesn't introduce new issues
+   - [ ] Update test cases if needed
+
+3. **Prevention Measures**
+   - [ ] Analyze root cause of failure
+   - [ ] Update testing procedures if needed
+   - [ ] Add new test cases to prevent recurrence
+   - [ ] Review and improve development process
+
+### Rule 4: Continuous Quality Monitoring
+
+#### Post-Deployment Monitoring
+
+After every code change deployment:
+
+1. **Performance Monitoring**
+   - [ ] Monitor system performance metrics
+   - [ ] Track error rates and response times
+   - [ ] Check database performance
+   - [ ] Monitor user experience metrics
+
+2. **Functional Monitoring**
+   - [ ] Verify critical workflows work correctly
+   - [ ] Monitor user feedback and reports
+   - [ ] Check integration points
+   - [ ] Validate data integrity
+
+3. **Security Monitoring**
+   - [ ] Monitor for security incidents
+   - [ ] Check access logs for anomalies
+   - [ ] Verify security controls are working
+   - [ ] Monitor for unauthorized access attempts
+
+## QA Testing Enforcement
+
+These QA testing rules are **MANDATORY** and **NON-NEGOTIABLE**. The assistant MUST:
+
+1. **Before ANY Code Change**:
+   - Create and execute a comprehensive test plan
+   - Document all testing procedures and results
+   - Verify all links, data integrity, and system functionality
+   - Complete full regression testing
+
+2. **During Code Changes**:
+   - Test incrementally as changes are made
+   - Verify each component works before proceeding
+   - Maintain test documentation throughout the process
+   - Address any issues immediately
+
+3. **After Code Changes**:
+   - Execute complete test suite
+   - Verify all functionality works as expected
+   - Document final test results and sign-off
+   - Monitor system performance post-deployment
+
+4. **Quality Gates**:
+   - No code changes proceed without passing ALL QA tests
+   - Any test failure requires immediate resolution
+   - All testing must be documented and verifiable
+   - Performance and security standards must be met
+
+**FAILURE TO FOLLOW THESE QA RULES WILL RESULT IN:**
+- Immediate rollback of changes
+- Complete re-testing requirement
+- Additional security and performance audits
+- Enhanced monitoring and validation procedures
+
+The goal is to ensure **ZERO DEFECTS** in production and maintain the highest standards of quality, security, and performance for all code changes.
+
+## NEW RULE 5: Mandatory Work Verification Protocol
+
+**CRITICAL**: After making ANY changes (code, data, configuration), you MUST verify the changes work in the actual application UI, not just in database queries.
+
+### A. UI Verification Requirements
+
+For EVERY change that affects user-visible functionality:
+
+1. **Direct UI Testing**
+   - [ ] Access the actual web application in a browser
+   - [ ] Navigate to the affected pages/features
+   - [ ] Verify the changes appear correctly in the UI
+   - [ ] Test all interactive elements (buttons, forms, links)
+   - [ ] Confirm data displays properly formatted
+
+2. **End-to-End User Journey Testing**
+   - [ ] Test complete user workflows from start to finish
+   - [ ] Verify all steps in the process work correctly
+   - [ ] Check that data flows properly between pages
+   - [ ] Confirm error handling works in the UI
+   - [ ] Test different user roles and permissions
+
+3. **Cross-Page Consistency**
+   - [ ] Check that changes appear consistently across all relevant pages
+   - [ ] Verify navigation between related pages works
+   - [ ] Confirm data updates are reflected everywhere
+   - [ ] Test that filters and search work correctly
+
+### B. Application Access Methods
+
+When verifying changes, use these methods:
+
+1. **Local Development Server**
+   - Start the application server (php -S, Apache, nginx, etc.)
+   - Access via localhost URL
+   - Test in actual browser environment
+
+2. **Database-Driven Pages**
+   - Access pages that display the modified data
+   - Test filtering, sorting, and search functionality
+   - Verify pagination works correctly
+   - Check that empty states are handled properly
+
+3. **API Endpoint Testing**
+   - Test API endpoints directly if applicable
+   - Verify JSON responses are correct
+   - Check error responses and status codes
+   - Test authentication and authorization
+
+### C. Verification Documentation
+
+For every verification session, document:
+
+1. **Test Environment**
+   - [ ] Browser and version used
+   - [ ] Server configuration
+   - [ ] Database state
+   - [ ] User account/role used for testing
+
+2. **Test Results**
+   - [ ] Screenshots of successful functionality
+   - [ ] List of pages/features tested
+   - [ ] Any issues discovered and resolved
+   - [ ] Performance observations
+
+3. **Sign-off Checklist**
+   - [ ] All affected UI elements work correctly
+   - [ ] Data displays properly formatted
+   - [ ] User workflows complete successfully
+   - [ ] No console errors or warnings
+   - [ ] Performance is acceptable
+
+### D. Failure Response Protocol
+
+If UI verification reveals issues:
+
+1. **Immediate Actions**
+   - [ ] Document the specific UI problem
+   - [ ] Identify the root cause (code, data, configuration)
+   - [ ] Determine impact on other features
+   - [ ] Create fix plan with verification steps
+
+2. **Resolution Process**
+   - [ ] Fix the underlying issue
+   - [ ] Re-test the fix in the UI
+   - [ ] Verify no new issues were introduced
+   - [ ] Complete full verification cycle again
+
+### E. Mandatory Verification Scenarios
+
+You MUST test these scenarios for any data or functionality changes:
+
+1. **Data Import/Migration Changes**
+   - [ ] View imported data in admin interfaces
+   - [ ] Check public-facing displays of the data
+   - [ ] Test filtering and searching the new data
+   - [ ] Verify reports and analytics include the data
+
+2. **Database Schema Changes**
+   - [ ] Test all forms that use modified tables
+   - [ ] Verify display pages show new/changed fields
+   - [ ] Check that relationships display correctly
+   - [ ] Test data validation and error handling
+
+3. **Configuration Changes**
+   - [ ] Test affected features in the UI
+   - [ ] Verify settings changes take effect
+   - [ ] Check that defaults work correctly
+   - [ ] Test configuration validation
+
+### F. Tools and Commands for Verification
+
+Use these tools to properly verify changes:
+
+1. **Start Local Server**
+   ```bash
+   # PHP built-in server
+   php -S localhost:8000 -t public/
+   
+   # Or Apache/nginx if configured
+   ```
+
+2. **Browser Testing**
+   - Use developer tools to check for console errors
+   - Test in multiple browsers (Chrome, Firefox, Safari)
+   - Use responsive design mode for mobile testing
+   - Check network tab for failed requests
+
+3. **Database Verification**
+   ```sql
+   -- Verify data exists and is properly formatted
+   SELECT * FROM table_name LIMIT 10;
+   
+   -- Check relationships work
+   SELECT t1.*, t2.* FROM table1 t1 JOIN table2 t2 ON t1.id = t2.foreign_id;
+   ```
+
+## Enforcement of Rule 5
+
+This verification rule is **MANDATORY** and **NON-NEGOTIABLE**. The assistant MUST:
+
+1. **Never claim something works without UI verification**
+2. **Always test in the actual application interface**
+3. **Document verification steps and results**
+4. **Fix any issues discovered during verification**
+5. **Re-verify after making fixes**
+
+**FAILURE TO FOLLOW THIS RULE WILL RESULT IN:**
+- Incomplete or broken functionality
+- User-facing errors and poor experience
+- Data that exists but isn't accessible
+- Features that work in database but fail in UI
+
+The goal is to ensure that ALL changes work correctly from the end user's perspective, not just in the backend systems.

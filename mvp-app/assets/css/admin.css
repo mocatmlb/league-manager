@@ -1,0 +1,186 @@
+/* Admin Styles */
+
+/* Sidebar */
+.sidebar {
+    position: fixed;
+    top: 56px; /* Height of navbar */
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    padding: 0;
+    box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+    background-color: #f8f9fa;
+}
+
+@media (max-width: 767.98px) {
+    .sidebar {
+        position: static;
+        height: auto;
+        padding-top: 1rem;
+    }
+}
+
+/* Settings Sidebar Styles */
+.settings-sidebar .list-group-item {
+    border-radius: 0;
+    border-left: 3px solid transparent;
+    color: #495057;
+    background-color: transparent;
+}
+
+.settings-sidebar .list-group-item.active {
+    background-color: #f8f9fa;
+    color: #007bff;
+    border-left-color: #007bff;
+    font-weight: 500;
+    border-bottom: 1px solid rgba(0,0,0,.125);
+}
+
+.settings-sidebar .list-group-item:hover {
+    background-color: #f8f9fa;
+    border-left-color: #dee2e6;
+    color: #007bff;
+}
+
+.settings-sidebar .sub-item {
+    padding-left: 2.5rem;
+}
+
+.settings-sidebar .sub-item.active {
+    background-color: #f8f9fa;
+    color: #007bff;
+    border-left-color: #007bff;
+}
+
+/* Override Bootstrap's default active state */
+.list-group-item.active {
+    z-index: 2;
+    background-color: #f8f9fa !important;
+    border-color: rgba(0,0,0,.125);
+}
+
+/* Main Content Area */
+.main-content {
+    margin-left: 0;
+    padding: 1.5rem;
+}
+
+@media (min-width: 768px) {
+    .main-content {
+        margin-left: 16.666667%;
+    }
+}
+
+/* Card Styles */
+.card {
+    margin-bottom: 1.5rem;
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card-header {
+    background-color: #fff;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+    padding: 1rem;
+}
+
+.card-body {
+    padding: 1.25rem;
+}
+
+/* Form Styles */
+.form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.form-text {
+    color: #6c757d;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+/* Button Styles */
+.btn {
+    font-weight: 500;
+}
+
+.btn i {
+    margin-right: 0.5rem;
+}
+
+/* Alert Styles */
+.alert {
+    margin-bottom: 1.5rem;
+}
+
+.alert i {
+    margin-right: 0.5rem;
+}
+
+/* Section Header */
+.section-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.section-header h1 {
+    margin-bottom: 0;
+    font-size: 1.75rem;
+    font-weight: 500;
+}
+
+/* Accordion Styles */
+.accordion-button {
+    font-weight: 500;
+}
+
+.accordion-button:not(.collapsed) {
+    background-color: #e9ecef;
+    color: #007bff;
+}
+
+/* Table Styles */
+.table th {
+    font-weight: 500;
+    background-color: #f8f9fa;
+}
+
+/* Status Badges */
+.badge {
+    font-weight: 500;
+    padding: 0.5em 0.75em;
+}
+
+/* Utility Classes */
+.text-muted {
+    color: #6c757d !important;
+}
+
+.border-bottom {
+    border-bottom: 1px solid #dee2e6 !important;
+}
+
+/* Icons */
+.fa, .fas {
+    width: 1.25em;
+    text-align: center;
+    margin-right: 0.5rem;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 767.98px) {
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .section-header {
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+    }
+    
+    .section-header h1 {
+        font-size: 1.5rem;
+    }
+}

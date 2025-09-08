@@ -1,0 +1,46 @@
+---
+deployment:
+  tasks:
+    # Set deployment path based on environment
+    - export DEPLOYPATH=/home/$USER/public_html
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then export DEPLOYPATH=/home/$USER/public_html/staging; fi
+    
+    # Create necessary directories
+    - mkdir -p $DEPLOYPATH/logs
+    - mkdir -p $DEPLOYPATH/uploads/documents
+    - mkdir -p $DEPLOYPATH/backups
+    
+    # Set proper file permissions
+    - find $DEPLOYPATH -type d -exec chmod 755 {} \;
+    - find $DEPLOYPATH -type f -exec chmod 644 {} \;
+    - chmod 755 $DEPLOYPATH/database/migrate.php
+    - chmod 755 $DEPLOYPATH/scripts/*.php
+    
+    # Make upload directories writable
+    - chmod 777 $DEPLOYPATH/uploads
+    - chmod 777 $DEPLOYPATH/uploads/documents
+    - chmod 777 $DEPLOYPATH/logs
+    - chmod 777 $DEPLOYPATH/backups
+    
+    # Install/update Composer dependencies
+    - cd $DEPLOYPATH && /usr/local/bin/composer install --no-dev --optimize-autoloader
+    
+    # Copy environment-specific configuration
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then cp $DEPLOYPATH/includes/config.prod.php $DEPLOYPATH/includes/config.php; fi
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then cp $DEPLOYPATH/includes/config.staging.php $DEPLOYPATH/includes/config.php; fi
+    
+    # Backup database before migrations (production only)
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then /usr/local/bin/php $DEPLOYPATH/scripts/backup-database.php; fi
+    
+    # Run database migrations if needed
+    - if [ -f "$DEPLOYPATH/database/migrate.php" ]; then /usr/local/bin/php $DEPLOYPATH/database/migrate.php; fi
+    
+    # Clear any PHP opcache
+    - if [ -f "$DEPLOYPATH/scripts/clear-cache.php" ]; then /usr/local/bin/php $DEPLOYPATH/scripts/clear-cache.php; fi
+    
+    # Run post-deployment health checks
+    - if [ -f "$DEPLOYPATH/scripts/deployment-monitor.php" ]; then /usr/local/bin/php $DEPLOYPATH/scripts/deployment-monitor.php; fi
+    
+    # Log deployment
+    - echo "$(date): Successfully deployed $CPANEL_DEPLOYMENT_BRANCH branch to $DEPLOYPATH" >> $DEPLOYPATH/logs/deployment.log
+    - echo "Deployment completed for branch: $CPANEL_DEPLOYMENT_BRANCH"

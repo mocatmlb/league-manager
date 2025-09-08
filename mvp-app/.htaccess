@@ -1,0 +1,55 @@
+# District 8 Travel League - URL Rewriting and Security
+
+# Enable URL Rewriting
+RewriteEngine On
+
+# Security Headers
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options nosniff
+    Header always set X-Frame-Options DENY
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Prevent access to sensitive files
+<FilesMatch "\.(env|log|sql|md|txt)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Prevent access to includes directory from web
+RewriteRule ^includes/ - [F,L]
+
+# Prevent access to logs directory from web
+RewriteRule ^logs/ - [F,L]
+
+# Prevent access to database directory from web
+RewriteRule ^database/ - [F,L]
+
+# Redirect to public directory for web access
+RewriteCond %{REQUEST_URI} !^/public/
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ public/$1 [L]
+
+# Handle public directory requests
+RewriteCond %{REQUEST_URI} ^/public/
+RewriteRule ^public/(.*)$ $1 [L]
+
+# Default directory index
+DirectoryIndex index.php index.html
+
+# PHP Error Handling (disable for production)
+php_flag display_errors Off
+php_flag log_errors On
+php_value error_log logs/php_errors.log
+
+# File Upload Security
+php_value upload_max_filesize 10M
+php_value post_max_size 10M
+php_value max_execution_time 300
+
+# Session Security
+php_value session.cookie_httponly 1
+php_value session.cookie_secure 0
+php_value session.use_strict_mode 1

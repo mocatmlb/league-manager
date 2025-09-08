@@ -1,0 +1,6 @@
+game_no	season	comment	approved
+2025011	2025	CANCEL	3
+2025035	2025	Cancel	3
+2025041	2025	CANCEL	3
+2025053	2025	Must of been added by mistake.  Team cannot make this game.  This is 2nd request to cancel this game.	3
+2025102	2025	CANCEL	3

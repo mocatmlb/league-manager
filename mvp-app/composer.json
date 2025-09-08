@@ -1,0 +1,17 @@
+{
+    "name": "district8/travel-league-mvp",
+    "description": "District 8 Travel League MVP Application",
+    "type": "project",
+    "require": {
+        "php": ">=8.0",
+        "phpmailer/phpmailer": "^6.8"
+    },
+    "autoload": {
+        "psr-4": {
+            "D8TL\\": "includes/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true
+    }
+}
