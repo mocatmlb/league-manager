@@ -21,8 +21,18 @@ deployment:
     - cp composer.lock $DEPLOYPATH/
     - cp README.md $DEPLOYPATH/
     
-    # Replace index.php with production version for correct paths
-    - cp $DEPLOYPATH/public/index.prod.php $DEPLOYPATH/index.php
+    # Fix production paths for main public files
+    - sed -i 's|dirname(__DIR__) . '\''/includes/bootstrap\.php'\''|__DIR__ . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/index.php
+    - sed -i 's|dirname(__DIR__) . '\''/includes/bootstrap\.php'\''|__DIR__ . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/schedule.php
+    - sed -i 's|dirname(__DIR__) . '\''/includes/bootstrap\.php'\''|__DIR__ . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/standings.php
+    
+    # Fix production paths for coaches files
+    - sed -i 's|dirname(dirname(__DIR__)) . '\''/includes/bootstrap\.php'\''|dirname(__DIR__) . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/coaches/login.php
+    - sed -i 's|dirname(dirname(__DIR__)) . '\''/includes/bootstrap\.php'\''|dirname(__DIR__) . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/coaches/logout.php
+    - sed -i 's|dirname(dirname(__DIR__)) . '\''/includes/bootstrap\.php'\''|dirname(__DIR__) . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/coaches/score-input.php
+    - sed -i 's|dirname(dirname(__DIR__)) . '\''/includes/bootstrap\.php'\''|dirname(__DIR__) . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/coaches/schedule-change.php
+    - sed -i 's|dirname(dirname(__DIR__)) . '\''/includes/bootstrap\.php'\''|dirname(__DIR__) . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/coaches/dashboard.php
+    - sed -i 's|dirname(dirname(__DIR__)) . '\''/includes/bootstrap\.php'\''|dirname(__DIR__) . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/coaches/contacts.php
     
     # Copy .htaccess file (MANDATORY for proper routing)
     - cp .htaccess $DEPLOYPATH/

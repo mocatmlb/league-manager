@@ -3,7 +3,7 @@
  * District 8 Travel League - Coaches Dashboard
  */
 
-require_once dirname(__DIR__) . '/includes/bootstrap.php';
+require_once dirname(dirname(__DIR__)) . '/includes/bootstrap.php';
 
 // Require coach authentication
 Auth::requireCoach();
