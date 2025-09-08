@@ -145,6 +145,11 @@ public/build/
 .gitleaks.toml
 security-scan-results/
 
+# Documentation (ignore all except essential files)
+docs/*.md
+!docs/requirements.md
+!docs/tech.md
+
 # Backup files
 *.bak
 *.backup
