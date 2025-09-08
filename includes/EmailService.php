@@ -438,8 +438,8 @@ class EmailService {
     private function decryptPassword($encryptedPassword) {
         // For MVP, we'll use base64 encoding (not secure, but functional)
         // In production, use proper encryption with openssl_decrypt
-        if ($encryptedPassword === 'ENCRYPTED_PASSWORD_PLACEHOLDER') {
-            return ''; // Return empty for placeholder
+        if ($encryptedPassword === null || $encryptedPassword === 'ENCRYPTED_PASSWORD_PLACEHOLDER') {
+            return ''; // Return empty for placeholder or null
         }
         
         return base64_decode($encryptedPassword);

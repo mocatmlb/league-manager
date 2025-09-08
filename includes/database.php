@@ -11,8 +11,8 @@ if (!defined('D8TL_APP')) {
 }
 
 class Database {
-    private static $instance = null;
-    private $connection;
+    private static ?Database $instance = null;
+    private readonly PDO $connection;
     
     private function __construct() {
         try {

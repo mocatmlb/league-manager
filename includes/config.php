@@ -50,7 +50,23 @@ date_default_timezone_set('America/New_York');
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+// PHP 8.1 specific settings
+ini_set('zend.assertions', 1); // Enable assertions in development
+
+// OPcache settings (only set if not already configured)
+if (function_exists('opcache_get_status') && !opcache_get_status()) {
+    ini_set('opcache.enable', 1); // Enable OPcache for better performance
+}
+
+// JIT settings (only available if OPcache is enabled and JIT is supported)
+if (function_exists('opcache_get_status') && opcache_get_status() && version_compare(PHP_VERSION, '8.0.0', '>=')) {
+    // These settings should be in php.ini for production, not set at runtime
+    // ini_set('opcache.jit_buffer_size', '100M');
+    // ini_set('opcache.jit', 'tracing');
+}
+
 // Session Configuration
 ini_set('session.cookie_httponly', 1);
 ini_set('session.cookie_secure', 0); // Set to 1 for HTTPS
 ini_set('session.use_strict_mode', 1);
+ini_set('session.cookie_samesite', 'Lax'); // PHP 7.3+ SameSite cookie attribute

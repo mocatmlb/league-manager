@@ -27,6 +27,9 @@ function sanitize($data) {
  * Validate email address
  */
 function isValidEmail($email) {
+    if ($email === null || $email === '') {
+        return false;
+    }
     return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
 }
 
@@ -63,11 +66,12 @@ function formatTime($time, $format = 'g:i A') {
     $timezone = new DateTimeZone(getAppTimezone());
     
     // Handle both full datetime and time-only strings
-    if (strpos($time, ':') !== false && strpos($time, ' ') === false) {
+    $timeStr = (string)$time; // Ensure we have a string for strpos
+    if (strpos($timeStr, ':') !== false && strpos($timeStr, ' ') === false) {
         // Time only - create a date object for today with this time
-        $dateObj = new DateTime('today ' . $time);
+        $dateObj = new DateTime('today ' . $timeStr);
     } else {
-        $dateObj = new DateTime($time);
+        $dateObj = new DateTime($timeStr);
     }
     
     $dateObj->setTimezone($timezone);

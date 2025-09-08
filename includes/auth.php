@@ -180,23 +180,28 @@ class Auth {
     /**
      * Get current user info
      */
-    public static function getCurrentUser() {
+    public static function getCurrentUser(): array {
         self::startSession();
         
         if (self::isAdmin()) {
             return [
-                'type' => 'admin',
+                'type' => UserType::ADMIN->value,
                 'username' => $_SESSION['admin_username'] ?? '',
-                'id' => $_SESSION['admin_id'] ?? 0
+                'id' => $_SESSION['admin_id'] ?? 0,
+                'user_type_enum' => UserType::ADMIN
             ];
         } elseif (self::isCoach()) {
             return [
-                'type' => 'coach',
-                'username' => 'Coach' // Generic username for coaches
+                'type' => UserType::COACH->value,
+                'username' => 'Coach', // Generic username for coaches
+                'user_type_enum' => UserType::COACH
             ];
         }
         
-        return ['type' => 'public'];
+        return [
+            'type' => UserType::PUBLIC->value,
+            'user_type_enum' => UserType::PUBLIC
+        ];
     }
     
     /**

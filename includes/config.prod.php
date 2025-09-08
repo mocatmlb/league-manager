@@ -54,6 +54,16 @@ ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/../logs/php_errors.log');
 
+// PHP 8.1 specific settings - Production
+ini_set('zend.assertions', -1); // Disable assertions in production for performance
+
+// Note: OPcache and JIT settings should be configured in php.ini for production
+// These runtime settings are commented out as they cannot be changed at runtime:
+// opcache.enable=1
+// opcache.jit_buffer_size=256M
+// opcache.jit=tracing
+// opcache.validate_timestamps=0
+
 // Session Configuration - Production (secure)
 ini_set('session.cookie_httponly', 1);
 ini_set('session.cookie_secure', 1); // HTTPS required

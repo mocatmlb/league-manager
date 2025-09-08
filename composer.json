@@ -3,7 +3,7 @@
     "description": "District 8 Travel League MVP Application",
     "type": "project",
     "require": {
-        "php": ">=8.0",
+        "php": ">=8.1",
         "phpmailer/phpmailer": "^6.8"
     },
     "autoload": {

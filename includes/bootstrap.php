@@ -12,6 +12,7 @@ define('D8TL_APP', true);
 require_once __DIR__ . '/config.php';
 
 // Load core classes and functions
+require_once __DIR__ . '/enums.php';
 require_once __DIR__ . '/database.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/functions.php';

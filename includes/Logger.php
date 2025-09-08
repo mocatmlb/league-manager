@@ -12,14 +12,14 @@
  */
 
 class Logger {
-    // Log levels (higher number = higher priority)
+    // Log levels (higher number = higher priority) - kept for backward compatibility
     const DEBUG = 1;
     const INFO = 2;
     const WARN = 3;
     const ERROR = 4;
     const FATAL = 5;
     
-    // Log level names
+    // Log level names - kept for backward compatibility
     private static $levelNames = [
         self::DEBUG => 'DEBUG',
         self::INFO => 'INFO',
@@ -166,6 +166,13 @@ class Logger {
      */
     public static function fatal($message, $context = []) {
         self::log(self::FATAL, $message, $context);
+    }
+    
+    /**
+     * Log a message using LogLevel enum (PHP 8.1+)
+     */
+    public static function logWithLevel(LogLevel $level, $message, $context = []) {
+        self::log($level->value, $message, $context);
     }
     
     /**
