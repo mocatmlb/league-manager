@@ -1,8 +1,11 @@
 # Security - Sensitive Files
 # Database backups (may contain sensitive data)
+backups/
 mvp-app/backups/
 *.sql
 *.dump
+backup_*.sql
+backup_*.dump
 
 # Environment files with real credentials
 .env
@@ -147,3 +150,6 @@ security-scan-results/
 *.backup
 *.old
 *.orig
+backup_*
+*_backup.*
+*_backup_*

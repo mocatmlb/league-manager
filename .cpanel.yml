@@ -21,8 +21,15 @@ deployment:
     - cp composer.lock $DEPLOYPATH/
     - cp README.md $DEPLOYPATH/
     
-    # Copy .htaccess file (MANDATORY for proper routing)
+    # Handle .htaccess file deployment (CRITICAL for environment variables)
+    # Backup existing .htaccess with production credentials
+    - if [ -f "$DEPLOYPATH/.htaccess" ]; then cp $DEPLOYPATH/.htaccess $DEPLOYPATH/.htaccess.backup.$(date +%Y%m%d_%H%M%S); fi
+    
+    # Copy new .htaccess from repository (contains placeholders)
     - cp .htaccess $DEPLOYPATH/
+    
+    # If this is first deployment, copy production template as reference
+    - if [ ! -f "$DEPLOYPATH/.htaccess.production.reference" ]; then cp .htaccess.production $DEPLOYPATH/.htaccess.production.reference; fi
     
     # Set proper file permissions
     - find $DEPLOYPATH -type d -exec chmod 755 {} \;
@@ -43,7 +50,14 @@ deployment:
     - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then cp $DEPLOYPATH/includes/config.prod.php $DEPLOYPATH/includes/config.php; fi
     - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then cp $DEPLOYPATH/includes/config.staging.php $DEPLOYPATH/includes/config.php; fi
     
-    # Create database configuration file if it doesn't exist
+    # Handle environment variable configuration
+    # Check if we have a backup .htaccess with production credentials
+    - BACKUP_HTACCESS=$(ls -t $DEPLOYPATH/.htaccess.backup.* 2>/dev/null | head -1)
+    
+    # If backup exists and contains real credentials, restore them
+    - if [ -f "$BACKUP_HTACCESS" ] && grep -q "REPLACE_WITH_ACTUAL" "$DEPLOYPATH/.htaccess" && ! grep -q "REPLACE_WITH_ACTUAL" "$BACKUP_HTACCESS"; then echo "Restoring production credentials from backup"; cp "$BACKUP_HTACCESS" "$DEPLOYPATH/.htaccess"; fi
+    
+    # Legacy: Create database configuration file if it doesn't exist (fallback method)
     - if [ ! -f "$DEPLOYPATH/includes/config.prod.db.php" ]; then cp $DEPLOYPATH/includes/config.prod.db.template.php $DEPLOYPATH/includes/config.prod.db.php; fi
     
     # Fix production paths using PHP script (more reliable than sed)
@@ -58,9 +72,24 @@ deployment:
     # Clear any PHP opcache
     - if [ -f "$DEPLOYPATH/scripts/clear-cache.php" ]; then /usr/local/bin/php $DEPLOYPATH/scripts/clear-cache.php; fi
     
+    # Verify environment variable configuration
+    - if grep -q "REPLACE_WITH_ACTUAL" "$DEPLOYPATH/.htaccess"; then echo "⚠️  WARNING: .htaccess still contains placeholder values. Update with production credentials!"; fi
+    
     # Run post-deployment health checks
     - if [ -f "$DEPLOYPATH/scripts/deployment-monitor.php" ]; then /usr/local/bin/php $DEPLOYPATH/scripts/deployment-monitor.php; fi
     
     # Log deployment
     - echo "$(date): Successfully deployed $CPANEL_DEPLOYMENT_BRANCH branch to $DEPLOYPATH" >> $DEPLOYPATH/logs/deployment.log
     - echo "Deployment completed for branch: $CPANEL_DEPLOYMENT_BRANCH"
+    
+    # Display post-deployment instructions
+    - echo ""
+    - echo "🚀 DEPLOYMENT COMPLETE!"
+    - echo ""
+    - echo "📋 POST-DEPLOYMENT CHECKLIST:"
+    - echo "1. Verify .htaccess contains your production credentials (not placeholders)"
+    - echo "2. Test site: http://district8travelleague.com/"
+    - echo "3. Test admin login: http://district8travelleague.com/admin/login.php"
+    - echo "4. Test coaches login: http://district8travelleague.com/coaches/login.php"
+    - echo ""
+    - if grep -q "REPLACE_WITH_ACTUAL" "$DEPLOYPATH/.htaccess"; then echo "⚠️  IMPORTANT: Edit $DEPLOYPATH/.htaccess and replace placeholder values with actual credentials!"; fi

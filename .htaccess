@@ -60,7 +60,7 @@ php_value session.use_strict_mode 1
 
 # Database Configuration
 SetEnv DB_HOST localhost
-SetEnv DB_NAME moc835_d8tl_prod
+SetEnv DB_NAME REPLACE_WITH_ACTUAL_DB
 SetEnv DB_USER REPLACE_WITH_ACTUAL_DB_USERNAME
 SetEnv DB_PASS REPLACE_WITH_ACTUAL_DB_PASSWORD
 SetEnv DB_CHARSET utf8mb4

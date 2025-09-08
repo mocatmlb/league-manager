@@ -10,7 +10,8 @@ $backup_file = $backup_dir . '/backup_' . date('Y-m-d_H-i-s') . '.sql';
 
 // Create backups directory if it doesn't exist
 if (!is_dir($backup_dir)) {
-    mkdir($backup_dir, 0755, true);
+    mkdir($backup_dir, 0750, true);
+    chmod($backup_dir, 0750);
 }
 
 echo "=== Creating Backup Before Migration ===\n";
@@ -66,8 +67,11 @@ try {
     
     // Write backup file
     if (file_put_contents($backup_file, $backup_content)) {
+        // Set secure permissions for backup file
+        chmod($backup_file, 0600);
         echo "\n✓ Backup created successfully: $backup_file\n";
         echo "File size: " . formatBytes(filesize($backup_file)) . "\n";
+        echo "Security: Backup file created with restricted permissions (600)\n";
     } else {
         throw new Exception("Failed to write backup file");
     }

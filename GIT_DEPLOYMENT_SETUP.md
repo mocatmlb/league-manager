@@ -80,15 +80,13 @@ Via cPanel File Manager or FTP:
 # Configuration files
 chmod 644 includes/config.*.php
 
-# Directories
+# Directories (secure permissions)
 chmod 755 logs/
 chmod 755 uploads/
 chmod 755 backups/
-
-# Make upload directories writable
-chmod 777 uploads/
-chmod 777 logs/
-chmod 777 backups/
+chown www-data:www-data logs/
+chown www-data:www-data uploads/
+chown www-data:www-data backups/
 
 # Make scripts executable
 chmod 755 scripts/*.php
@@ -240,9 +238,11 @@ composer install
    - Regular security updates
 
 3. **File Permissions**:
-   - Maintain proper file permissions
-   - Secure sensitive directories
+   - Use 755 for directories (not 777)
+   - Use 644 for files (not 666)
+   - Set proper ownership (www-data:www-data)
    - Regular permission audits
+   - Never use world-writable permissions (777/666)
 
 ## Support and Documentation
 

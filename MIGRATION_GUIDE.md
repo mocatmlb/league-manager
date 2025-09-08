@@ -42,13 +42,15 @@ Edit the database configuration in `migrate_data.php`:
 ```php
 $old_db_config = [
     'host' => 'localhost',
-    'username' => 'moc835_d8readonly',
-    'password' => 'Ftools2015!!!',
-    'database' => 'moc835_ftoo886'
+    'username' => 'REPLACE_WITH_OLD_DB_USERNAME',
+    'password' => 'REPLACE_WITH_OLD_DB_PASSWORD',
+    'database' => 'REPLACE_WITH_OLD_DATABASE_NAME'
 ];
 
 $current_season = 2025; // Set the season to migrate
 ```
+
+**SECURITY WARNING**: Never commit real database credentials to version control. Use environment variables or secure configuration files for production deployments.
 
 ### Step 3: Run Migration
 
@@ -197,10 +199,12 @@ If you encounter issues:
 
 ## Security Notes
 
-- Migration scripts contain database credentials
+- **CRITICAL**: Replace all placeholder credentials with actual values before running migration
+- Migration scripts should use environment variables for credentials in production
 - Remove or secure scripts after migration
-- Backup files contain sensitive data
-- Use secure file permissions (600/700)
+- Backup files contain sensitive data - automatically created with secure permissions (600)
+- Backup directories created with restricted access (750)
+- Never commit real database credentials to version control
 
 ## Performance Considerations
 
