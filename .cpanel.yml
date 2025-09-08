@@ -10,8 +10,8 @@ deployment:
     - mkdir -p $DEPLOYPATH/uploads/documents
     - mkdir -p $DEPLOYPATH/backups
     
-    # Copy application files - PRESERVE public directory structure
-    - cp -r public $DEPLOYPATH/
+    # Copy application files - Copy public contents to root
+    - cp -r public/* $DEPLOYPATH/
     - cp -r includes $DEPLOYPATH/
     - cp -r database $DEPLOYPATH/
     - cp -r scripts $DEPLOYPATH/
@@ -21,12 +21,12 @@ deployment:
     - cp composer.lock $DEPLOYPATH/
     - cp README.md $DEPLOYPATH/
     
-    # Fix production paths for main public files
+    # Fix production paths for main public files (now in root)
     - sed -i 's|dirname(__DIR__) . '\''/includes/bootstrap\.php'\''|__DIR__ . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/index.php
     - sed -i 's|dirname(__DIR__) . '\''/includes/bootstrap\.php'\''|__DIR__ . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/schedule.php
     - sed -i 's|dirname(__DIR__) . '\''/includes/bootstrap\.php'\''|__DIR__ . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/standings.php
     
-    # Fix production paths for coaches files
+    # Fix production paths for coaches files (now in root/coaches/)
     - sed -i 's|dirname(dirname(__DIR__)) . '\''/includes/bootstrap\.php'\''|dirname(__DIR__) . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/coaches/login.php
     - sed -i 's|dirname(dirname(__DIR__)) . '\''/includes/bootstrap\.php'\''|dirname(__DIR__) . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/coaches/logout.php
     - sed -i 's|dirname(dirname(__DIR__)) . '\''/includes/bootstrap\.php'\''|dirname(__DIR__) . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/coaches/score-input.php
