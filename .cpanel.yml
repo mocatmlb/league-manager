@@ -2,8 +2,8 @@
 deployment:
   tasks:
     # Set deployment path based on environment
-    - export DEPLOYPATH=/home/$USER/public_html
-    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then export DEPLOYPATH=/home/$USER/public_html/staging; fi
+    - export DEPLOYPATH=/home/$USER/public_html/district8travelleague.com
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then export DEPLOYPATH=/home/$USER/public_html/staging.district8travelleague.com; fi
     
     # Create necessary directories
     - mkdir -p $DEPLOYPATH/logs
