@@ -21,19 +21,6 @@ deployment:
     - cp composer.lock $DEPLOYPATH/
     - cp README.md $DEPLOYPATH/
     
-    # Fix production paths for main public files (now in root)
-    - sed -i 's|dirname(__DIR__) . '\''/includes/bootstrap\.php'\''|__DIR__ . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/index.php
-    - sed -i 's|dirname(__DIR__) . '\''/includes/bootstrap\.php'\''|__DIR__ . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/schedule.php
-    - sed -i 's|dirname(__DIR__) . '\''/includes/bootstrap\.php'\''|__DIR__ . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/standings.php
-    
-    # Fix production paths for coaches files (now in root/coaches/)
-    - sed -i 's|dirname(dirname(__DIR__)) . '\''/includes/bootstrap\.php'\''|dirname(__DIR__) . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/coaches/login.php
-    - sed -i 's|dirname(dirname(__DIR__)) . '\''/includes/bootstrap\.php'\''|dirname(__DIR__) . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/coaches/logout.php
-    - sed -i 's|dirname(dirname(__DIR__)) . '\''/includes/bootstrap\.php'\''|dirname(__DIR__) . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/coaches/score-input.php
-    - sed -i 's|dirname(dirname(__DIR__)) . '\''/includes/bootstrap\.php'\''|dirname(__DIR__) . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/coaches/schedule-change.php
-    - sed -i 's|dirname(dirname(__DIR__)) . '\''/includes/bootstrap\.php'\''|dirname(__DIR__) . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/coaches/dashboard.php
-    - sed -i 's|dirname(dirname(__DIR__)) . '\''/includes/bootstrap\.php'\''|dirname(__DIR__) . '\''/includes/bootstrap.php'\''|g' $DEPLOYPATH/coaches/contacts.php
-    
     # Copy .htaccess file (MANDATORY for proper routing)
     - cp .htaccess $DEPLOYPATH/
     
@@ -55,6 +42,12 @@ deployment:
     # Copy environment-specific configuration
     - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then cp $DEPLOYPATH/includes/config.prod.php $DEPLOYPATH/includes/config.php; fi
     - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then cp $DEPLOYPATH/includes/config.staging.php $DEPLOYPATH/includes/config.php; fi
+    
+    # Create database configuration file if it doesn't exist
+    - if [ ! -f "$DEPLOYPATH/includes/config.prod.db.php" ]; then cp $DEPLOYPATH/includes/config.prod.db.template.php $DEPLOYPATH/includes/config.prod.db.php; fi
+    
+    # Fix production paths using PHP script (more reliable than sed)
+    - /usr/local/bin/php $DEPLOYPATH/scripts/fix-production-paths.php
     
     # Backup database before migrations (production only)
     - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then /usr/local/bin/php $DEPLOYPATH/scripts/backup-database.php; fi
