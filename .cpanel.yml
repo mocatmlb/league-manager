@@ -21,6 +21,9 @@ deployment:
     - cp composer.lock $DEPLOYPATH/
     - cp README.md $DEPLOYPATH/
     
+    # Replace index.php with production version for correct paths
+    - cp $DEPLOYPATH/public/index.prod.php $DEPLOYPATH/index.php
+    
     # Copy .htaccess file (MANDATORY for proper routing)
     - cp .htaccess $DEPLOYPATH/
     
