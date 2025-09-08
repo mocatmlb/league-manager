@@ -12,7 +12,7 @@ if (!defined('D8TL_APP')) {
 
 // Database Configuration
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'd8tl_mvp');
+define('DB_NAME', 'moc835_d8tl_prod');
 define('DB_USER', 'root');
 define('DB_PASS', '');
 define('DB_CHARSET', 'utf8mb4');

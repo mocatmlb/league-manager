@@ -12,7 +12,7 @@ if (!defined('D8TL_APP')) {
 
 // Database Configuration - Staging (MUST BE CONFIGURED)
 define('DB_HOST', 'localhost'); // Usually localhost for shared hosting
-define('DB_NAME', 'REPLACE_WITH_STAGING_DATABASE_NAME');
+define('DB_NAME', 'moc835_d8tl_staging');
 define('DB_USER', 'REPLACE_WITH_STAGING_DB_USERNAME');
 define('DB_PASS', 'REPLACE_WITH_STAGING_DB_PASSWORD');
 define('DB_CHARSET', 'utf8mb4');

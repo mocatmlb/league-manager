@@ -49,16 +49,16 @@ This guide walks you through setting up the Git-based deployment system for the 
 
 1. Navigate to **cPanel → MySQL Databases**
 2. Create databases:
-   - `d8tl_prod` (for production)
-   - `d8tl_staging` (for staging)
+   - `moc835_d8tl_prod` (for production)
+   - `moc835_d8tl_staging` (for staging)
 3. Create database users and assign full privileges to respective databases
 
 ### Import Schema
 
 1. Navigate to **cPanel → phpMyAdmin**
-2. Select `d8tl_prod` database
+2. Select `moc835_d8tl_prod` database
 3. Import `database/schema.sql`
-4. Repeat for `d8tl_staging` database
+4. Repeat for `moc835_d8tl_staging` database
 
 ## Step 4: Configure Environment Files
 

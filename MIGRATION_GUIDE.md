@@ -16,7 +16,7 @@ The migration process transfers the following data:
 
 1. **Database Access**: Ensure you have access to both:
    - Old FormTools database (`moc835_ftoo886`)
-   - New MVP database (`d8tl_mvp`)
+   - New MVP database (`moc835_d8tl_prod`)
 
 2. **PHP Environment**: Scripts require PHP with MySQLi extension
 

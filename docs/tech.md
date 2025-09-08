@@ -157,7 +157,7 @@
 <?php
 // Database Configuration
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'd8tl_mvp');
+define('DB_NAME', 'moc835_d8tl_prod');
 define('DB_USER', 'your_db_user');
 define('DB_PASS', 'your_db_password');
 define('DB_CHARSET', 'utf8mb4');
@@ -274,11 +274,11 @@ git push origin staging
 
 #### 3. Database Setup for Multiple Environments
 1. **Production Database**:
-   - Create database: `d8tl_prod`
+   - Create database: `moc835_d8tl_prod`
    - Import schema: `database/schema.sql`
 
 2. **Staging Database**:
-   - Create database: `d8tl_staging`
+   - Create database: `moc835_d8tl_staging`
    - Import schema: `database/schema.sql`
    - Copy production data for testing (optional)
 
@@ -288,7 +288,7 @@ Create environment-specific configuration files:
 **Production config** (`includes/config.prod.php`):
 ```php
 <?php
-define('DB_NAME', 'd8tl_prod');
+define('DB_NAME', 'moc835_d8tl_prod');
 define('APP_URL', 'https://district8travelleague.com');
 define('APP_ENV', 'production');
 // ... other production settings
@@ -298,7 +298,7 @@ define('APP_ENV', 'production');
 **Staging config** (`includes/config.staging.php`):
 ```php
 <?php
-define('DB_NAME', 'd8tl_staging');
+define('DB_NAME', 'moc835_d8tl_staging');
 define('APP_URL', 'https://staging.district8travelleague.com');
 define('APP_ENV', 'staging');
 // ... other staging settings

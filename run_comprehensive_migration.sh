@@ -112,7 +112,7 @@ log_message "Migration completed at $(date)"
 # Display summary statistics
 log_message ""
 log_message "${YELLOW}Migration Summary:${NC}"
-mysql -u root -D d8tl_mvp -e "
+mysql -u root -D moc835_d8tl_prod -e "
 SELECT 
     'Games' as table_name, COUNT(*) as count 
 FROM games 
