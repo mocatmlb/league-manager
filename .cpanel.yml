@@ -10,6 +10,20 @@ deployment:
     - mkdir -p $DEPLOYPATH/uploads/documents
     - mkdir -p $DEPLOYPATH/backups
     
+    # Copy application files
+    - cp -r public/* $DEPLOYPATH/
+    - cp -r includes $DEPLOYPATH/
+    - cp -r database $DEPLOYPATH/
+    - cp -r scripts $DEPLOYPATH/
+    - cp -r templates $DEPLOYPATH/
+    - cp -r assets $DEPLOYPATH/
+    - cp composer.json $DEPLOYPATH/
+    - cp composer.lock $DEPLOYPATH/
+    - cp README.md $DEPLOYPATH/
+    
+    # Copy additional configuration files if they exist
+    - if [ -f ".htaccess" ]; then cp .htaccess $DEPLOYPATH/; fi
+    
     # Set proper file permissions
     - find $DEPLOYPATH -type d -exec chmod 755 {} \;
     - find $DEPLOYPATH -type f -exec chmod 644 {} \;
