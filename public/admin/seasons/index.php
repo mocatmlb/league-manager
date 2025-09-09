@@ -250,14 +250,27 @@ $programs = $db->fetchAll("SELECT program_id, program_name, sport_type FROM prog
                                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                                     <h5 class="card-title mb-0"><?php echo htmlspecialchars($season['season_name']); ?></h5>
                                                     <span class="badge bg-<?php 
-                                                        echo match($season['season_status']) {
-                                                            'Planning' => 'secondary',
-                                                            'Registration' => 'info',
-                                                            'Active' => 'success',
-                                                            'Completed' => 'primary',
-                                                            'Archived' => 'dark',
-                                                            default => 'secondary'
-                                                        };
+                                                        // Backwards compatible switch instead of match()
+                                                        switch($season['season_status']) {
+                                                            case 'Planning':
+                                                                echo 'secondary';
+                                                                break;
+                                                            case 'Registration':
+                                                                echo 'info';
+                                                                break;
+                                                            case 'Active':
+                                                                echo 'success';
+                                                                break;
+                                                            case 'Completed':
+                                                                echo 'primary';
+                                                                break;
+                                                            case 'Archived':
+                                                                echo 'dark';
+                                                                break;
+                                                            default:
+                                                                echo 'secondary';
+                                                                break;
+                                                        }
                                                     ?>">
                                                         <?php echo $season['season_status']; ?>
                                                     </span>

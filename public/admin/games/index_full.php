@@ -470,13 +470,24 @@ $locations = $db->fetchAll("SELECT DISTINCT location FROM schedules WHERE locati
                                 <tr class="game-row" data-game-id="<?php echo $game['game_id']; ?>" onclick="toggleGameDetails(<?php echo $game['game_id']; ?>)">
                                     <td>
                                         <?php
-                                        $statusClass = match($game['game_status']) {
-                                            'Active' => 'bg-success',
-                                            'Completed' => 'bg-primary',
-                                            'Cancelled' => 'bg-danger',
-                                            'Postponed' => 'bg-warning text-dark',
-                                            default => 'bg-secondary'
-                                        };
+                                        // Backwards compatible switch instead of match()
+                                        switch($game['game_status']) {
+                                            case 'Active':
+                                                $statusClass = 'bg-success';
+                                                break;
+                                            case 'Completed':
+                                                $statusClass = 'bg-primary';
+                                                break;
+                                            case 'Cancelled':
+                                                $statusClass = 'bg-danger';
+                                                break;
+                                            case 'Postponed':
+                                                $statusClass = 'bg-warning text-dark';
+                                                break;
+                                            default:
+                                                $statusClass = 'bg-secondary';
+                                                break;
+                                        }
                                         ?>
                                         <span class="badge <?php echo $statusClass; ?> status-badge">
                                             <?php echo sanitize($game['game_status']); ?>

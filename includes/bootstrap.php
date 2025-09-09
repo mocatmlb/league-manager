@@ -11,6 +11,9 @@ define('D8TL_APP', true);
 // Load configuration
 require_once __DIR__ . '/config.php';
 
+// Load backwards compatibility functions first
+require_once __DIR__ . '/compatibility.php';
+
 // Load core classes and functions
 require_once __DIR__ . '/enums.php';
 require_once __DIR__ . '/database.php';

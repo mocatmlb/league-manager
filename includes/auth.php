@@ -80,11 +80,11 @@ class Auth {
                 $whereParams = ['admin_id' => $admin['id']];
                 $db->update('admin_users', $updateData, $whereClause, $whereParams);
                 
-                Logger::info("Admin login successful", ['username' => $username, 'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown']);
+                Logger::info("Admin login successful", ['username' => $username, 'ip' => isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : 'unknown']);
                 return true;
             }
             
-            Logger::warn("Admin login failed", ['username' => $username, 'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown']);
+            Logger::warn("Admin login failed", ['username' => $username, 'ip' => isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : 'unknown']);
             return false;
     }
     
@@ -180,14 +180,14 @@ class Auth {
     /**
      * Get current user info
      */
-    public static function getCurrentUser(): array {
+    public static function getCurrentUser() {
         self::startSession();
         
         if (self::isAdmin()) {
             return [
                 'type' => UserType::ADMIN,
-                'username' => $_SESSION['admin_username'] ?? '',
-                'id' => $_SESSION['admin_id'] ?? 0,
+                'username' => isset($_SESSION['admin_username']) ? $_SESSION['admin_username'] : '',
+                'id' => isset($_SESSION['admin_id']) ? $_SESSION['admin_id'] : 0,
                 'user_type_enum' => UserType::ADMIN
             ];
         } elseif (self::isCoach()) {

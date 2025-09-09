@@ -75,5 +75,9 @@ if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.cookie_httponly', 1);
     ini_set('session.cookie_secure', 0); // Set to 1 for HTTPS
     ini_set('session.use_strict_mode', 1);
-    ini_set('session.cookie_samesite', 'Lax'); // PHP 7.3+ SameSite cookie attribute
+    
+    // SameSite cookie attribute (PHP 7.3+)
+    if (version_compare(PHP_VERSION, '7.3.0', '>=')) {
+        ini_set('session.cookie_samesite', 'Lax');
+    }
 }
