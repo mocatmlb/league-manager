@@ -3,7 +3,7 @@
  * District 8 Travel League - Public Home Page
  */
 
-// Define application constant
+// Define application constant and prevent direct access to includes
 define('D8TL_APP', true);
 
 // Detect environment and set include path

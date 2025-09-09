@@ -6,11 +6,6 @@
  * Eliminates need for fix_production_paths.php script
  */
 
-// Prevent direct access
-if (!defined('D8TL_APP')) {
-    die('Direct access not permitted');
-}
-
 class EnvLoader {
     private static $isProduction = null;
     private static $basePath = null;

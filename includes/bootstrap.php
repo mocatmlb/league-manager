@@ -5,10 +5,10 @@
  * Initialize the application and load core components
  */
 
-// Define application constant
-define('D8TL_APP', true);
+// Load security bootstrap first
+require_once __DIR__ . '/security_bootstrap.php';
 
-// Load environment loader first
+// Load environment loader
 require_once __DIR__ . '/env-loader.php';
 
 // Load configuration using environment-aware path

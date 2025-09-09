@@ -1,0 +1,36 @@
+# Protect includes directory
+Order deny,allow
+Deny from all
+
+# Prevent viewing of .php files
+<FilesMatch "\.php$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Prevent directory listing
+Options -Indexes
+
+# Disable script execution
+AddHandler cgi-script .php .pl .py .jsp .asp .htm .shtml .sh .cgi
+Options -ExecCGI
+
+# Block sensitive files
+<FilesMatch "^(.*\.([Hh][Tt][Aa]|[Ii][Nn][Ii]|[Cc][Oo][Nn][Ff])|~.*|\.env|\.git|composer\.(json|lock))$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Additional security headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set X-Download-Options "noopen"
+    Header set X-Permitted-Cross-Domain-Policies "none"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header unset X-Powered-By
+</IfModule>
+
+# Disable PHP engine in this directory
+php_flag engine off
