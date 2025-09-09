@@ -1,4 +1,5 @@
 <?php
+error_log('Including env-loader.php at ' . (isset($_SERVER['SCRIPT_FILENAME']) ? $_SERVER['SCRIPT_FILENAME'] : 'CLI') . ' via ' . debug_backtrace()[0]['file'] . ':' . debug_backtrace()[0]['line']);
 /**
  * District 8 Travel League - Environment Path Handler
  * 
