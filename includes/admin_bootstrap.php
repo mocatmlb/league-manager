@@ -5,11 +5,16 @@
  * Common bootstrap file for admin pages to reduce code duplication
  */
 
-// Load environment loader
-require_once __DIR__ . '/env-loader.php';
-
 // Define application constant
 define('D8TL_APP', true);
+
+// Detect environment and set include path
+$includePath = file_exists(__DIR__ . '/includes/env-loader.php') 
+    ? __DIR__ . '/includes'  // Production: includes is in web root
+    : __DIR__;  // Development: already in includes
+
+// Load environment loader
+require_once $includePath . '/env-loader.php';
 
 // Load bootstrap using environment-aware path
 require_once EnvLoader::getPath('includes/bootstrap.php');

@@ -1,95 +1,42 @@
 ---
 deployment:
   tasks:
-    # Set deployment path based on environment
-    - export DEPLOYPATH=/home/$USER/public_html/district8travelleague.com
-    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then export DEPLOYPATH=/home/$USER/public_html/staging.district8travelleague.com; fi
-    
     # Create necessary directories
-    - mkdir -p $DEPLOYPATH/logs
-    - mkdir -p $DEPLOYPATH/uploads/documents
-    - mkdir -p $DEPLOYPATH/backups
+    - mkdir -p $HOME/public_html/includes
+    - mkdir -p $HOME/public_html/logs
+    - mkdir -p $HOME/public_html/uploads
+    - mkdir -p $HOME/public_html/backups
     
-    # Copy application files - Copy public contents to root
-    - cp -r public/* $DEPLOYPATH/
-    - cp -r includes $DEPLOYPATH/
-    - cp -r database $DEPLOYPATH/
-    - cp -r scripts $DEPLOYPATH/
-    - cp -r templates $DEPLOYPATH/
-    - cp -r assets $DEPLOYPATH/
-    - cp composer.json $DEPLOYPATH/
-    - cp composer.lock $DEPLOYPATH/
-    - cp README.md $DEPLOYPATH/
+    # Copy includes directory to web root
+    - cp -R includes/* $HOME/public_html/includes/
     
-    # Handle .htaccess file deployment (CRITICAL for environment variables)
-    # Backup existing .htaccess with production credentials
-    - if [ -f "$DEPLOYPATH/.htaccess" ]; then cp $DEPLOYPATH/.htaccess $DEPLOYPATH/.htaccess.backup.$(date +%Y%m%d_%H%M%S); fi
+    # Copy public files
+    - cp -R public/* $HOME/public_html/
     
-    # Copy new .htaccess from repository (contains placeholders)
-    - cp .htaccess $DEPLOYPATH/
+    # Copy configuration files
+    - cp -f includes/config.prod.php $HOME/public_html/includes/config.php
     
-    # If this is first deployment, copy production template as reference
-    - if [ ! -f "$DEPLOYPATH/.htaccess.production.reference" ]; then cp .htaccess.production $DEPLOYPATH/.htaccess.production.reference; fi
+    # Set proper permissions
+    - chmod 644 $HOME/public_html/includes/*.php
+    - chmod 755 $HOME/public_html/includes
+    - chmod 755 $HOME/public_html/logs
+    - chmod 755 $HOME/public_html/uploads
+    - chmod 755 $HOME/public_html/backups
     
-    # Set proper file permissions
-    - find $DEPLOYPATH -type d -exec chmod 755 {} \;
-    - find $DEPLOYPATH -type f -exec chmod 644 {} \;
-    - chmod 755 $DEPLOYPATH/database/migrate.php
-    - chmod 755 $DEPLOYPATH/scripts/*.php
+    # Make directories writable by web server
+    - chown -R $USER:nobody $HOME/public_html/logs
+    - chown -R $USER:nobody $HOME/public_html/uploads
+    - chown -R $USER:nobody $HOME/public_html/backups
     
-    # Make upload directories writable
-    - chmod 777 $DEPLOYPATH/uploads
-    - chmod 777 $DEPLOYPATH/uploads/documents
-    - chmod 777 $DEPLOYPATH/logs
-    - chmod 777 $DEPLOYPATH/backups
+    # Clear any existing caches
+    - rm -rf $HOME/public_html/logs/*
+    - rm -rf $HOME/tmp/*
     
-    # Install/update Composer dependencies
-    - cd $DEPLOYPATH && /usr/local/bin/composer install --no-dev --optimize-autoloader
+    # Create .htaccess to protect includes directory
+    - echo "Order deny,allow" > $HOME/public_html/includes/.htaccess
+    - echo "Deny from all" >> $HOME/public_html/includes/.htaccess
     
-    # Copy environment-specific configuration
-    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then cp $DEPLOYPATH/includes/config.prod.php $DEPLOYPATH/includes/config.php; fi
-    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then cp $DEPLOYPATH/includes/config.staging.php $DEPLOYPATH/includes/config.php; fi
-    
-    # Handle environment variable configuration
-    # Check if we have a backup .htaccess with production credentials
-    - BACKUP_HTACCESS=$(ls -t $DEPLOYPATH/.htaccess.backup.* 2>/dev/null | head -1)
-    
-    # If backup exists and contains real credentials, restore them
-    - if [ -f "$BACKUP_HTACCESS" ] && grep -q "REPLACE_WITH_ACTUAL" "$DEPLOYPATH/.htaccess" && ! grep -q "REPLACE_WITH_ACTUAL" "$BACKUP_HTACCESS"; then echo "Restoring production credentials from backup"; cp "$BACKUP_HTACCESS" "$DEPLOYPATH/.htaccess"; fi
-    
-    # Legacy: Create database configuration file if it doesn't exist (fallback method)
-    - if [ ! -f "$DEPLOYPATH/includes/config.prod.db.php" ]; then cp $DEPLOYPATH/includes/config.prod.db.template.php $DEPLOYPATH/includes/config.prod.db.php; fi
-    
-    # Fix production paths using PHP script (more reliable than sed)
-    - /usr/local/bin/php $DEPLOYPATH/scripts/fix-production-paths.php
-    
-    # Backup database before migrations (production only)
-    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then /usr/local/bin/php $DEPLOYPATH/scripts/backup-database.php; fi
-    
-    # Run database migrations if needed
-    - if [ -f "$DEPLOYPATH/database/migrate.php" ]; then /usr/local/bin/php $DEPLOYPATH/database/migrate.php; fi
-    
-    # Clear any PHP opcache
-    - if [ -f "$DEPLOYPATH/scripts/clear-cache.php" ]; then /usr/local/bin/php $DEPLOYPATH/scripts/clear-cache.php; fi
-    
-    # Verify environment variable configuration
-    - if grep -q "REPLACE_WITH_ACTUAL" "$DEPLOYPATH/.htaccess"; then echo "⚠️  WARNING: .htaccess still contains placeholder values. Update with production credentials!"; fi
-    
-    # Run post-deployment health checks
-    - if [ -f "$DEPLOYPATH/scripts/deployment-monitor.php" ]; then /usr/local/bin/php $DEPLOYPATH/scripts/deployment-monitor.php; fi
-    
-    # Log deployment
-    - echo "$(date): Successfully deployed $CPANEL_DEPLOYMENT_BRANCH branch to $DEPLOYPATH" >> $DEPLOYPATH/logs/deployment.log
-    - echo "Deployment completed for branch: $CPANEL_DEPLOYMENT_BRANCH"
-    
-    # Display post-deployment instructions
-    - echo ""
-    - echo "🚀 DEPLOYMENT COMPLETE!"
-    - echo ""
-    - echo "📋 POST-DEPLOYMENT CHECKLIST:"
-    - echo "1. Verify .htaccess contains your production credentials (not placeholders)"
-    - echo "2. Test site: http://district8travelleague.com/"
-    - echo "3. Test admin login: http://district8travelleague.com/admin/login.php"
-    - echo "4. Test coaches login: http://district8travelleague.com/coaches/login.php"
-    - echo ""
-    - if grep -q "REPLACE_WITH_ACTUAL" "$DEPLOYPATH/.htaccess"; then echo "⚠️  IMPORTANT: Edit $DEPLOYPATH/.htaccess and replace placeholder values with actual credentials!"; fi
+    # Create empty log file with correct permissions
+    - touch $HOME/public_html/logs/app.log
+    - chmod 664 $HOME/public_html/logs/app.log
+    - chown $USER:nobody $HOME/public_html/logs/app.log
