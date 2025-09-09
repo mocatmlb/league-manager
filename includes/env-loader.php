@@ -79,5 +79,27 @@ class EnvLoader {
         self::init();
         return self::$basePath;
     }
+
+    /**
+     * Get an environment variable or default
+     */
+    public static function get($key, $default = null) {
+        self::init();
+        if (isset($_SERVER[$key])) {
+            return $_SERVER[$key];
+        }
+        if (getenv($key) !== false) {
+            return getenv($key);
+        }
+        return $default;
+    }
+
+    /**
+     * Get an environment variable as integer or default
+     */
+    public static function getInt($key, $default = 0) {
+        $value = self::get($key, $default);
+        return is_numeric($value) ? (int)$value : $default;
+    }
 }
 }
