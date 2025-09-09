@@ -5,10 +5,7 @@
  * Initialize the application and load core components
  */
 
-// Load environment loader first (it's required for path resolution)
-require_once __DIR__ . '/env-loader.php';
-
-// Use the namespaced EnvLoader
+// Use the namespaced EnvLoader (should already be loaded)
 use D8TL\EnvLoader;
 
 // Load security bootstrap

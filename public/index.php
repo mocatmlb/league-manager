@@ -7,14 +7,17 @@
 define('D8TL_APP', true);
 
 // Detect environment and set include path
-$includePath = file_exists(__DIR__ . '/includes/bootstrap.php') 
+$includePath = file_exists(__DIR__ . '/includes/env-loader.php') 
     ? __DIR__ . '/includes'  // Production: includes is in web root
     : __DIR__ . '/../includes';  // Development: includes is one level up
 
-// Use the namespaced EnvLoader
+// Load environment loader first
+require_once $includePath . '/env-loader.php';
+
+// Now we can use the class
 use D8TL\EnvLoader;
 
-// Load bootstrap directly (it will handle env-loader)
+// Load bootstrap
 require_once $includePath . '/bootstrap.php';
 
 // Get today's games and upcoming games
