@@ -1,6 +1,6 @@
 <?php
 /**
- * District 8 Travel League - Application Bootstrap
+ * District 8 Travel League - Application Bootstrap - v2.0.0-MVP
  * 
  * Initialize the application and load core components
  */

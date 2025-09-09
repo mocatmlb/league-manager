@@ -1,7 +1,7 @@
 <?php
 define('D8TL_APP', true);
 /**
- * District 8 Travel League - Public Home Page
+ * District 8 Travel League - Public Home Page - v2.0.0-MVP
  */
 
 // Detect environment and set include path

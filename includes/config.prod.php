@@ -1,6 +1,6 @@
 <?php
 /**
- * District 8 Travel League - Production Configuration
+ * District 8 Travel League - Production Configuration - v2.0.0-MVP
  * 
  * Production environment configuration settings
  */
