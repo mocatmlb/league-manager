@@ -3,7 +3,7 @@
  * District 8 Travel League - Coaches Login Page
  */
 
-require_once dirname(dirname(__DIR__)) . '/includes/bootstrap.php';
+require_once __DIR__ . '/../../includes/coach_bootstrap.php';
 
 $error = '';
 $success = '';

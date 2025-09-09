@@ -3,7 +3,14 @@
  * District 8 Travel League - Public Standings Page
  */
 
-require_once dirname(__DIR__) . '/includes/bootstrap.php';
+// Load environment loader
+require_once __DIR__ . '/../includes/env-loader.php';
+
+// Define application constant
+define('D8TL_APP', true);
+
+// Load bootstrap using environment-aware path
+require_once EnvLoader::getPath('includes/bootstrap.php');
 
 // Initialize filter helpers
 FilterHelpers::init();

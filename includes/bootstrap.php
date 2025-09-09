@@ -8,8 +8,11 @@
 // Define application constant
 define('D8TL_APP', true);
 
-// Load configuration
-require_once __DIR__ . '/config.php';
+// Load environment loader first
+require_once __DIR__ . '/env-loader.php';
+
+// Load configuration using environment-aware path
+require_once EnvLoader::getPath('includes/config.php');
 
 // Load backwards compatibility functions first
 require_once __DIR__ . '/compatibility.php';

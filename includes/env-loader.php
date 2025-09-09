@@ -1,41 +1,72 @@
 <?php
 /**
- * Simple Environment Variable Loader
+ * District 8 Travel League - Environment Path Handler
  * 
- * Loads environment variables set by .htaccess SetEnv directives
- * or system environment variables
+ * Automatically detects environment and sets correct include paths
+ * Eliminates need for fix_production_paths.php script
  */
 
+// Prevent direct access
+if (!defined('D8TL_APP')) {
+    die('Direct access not permitted');
+}
+
 class EnvLoader {
-    public static function get($key, $default = null) {
-        // Try $_SERVER first (where SetEnv variables appear), then $_ENV, then getenv()
-        if (isset($_SERVER[$key])) {
-            return $_SERVER[$key];
+    private static $isProduction = null;
+    private static $basePath = null;
+    
+    /**
+     * Initialize environment detection
+     */
+    public static function init() {
+        // Only initialize once
+        if (self::$isProduction !== null) {
+            return;
         }
         
-        if (isset($_ENV[$key])) {
-            return $_ENV[$key];
+        // Detect environment based on directory structure
+        $scriptPath = $_SERVER['SCRIPT_FILENAME'];
+        $publicPath = dirname($scriptPath);
+        
+        // Check if we're in production (cPanel) environment
+        // In production, includes/ is in the same directory as public files
+        self::$isProduction = file_exists($publicPath . '/includes/bootstrap.php');
+        
+        // Set base path for includes
+        if (self::$isProduction) {
+            self::$basePath = $publicPath;
+        } else {
+            self::$basePath = dirname($publicPath); // Go up one level in development
         }
         
-        $value = getenv($key);
-        if ($value !== false) {
-            return $value;
+        // Define constant for use in require statements
+        if (!defined('D8TL_BASE_PATH')) {
+            define('D8TL_BASE_PATH', self::$basePath);
         }
-        
-        return $default;
     }
     
-    public static function getBool($key, $default = false) {
-        $value = self::get($key, $default);
-        if (is_bool($value)) {
-            return $value;
-        }
-        
-        return in_array(strtolower($value), ['true', '1', 'yes', 'on']);
+    /**
+     * Get the correct path for including files
+     */
+    public static function getPath($relativePath) {
+        self::init();
+        return self::$basePath . '/' . ltrim($relativePath, '/');
     }
     
-    public static function getInt($key, $default = 0) {
-        return (int) self::get($key, $default);
+    /**
+     * Check if running in production environment
+     */
+    public static function isProduction() {
+        self::init();
+        return self::$isProduction;
+    }
+    
+    /**
+     * Get base path for the application
+     */
+    public static function getBasePath() {
+        self::init();
+        return self::$basePath;
     }
 }
 ?>

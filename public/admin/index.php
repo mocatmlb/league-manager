@@ -3,15 +3,7 @@
  * District 8 Travel League - Admin Dashboard
  */
 
-require_once dirname(dirname(__DIR__)) . '/includes/bootstrap.php';
-
-// Require admin authentication
-Auth::requireAdmin();
-
-// Generate CSRF token for this page
-$csrfToken = Auth::generateCSRFToken();
-
-$currentUser = Auth::getCurrentUser();
+require_once __DIR__ . '/../../includes/admin_bootstrap.php';
 
 // Get dashboard metrics
 $totalGames = $db->fetchOne("SELECT COUNT(*) as count FROM games")['count'] ?? 0;
