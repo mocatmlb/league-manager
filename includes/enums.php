@@ -84,13 +84,13 @@ class SeasonStatus {
  * User Type Constants
  */
 class UserType {
-    const PUBLIC = 'public';
+    const PUBLIC_USER = 'public';
     const COACH = 'coach';
     const ADMIN = 'admin';
     
     public static function getDisplayName(string $type): string {
         switch($type) {
-            case self::PUBLIC:
+            case self::PUBLIC_USER:
                 return 'Public';
             case self::COACH:
                 return 'Coach';
@@ -110,7 +110,7 @@ class UserType {
     }
     
     public static function getAllTypes() {
-        return [self::PUBLIC, self::COACH, self::ADMIN];
+        return [self::PUBLIC_USER, self::COACH, self::ADMIN];
     }
 }
 

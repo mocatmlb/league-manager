@@ -199,8 +199,8 @@ class Auth {
         }
         
         return [
-            'type' => UserType::PUBLIC,
-            'user_type_enum' => UserType::PUBLIC
+            'type' => UserType::PUBLIC_USER,
+            'user_type_enum' => UserType::PUBLIC_USER
         ];
     }
     
