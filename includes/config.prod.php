@@ -12,7 +12,6 @@ if (!defined('D8TL_APP')) {
 
 // Load environment variables from .htaccess SetEnv directives
 require_once __DIR__ . '/env-loader.php';
-use D8TL\EnvLoader;
 
 // Database Configuration - Load from environment variables set in .htaccess
 define('DB_HOST', EnvLoader::get('DB_HOST', 'localhost'));

@@ -13,7 +13,7 @@ $includePath = file_exists(__DIR__ . '/includes/env-loader.php')
 require_once $includePath . '/env-loader.php';
 
 // Now we can use the class
-use D8TL\EnvLoader;
+// Remove: use D8TL\EnvLoader;
 
 // Load bootstrap
 require_once $includePath . '/bootstrap.php';

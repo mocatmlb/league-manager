@@ -5,9 +5,6 @@
  * Initialize the application and load core components
  */
 
-// Use the namespaced EnvLoader (should already be loaded)
-use D8TL\EnvLoader;
-
 // Load security bootstrap
 require_once __DIR__ . '/security_bootstrap.php';
 
