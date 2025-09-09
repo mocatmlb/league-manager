@@ -171,7 +171,7 @@ class Logger {
     /**
      * Log a message using LogLevel constants
      */
-    public static function logWithLevel(int $level, $message, $context = []) {
+    public static function logWithLevel($level, $message, $context = []) {
         self::log($level, $message, $context);
     }
     

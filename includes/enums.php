@@ -20,7 +20,7 @@ class GameStatus {
     const CANCELLED = 'Cancelled';
     const POSTPONED = 'Postponed';
     
-    public static function getDisplayName(string $status): string {
+    public static function getDisplayName($status) {
         switch($status) {
             case self::ACTIVE:
                 return 'Active';
@@ -35,11 +35,11 @@ class GameStatus {
         }
     }
     
-    public static function isFinished(string $status): bool {
+    public static function isFinished($status) {
         return in_array($status, [self::COMPLETED, self::CANCELLED]);
     }
     
-    public static function getAllStatuses(): array {
+    public static function getAllStatuses() {
         return [self::ACTIVE, self::COMPLETED, self::CANCELLED, self::POSTPONED];
     }
 }
@@ -54,7 +54,7 @@ class SeasonStatus {
     const COMPLETED = 'Completed';
     const CANCELLED = 'Cancelled';
     
-    public static function getDisplayName(string $status): string {
+    public static function getDisplayName($status) {
         switch($status) {
             case self::PLANNING:
                 return 'Planning';
@@ -71,11 +71,11 @@ class SeasonStatus {
         }
     }
     
-    public static function isActive(string $status): bool {
+    public static function isActive($status) {
         return in_array($status, [self::ACTIVE, self::REGISTRATION]);
     }
     
-    public static function getAllStatuses(): array {
+    public static function getAllStatuses() {
         return [self::PLANNING, self::REGISTRATION, self::ACTIVE, self::COMPLETED, self::CANCELLED];
     }
 }
@@ -101,15 +101,15 @@ class UserType {
         }
     }
     
-    public static function hasCoachAccess(string $type): bool {
+    public static function hasCoachAccess($type) {
         return in_array($type, [self::COACH, self::ADMIN]);
     }
     
-    public static function hasAdminAccess(string $type): bool {
+    public static function hasAdminAccess($type) {
         return $type === self::ADMIN;
     }
     
-    public static function getAllTypes(): array {
+    public static function getAllTypes() {
         return [self::PUBLIC, self::COACH, self::ADMIN];
     }
 }
@@ -124,7 +124,7 @@ class LogLevel {
     const ERROR = 4;
     const FATAL = 5;
     
-    public static function getName(int $level): string {
+    public static function getName($level) {
         switch($level) {
             case self::DEBUG:
                 return 'DEBUG';
@@ -141,11 +141,11 @@ class LogLevel {
         }
     }
     
-    public static function isHigherThan(int $level, int $other): bool {
+    public static function isHigherThan($level, $other) {
         return $level > $other;
     }
     
-    public static function getAllLevels(): array {
+    public static function getAllLevels() {
         return [self::DEBUG, self::INFO, self::WARN, self::ERROR, self::FATAL];
     }
 }
@@ -158,7 +158,7 @@ class EmailStatus {
     const SENT = 'Sent';
     const FAILED = 'Failed';
     
-    public static function getDisplayName(string $status): string {
+    public static function getDisplayName($status) {
         switch($status) {
             case self::PENDING:
                 return 'Pending';
@@ -171,7 +171,7 @@ class EmailStatus {
         }
     }
     
-    public static function getBootstrapClass(string $status): string {
+    public static function getBootstrapClass($status) {
         switch($status) {
             case self::PENDING:
                 return 'warning';
@@ -184,7 +184,7 @@ class EmailStatus {
         }
     }
     
-    public static function getAllStatuses(): array {
+    public static function getAllStatuses() {
         return [self::PENDING, self::SENT, self::FAILED];
     }
 }
@@ -198,7 +198,7 @@ class RequestStatus {
     const DENIED = 'Denied';
     const CANCELLED = 'Cancelled';
     
-    public static function getDisplayName(string $status): string {
+    public static function getDisplayName($status) {
         switch($status) {
             case self::PENDING:
                 return 'Pending Review';
@@ -213,7 +213,7 @@ class RequestStatus {
         }
     }
     
-    public static function getBootstrapClass(string $status): string {
+    public static function getBootstrapClass($status) {
         switch($status) {
             case self::PENDING:
                 return 'warning';
@@ -228,11 +228,11 @@ class RequestStatus {
         }
     }
     
-    public static function isFinal(string $status): bool {
+    public static function isFinal($status) {
         return in_array($status, [self::APPROVED, self::DENIED, self::CANCELLED]);
     }
     
-    public static function getAllStatuses(): array {
+    public static function getAllStatuses() {
         return [self::PENDING, self::APPROVED, self::DENIED, self::CANCELLED];
     }
 }
