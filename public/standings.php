@@ -1,10 +1,8 @@
 <?php
+define('D8TL_APP', true);
 /**
  * District 8 Travel League - Public Standings Page
  */
-
-// Define application constant
-define('D8TL_APP', true);
 
 // Detect environment and set include path
 $includePath = file_exists(__DIR__ . '/includes/env-loader.php') 
