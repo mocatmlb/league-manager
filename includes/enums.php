@@ -88,7 +88,7 @@ class UserType {
     const COACH = 'coach';
     const ADMIN = 'admin';
     
-    public static function getDisplayName(string $type): string {
+    public static function getDisplayName($type) {
         switch($type) {
             case self::PUBLIC_USER:
                 return 'Public';
