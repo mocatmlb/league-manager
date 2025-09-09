@@ -27,8 +27,16 @@ function isActiveNav($page, $dir = '') {
 
 // Helper function to get relative path to root
 function getPathToRoot() {
-    // Always serve from the PHP development server root
-    return '/';
+    // Get the path from the URL root to the current script
+    $scriptPath = dirname($_SERVER['SCRIPT_NAME']);
+    
+    // Handle both development and production environments
+    if ($scriptPath === '/') {
+        return '/';
+    }
+    
+    // Ensure the path ends with a slash
+    return rtrim($scriptPath, '/') . '/';
 }
 
 $rootPath = getPathToRoot();
