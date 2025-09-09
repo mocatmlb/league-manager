@@ -9,7 +9,10 @@
     "autoload": {
         "psr-4": {
             "D8TL\\": "includes/"
-        }
+        },
+        "files": [
+            "includes/env-loader.php"
+        ]
     },
     "config": {
         "optimize-autoloader": true

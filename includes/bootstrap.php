@@ -8,6 +8,9 @@
 // Load environment loader first (it's required for path resolution)
 require_once __DIR__ . '/env-loader.php';
 
+// Use the namespaced EnvLoader
+use D8TL\EnvLoader;
+
 // Load security bootstrap
 require_once __DIR__ . '/security_bootstrap.php';
 

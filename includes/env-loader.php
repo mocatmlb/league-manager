@@ -6,9 +6,9 @@
  * Eliminates need for fix_production_paths.php script
  */
 
-// Only declare the class if it doesn't exist
-if (!class_exists('EnvLoader')) {
-    class EnvLoader {
+namespace D8TL;
+
+class EnvLoader {
     private static $isProduction = null;
     private static $basePath = null;
     
@@ -79,6 +79,4 @@ if (!class_exists('EnvLoader')) {
         self::init();
         return self::$basePath;
     }
-    }
 }
-?>

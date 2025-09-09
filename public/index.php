@@ -11,6 +11,9 @@ $includePath = file_exists(__DIR__ . '/includes/bootstrap.php')
     ? __DIR__ . '/includes'  // Production: includes is in web root
     : __DIR__ . '/../includes';  // Development: includes is one level up
 
+// Use the namespaced EnvLoader
+use D8TL\EnvLoader;
+
 // Load bootstrap directly (it will handle env-loader)
 require_once $includePath . '/bootstrap.php';
 
