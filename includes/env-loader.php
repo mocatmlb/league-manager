@@ -1,5 +1,4 @@
 <?php
-error_log('Including env-loader.php at ' . (isset($_SERVER['SCRIPT_FILENAME']) ? $_SERVER['SCRIPT_FILENAME'] : 'CLI') . ' via ' . debug_backtrace()[0]['file'] . ':' . debug_backtrace()[0]['line']);
 /**
  * District 8 Travel League - Environment Path Handler
  * 
@@ -22,26 +21,44 @@ class EnvLoader {
         }
         
         // Detect environment based on directory structure
-        $scriptPath = $_SERVER['SCRIPT_FILENAME'];
-        $publicPath = dirname($scriptPath);
+        $scriptPath = $_SERVER['SCRIPT_FILENAME'] ?? __FILE__;
+        $currentDir = dirname($scriptPath);
         
         // Check if we're in production (cPanel) environment
-        // In production, includes/ is in the web root
-        self::$isProduction = file_exists($publicPath . '/includes/bootstrap.php');
+        // In production: includes/ and admin/ are siblings in the web root
+        // In development: includes/ is parent of public/
         
-        // Set base path for includes
-        if (self::$isProduction) {
-            self::$basePath = $publicPath;
-            
-            // In production, ensure includes/ exists in web root
-            if (!is_dir(self::$basePath . '/includes')) {
-                // Try to create includes directory if it doesn't exist
-                if (!mkdir(self::$basePath . '/includes', 0755, true)) {
-                    error_log('Failed to create includes directory in production environment');
-                }
+        // Look for the characteristic cPanel deployment structure
+        $webRoot = $currentDir;
+        while ($webRoot && $webRoot !== '/') {
+            if (file_exists($webRoot . '/includes/bootstrap.php') && 
+                file_exists($webRoot . '/admin/index.php')) {
+                // Found production structure
+                self::$isProduction = true;
+                self::$basePath = $webRoot;
+                break;
             }
-        } else {
-            self::$basePath = dirname($publicPath); // Go up one level in development
+            $webRoot = dirname($webRoot);
+        }
+        
+        // If not found, assume development
+        if (self::$isProduction === null) {
+            self::$isProduction = false;
+            // In development, go up from public/ to project root
+            $projectRoot = $currentDir;
+            while ($projectRoot && $projectRoot !== '/') {
+                if (file_exists($projectRoot . '/includes/bootstrap.php') && 
+                    file_exists($projectRoot . '/public/index.php')) {
+                    self::$basePath = $projectRoot;
+                    break;
+                }
+                $projectRoot = dirname($projectRoot);
+            }
+            
+            // Fallback
+            if (!self::$basePath) {
+                self::$basePath = dirname(dirname(__FILE__)); // Go up from includes/
+            }
         }
         
         // Verify includes directory exists and is readable
