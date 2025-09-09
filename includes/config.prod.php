@@ -44,8 +44,10 @@ define('SMTP_FROM_EMAIL', EnvLoader::get('SMTP_FROM_EMAIL', 'noreply@district8tr
 define('SMTP_FROM_NAME', EnvLoader::get('SMTP_FROM_NAME', 'District 8 Travel League'));
 
 // File Upload Configuration
+// Use JSON-encoded string for allowed file types, since define() cannot use arrays
+// To use: json_decode(ALLOWED_FILE_TYPES, true)
 define('UPLOAD_MAX_SIZE', 5242880); // 5MB
-define('ALLOWED_FILE_TYPES', ['pdf', 'doc', 'docx', 'txt']);
+define('ALLOWED_FILE_TYPES', '["pdf","doc","docx","txt"]');
 
 // Timezone
 date_default_timezone_set('America/New_York');
