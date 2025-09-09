@@ -83,7 +83,13 @@ $pageTitle = "Standings - " . APP_NAME;
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-    <?php include '../includes/nav.php'; ?>
+    <?php 
+    // Include navigation - handle both development and production paths
+    $navPath = file_exists(__DIR__ . '/includes/nav.php') 
+        ? __DIR__ . '/includes/nav.php'  // Production: includes is in same directory
+        : dirname(__DIR__) . '/includes/nav.php';  // Development: includes is one level up
+    include $navPath; 
+    ?>
 
     <!-- Main Content -->
     <div class="container mt-4">
