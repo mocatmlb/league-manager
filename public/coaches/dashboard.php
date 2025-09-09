@@ -4,10 +4,15 @@
  */
 
 // Handle both development and production paths
-$bootstrapPath = file_exists(__DIR__ . '/../includes/coach_bootstrap.php') 
-    ? __DIR__ . '/../includes/coach_bootstrap.php'  // Production: includes is one level up
-    : __DIR__ . '/../../includes/coach_bootstrap.php';  // Development: includes is two levels up
-require_once $bootstrapPath;
+try {
+    $bootstrapPath = file_exists(__DIR__ . '/../includes/coach_bootstrap.php') 
+        ? __DIR__ . '/../includes/coach_bootstrap.php'  // Production: includes is one level up
+        : __DIR__ . '/../../includes/coach_bootstrap.php';  // Development: includes is two levels up
+    require_once $bootstrapPath;
+} catch (Throwable $e) {
+    echo '<div class="alert alert-danger">Application error: ' . htmlspecialchars($e->getMessage()) . '</div>';
+    exit;
+}
 
 // Require coach authentication
 Auth::requireCoach();
@@ -123,7 +128,7 @@ $pageTitle = "Coaches Dashboard - " . APP_NAME;
             <div class="row">
                 <div class="col-12 text-center">
                     <p>&copy; <?php echo date('Y'); ?> <?php echo APP_NAME; ?>. All rights reserved.</p>
-                    <p><small>Coaches Area - Version <?php echo APP_VERSION; ?></small></p>
+                    <p><small>Version <?php echo APP_VERSION; ?></small></p>
                 </div>
             </div>
         </div>

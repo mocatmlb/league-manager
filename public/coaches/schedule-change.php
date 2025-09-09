@@ -4,10 +4,15 @@
  */
 
 // Handle both development and production paths
-$bootstrapPath = file_exists(__DIR__ . '/../includes/coach_bootstrap.php') 
-    ? __DIR__ . '/../includes/coach_bootstrap.php'  // Production: includes is one level up
-    : __DIR__ . '/../../includes/coach_bootstrap.php';  // Development: includes is two levels up
-require_once $bootstrapPath;
+try {
+    $bootstrapPath = file_exists(__DIR__ . '/../includes/coach_bootstrap.php') 
+        ? __DIR__ . '/../includes/coach_bootstrap.php'  // Production: includes is one level up
+        : __DIR__ . '/../../includes/coach_bootstrap.php';  // Development: includes is two levels up
+    require_once $bootstrapPath;
+} catch (Throwable $e) {
+    echo '<div class="alert alert-danger">Application error: ' . htmlspecialchars($e->getMessage()) . '</div>';
+    exit;
+}
 
 // Require coach authentication
 Auth::requireCoach();
@@ -106,20 +111,7 @@ $pageTitle = "Schedule Change Request - " . APP_NAME;
 </head>
 <body>
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="../index.php"><?php echo APP_NAME; ?></a>
-            <div class="navbar-nav me-auto">
-                <a class="nav-link" href="../index.php">Home</a>
-                <a class="nav-link" href="../schedule.php">Schedule</a>
-                <a class="nav-link" href="../standings.php">Standings</a>
-                <a class="nav-link" href="dashboard.php">Coaches</a>
-            </div>
-            <div class="navbar-nav">
-                <a class="nav-link" href="logout.php">Logout</a>
-            </div>
-        </div>
-    </nav>
+    <?php include '../../includes/nav.php'; ?>
 
     <div class="container mt-4">
         <div class="row">
@@ -265,6 +257,18 @@ $pageTitle = "Schedule Change Request - " . APP_NAME;
             </div>
         </div>
     </div>
+
+    <!-- Footer -->
+    <footer class="bg-light mt-5 py-4">
+        <div class="container">
+            <div class="row">
+                <div class="col-12 text-center">
+                    <p>&copy; <?php echo date('Y'); ?> <?php echo APP_NAME; ?>. All rights reserved.</p>
+                    <p><small>Version <?php echo APP_VERSION; ?></small></p>
+                </div>
+            </div>
+        </div>
+    </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     

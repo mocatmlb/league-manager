@@ -4,10 +4,15 @@
  */
 
 // Handle both development and production paths
-$bootstrapPath = file_exists(__DIR__ . '/../includes/coach_bootstrap.php') 
-    ? __DIR__ . '/../includes/coach_bootstrap.php'  // Production: includes is one level up
-    : __DIR__ . '/../../includes/coach_bootstrap.php';  // Development: includes is two levels up
-require_once $bootstrapPath;
+try {
+    $bootstrapPath = file_exists(__DIR__ . '/../includes/coach_bootstrap.php') 
+        ? __DIR__ . '/../includes/coach_bootstrap.php'  // Production: includes is one level up
+        : __DIR__ . '/../../includes/coach_bootstrap.php';  // Development: includes is two levels up
+    require_once $bootstrapPath;
+} catch (Throwable $e) {
+    echo '<div class="alert alert-danger">Application error: ' . htmlspecialchars($e->getMessage()) . '</div>';
+    exit;
+}
 
 $error = '';
 $success = '';
@@ -55,35 +60,7 @@ $pageTitle = "Coaches Login - " . APP_NAME;
 </head>
 <body>
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="../index.php"><?php echo APP_NAME; ?></a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="../index.php">Home</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="../schedule.php">Schedule</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="../standings.php">Standings</a>
-                    </li>
-                </ul>
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="login.php">Coaches</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="../admin/login.php">Admin</a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
+    <?php include '../../includes/nav.php'; ?>
 
     <!-- Main Content -->
     <div class="container">
