@@ -2,41 +2,41 @@
 deployment:
   tasks:
     # Create necessary directories
-    - mkdir -p $HOME/public_html/includes
-    - mkdir -p $HOME/public_html/logs
-    - mkdir -p $HOME/public_html/uploads
-    - mkdir -p $HOME/public_html/backups
+    - mkdir -p $HOME/public_html/district8travelleague.com/includes
+    - mkdir -p $HOME/public_html/district8travelleague.com/logs
+    - mkdir -p $HOME/public_html/district8travelleague.com/uploads
+    - mkdir -p $HOME/public_html/district8travelleague.com/backups
     
-    # Copy includes directory to web root
-    - cp -R includes/* $HOME/public_html/includes/
+    # Copy includes directory to site root
+    - cp -R includes/* $HOME/public_html/district8travelleague.com/includes/
     
     # Copy public files
-    - cp -R public/* $HOME/public_html/
+    - cp -R public/* $HOME/public_html/district8travelleague.com/
     
     # Copy configuration files
-    - cp -f includes/config.prod.php $HOME/public_html/includes/config.php
+    - cp -f includes/config.prod.php $HOME/public_html/district8travelleague.com/includes/config.php
     
     # Set proper permissions
-    - chmod 644 $HOME/public_html/includes/*.php
-    - chmod 755 $HOME/public_html/includes
-    - chmod 755 $HOME/public_html/logs
-    - chmod 755 $HOME/public_html/uploads
-    - chmod 755 $HOME/public_html/backups
+    - chmod 644 $HOME/public_html/district8travelleague.com/includes/*.php
+    - chmod 755 $HOME/public_html/district8travelleague.com/includes
+    - chmod 755 $HOME/public_html/district8travelleague.com/logs
+    - chmod 755 $HOME/public_html/district8travelleague.com/uploads
+    - chmod 755 $HOME/public_html/district8travelleague.com/backups
     
     # Make directories writable by web server
-    - chown -R $USER:nobody $HOME/public_html/logs
-    - chown -R $USER:nobody $HOME/public_html/uploads
-    - chown -R $USER:nobody $HOME/public_html/backups
+    - chown -R $USER:nobody $HOME/public_html/district8travelleague.com/logs
+    - chown -R $USER:nobody $HOME/public_html/district8travelleague.com/uploads
+    - chown -R $USER:nobody $HOME/public_html/district8travelleague.com/backups
     
     # Clear any existing caches
-    - rm -rf $HOME/public_html/logs/*
+    - rm -rf $HOME/public_html/district8travelleague.com/logs/*
     - rm -rf $HOME/tmp/*
     
     # Create .htaccess to protect includes directory
-    - echo "Order deny,allow" > $HOME/public_html/includes/.htaccess
-    - echo "Deny from all" >> $HOME/public_html/includes/.htaccess
+    - echo "Order deny,allow" > $HOME/public_html/district8travelleague.com/includes/.htaccess
+    - echo "Deny from all" >> $HOME/public_html/district8travelleague.com/includes/.htaccess
     
     # Create empty log file with correct permissions
-    - touch $HOME/public_html/logs/app.log
-    - chmod 664 $HOME/public_html/logs/app.log
-    - chown $USER:nobody $HOME/public_html/logs/app.log
+    - touch $HOME/public_html/district8travelleague.com/logs/app.log
+    - chmod 664 $HOME/public_html/district8travelleague.com/logs/app.log
+    - chown $USER:nobody $HOME/public_html/district8travelleague.com/logs/app.log
