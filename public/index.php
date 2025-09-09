@@ -3,19 +3,16 @@
  * District 8 Travel League - Public Home Page
  */
 
-// Define application constant and prevent direct access to includes
+// Define application constant
 define('D8TL_APP', true);
 
 // Detect environment and set include path
-$includePath = file_exists(__DIR__ . '/includes/env-loader.php') 
+$includePath = file_exists(__DIR__ . '/includes/bootstrap.php') 
     ? __DIR__ . '/includes'  // Production: includes is in web root
     : __DIR__ . '/../includes';  // Development: includes is one level up
 
-// Load environment loader
-require_once $includePath . '/env-loader.php';
-
-// Load bootstrap using environment-aware path
-require_once EnvLoader::getPath('includes/bootstrap.php');
+// Load bootstrap directly (it will handle env-loader)
+require_once $includePath . '/bootstrap.php';
 
 // Get today's games and upcoming games
 $todaysGames = getTodaysGames();

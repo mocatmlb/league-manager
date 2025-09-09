@@ -5,11 +5,11 @@
  * Initialize the application and load core components
  */
 
-// Load security bootstrap first
-require_once __DIR__ . '/security_bootstrap.php';
-
-// Load environment loader
+// Load environment loader first (it's required for path resolution)
 require_once __DIR__ . '/env-loader.php';
+
+// Load security bootstrap
+require_once __DIR__ . '/security_bootstrap.php';
 
 // Load configuration using environment-aware path
 require_once EnvLoader::getPath('includes/config.php');

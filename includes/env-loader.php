@@ -6,7 +6,9 @@
  * Eliminates need for fix_production_paths.php script
  */
 
-class EnvLoader {
+// Only declare the class if it doesn't exist
+if (!class_exists('EnvLoader')) {
+    class EnvLoader {
     private static $isProduction = null;
     private static $basePath = null;
     
@@ -76,6 +78,7 @@ class EnvLoader {
     public static function getBasePath() {
         self::init();
         return self::$basePath;
+    }
     }
 }
 ?>
