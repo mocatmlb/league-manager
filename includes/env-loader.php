@@ -6,8 +6,6 @@
  * Eliminates need for fix_production_paths.php script
  */
 
-namespace D8TL {
-
 class EnvLoader {
     private static $isProduction = null;
     private static $basePath = null;
@@ -80,5 +78,3 @@ class EnvLoader {
         return self::$basePath;
     }
 }
-
-} // End namespace D8TL
