@@ -140,11 +140,13 @@ class Auth {
         if (!self::isCoach()) {
             // If not logged in at all, redirect to coach login
             if (!self::isLoggedIn()) {
-                header('Location: /public/coaches/login.php');
+                $loginPath = EnvLoader::isProduction() ? '/coaches/login.php' : '/public/coaches/login.php';
+                header('Location: ' . $loginPath);
                 exit;
             }
             // If logged in but not as coach/admin, redirect to home
-            header('Location: /public/index.php');
+            $homePath = EnvLoader::isProduction() ? '/index.php' : '/public/index.php';
+            header('Location: ' . $homePath);
             exit;
         }
     }
