@@ -93,23 +93,29 @@ class Auth {
      * Note: Admins are also considered coaches for access purposes
      */
     public static function isCoach() {
+        error_log("isCoach called - checking session");
         self::startSession();
+        error_log("Session data: " . print_r($_SESSION, true));
         
         // Check if user is an admin (admins can access coach sections)
         if (self::isAdmin()) {
+            error_log("User is admin, allowing access");
             return true;
         }
         
         if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'coach') {
+            error_log("Not a coach session");
             return false;
         }
         
         // Check session timeout
         if (time() > $_SESSION['expires']) {
+            error_log("Session expired");
             self::logout();
             return false;
         }
         
+        error_log("Valid coach session found");
         return true;
     }
     
@@ -137,18 +143,25 @@ class Auth {
      * Note: Admins can also access coach sections
      */
     public static function requireCoach() {
+        error_log("requireCoach called - checking auth");
         if (!self::isCoach()) {
+            error_log("Not authenticated as coach");
             // If not logged in at all, redirect to coach login
             if (!self::isLoggedIn()) {
+                error_log("Not logged in, redirecting to login");
                 $loginPath = EnvLoader::isProduction() ? '/coaches/login.php' : '/public/coaches/login.php';
+                error_log("Login redirect path: " . $loginPath);
                 header('Location: ' . $loginPath);
                 exit;
             }
             // If logged in but not as coach/admin, redirect to home
+            error_log("Logged in but not as coach, redirecting to home");
             $homePath = EnvLoader::isProduction() ? '/index.php' : '/public/index.php';
+            error_log("Home redirect path: " . $homePath);
             header('Location: ' . $homePath);
             exit;
         }
+        error_log("Coach authentication verified");
     }
     
     /**
