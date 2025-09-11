@@ -154,14 +154,6 @@ $pageTitle = "Admin Login - " . APP_NAME;
                             <li>📊 System settings and reports</li>
                         </ul>
                         
-                        <div class="alert alert-warning mt-3">
-                            <small>
-                                <strong>Default Credentials:</strong><br>
-                                Username: <code>admin</code><br>
-                                Password: <code>admin</code><br>
-                                <em>Please change these after first login!</em>
-                            </small>
-                        </div>
                     </div>
                 </div>
             </div>
