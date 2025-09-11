@@ -17,6 +17,11 @@ try {
 $error = '';
 $success = '';
 
+// Determine asset path (production vs development)
+$cssPath = file_exists(__DIR__ . '/../assets/css/style.css')
+    ? '../assets/css/style.css'        // Production: coaches/ -> ../assets/
+    : '../../assets/css/style.css';    // Development: public/coaches/ -> ../../assets/
+
 // Check for logout message
 if (isset($_GET['message']) && $_GET['message'] === 'logged_out') {
     $success = 'You have been successfully logged out.';
@@ -56,11 +61,11 @@ $pageTitle = "Coaches Login - " . APP_NAME;
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $pageTitle; ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="../../assets/css/style.css" rel="stylesheet">
+    <link href="<?php echo $cssPath; ?>" rel="stylesheet">
 </head>
 <body>
     <!-- Navigation -->
-    <?php include '../../includes/nav.php'; ?>
+    <?php include EnvLoader::getPath('includes/nav.php'); ?>
 
     <!-- Main Content -->
     <div class="container">

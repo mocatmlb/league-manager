@@ -12,8 +12,12 @@ require_once __DIR__ . '/env-loader.php';
 // Load bootstrap using environment-aware path
 require_once EnvLoader::getPath('includes/bootstrap.php');
 
-// Require coach authentication
-Auth::requireCoach();
+// Require coach authentication on protected pages (skip on login page)
+$__d8tl_script = basename($_SERVER['SCRIPT_NAME'] ?? '');
+if ($__d8tl_script !== 'login.php') {
+    Auth::requireCoach();
+}
+unset($__d8tl_script);
 
 // Generate CSRF token for coach pages
 $csrfToken = Auth::generateCSRFToken();
