@@ -1,5 +1,10 @@
 /* Admin Styles */
 
+/* Import public site styles so admin matches public/standings exactly */
+@import url('style.css');
+/* Import Font Awesome for consistent nav/menu icons */
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css');
+
 /* Base font to match public site */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
