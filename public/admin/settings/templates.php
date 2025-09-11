@@ -264,7 +264,7 @@ $pageTitle = 'Email Template Management - District 8 Travel League';
     </style>
 </head>
 <body>
-    <?php include '../../../includes/admin-nav.php'; ?>
+    <?php include '../../../includes/nav.php'; ?>
     
     <div class="container-fluid mt-4">
         <div class="row">

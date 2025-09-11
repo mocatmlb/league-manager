@@ -420,7 +420,7 @@ $locations = $db->fetchAll("SELECT DISTINCT location FROM schedules WHERE locati
     </style>
 </head>
 <body>
-    <?php include '../../../includes/admin_nav.php'; ?>
+    <?php include '../../../includes/nav.php'; ?>
 
     <div class="container-fluid">
         <div class="row">

@@ -94,7 +94,7 @@ $currentLevel = Logger::getCurrentLogLevel();
     </style>
 </head>
 <body>
-    <?php include '../../../includes/admin-nav.php'; ?>
+    <?php include '../../../includes/nav.php'; ?>
 
     <div class="container-fluid mt-4">
         <div class="row">

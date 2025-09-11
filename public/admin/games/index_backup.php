@@ -145,7 +145,7 @@ $pageTitle = "Games Management - " . APP_NAME;
     <link href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" rel="stylesheet">
 </head>
 <body>
-    <?php include '../../../includes/admin-nav.php'; ?>
+    <?php include '../../../includes/nav.php'; ?>
 
     <div class="container-fluid mt-4">
         <div class="row">

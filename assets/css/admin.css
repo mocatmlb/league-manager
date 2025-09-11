@@ -1,5 +1,10 @@
 /* Admin Styles */
 
+/* Base font to match public site */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
 /* Sidebar */
 .sidebar {
     position: fixed;

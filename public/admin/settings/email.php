@@ -180,7 +180,7 @@ $pageTitle = "Email Configuration - " . APP_NAME;
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-    <?php include '../../../includes/admin-nav.php'; ?>
+    <?php include '../../../includes/nav.php'; ?>
     
     <div class="container-fluid mt-4">
         <div class="row">

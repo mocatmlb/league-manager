@@ -25,18 +25,21 @@ function isActiveNav($page, $dir = '') {
     return '';
 }
 
-// Helper function to get relative path to root
+// Helper function to get relative path prefix from current script to web root
 function getPathToRoot() {
-    // Get the path from the URL root to the current script
-    $scriptPath = dirname($_SERVER['SCRIPT_NAME']);
-    
-    // Handle both development and production environments
-    if ($scriptPath === '/') {
-        return '/';
+    // SCRIPT_NAME like '/index.php' or '/admin/games/index.php'
+    $scriptName = isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : '';
+    if ($scriptName === '' || $scriptName === '/') {
+        return './';
     }
-    
-    // Ensure the path ends with a slash
-    return rtrim($scriptPath, '/') . '/';
+    // Remove leading/trailing slashes and split
+    $parts = explode('/', trim($scriptName, '/'));
+    // Exclude the file name (last part)
+    $depth = max(count($parts) - 1, 0);
+    if ($depth <= 0) {
+        return './';
+    }
+    return str_repeat('../', $depth);
 }
 
 $rootPath = getPathToRoot();
