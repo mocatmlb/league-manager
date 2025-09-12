@@ -3,7 +3,12 @@
  * District 8 Travel League - Settings Management
  */
 
-require_once dirname(dirname(dirname(__DIR__))) . '/includes/bootstrap.php';
+// Environment-aware bootstrap include (production vs development)
+$__bootstrap = file_exists(__DIR__ . '/../../includes/bootstrap.php')
+    ? __DIR__ . '/../../includes/bootstrap.php'      // Production: /admin/settings -> ../../includes
+    : __DIR__ . '/../../../includes/bootstrap.php';   // Development: /public/admin/settings -> ../../../includes
+require_once $__bootstrap;
+unset($__bootstrap);
 
 // Require admin authentication
 Auth::requireAdmin();
@@ -132,13 +137,25 @@ $pageTitle = ($sectionTitles[$currentSection] ?? 'Settings') . " - " . APP_NAME;
     </style>
 </head>
 <body>
-    <?php include '../../../includes/nav.php'; ?>
+    <?php
+    $__nav = file_exists(__DIR__ . '/../../includes/nav.php')
+        ? __DIR__ . '/../../includes/nav.php'      // Production: /admin/settings -> ../../includes
+        : __DIR__ . '/../../../includes/nav.php';  // Development: /public/admin/settings -> ../../../includes
+    include $__nav;
+    unset($__nav);
+    ?>
 
     <div class="container-fluid">
         <div class="row">
             <!-- Settings Sidebar -->
             <div class="col-md-3 col-lg-2 d-md-block sidebar">
-                <?php include '../../../includes/settings-sidebar.php'; ?>
+                <?php
+                $__settings_sidebar = file_exists(__DIR__ . '/../../includes/settings-sidebar.php')
+                    ? __DIR__ . '/../../includes/settings-sidebar.php'      // Production: /admin/settings -> ../../includes
+                    : __DIR__ . '/../../../includes/settings-sidebar.php';  // Development: /public/admin/settings -> ../../../includes
+                include $__settings_sidebar;
+                unset($__settings_sidebar);
+                ?>
                 </div>
 
             <!-- Main Content -->

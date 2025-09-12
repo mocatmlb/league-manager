@@ -1,5 +1,10 @@
 <?php
-require_once dirname(dirname(dirname(__DIR__))) . '/includes/bootstrap.php';
+// Environment-aware bootstrap include (production vs development)
+$__bootstrap = file_exists(__DIR__ . '/../../includes/bootstrap.php')
+    ? __DIR__ . '/../../includes/bootstrap.php'      // Production: /admin/seasons -> ../../includes
+    : __DIR__ . '/../../../includes/bootstrap.php';   // Development: /public/admin/seasons -> ../../../includes
+require_once $__bootstrap;
+unset($__bootstrap);
 
 // Check admin authentication
 if (!Auth::isAdmin()) {
@@ -201,7 +206,13 @@ $programs = $db->fetchAll("SELECT program_id, program_name, sport_type FROM prog
     </style>
 </head>
 <body>
-    <?php include '../../../includes/nav.php'; ?>
+    <?php
+    $__nav = file_exists(__DIR__ . '/../../includes/nav.php')
+        ? __DIR__ . '/../../includes/nav.php'      // Production: /admin/seasons -> ../../includes
+        : __DIR__ . '/../../../includes/nav.php';  // Development: /public/admin/seasons -> ../../../includes
+    include $__nav;
+    unset($__nav);
+    ?>
 
     <div class="container mt-4">
         <div class="row">

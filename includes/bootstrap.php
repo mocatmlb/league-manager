@@ -8,6 +8,9 @@
 // Load security bootstrap
 require_once __DIR__ . '/security_bootstrap.php';
 
+// Ensure EnvLoader is available before using it
+require_once __DIR__ . '/env-loader.php';
+
 // Load configuration using environment-aware path
 require_once EnvLoader::getPath('includes/config.php');
 

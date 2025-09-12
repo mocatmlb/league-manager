@@ -3,7 +3,12 @@
  * District 8 Travel League - Email Template Management
  */
 
-require_once dirname(dirname(dirname(__DIR__))) . '/includes/bootstrap.php';
+// Environment-aware bootstrap include (production vs development)
+$__bootstrap = file_exists(__DIR__ . '/../../includes/bootstrap.php')
+    ? __DIR__ . '/../../includes/bootstrap.php'      // Production: /admin/settings -> ../../includes
+    : __DIR__ . '/../../../includes/bootstrap.php';   // Development: /public/admin/settings -> ../../../includes
+require_once $__bootstrap;
+unset($__bootstrap);
 
 // Require admin authentication
 Auth::requireAdmin();
@@ -13,7 +18,7 @@ $message = '';
 $error = '';
 
 // Include EmailService for testing
-require_once '../../../includes/EmailService.php';
+require_once EnvLoader::getPath('includes/EmailService.php');
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -264,7 +269,13 @@ $pageTitle = 'Email Template Management - District 8 Travel League';
     </style>
 </head>
 <body>
-    <?php include '../../../includes/nav.php'; ?>
+    <?php
+    $__nav = file_exists(__DIR__ . '/../../includes/nav.php')
+        ? __DIR__ . '/../../includes/nav.php'      // Production: /admin/settings -> ../../includes
+        : __DIR__ . '/../../../includes/nav.php';  // Development: /public/admin/settings -> ../../../includes
+    include $__nav;
+    unset($__nav);
+    ?>
     
     <div class="container-fluid mt-4">
         <div class="row">

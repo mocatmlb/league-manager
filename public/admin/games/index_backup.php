@@ -145,7 +145,13 @@ $pageTitle = "Games Management - " . APP_NAME;
     <link href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" rel="stylesheet">
 </head>
 <body>
-    <?php include '../../../includes/nav.php'; ?>
+    <?php
+    $__nav = file_exists(__DIR__ . '/../../includes/nav.php')
+        ? __DIR__ . '/../../includes/nav.php'      // Production: /admin/games -> ../../includes
+        : __DIR__ . '/../../../includes/nav.php';  // Development: /public/admin/games -> ../../../includes
+    include $__nav;
+    unset($__nav);
+    ?>
 
     <div class="container-fluid mt-4">
         <div class="row">

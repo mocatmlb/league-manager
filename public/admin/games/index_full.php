@@ -420,7 +420,13 @@ $locations = $db->fetchAll("SELECT DISTINCT location FROM schedules WHERE locati
     </style>
 </head>
 <body>
-    <?php include '../../../includes/nav.php'; ?>
+    <?php
+    $__nav = file_exists(__DIR__ . '/../../includes/nav.php')
+        ? __DIR__ . '/../../includes/nav.php'      // Production: /admin/games -> ../../includes
+        : __DIR__ . '/../../../includes/nav.php';  // Development: /public/admin/games -> ../../../includes
+    include $__nav;
+    unset($__nav);
+    ?>
 
     <div class="container-fluid">
         <div class="row">
