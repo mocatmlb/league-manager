@@ -1,7 +1,7 @@
 <?php
-// Define the root path based on the environment
-$rootPath = dirname(dirname(dirname(__FILE__)));
-require_once $rootPath . '/includes/admin_bootstrap.php';
+require_once __DIR__ . '/../includes/env-loader.php';
+define('D8TL_APP', true);
+require_once EnvLoader::getPath('includes/admin_bootstrap.php');
 
 // Ensure user is logged in
 if (!Auth::isLoggedIn()) {
@@ -73,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $pageTitle = "My Profile";
-include $rootPath . '/includes/admin_header.php';
+include EnvLoader::getPath('includes/admin_header.php');
 ?>
 
 <div class="container py-4">
@@ -135,4 +135,4 @@ include $rootPath . '/includes/admin_header.php';
     </div>
 </div>
 
-<?php include $rootPath . '/includes/admin_footer.php'; ?>
+<?php include EnvLoader::getPath('includes/admin_footer.php'); ?>
