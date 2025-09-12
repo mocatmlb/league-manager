@@ -4,7 +4,7 @@
 
 The District 8 Travel League Management System is a PHP-based web application designed to replace the legacy system with an improved, secure, and user-friendly platform for managing youth baseball leagues. Built specifically for shared hosting environments, the system provides comprehensive functionality for team management, game scheduling, score tracking, and league administration.
 
-## Current Status: MVP Implementationm
+## Current Status: MVP Implementation
 
 The MVP (Minimum Viable Product) is currently in development and represents a direct replacement of the current system functionality. The MVP is built with **PHP 8.0+ and MySQL** for maximum compatibility with shared hosting environments like A Small Orange.
 
