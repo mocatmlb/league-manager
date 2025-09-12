@@ -76,57 +76,85 @@ $pageTitle = "My Profile";
 include EnvLoader::getPath('includes/admin_header.php');
 ?>
 
+<!-- Main content area with proper spacing -->
 <div class="container py-4">
-    <div class="row">
-        <div class="col-md-8 offset-md-2">
-            <div class="card">
-                <div class="card-header">
-                    <h2 class="card-title">My Profile</h2>
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="<?php echo EnvLoader::getBasePath(); ?>/admin/">Dashboard</a></li>
+                    <li class="breadcrumb-item active">My Profile</li>
+                </ol>
+            </nav>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="card-title h5 mb-0"><i class="fas fa-user-circle me-2"></i>My Profile</h2>
                 </div>
                 <div class="card-body">
                     <?php if ($message): ?>
-                        <div class="alert alert-success"><?php echo htmlspecialchars($message); ?></div>
+                        <div class="alert alert-success"><i class="fas fa-check-circle me-2"></i><?php echo htmlspecialchars($message); ?></div>
                     <?php endif; ?>
                     <?php if ($error): ?>
-                        <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+                        <div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i><?php echo htmlspecialchars($error); ?></div>
                     <?php endif; ?>
 
                     <form method="post" class="needs-validation" novalidate>
                         <div class="mb-3">
                             <label for="username" class="form-label">Username</label>
-                            <input type="text" class="form-control" id="username" name="username"
-                                   value="<?php echo htmlspecialchars($currentUser['username']); ?>" required>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                <input type="text" class="form-control" id="username" name="username"
+                                       value="<?php echo htmlspecialchars($currentUser['username']); ?>" required>
+                            </div>
                         </div>
 
                         <div class="mb-3">
                             <label for="email" class="form-label">Email</label>
-                            <input type="email" class="form-control" id="email" name="email"
-                                   value="<?php echo htmlspecialchars($currentUser['email']); ?>" required>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                <input type="email" class="form-control" id="email" name="email"
+                                       value="<?php echo htmlspecialchars($currentUser['email']); ?>" required>
+                            </div>
                         </div>
 
                         <hr>
-                        <h4>Change Password</h4>
-                        <p class="text-muted">Leave password fields empty to keep your current password</p>
+                        <h4 class="h5 mb-3"><i class="fas fa-key me-2"></i>Change Password</h4>
+                        <p class="text-muted small">Leave password fields empty to keep your current password</p>
 
                         <div class="mb-3">
                             <label for="current_password" class="form-label">Current Password</label>
-                            <input type="password" class="form-control" id="current_password" name="current_password">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                <input type="password" class="form-control" id="current_password" name="current_password">
+                            </div>
                         </div>
 
                         <div class="mb-3">
                             <label for="new_password" class="form-label">New Password</label>
-                            <input type="password" class="form-control" id="new_password" name="new_password"
-                                   minlength="8">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-key"></i></span>
+                                <input type="password" class="form-control" id="new_password" name="new_password"
+                                       minlength="8">
+                            </div>
+                            <div class="form-text">Password must be at least 8 characters long</div>
                         </div>
 
                         <div class="mb-3">
                             <label for="confirm_password" class="form-label">Confirm New Password</label>
-                            <input type="password" class="form-control" id="confirm_password" name="confirm_password">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-key"></i></span>
+                                <input type="password" class="form-control" id="confirm_password" name="confirm_password">
+                            </div>
                         </div>
 
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary">Update Profile</button>
-                            <a href="../index.php" class="btn btn-secondary">Back to Dashboard</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Update Profile
+                            </button>
+                            <a href="../index.php" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                            </a>
                         </div>
                     </form>
                 </div>
