@@ -30,6 +30,52 @@ Auth::startSession();
 if (!isset($GLOBALS['d8tl_db_initialized'])) {
     $db = Database::getInstance();
     $GLOBALS['d8tl_db_initialized'] = true;
+
+    // Initialize admin account from .htaccess env if needed
+    try {
+        // If no admin users exist, create default 'admin' using DEFAULT_ADMIN_PASSWORD
+        $count = $db->fetchOne("SELECT COUNT(*) AS count FROM admin_users");
+        if ($count && (int)$count['count'] === 0) {
+            $defaultPass = defined('DEFAULT_ADMIN_PASSWORD') ? DEFAULT_ADMIN_PASSWORD : 'CHANGE_THIS_ADMIN_PASSWORD';
+            if ($defaultPass && $defaultPass !== 'CHANGE_THIS_ADMIN_PASSWORD') {
+                $hash = password_hash($defaultPass, PASSWORD_BCRYPT);
+                $db->insert('admin_users', [
+                    'username' => 'admin',
+                    'password' => $hash,
+                    'email' => 'admin@district8league.com',
+                    'first_name' => 'System',
+                    'last_name' => 'Administrator',
+                    'is_active' => 1,
+                    'created_date' => date('Y-m-d H:i:s')
+                ]);
+                if (class_exists('Logger')) {
+                    Logger::info('Seeded admin user from .htaccess DEFAULT_ADMIN_PASSWORD');
+                }
+            }
+        } else {
+            // If an 'admin' user exists with the factory default password hash from schema.sql, update it from env
+            $admin = $db->fetchOne("SELECT id, username, password FROM admin_users WHERE username = 'admin' LIMIT 1");
+            if ($admin) {
+                $defaultPass = defined('DEFAULT_ADMIN_PASSWORD') ? DEFAULT_ADMIN_PASSWORD : '';
+                if ($defaultPass && $defaultPass !== 'CHANGE_THIS_ADMIN_PASSWORD') {
+                    // The schema seeds bcrypt hash for the literal string 'password'
+                    if (password_verify('password', $admin['password'])) {
+                        $hash = password_hash($defaultPass, PASSWORD_BCRYPT);
+                        $db->update('admin_users', [
+                            'password' => $hash,
+                            'password_changed_at' => date('Y-m-d H:i:s')
+                        ], 'id = :id', ['id' => $admin['id']]);
+                        if (class_exists('Logger')) {
+                            Logger::info('Initialized admin password from .htaccess DEFAULT_ADMIN_PASSWORD');
+                        }
+                    }
+                }
+            }
+        }
+    } catch (Exception $e) {
+        // Do not block app startup if initialization fails
+        error_log('Admin initialization check failed: ' . $e->getMessage());
+    }
 }
 
 // Process email queue occasionally (MVP approach - 2% chance on page load)
