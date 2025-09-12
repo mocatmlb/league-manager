@@ -34,7 +34,13 @@ $pageTitle = "Admin Dashboard - " . APP_NAME;
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-    <?php include '../../includes/nav.php'; ?>
+    <?php
+        // Include nav with environment-aware path (production vs development)
+        $navPath = file_exists(__DIR__ . '/../includes/nav.php')
+            ? __DIR__ . '/../includes/nav.php'      // Production: includes is one level up from /admin
+            : __DIR__ . '/../../includes/nav.php';  // Development: includes is two levels up from /public/admin
+        include $navPath;
+    ?>
 
     <!-- Main Content -->
     <div class="container-fluid mt-4">

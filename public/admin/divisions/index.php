@@ -1,5 +1,10 @@
 <?php
-require_once dirname(dirname(dirname(__DIR__))) . '/includes/bootstrap.php';
+// Environment-aware bootstrap include (production vs development)
+$__bootstrap = file_exists(__DIR__ . '/../../includes/bootstrap.php')
+    ? __DIR__ . '/../../includes/bootstrap.php'      // Production: /admin/divisions -> ../../includes
+    : __DIR__ . '/../../../includes/bootstrap.php';   // Development: /public/admin/divisions -> ../../../includes
+require_once $__bootstrap;
+unset($__bootstrap);
 
 // Check admin authentication
 if (!Auth::isAdmin()) {
@@ -96,7 +101,14 @@ $seasons = $db->fetchAll("
     <link href="../../assets/css/admin.css" rel="stylesheet">
 </head>
 <body>
-    <?php include '../../../includes/nav.php'; ?>
+    <?php
+    // Include nav with environment-aware path
+    $__nav = file_exists(__DIR__ . '/../../includes/nav.php')
+        ? __DIR__ . '/../../includes/nav.php'      // Production: /admin/divisions -> ../../includes
+        : __DIR__ . '/../../../includes/nav.php';  // Development: /public/admin/divisions -> ../../../includes
+    include $__nav;
+    unset($__nav);
+    ?>
 
     <div class="container mt-4">
         <div class="row">

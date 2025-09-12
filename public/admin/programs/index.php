@@ -3,7 +3,12 @@
  * District 8 Travel League - Programs Management
  */
 
-require_once dirname(dirname(dirname(__DIR__))) . '/includes/bootstrap.php';
+// Environment-aware bootstrap include (production vs development)
+$__bootstrap = file_exists(__DIR__ . '/../../includes/bootstrap.php')
+    ? __DIR__ . '/../../includes/bootstrap.php'      // Production: /admin/programs -> ../../includes
+    : __DIR__ . '/../../../includes/bootstrap.php';   // Development: /public/admin/programs -> ../../../includes
+require_once $__bootstrap;
+unset($__bootstrap);
 
 // Require admin authentication
 Auth::requireAdmin();
@@ -179,7 +184,14 @@ $pageTitle = "Programs Management - " . APP_NAME;
     <link href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" rel="stylesheet">
 </head>
 <body>
-    <?php include '../../../includes/nav.php'; ?>
+    <?php
+    // Include nav with environment-aware path
+    $__nav = file_exists(__DIR__ . '/../../includes/nav.php')
+        ? __DIR__ . '/../../includes/nav.php'      // Production: /admin/programs -> ../../includes
+        : __DIR__ . '/../../../includes/nav.php';  // Development: /public/admin/programs -> ../../../includes
+    include $__nav;
+    unset($__nav);
+    ?>
 
     <div class="container-fluid mt-4">
         <div class="row">

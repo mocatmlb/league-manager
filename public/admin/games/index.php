@@ -3,7 +3,12 @@
  * District 8 Travel League - Games Management
  */
 
-require_once dirname(dirname(dirname(__DIR__))) . '/includes/bootstrap.php';
+// Environment-aware bootstrap include (production vs development)
+$__bootstrap = file_exists(__DIR__ . '/../../includes/bootstrap.php')
+    ? __DIR__ . '/../../includes/bootstrap.php'      // Production: /admin/games -> ../../includes
+    : __DIR__ . '/../../../includes/bootstrap.php';   // Development: /public/admin/games -> ../../../includes
+require_once $__bootstrap;
+unset($__bootstrap);
 
 // Require admin authentication
 Auth::requireAdmin();
@@ -582,7 +587,14 @@ $pageTitle = "Games Management - " . APP_NAME;
     </style>
 </head>
 <body>
-    <?php include '../../../includes/nav.php'; ?>
+    <?php
+    // Include nav with environment-aware path
+    $__nav = file_exists(__DIR__ . '/../../includes/nav.php')
+        ? __DIR__ . '/../../includes/nav.php'      // Production: /admin/games -> ../../includes
+        : __DIR__ . '/../../../includes/nav.php';  // Development: /public/admin/games -> ../../../includes
+    include $__nav;
+    unset($__nav);
+    ?>
 
     <div class="container-fluid mt-4">
         <div class="row">
@@ -609,7 +621,14 @@ $pageTitle = "Games Management - " . APP_NAME;
                 <?php endif; ?>
 
                 <!-- Filter Component -->
-                <?php include '../../../includes/admin_filter_component.php'; ?>
+                <?php
+                // Include admin filter component with environment-aware path
+                $__filter = file_exists(__DIR__ . '/../../includes/admin_filter_component.php')
+                    ? __DIR__ . '/../../includes/admin_filter_component.php'      // Production: /admin/games -> ../../includes
+                    : __DIR__ . '/../../../includes/admin_filter_component.php';  // Development: /public/admin/games -> ../../../includes
+                include $__filter;
+                unset($__filter);
+                ?>
 
                 <!-- Games Table -->
                 <div class="card">

@@ -3,7 +3,12 @@
  * District 8 Travel League - Schedule Management
  */
 
-require_once dirname(dirname(dirname(__DIR__))) . '/includes/bootstrap.php';
+// Environment-aware bootstrap include (production vs development)
+$__bootstrap = file_exists(__DIR__ . '/../../includes/bootstrap.php')
+    ? __DIR__ . '/../../includes/bootstrap.php'      // Production: /admin/schedules -> ../../includes
+    : __DIR__ . '/../../../includes/bootstrap.php';   // Development: /public/admin/schedules -> ../../../includes
+require_once $__bootstrap;
+unset($__bootstrap);
 
 // Require admin authentication
 Auth::requireAdmin();
