@@ -1,5 +1,7 @@
 <?php
-require_once '../../includes/admin_bootstrap.php';
+// Define the root path based on the environment
+$rootPath = dirname(dirname(dirname(__FILE__)));
+require_once $rootPath . '/includes/admin_bootstrap.php';
 
 // Ensure user is logged in
 if (!Auth::isLoggedIn()) {
@@ -71,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $pageTitle = "My Profile";
-include '../../includes/admin_header.php';
+include $rootPath . '/includes/admin_header.php';
 ?>
 
 <div class="container py-4">
@@ -133,4 +135,4 @@ include '../../includes/admin_header.php';
     </div>
 </div>
 
-<?php include '../../includes/admin_footer.php'; ?>
+<?php include $rootPath . '/includes/admin_footer.php'; ?>
