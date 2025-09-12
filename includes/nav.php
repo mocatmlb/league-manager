@@ -192,12 +192,12 @@ $rootPath = getPathToRoot();
                                 <li><hr class="dropdown-divider"></li>
                             <?php endif; ?>
                             <li>
-                                <a class="dropdown-item" href="<?php echo $rootPath; ?>profile.php">
+                                <a class="dropdown-item" href="<?php echo $rootPath; ?>admin/profile.php">
                                     <i class="fas fa-user-circle"></i> Profile
                                 </a>
                             </li>
                             <li>
-                                <a class="dropdown-item" href="<?php echo $rootPath; ?>logout.php">
+                                <a class="dropdown-item" href="<?php echo $rootPath; ?>admin/logout.php">
                                     <i class="fas fa-sign-out-alt"></i> Logout
                                 </a>
                             </li>
