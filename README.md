@@ -41,8 +41,11 @@ The MVP (Minimum Viable Product) is currently in development and represents a di
 
 #### Setup Steps
 ```bash
-# Clone repository
-git clone https://github.com/your-org/league-manager.git
+# Clone repository (avoid 403 errors)
+# Option A: SSH (recommended)
+git clone git@github.com:mocatmlb/league-manager.git
+# Option B: HTTPS with a Personal Access Token (no trailing slash)
+# git clone https://github.com/mocatmlb/league-manager.git
 cd league-manager
 
 # Install PHP dependencies
@@ -208,3 +211,31 @@ This project is proprietary software developed for the District 8 Travel League.
 ---
 
 For detailed technical requirements, implementation specifications, and feature documentation, see the [System Requirements](./docs/requirements.md) and [Technical Overview](./docs/tech.md) documents.
+
+## Troubleshooting: GitHub 403 when cloning or pushing
+
+If you see an error like:
+
+fatal: unable to access 'https://github.com/mocatmlb/league-manager.git/': The requested URL returned error: 403
+
+Try the following:
+- Use SSH instead of HTTPS (recommended):
+  - Ensure you have an SSH key added to your GitHub account.
+  - Clone with: git clone git@github.com:mocatmlb/league-manager.git
+- If using HTTPS, use a Personal Access Token (PAT) instead of a password:
+  - Create a PAT with repo scope in GitHub.
+  - When prompted for a password, paste the PAT. Avoid a trailing slash in the URL.
+- Remove the trailing slash after .git in the URL:
+  - Correct: https://github.com/mocatmlb/league-manager.git
+  - Incorrect: https://github.com/mocatmlb/league-manager.git/
+- Verify you have access to the repository (collaborator/team membership).
+- Update an existing remote that has the wrong URL:
+  - git remote set-url origin git@github.com:mocatmlb/league-manager.git
+- Clear cached HTTPS credentials if switching to PAT:
+  - macOS: Keychain Access → search for github.com → delete the GitHub entry.
+  - Windows: Credential Manager → Windows Credentials → github.com → Remove.
+  - Linux: depends on your credential helper; or run: git config --global --unset credential.helper
+- For cPanel Git Version Control, prefer SSH with a Deploy Key:
+  - Generate an SSH key in cPanel or locally and add the public key to GitHub (Deploy keys for the repo or your account keys).
+  - Use the SSH clone URL in cPanel: git@github.com:mocatmlb/league-manager.git
+- If your org enforces SSO, ensure the PAT is authorized for the org.

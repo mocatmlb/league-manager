@@ -222,9 +222,12 @@ ini_set('session.use_strict_mode', 1);
 
 ### Local Development Setup
 ```bash
-# Clone repository
-git clone https://github.com/your-org/d8tl.git
-cd d8tl
+# Clone repository (avoid 403 errors)
+# Option A: SSH (recommended)
+git clone git@github.com:mocatmlb/league-manager.git
+cd league-manager
+# Option B: HTTPS with a Personal Access Token (no trailing slash)
+# git clone https://github.com/mocatmlb/league-manager.git
 
 # Install PHP dependencies
 composer install
@@ -247,15 +250,19 @@ php -S localhost:8000 -t public/
 
 #### 1. Repository Structure Setup
 ```bash
-# Local development setup
-git clone https://github.com/your-org/d8tl.git
-cd d8tl
+# Local development setup (use SSH or HTTPS with PAT)
+# SSH (recommended):
+git clone git@github.com:mocatmlb/league-manager.git
+cd league-manager
 
 # Create development branches
 git checkout -b develop
 git checkout -b staging
 git push origin develop
 git push origin staging
+
+# Or HTTPS with a Personal Access Token (no trailing slash):
+# git clone https://github.com/mocatmlb/league-manager.git
 ```
 
 #### 2. cPanel Git Repository Configuration
