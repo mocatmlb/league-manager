@@ -18,26 +18,26 @@ if (!defined('D8TL_APP')) {
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
         <div class="container-fluid">
-            <a class="navbar-brand" href="<?php echo EnvLoader::getBasePath(); ?>/admin/">League Manager</a>
+            <a class="navbar-brand" href="<?php echo EnvLoader::getBaseUrl(); ?>/admin/">League Manager</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarAdmin">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarAdmin">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="<?php echo EnvLoader::getBasePath(); ?>/admin/seasons/">Seasons</a>
+                        <a class="nav-link" href="<?php echo EnvLoader::getBaseUrl(); ?>/admin/seasons/">Seasons</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="<?php echo EnvLoader::getBasePath(); ?>/admin/divisions/">Divisions</a>
+                        <a class="nav-link" href="<?php echo EnvLoader::getBaseUrl(); ?>/admin/divisions/">Divisions</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="<?php echo EnvLoader::getBasePath(); ?>/admin/teams/">Teams</a>
+                        <a class="nav-link" href="<?php echo EnvLoader::getBaseUrl(); ?>/admin/teams/">Teams</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="<?php echo EnvLoader::getBasePath(); ?>/admin/schedules/">Schedules</a>
+                        <a class="nav-link" href="<?php echo EnvLoader::getBaseUrl(); ?>/admin/schedules/">Schedules</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="<?php echo EnvLoader::getBasePath(); ?>/admin/documents/">Documents</a>
+                        <a class="nav-link" href="<?php echo EnvLoader::getBaseUrl(); ?>/admin/documents/">Documents</a>
                     </li>
                 </ul>
                 <ul class="navbar-nav">
@@ -46,10 +46,10 @@ if (!defined('D8TL_APP')) {
                             <i class="fas fa-user"></i> <?php echo htmlspecialchars($_SESSION['user']['username'] ?? 'User'); ?>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="<?php echo EnvLoader::getBasePath(); ?>/admin/profile.php">Profile</a></li>
-                            <li><a class="dropdown-item" href="<?php echo EnvLoader::getBasePath(); ?>/admin/settings/">Settings</a></li>
+                            <li><a class="dropdown-item" href="<?php echo EnvLoader::getBaseUrl(); ?>/admin/profile.php">Profile</a></li>
+                            <li><a class="dropdown-item" href="<?php echo EnvLoader::getBaseUrl(); ?>/admin/settings/">Settings</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="<?php echo EnvLoader::getBasePath(); ?>/admin/logout.php">Logout</a></li>
+                            <li><a class="dropdown-item" href="<?php echo EnvLoader::getBaseUrl(); ?>/admin/logout.php">Logout</a></li>
                         </ul>
                     </li>
                 </ul>

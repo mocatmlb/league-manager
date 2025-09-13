@@ -1,7 +1,38 @@
 <?php
 require_once __DIR__ . '/../includes/env-loader.php';
 define('D8TL_APP', true);
-require_once EnvLoader::getPath('includes/admin_bootstrap.php');
+
+// Use include_once instead of require_once and validate expected symbols
+$included = @include_once EnvLoader::getPath('includes/admin_bootstrap.php');
+if ($included === false || !class_exists('Auth')) {
+    $adminBootstrapPath = EnvLoader::getPath('includes/admin_bootstrap.php');
+    $bootstrapPath = EnvLoader::getPath('includes/bootstrap.php');
+    $checks = [
+        'admin_bootstrap_path' => $adminBootstrapPath,
+        'admin_bootstrap_exists' => file_exists($adminBootstrapPath),
+        'bootstrap_path' => $bootstrapPath,
+        'bootstrap_exists' => file_exists($bootstrapPath),
+        'includes_dir_readable' => is_dir(EnvLoader::getBasePath() . '/includes') && is_readable(EnvLoader::getBasePath() . '/includes'),
+        'document_root' => $_SERVER['DOCUMENT_ROOT'] ?? '',
+        'script_filename' => $_SERVER['SCRIPT_FILENAME'] ?? '',
+        'script_name' => $_SERVER['SCRIPT_NAME'] ?? '',
+        'is_production_guess' => EnvLoader::isProduction(),
+    ];
+
+    error_log('D8TL ERROR: admin_bootstrap include failed or Auth class missing. Checks: ' . json_encode($checks));
+
+    // Render a simple diagnostic page to the browser (temporary for debugging)
+    http_response_code(500);
+    echo '<!doctype html><html><head><meta charset="utf-8"><title>Configuration error</title>';
+    echo '<style>body{font-family:Segoe UI,Arial,Helvetica,sans-serif;padding:20px}pre{background:#f8f9fa;padding:10px;border:1px solid #ddd}</style>';
+    echo '</head><body>';
+    echo '<h1>Configuration/Include Error</h1>';
+    echo '<p>The admin bootstrap could not be loaded or did not initialize correctly. See diagnostic data below.</p>';
+    echo '<pre>' . htmlspecialchars(print_r($checks, true)) . '</pre>';
+    echo '<p>Check server error logs for lines starting with "D8TL DEBUG" or "D8TL ERROR".</p>';
+    echo '</body></html>';
+    exit;
+}
 
 // Ensure user is logged in
 if (!Auth::isLoggedIn()) {
