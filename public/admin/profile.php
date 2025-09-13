@@ -1,5 +1,6 @@
 <?php
-require_once __DIR__ . '/../includes/env-loader.php';
+// Correct path: from public/admin to project root includes
+require_once __DIR__ . '/../../includes/env-loader.php';
 define('D8TL_APP', true);
 
 // Use include_once instead of require_once and validate expected symbols
@@ -113,7 +114,7 @@ include EnvLoader::getPath('includes/admin_header.php');
         <div class="col-md-8">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="<?php echo EnvLoader::getBasePath(); ?>/admin/">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="<?php echo EnvLoader::getBaseUrl(); ?>/admin/">Dashboard</a></li>
                     <li class="breadcrumb-item active">My Profile</li>
                 </ol>
             </nav>
