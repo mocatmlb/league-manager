@@ -182,7 +182,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                 <i class="fas fa-edit"></i>
                                             </button>
                                             <button type="button" class="btn btn-sm btn-outline-danger"
-                                                    onclick="deleteContact(<?php echo $contact['contact_id']; ?>, '<?php echo addslashes($contact['name']); ?>')">
+                                                    onclick="deleteContact(<?php echo $contact['official_id']; ?>, '<?php echo addslashes($contact['name']); ?>')">
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                         </td>
@@ -265,7 +265,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <div class="mb-3">
                         <label class="form-label">Sort Order</label>
-                        <input type="number" name="sort_order" id="editSortOrder" class="form-control" value="0"
+                        <input type="number" name="sort_order" id="addSortOrder" class="form-control" value="0"
                                min="0" step="1">
                         <div class="form-text">
                             Lower numbers appear first. Leave as 0 to add to the end.
@@ -274,13 +274,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <div class="mb-3">
                         <div class="form-check">
-                            <input type="checkbox" name="is_active" id="editIsActive" class="form-check-input" value="1" checked>
+                            <input type="checkbox" name="is_active" id="addIsActive" class="form-check-input" value="1" checked>
                             <label class="form-check-label">Active</label>
                         </div>
                     </div>
                     <div class="mb-3">
                         <div class="form-check">
-                            <input type="checkbox" name="display_on_contact_page" id="editDisplayOnContactPage" class="form-check-input" value="1" checked>
+                            <input type="checkbox" name="display_on_contact_page" id="addDisplayOnContactPage" class="form-check-input" value="1" checked>
                             <label class="form-check-label">Display on Contact Page</label>
                         </div>
                     </div>
@@ -314,11 +314,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                placeholder="Enter contact name">
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Title *</label>
-                        <input type="text" name="title" id="editTitle" class="form-control" required
-                               placeholder="Enter contact title">
-                    </div>
 
                     <div class="mb-3">
                         <label class="form-label">Role *</label>
@@ -340,7 +335,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <div class="mb-3">
                         <label class="form-label">Display Order</label>
-                        <input type="number" name="display_order" id="editDisplayOrder" class="form-control"
+                        <input type="number" name="sort_order" id="editSortOrder" class="form-control"
                                min="0" step="1">
                         <div class="form-text">
                             Lower numbers appear first.
@@ -348,9 +343,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
 
                     <div class="mb-3">
-                        <div class="form-check">
+                        <div class="form-check mb-2">
                             <input type="checkbox" name="is_active" id="editIsActive" class="form-check-input" value="1">
                             <label class="form-check-label">Active</label>
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" name="display_on_contact_page" id="editDisplayOnContactPage" class="form-check-input" value="1">
+                            <label class="form-check-label">Display on Contact Page</label>
                         </div>
                     </div>
                 </div>
@@ -400,7 +399,7 @@ $(document).ready(function() {
         order: [[0, 'asc']],
         pageLength: 25,
         columnDefs: [
-            { orderable: false, targets: 6 } // Actions column
+            { orderable: false, targets: 5 } // Actions column
         ]
     });
 
