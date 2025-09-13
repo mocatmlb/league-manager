@@ -1,10 +1,7 @@
 <?php
-// Environment-aware bootstrap include (production vs development)
-$__bootstrap = file_exists(__DIR__ . '/../../includes/bootstrap.php')
-    ? __DIR__ . '/../../includes/bootstrap.php'      // Production: /admin/divisions -> ../../includes
-    : __DIR__ . '/../../../includes/bootstrap.php';   // Development: /public/admin/divisions -> ../../../includes
-require_once $__bootstrap;
-unset($__bootstrap);
+// Load environment loader from project root (from /public/admin/divisions)
+require_once __DIR__ . '/../../../includes/env-loader.php';
+@include_once EnvLoader::getPath('includes/admin_bootstrap.php');
 
 // Check admin authentication
 if (!Auth::isAdmin()) {

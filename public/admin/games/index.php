@@ -4,11 +4,8 @@
  */
 
 // Environment-aware bootstrap include (production vs development)
-$__bootstrap = file_exists(__DIR__ . '/../../includes/bootstrap.php')
-    ? __DIR__ . '/../../includes/bootstrap.php'      // Production: /admin/games -> ../../includes
-    : __DIR__ . '/../../../includes/bootstrap.php';   // Development: /public/admin/games -> ../../../includes
-require_once $__bootstrap;
-unset($__bootstrap);
+require_once __DIR__ . '/../../../includes/env-loader.php';
+@include_once EnvLoader::getPath('includes/admin_bootstrap.php');
 
 // Require admin authentication
 Auth::requireAdmin();
