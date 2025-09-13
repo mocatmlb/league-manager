@@ -58,8 +58,8 @@ if ($included === false || !class_exists('Auth')) {
     exit;
 }
 
-// Ensure user is logged in
-if (!Auth::isLoggedIn()) {
+// Ensure user is logged in as admin
+if (!Auth::isAdmin()) {
     header('Location: login.php');
     exit();
 }
@@ -70,64 +70,75 @@ $error = '';
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = filter_input(INPUT_POST, 'username', FILTER_SANITIZE_STRING);
-    $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
-    $currentPassword = $_POST['current_password'] ?? '';
-    $newPassword = $_POST['new_password'] ?? '';
-    $confirmPassword = $_POST['confirm_password'] ?? '';
+    // CSRF validation
+    if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        $error = 'Invalid form submission. Please try again.';
+    } else {
+        $username = trim(filter_input(INPUT_POST, 'username', FILTER_UNSAFE_RAW));
+        $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
+        $currentPassword = $_POST['current_password'] ?? '';
+        $newPassword = $_POST['new_password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
 
-    // Validate current password if trying to change password
-    if (!empty($newPassword)) {
-        if (empty($currentPassword)) {
-            $error = "Current password is required to set a new password";
-        } elseif ($newPassword !== $confirmPassword) {
-            $error = "New passwords do not match";
-        } elseif (strlen($newPassword) < 8) {
-            $error = "New password must be at least 8 characters long";
-        } else {
-            // Verify current password
-            if (!Auth::verifyPassword($currentPassword, $currentUser['password'])) {
-                $error = "Current password is incorrect";
-            }
-        }
-    }
-
-    if (empty($error)) {
-        $updateData = [
-            'username' => $username,
-            'email' => $email
-        ];
-
-        // Only include password if it's being changed
-        if (!empty($newPassword)) {
-            $updateData['password'] = password_hash($newPassword, PASSWORD_DEFAULT);
+        // Basic validation
+        if ($username === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $error = 'Please provide a valid username and email address.';
         }
 
-        try {
-            $db = Database::getInstance();
-            $stmt = $db->prepare("UPDATE users SET username = ?, email = ?" .
-                (!empty($newPassword) ? ", password = ?" : "") .
-                " WHERE id = ?");
-
-            $params = [$username, $email];
-            if (!empty($newPassword)) {
-                $params[] = $updateData['password'];
+        // Validate current password if trying to change password
+        if (!$error && !empty($newPassword)) {
+            if (empty($currentPassword)) {
+                $error = 'Current password is required to set a new password';
+            } elseif ($newPassword !== $confirmPassword) {
+                $error = 'New passwords do not match';
+            } elseif (strlen($newPassword) < 8) {
+                $error = 'New password must be at least 8 characters long';
+            } else {
+                // Verify current password against stored hash
+                try {
+                    $db = Database::getInstance();
+                    $row = $db->fetchOne('SELECT password FROM admin_users WHERE id = ?', [$currentUser['id']]);
+                    if (!$row || !password_verify($currentPassword, $row['password'])) {
+                        $error = 'Current password is incorrect';
+                    }
+                } catch (Exception $e) {
+                    error_log('Profile password verify failed: ' . $e->getMessage());
+                    $error = 'An error occurred while verifying your password.';
+                }
             }
-            $params[] = $currentUser['id'];
+        }
 
-            $stmt->execute($params);
-            $message = "Profile updated successfully";
+        if (!$error) {
+            try {
+                $db = isset($db) ? $db : Database::getInstance();
+                $updateData = [
+                    'username' => $username,
+                    'email' => $email,
+                ];
+                if (!empty($newPassword)) {
+                    $updateData['password'] = password_hash($newPassword, PASSWORD_DEFAULT);
+                    $updateData['password_changed_at'] = date('Y-m-d H:i:s');
+                }
 
-            // Update session data
-            $_SESSION['user']['username'] = $username;
-            $_SESSION['user']['email'] = $email;
-        } catch (PDOException $e) {
-            $error = "Error updating profile: " . $e->getMessage();
+                $db->update('admin_users', $updateData, 'id = :id', ['id' => $currentUser['id']]);
+                $message = 'Profile updated successfully';
+
+                // Update session/display data
+                $_SESSION['admin_username'] = $username;
+                $_SESSION['user']['username'] = $username; // for header display compatibility
+                $_SESSION['user']['email'] = $email;
+
+                // Refresh current user array for this request
+                $currentUser['username'] = $username;
+            } catch (Exception $e) {
+                error_log('Error updating profile: ' . $e->getMessage());
+                $error = 'Error updating profile. Please try again later.';
+            }
         }
     }
 }
 
-$pageTitle = "My Profile";
+$pageTitle = 'My Profile';
 include EnvLoader::getPath('includes/admin_header.php');
 ?>
 
@@ -155,6 +166,7 @@ include EnvLoader::getPath('includes/admin_header.php');
                     <?php endif; ?>
 
                     <form method="post" class="needs-validation" novalidate>
+                        <input type="hidden" name="csrf_token" value="<?php echo Auth::generateCSRFToken(); ?>">
                         <div class="mb-3">
                             <label for="username" class="form-label">Username</label>
                             <div class="input-group">
@@ -169,7 +181,7 @@ include EnvLoader::getPath('includes/admin_header.php');
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-envelope"></i></span>
                                 <input type="email" class="form-control" id="email" name="email"
-                                       value="<?php echo htmlspecialchars($currentUser['email']); ?>" required>
+                                       value="<?php echo htmlspecialchars($_SESSION['user']['email'] ?? ''); ?>" required>
                             </div>
                         </div>
 
@@ -189,8 +201,7 @@ include EnvLoader::getPath('includes/admin_header.php');
                             <label for="new_password" class="form-label">New Password</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-key"></i></span>
-                                <input type="password" class="form-control" id="new_password" name="new_password"
-                                       minlength="8">
+                                <input type="password" class="form-control" id="new_password" name="new_password" minlength="8">
                             </div>
                             <div class="form-text">Password must be at least 8 characters long</div>
                         </div>
@@ -207,7 +218,7 @@ include EnvLoader::getPath('includes/admin_header.php');
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-save me-2"></i>Update Profile
                             </button>
-                            <a href="../index.php" class="btn btn-secondary">
+                            <a href="<?php echo EnvLoader::getBaseUrl(); ?>/admin/" class="btn btn-secondary">
                                 <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
                             </a>
                         </div>
