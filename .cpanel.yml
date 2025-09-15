@@ -1,42 +1,70 @@
 ---
 deployment:
   tasks:
+    # Determine deployment environment based on branch
+    - export DEPLOYPATH=/home/moc835/public_html
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then export DEPLOYPATH=/home/moc835/public_html/staging; fi
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then export DEPLOYPATH=/home/moc835/public_html; fi
+    
     # Create necessary directories
-    - mkdir -p $HOME/public_html/district8travelleague.com/includes
-    - mkdir -p $HOME/public_html/district8travelleague.com/logs
-    - mkdir -p $HOME/public_html/district8travelleague.com/uploads
-    - mkdir -p $HOME/public_html/district8travelleague.com/backups
+    - mkdir -p $DEPLOYPATH/includes
+    - mkdir -p $DEPLOYPATH/logs
+    - mkdir -p $DEPLOYPATH/uploads
+    - mkdir -p $DEPLOYPATH/backups
+    - mkdir -p $DEPLOYPATH/templates
     
     # Copy includes directory to site root
-    - cp -R includes/* $HOME/public_html/district8travelleague.com/includes/
+    - cp -R includes/* $DEPLOYPATH/includes/
     
     # Copy public files
-    - cp -R public/* $HOME/public_html/district8travelleague.com/
+    - cp -R public/* $DEPLOYPATH/
     
-    # Copy configuration files
-    - cp -f includes/config.prod.php $HOME/public_html/district8travelleague.com/includes/config.php
+    # Copy templates
+    - cp -R templates/* $DEPLOYPATH/templates/
+    
+    # Copy scripts (for maintenance)
+    - mkdir -p $DEPLOYPATH/scripts
+    - cp -R scripts/* $DEPLOYPATH/scripts/
+    
+    # Copy environment-specific configuration
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then cp -f includes/config.prod.php $DEPLOYPATH/includes/config.php; fi
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then cp -f includes/config.staging.php $DEPLOYPATH/includes/config.php; fi
+    
+    # Install/update Composer dependencies
+    - /usr/local/bin/composer install --no-dev --optimize-autoloader --working-dir=$DEPLOYPATH
     
     # Set proper permissions
-    - chmod 644 $HOME/public_html/district8travelleague.com/includes/*.php
-    - chmod 755 $HOME/public_html/district8travelleague.com/includes
-    - chmod 755 $HOME/public_html/district8travelleague.com/logs
-    - chmod 755 $HOME/public_html/district8travelleague.com/uploads
-    - chmod 755 $HOME/public_html/district8travelleague.com/backups
+    - find $DEPLOYPATH -type f -name "*.php" -exec chmod 644 {} \;
+    - find $DEPLOYPATH -type d -exec chmod 755 {} \;
+    - chmod 755 $DEPLOYPATH/logs
+    - chmod 755 $DEPLOYPATH/uploads
+    - chmod 755 $DEPLOYPATH/backups
+    - chmod 755 $DEPLOYPATH/scripts
     
     # Make directories writable by web server
-    - chown -R $USER:nobody $HOME/public_html/district8travelleague.com/logs
-    - chown -R $USER:nobody $HOME/public_html/district8travelleague.com/uploads
-    - chown -R $USER:nobody $HOME/public_html/district8travelleague.com/backups
-    
-    # Clear any existing caches
-    - rm -rf $HOME/public_html/district8travelleague.com/logs/*
-    - rm -rf $HOME/tmp/*
+    - chown -R $USER:nobody $DEPLOYPATH/logs
+    - chown -R $USER:nobody $DEPLOYPATH/uploads
+    - chown -R $USER:nobody $DEPLOYPATH/backups
     
     # Create .htaccess to protect includes directory
-    - echo "Order deny,allow" > $HOME/public_html/district8travelleague.com/includes/.htaccess
-    - echo "Deny from all" >> $HOME/public_html/district8travelleague.com/includes/.htaccess
+    - echo "Order deny,allow" > $DEPLOYPATH/includes/.htaccess
+    - echo "Deny from all" >> $DEPLOYPATH/includes/.htaccess
     
-    # Create empty log file with correct permissions
-    - touch $HOME/public_html/district8travelleague.com/logs/app.log
-    - chmod 664 $HOME/public_html/district8travelleague.com/logs/app.log
-    - chown $USER:nobody $HOME/public_html/district8travelleague.com/logs/app.log
+    # Create .htaccess to protect templates directory
+    - echo "Order deny,allow" > $DEPLOYPATH/templates/.htaccess
+    - echo "Deny from all" >> $DEPLOYPATH/templates/.htaccess
+    
+    # Create empty log files with correct permissions
+    - touch $DEPLOYPATH/logs/app.log
+    - touch $DEPLOYPATH/logs/php_errors.log
+    - chmod 664 $DEPLOYPATH/logs/*.log
+    - chown $USER:nobody $DEPLOYPATH/logs/*.log
+    
+    # Run database migrations if migrate script exists
+    - if [ -f "$DEPLOYPATH/scripts/migrate-admin-accounts.php" ]; then /usr/local/bin/php $DEPLOYPATH/scripts/migrate-admin-accounts.php; fi
+    
+    # Clear any PHP opcache if available
+    - if [ -f "$DEPLOYPATH/scripts/clear-cache.php" ]; then /usr/local/bin/php $DEPLOYPATH/scripts/clear-cache.php; fi
+    
+    # Log deployment
+    - echo "$(date): Deployed $CPANEL_DEPLOYMENT_BRANCH branch to $DEPLOYPATH" >> $DEPLOYPATH/logs/deployment.log
