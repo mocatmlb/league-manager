@@ -224,10 +224,10 @@ ini_set('session.use_strict_mode', 1);
 ```bash
 # Clone repository (avoid 403 errors)
 # Option A: SSH (recommended)
-git clone git@github.com:mocatmlb/league-manager.git
-cd league-manager
+git clone git@github.com:mocatmlb/stg-league-manager.git
+cd stg-league-manager
 # Option B: HTTPS with a Personal Access Token (no trailing slash)
-# git clone https://github.com/mocatmlb/league-manager.git
+# git clone https://github.com/mocatmlb/stg-league-manager.git
 
 # Install PHP dependencies
 composer install
@@ -252,8 +252,8 @@ php -S localhost:8000 -t public/
 ```bash
 # Local development setup (use SSH or HTTPS with PAT)
 # SSH (recommended):
-git clone git@github.com:mocatmlb/league-manager.git
-cd league-manager
+git clone git@github.com:mocatmlb/stg-league-manager.git
+cd stg-league-manager
 
 # Create development branches
 git checkout -b develop
@@ -262,7 +262,7 @@ git push origin develop
 git push origin staging
 
 # Or HTTPS with a Personal Access Token (no trailing slash):
-# git clone https://github.com/mocatmlb/league-manager.git
+# git clone https://github.com/mocatmlb/stg-league-manager.git
 ```
 
 #### 2. cPanel Git Repository Configuration
