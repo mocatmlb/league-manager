@@ -162,7 +162,7 @@ The system uses a hierarchical structure:
 - **Admin Console**: Full administrative access with comprehensive management capabilities
 
 ### Future Enhancement (Post-MVP)
-- **Six Primary Roles**: Public User, Team Official, Team Manager, Umpire, Umpire Assignor, Administrator
+- **Four Primary Roles**: User, Team Owner, Team Official, Administrator
 - **Multi-Role Support**: Users can hold multiple roles simultaneously
 - **Individual User Accounts**: Personal accounts with role-based permissions
 

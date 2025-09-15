@@ -21,6 +21,7 @@ require_once __DIR__ . '/compatibility.php';
 require_once __DIR__ . '/enums.php';
 require_once __DIR__ . '/database.php';
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/auth_compatibility.php'; // New unified authentication system
 require_once __DIR__ . '/functions.php';
 require_once __DIR__ . '/Logger.php';
 require_once __DIR__ . '/filter_helpers.php';

@@ -14,6 +14,11 @@ class Database {
     private static $instance = null;
     private $connection;
     
+    // Allow tests to inject a fake instance
+    public static function setInstance($instance) {
+        self::$instance = $instance;
+    }
+    
     private function __construct() {
         try {
             $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
@@ -91,8 +96,23 @@ class Database {
         }
         $setClause = implode(', ', $set);
         
-        $sql = "UPDATE {$table} SET {$setClause} WHERE {$where}";
-        $params = array_merge($data, $whereParams);
+        // Convert positional parameters in WHERE clause to named parameters
+        $whereParamNames = [];
+        $whereIndex = 0;
+        $processedWhere = $where;
+        
+        // Replace ? with named parameters
+        while (($pos = strpos($processedWhere, '?')) !== false) {
+            $paramName = "where_param_" . $whereIndex;
+            $processedWhere = substr_replace($processedWhere, ":{$paramName}", $pos, 1);
+            $whereParamNames[$paramName] = $whereParams[$whereIndex] ?? null;
+            $whereIndex++;
+        }
+        
+        $sql = "UPDATE {$table} SET {$setClause} WHERE {$processedWhere}";
+        
+        // Merge all parameters: data parameters, converted positional parameters, and original named parameters
+        $params = array_merge($data, $whereParamNames, $whereParams);
         
         return $this->query($sql, $params);
     }

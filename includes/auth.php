@@ -65,7 +65,8 @@ class Auth {
     public static function authenticateAdmin($username, $password) {
         $db = Database::getInstance();
         
-        $admin = $db->fetchOne("SELECT * FROM admin_users WHERE username = ?", [$username]);
+        // Allow login by username or email
+        $admin = $db->fetchOne("SELECT * FROM admin_users WHERE (username = ? OR email = ?)", [$username, $username]);
         
                     if ($admin && password_verify($password, $admin['password'])) {
                 $_SESSION['user_type'] = 'admin';
