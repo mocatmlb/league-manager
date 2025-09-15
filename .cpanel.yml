@@ -1,70 +1,51 @@
 ---
 deployment:
   tasks:
-    # Determine deployment environment based on branch
-    - export DEPLOYPATH=/home/moc835/public_html/saved-files-do-not-delete/test
-    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then export DEPLOYPATH=/home/moc835/public_html/staging.district8travelleague.com; fi
-    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then export DEPLOYPATH=/home/moc835/public_html/district8travelleague.com; fi
+    # Display deployment info
+    - echo "Deploying branch: $CPANEL_DEPLOYMENT_BRANCH"
     
-    # Create necessary directories
-    - mkdir -p $DEPLOYPATH/includes
-    - mkdir -p $DEPLOYPATH/logs
-    - mkdir -p $DEPLOYPATH/uploads
-    - mkdir -p $DEPLOYPATH/backups
-    - mkdir -p $DEPLOYPATH/templates
+    # Create necessary directories (inline path determination)
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then DEPLOYPATH=/home/moc835/public_html/staging.district8travelleague.com; elif [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then DEPLOYPATH=/home/moc835/public_html/district8travelleague.com; else DEPLOYPATH=/home/moc835/public_html/saved-files-do-not-delete/test; fi; echo "Creating directories in: $DEPLOYPATH"; mkdir -p $DEPLOYPATH/includes $DEPLOYPATH/logs $DEPLOYPATH/uploads $DEPLOYPATH/backups $DEPLOYPATH/templates $DEPLOYPATH/scripts
     
     # Copy includes directory to site root
-    - cp -R includes/* $DEPLOYPATH/includes/
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then DEPLOYPATH=/home/moc835/public_html/staging.district8travelleague.com; elif [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then DEPLOYPATH=/home/moc835/public_html/district8travelleague.com; else DEPLOYPATH=/home/moc835/public_html/saved-files-do-not-delete/test; fi; cp -R includes/* $DEPLOYPATH/includes/
     
     # Copy public files
-    - cp -R public/* $DEPLOYPATH/
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then DEPLOYPATH=/home/moc835/public_html/staging.district8travelleague.com; elif [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then DEPLOYPATH=/home/moc835/public_html/district8travelleague.com; else DEPLOYPATH=/home/moc835/public_html/saved-files-do-not-delete/test; fi; cp -R public/* $DEPLOYPATH/
     
     # Copy templates
-    - cp -R templates/* $DEPLOYPATH/templates/
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then DEPLOYPATH=/home/moc835/public_html/staging.district8travelleague.com; elif [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then DEPLOYPATH=/home/moc835/public_html/district8travelleague.com; else DEPLOYPATH=/home/moc835/public_html/saved-files-do-not-delete/test; fi; cp -R templates/* $DEPLOYPATH/templates/
     
     # Copy scripts (for maintenance)
-    - mkdir -p $DEPLOYPATH/scripts
-    - cp -R scripts/* $DEPLOYPATH/scripts/
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then DEPLOYPATH=/home/moc835/public_html/staging.district8travelleague.com; elif [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then DEPLOYPATH=/home/moc835/public_html/district8travelleague.com; else DEPLOYPATH=/home/moc835/public_html/saved-files-do-not-delete/test; fi; cp -R scripts/* $DEPLOYPATH/scripts/
     
     # Copy environment-specific configuration
-    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then cp -f includes/config.prod.php $DEPLOYPATH/includes/config.php; fi
-    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then cp -f includes/config.staging.php $DEPLOYPATH/includes/config.php; fi
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then DEPLOYPATH=/home/moc835/public_html/district8travelleague.com; cp -f includes/config.prod.php $DEPLOYPATH/includes/config.php; fi
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then DEPLOYPATH=/home/moc835/public_html/staging.district8travelleague.com; cp -f includes/config.staging.php $DEPLOYPATH/includes/config.php; fi
     
     # Install/update Composer dependencies
-    - /usr/local/bin/composer install --no-dev --optimize-autoloader --working-dir=$DEPLOYPATH
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then DEPLOYPATH=/home/moc835/public_html/staging.district8travelleague.com; elif [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then DEPLOYPATH=/home/moc835/public_html/district8travelleague.com; else DEPLOYPATH=/home/moc835/public_html/saved-files-do-not-delete/test; fi; /usr/local/bin/composer install --no-dev --optimize-autoloader --working-dir=$DEPLOYPATH
     
     # Set proper permissions
-    - find $DEPLOYPATH -type f -name "*.php" -exec chmod 644 {} \;
-    - find $DEPLOYPATH -type d -exec chmod 755 {} \;
-    - chmod 755 $DEPLOYPATH/logs
-    - chmod 755 $DEPLOYPATH/uploads
-    - chmod 755 $DEPLOYPATH/backups
-    - chmod 755 $DEPLOYPATH/scripts
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then DEPLOYPATH=/home/moc835/public_html/staging.district8travelleague.com; elif [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then DEPLOYPATH=/home/moc835/public_html/district8travelleague.com; else DEPLOYPATH=/home/moc835/public_html/saved-files-do-not-delete/test; fi; find $DEPLOYPATH -type f -name "*.php" -exec chmod 644 {} \; && find $DEPLOYPATH -type d -exec chmod 755 {} \; && chmod 755 $DEPLOYPATH/logs $DEPLOYPATH/uploads $DEPLOYPATH/backups $DEPLOYPATH/scripts
     
     # Make directories writable by web server
-    - chown -R $USER:nobody $DEPLOYPATH/logs
-    - chown -R $USER:nobody $DEPLOYPATH/uploads
-    - chown -R $USER:nobody $DEPLOYPATH/backups
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then DEPLOYPATH=/home/moc835/public_html/staging.district8travelleague.com; elif [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then DEPLOYPATH=/home/moc835/public_html/district8travelleague.com; else DEPLOYPATH=/home/moc835/public_html/saved-files-do-not-delete/test; fi; chown -R $USER:nobody $DEPLOYPATH/logs $DEPLOYPATH/uploads $DEPLOYPATH/backups
     
     # Create .htaccess to protect includes directory
-    - echo "Order deny,allow" > $DEPLOYPATH/includes/.htaccess
-    - echo "Deny from all" >> $DEPLOYPATH/includes/.htaccess
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then DEPLOYPATH=/home/moc835/public_html/staging.district8travelleague.com; elif [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then DEPLOYPATH=/home/moc835/public_html/district8travelleague.com; else DEPLOYPATH=/home/moc835/public_html/saved-files-do-not-delete/test; fi; echo "Order deny,allow" > $DEPLOYPATH/includes/.htaccess && echo "Deny from all" >> $DEPLOYPATH/includes/.htaccess
     
     # Create .htaccess to protect templates directory
-    - echo "Order deny,allow" > $DEPLOYPATH/templates/.htaccess
-    - echo "Deny from all" >> $DEPLOYPATH/templates/.htaccess
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then DEPLOYPATH=/home/moc835/public_html/staging.district8travelleague.com; elif [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then DEPLOYPATH=/home/moc835/public_html/district8travelleague.com; else DEPLOYPATH=/home/moc835/public_html/saved-files-do-not-delete/test; fi; echo "Order deny,allow" > $DEPLOYPATH/templates/.htaccess && echo "Deny from all" >> $DEPLOYPATH/templates/.htaccess
     
     # Create empty log files with correct permissions
-    - touch $DEPLOYPATH/logs/app.log
-    - touch $DEPLOYPATH/logs/php_errors.log
-    - chmod 664 $DEPLOYPATH/logs/*.log
-    - chown $USER:nobody $DEPLOYPATH/logs/*.log
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then DEPLOYPATH=/home/moc835/public_html/staging.district8travelleague.com; elif [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then DEPLOYPATH=/home/moc835/public_html/district8travelleague.com; else DEPLOYPATH=/home/moc835/public_html/saved-files-do-not-delete/test; fi; touch $DEPLOYPATH/logs/app.log $DEPLOYPATH/logs/php_errors.log && chmod 664 $DEPLOYPATH/logs/*.log && chown $USER:nobody $DEPLOYPATH/logs/*.log
     
     # Run database migrations if migrate script exists
-    - if [ -f "$DEPLOYPATH/scripts/migrate-admin-accounts.php" ]; then /usr/local/bin/php $DEPLOYPATH/scripts/migrate-admin-accounts.php; fi
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then DEPLOYPATH=/home/moc835/public_html/staging.district8travelleague.com; elif [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then DEPLOYPATH=/home/moc835/public_html/district8travelleague.com; else DEPLOYPATH=/home/moc835/public_html/saved-files-do-not-delete/test; fi; if [ -f "$DEPLOYPATH/scripts/migrate-admin-accounts.php" ]; then /usr/local/bin/php $DEPLOYPATH/scripts/migrate-admin-accounts.php; fi
     
     # Clear any PHP opcache if available
-    - if [ -f "$DEPLOYPATH/scripts/clear-cache.php" ]; then /usr/local/bin/php $DEPLOYPATH/scripts/clear-cache.php; fi
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then DEPLOYPATH=/home/moc835/public_html/staging.district8travelleague.com; elif [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then DEPLOYPATH=/home/moc835/public_html/district8travelleague.com; else DEPLOYPATH=/home/moc835/public_html/saved-files-do-not-delete/test; fi; if [ -f "$DEPLOYPATH/scripts/clear-cache.php" ]; then /usr/local/bin/php $DEPLOYPATH/scripts/clear-cache.php; fi
     
     # Log deployment
-    - echo "$(date): Deployed $CPANEL_DEPLOYMENT_BRANCH branch to $DEPLOYPATH" >> $DEPLOYPATH/logs/deployment.log
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then DEPLOYPATH=/home/moc835/public_html/staging.district8travelleague.com; elif [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then DEPLOYPATH=/home/moc835/public_html/district8travelleague.com; else DEPLOYPATH=/home/moc835/public_html/saved-files-do-not-delete/test; fi; echo "$(date): Deployed $CPANEL_DEPLOYMENT_BRANCH branch to $DEPLOYPATH" >> $DEPLOYPATH/logs/deployment.log
