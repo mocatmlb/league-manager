@@ -2,9 +2,9 @@
 deployment:
   tasks:
     # Determine deployment environment based on branch
-    - export DEPLOYPATH=/home/moc835/public_html
-    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then export DEPLOYPATH=/home/moc835/public_html/staging; fi
-    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then export DEPLOYPATH=/home/moc835/public_html; fi
+    - export DEPLOYPATH=/home/moc835/public_html/saved-files-do-not-delete/test
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "staging" ]; then export DEPLOYPATH=/home/moc835/public_html/staging.district8travelleague.com; fi
+    - if [ "$CPANEL_DEPLOYMENT_BRANCH" = "main" ]; then export DEPLOYPATH=/home/moc835/public_html/district8travelleague.com; fi
     
     # Create necessary directories
     - mkdir -p $DEPLOYPATH/includes
