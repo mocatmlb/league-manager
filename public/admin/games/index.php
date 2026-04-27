@@ -728,10 +728,10 @@ $pageTitle = "Games Management - " . APP_NAME;
                                                     </button>
                                                     <ul class="dropdown-menu">
                                                         <?php if ($game['game_status'] === 'Completed'): ?>
-                                                            <li><a class="dropdown-item" href="#" onclick="editScore(<?php echo $game['game_id']; ?>, '<?php echo addslashes($game['away_team_name']); ?>', '<?php echo addslashes($game['home_team_name']); ?>', <?php echo $game['away_score']; ?>, <?php echo $game['home_score']; ?>)">
+                                                            <li><a class="dropdown-item" href="#" onclick="editScore(<?php echo (int)$game['game_id']; ?>, '<?php echo addslashes($game['away_team_name']); ?>', '<?php echo addslashes($game['home_team_name']); ?>', <?php echo (int)$game['away_score']; ?>, <?php echo (int)$game['home_score']; ?>); return false;">
                                                                 <i class="fas fa-edit"></i> Edit Score
                                                             </a></li>
-                                                            <li><a class="dropdown-item text-danger" href="#" onclick="deleteScore(<?php echo $game['game_id']; ?>, '<?php echo addslashes($game['game_number']); ?>', <?php echo $game['away_score']; ?>, <?php echo $game['home_score']; ?>)">
+                                                            <li><a class="dropdown-item text-danger" href="#" onclick="deleteScore(<?php echo (int)$game['game_id']; ?>, '<?php echo addslashes($game['game_number']); ?>', <?php echo (int)$game['away_score']; ?>, <?php echo (int)$game['home_score']; ?>); return false;">
                                                                 <i class="fas fa-trash"></i> Delete Score
                                                             </a></li>
                                                         <?php endif; ?>

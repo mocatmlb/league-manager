@@ -94,10 +94,24 @@ class Database {
             $set[] = "{$key} = :{$key}";
         }
         $setClause = implode(', ', $set);
-        
-        $sql = "UPDATE {$table} SET {$setClause} WHERE {$where}";
-        $params = array_merge($data, $whereParams);
-        
+
+        $processedWhere = $where;
+        $params = $data;
+
+        // PDO cannot mix named (SET) and positional (?) placeholders in one statement.
+        if (strpos($processedWhere, '?') !== false) {
+            $whereIndex = 0;
+            while (($pos = strpos($processedWhere, '?')) !== false) {
+                $paramName = 'd8tl_wp_' . $whereIndex;
+                $processedWhere = substr_replace($processedWhere, ':' . $paramName, $pos, 1);
+                $params[$paramName] = $whereParams[$whereIndex] ?? null;
+                $whereIndex++;
+            }
+        } else {
+            $params = array_merge($data, $whereParams);
+        }
+
+        $sql = "UPDATE {$table} SET {$setClause} WHERE {$processedWhere}";
         return $this->query($sql, $params);
     }
     
