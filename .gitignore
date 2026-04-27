@@ -3,6 +3,9 @@
 backups/
 mvp-app/backups/
 *.sql
+# Versioned schema and migrations (not dumps)
+!database/
+!database/**/*.sql
 *.dump
 backup_*.sql
 backup_*.dump

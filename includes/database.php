@@ -60,7 +60,11 @@ class Database {
             if (class_exists('Logger')) {
                 Logger::error("Database query failed", ['query' => $sql, 'error' => $e->getMessage()]);
             }
-            throw new Exception("Database query failed");
+            $message = 'Database query failed';
+            if (!defined('APP_ENV') || APP_ENV !== 'production') {
+                $message .= ': ' . $e->getMessage();
+            }
+            throw new Exception($message, 0, $e);
         }
     }
     
