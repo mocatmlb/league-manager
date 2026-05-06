@@ -132,7 +132,8 @@ function generateGameNumber($seasonId, $gameCount) {
 }
 
 /**
- * Get upcoming games (next 7 days)
+ * Get upcoming games for the next $days calendar days, excluding today
+ * (today is covered by getTodaysGames).
  */
 function getUpcomingGames($days = 7) {
     $db = Database::getInstance();
@@ -144,7 +145,7 @@ function getUpcomingGames($days = 7) {
             JOIN schedules s ON g.game_id = s.game_id
             JOIN teams ht ON g.home_team_id = ht.team_id
             JOIN teams at ON g.away_team_id = at.team_id
-            WHERE s.game_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
+            WHERE s.game_date BETWEEN DATE_ADD(CURDATE(), INTERVAL 1 DAY) AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
             AND g.game_status NOT IN ('Completed', 'Cancelled')
             AND ht.active_status = 'Active'
             AND at.active_status = 'Active'
