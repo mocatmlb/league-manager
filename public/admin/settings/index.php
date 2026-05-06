@@ -86,27 +86,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $error = 'Error updating general settings: ' . $e->getMessage();
                 }
                 break;
-
-            case 'update_coach_password':
-                try {
-                    $newPassword = $_POST['coach_password'];
-                    $confirmPassword = $_POST['confirm_coach_password'];
-
-                    if ($newPassword !== $confirmPassword) {
-                        throw new Exception('Passwords do not match.');
-                    }
-
-                    // Hash and update coach password
-                    $hashedPassword = Auth::hashPassword($newPassword);
-                    updateSetting('coaches_password', $hashedPassword);
-
-                    logActivity('coach_password_updated', 'Coach access password updated');
-                    $message = 'Coach password updated successfully!';
-
-                } catch (Exception $e) {
-                    $error = 'Error updating coach password: ' . $e->getMessage();
-                }
-                break;
         }
     }
 }

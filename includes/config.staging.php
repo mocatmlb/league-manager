@@ -30,7 +30,6 @@ define('CSRF_TOKEN_NAME', 'd8tl_csrf_token_staging');
 
 // Staging Passwords (MUST BE CHANGED - DO NOT USE THESE VALUES)
 define('DEFAULT_ADMIN_PASSWORD', 'CHANGE_THIS_STAGING_ADMIN_PASSWORD');
-define('DEFAULT_COACHES_PASSWORD', 'CHANGE_THIS_STAGING_COACHES_PASSWORD');
 
 // Email Configuration - Staging (use test email)
 define('SMTP_HOST', 'mail.asmallorange.com');

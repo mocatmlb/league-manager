@@ -33,7 +33,6 @@ define('CSRF_TOKEN_NAME', EnvLoader::get('CSRF_TOKEN_NAME', 'd8tl_csrf_token'));
 
 // Default Passwords - Load from environment variables (CHANGE IN .htaccess!)
 define('DEFAULT_ADMIN_PASSWORD', EnvLoader::get('DEFAULT_ADMIN_PASSWORD', 'CHANGE_THIS_ADMIN_PASSWORD'));
-define('DEFAULT_COACHES_PASSWORD', EnvLoader::get('DEFAULT_COACHES_PASSWORD', 'CHANGE_THIS_COACHES_PASSWORD'));
 
 // Email Configuration - Load from environment variables
 define('SMTP_HOST', EnvLoader::get('SMTP_HOST', 'mail.asmallorange.com'));

@@ -45,6 +45,13 @@ class Database {
         }
         return self::$instance;
     }
+
+    /**
+     * Inject a test instance (use only in unit tests).
+     */
+    public static function setInstance(?Database $instance): void {
+        self::$instance = $instance;
+    }
     
     public function getConnection() {
         return $this->connection;

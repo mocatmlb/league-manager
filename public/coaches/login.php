@@ -39,16 +39,8 @@ if ($_POST && isset($_POST['password'])) {
     if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid form submission. Please try again.';
     } else {
-        $password = $_POST['password'];
-        
-        if (Auth::authenticateCoach($password)) {
-            logActivity('coach_login', 'Coach logged in successfully');
-            header('Location: dashboard.php');
-            exit;
-        } else {
-            $error = 'Invalid password. Please try again.';
-            logActivity('coach_login_failed', 'Failed coach login attempt');
-        }
+        $error = 'The shared coach password login has been retired. Please contact the league administrator to receive your individual account credentials.';
+        logActivity('coach_login_attempted_legacy', 'Attempted shared password login after deprecation');
     }
 }
 

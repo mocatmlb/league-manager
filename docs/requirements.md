@@ -6,7 +6,7 @@ The MVP (Minimum Viable Product) represents a direct replacement of the current 
 
 ### Key MVP Principles
 - **Shared Hosting Compatible**: Designed to run on standard shared hosting with cPanel
-- **PHP-Native**: Built with PHP 8.0+ and MySQL for maximum compatibility
+- **PHP-Native**: Built with PHP 8.1+ and MySQL for maximum compatibility (production: cPanel **ea-php81**)
 - **Direct Replacement**: Maintains all current functionality while improving user experience
 - **Simple Deployment**: Easy to deploy and maintain on existing hosting infrastructure
 - **Cost Effective**: No need for VPS or specialized hosting requirements
@@ -577,14 +577,14 @@ All registered users are assigned one of the following roles:
 
 ### Technology Stack
 - **Frontend**: Modern PHP with HTML5, CSS3, and JavaScript
-- **Backend**: PHP 8.0+ with MySQL database
+- **Backend**: PHP 8.1+ with MySQL database (hosting: **ea-php81**)
 - **Database**: MySQL 5.7+ (shared hosting compatible)
 - **Authentication**: PHP session-based with secure password hashing
 - **Hosting**: Shared hosting compatible (cPanel/standard web hosting)
 - **Framework**: Custom PHP or lightweight framework (Laravel/CodeIgniter optional)
 
 ### Hosting Requirements
-- **PHP Version**: 8.0+ (most shared hosts support this)
+- **PHP Version**: 8.1+ via cPanel **ea-php81** / MultiPHP (match in local dev)
 - **MySQL**: 5.7+ or MariaDB equivalent
 - **Web Server**: Apache with .htaccess support or Nginx
 - **SSL/TLS**: HTTPS support (Let's Encrypt or hosting provider SSL)

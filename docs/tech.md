@@ -7,6 +7,7 @@
 - **Server Type**: Shared hosting environment
 - **Operating System**: Linux-based servers
 - **Control Panel**: cPanel with full web-based management
+- **Production PHP**: **8.1** via cPanel EasyApache / MultiPHP (**ea-php81**)
 - **SSL**: Available SSL certificates
 - **Backup**: Daily automated backups (7-day retention)
 - **Support**: 24/7 technical support
@@ -24,7 +25,7 @@
 ## Technology Stack
 
 ### Frontend
-- **Language**: PHP 8.0+ (available via cPanel PHP Selector)
+- **Language**: PHP 8.1+ (production: **ea-php81** in cPanel PHP Selector / MultiPHP)
 - **Templating**: Native PHP with HTML/CSS
 - **Styling**: Custom CSS with responsive design
 - **JavaScript**: Vanilla JavaScript for interactive elements
@@ -33,7 +34,7 @@
 - **Icons**: Font Awesome or similar icon library
 
 ### Backend
-- **Language**: PHP 8.0+ (configurable via cPanel PHP Selector)
+- **Language**: PHP 8.1+ (match production **ea-php81** via cPanel PHP Selector)
 - **Architecture**: MVC-style organization with includes
 - **Authentication**: PHP session-based authentication
 - **Validation**: Custom PHP validation functions
@@ -82,13 +83,16 @@
     "description": "District 8 Travel League MVP Application",
     "type": "project",
     "require": {
-        "php": ">=8.0",
+        "php": ">=8.1",
         "phpmailer/phpmailer": "^6.8"
     },
     "autoload": {
         "psr-4": {
             "D8TL\\": "includes/"
-        }
+        },
+        "files": [
+            "includes/env-loader.php"
+        ]
     },
     "config": {
         "optimize-autoloader": true
@@ -104,7 +108,7 @@
 - **Custom JavaScript**: Application-specific functionality
 
 ### System Requirements
-- **PHP Version**: 8.0+ (configurable via cPanel PHP Selector)
+- **PHP Version**: 8.1+ (production **ea-php81**; match in cPanel PHP Selector and locally)
 - **MySQL/MariaDB**: 5.5+ (MySQL-compatible database)
 - **Apache**: Web server with mod_php
 - **Composer**: PHP dependency manager
@@ -116,7 +120,7 @@
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Web Browser   │    │   Apache Server │    │   MariaDB       │
-│   (HTML/CSS/JS) │◄──►│   (PHP 8.0+)    │◄──►│   Database      │
+│   (HTML/CSS/JS) │◄──►│   (PHP 8.1)     │◄──►│   Database      │
 │                 │    │                 │    │   (MySQL 5.5+)  │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
@@ -199,7 +203,7 @@ ini_set('session.use_strict_mode', 1);
 ```
 
 ### cPanel Configuration Requirements
-- **PHP Version**: Set to 8.0+ via PHP Selector
+- **PHP Version**: Set to **ea-php81** (PHP 8.1) via MultiPHP / PHP Selector
 - **Database**: Create MySQL database and user via cPanel
 - **Email**: Configure email accounts for SMTP
 - **SSL**: Optional - Enable SSL certificate for secure connections (currently using HTTP)
@@ -209,7 +213,7 @@ ini_set('session.use_strict_mode', 1);
 
 ### Prerequisites
 - **Local Development Environment**:
-  - PHP 8.0+ (XAMPP, WAMP, or MAMP for local development)
+  - PHP 8.1+ (XAMPP, WAMP, or MAMP for local development; align with **ea-php81** on hosting)
   - MySQL/MariaDB 5.5+
   - Apache web server
   - Composer (PHP dependency manager)

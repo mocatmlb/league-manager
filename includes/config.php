@@ -29,7 +29,6 @@ define('CSRF_TOKEN_NAME', 'd8tl_csrf_token');
 
 // Default Passwords (CHANGE IN PRODUCTION)
 define('DEFAULT_ADMIN_PASSWORD', 'admin');
-define('DEFAULT_COACHES_PASSWORD', 'coaches');
 
 // Email Configuration (to be configured by admin)
 define('SMTP_HOST', '');

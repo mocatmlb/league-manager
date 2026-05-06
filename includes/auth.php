@@ -39,27 +39,6 @@ class Auth {
     }
     
     /**
-     * Coach Authentication
-     */
-    public static function authenticateCoach($password) {
-        $db = Database::getInstance();
-        
-        // Get current coaches password from settings
-        $setting = $db->fetchOne("SELECT setting_value FROM settings WHERE setting_key = 'coaches_password'");
-        $coachesPassword = $setting ? $setting['setting_value'] : DEFAULT_COACHES_PASSWORD;
-        
-        // Only allow hashed password verification
-        if (password_verify($password, $coachesPassword)) {
-            $_SESSION['user_type'] = 'coach';
-            $_SESSION['login_time'] = time();
-            $_SESSION['expires'] = time() + SESSION_TIMEOUT;
-            return true;
-        }
-        
-        return false;
-    }
-    
-    /**
      * Admin Authentication
      */
     public static function authenticateAdmin($username, $password) {
