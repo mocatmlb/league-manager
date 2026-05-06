@@ -40,7 +40,3 @@ deployment:
     - touch $HOME/public_html/district8travelleague.com/logs/app.log
     - chmod 664 $HOME/public_html/district8travelleague.com/logs/app.log
     - chown $USER:nobody $HOME/public_html/district8travelleague.com/logs/app.log
-
-    # Run database migrations (idempotent — safe to run on every deploy)
-    # Reads credentials from ~/.my.cnf so nothing is hardcoded here
-    - for f in database/migrations/*.sql; do mysql < "$f"; done
