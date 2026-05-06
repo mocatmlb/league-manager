@@ -342,6 +342,7 @@ class AuthService {
                 return 'Your email address is not yet verified. Please check your inbox for the verification link.';
             case 'suspended':
             case 'locked':
+            case 'disabled':
                 return 'This account is currently disabled. Please contact league administration.';
             default:
                 return 'Invalid username or password';
@@ -497,7 +498,16 @@ class AuthService {
 
         try {
             $db = Database::getInstance();
-            $row = $db->fetchOne('SHOW COLUMNS FROM users LIKE :column', ['column' => $column]);
+            if (!preg_match('/^[a-zA-Z0-9_]+$/', $column)) {
+                $cache[$column] = false;
+                return false;
+            }
+            $row = $db->fetchOne(
+                'SELECT 1 AS ok FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?
+                 LIMIT 1',
+                ['users', $column]
+            );
             $cache[$column] = ($row !== false);
         } catch (Throwable $e) {
             $cache[$column] = false;

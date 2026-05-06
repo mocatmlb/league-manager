@@ -34,9 +34,11 @@ class InvitationMockDatabase extends Database {
     public function fetchOne($sql, $params = []) {
         $sql = trim($sql);
 
-        if (stripos($sql, 'SHOW COLUMNS FROM user_invitations LIKE') !== false) {
-            // Simulate post-migration-009 schema with 'cancelled' in the enum.
-            return ['Field' => 'status', 'Type' => "enum('pending','completed','cancelled','expired')"];
+        if (stripos($sql, 'information_schema.COLUMNS') !== false && stripos($sql, 'COLUMN_TYPE') !== false) {
+            if (($params[0] ?? '') === 'user_invitations' && ($params[1] ?? '') === 'status') {
+                return ['column_type' => "enum('pending','completed','cancelled','expired')"];
+            }
+            return false;
         }
 
         if (stripos($sql, 'SELECT id FROM users WHERE email = :email') !== false) {

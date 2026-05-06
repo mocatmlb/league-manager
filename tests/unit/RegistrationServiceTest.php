@@ -56,19 +56,25 @@ class RegistrationServiceMockDatabase extends Database {
     public function fetchOne($sql, $params = []) {
         $sql = trim($sql);
 
-        if (stripos($sql, 'SHOW COLUMNS FROM users LIKE') !== false) {
-            $column = $params['column'] ?? '';
+        if (stripos($sql, 'information_schema.COLUMNS') !== false
+            && stripos($sql, 'TABLE_NAME = ?') !== false
+            && stripos($sql, 'COLUMN_NAME = ?') !== false) {
+            $table = $params[0] ?? '';
+            $column = $params[1] ?? '';
+            if ($table !== 'users') {
+                return false;
+            }
             if ($column === 'role' && $this->hasRoleColumn) {
-                return ['Field' => 'role'];
+                return ['ok' => 1];
             }
             if ($column === 'role_id' && $this->hasRoleIdColumn) {
-                return ['Field' => 'role_id'];
+                return ['ok' => 1];
             }
             if ($column === 'password_hash') {
-                return ['Field' => 'password_hash'];
+                return ['ok' => 1];
             }
             if ($column === 'password_changed_at') {
-                return ['Field' => 'password_changed_at'];
+                return ['ok' => 1];
             }
             return false;
         }

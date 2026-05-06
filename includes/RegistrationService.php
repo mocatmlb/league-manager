@@ -438,9 +438,15 @@ class RegistrationService {
     }
 
     private function hasUsersColumn(string $column): bool {
+        if (!preg_match('/^[a-zA-Z0-9_]+$/', $column)) {
+            return false;
+        }
+        // information_schema works with native prepared statements; SHOW COLUMNS + bound params does not.
         return $this->db->fetchOne(
-            "SHOW COLUMNS FROM users LIKE :column",
-            ['column' => $column]
+            'SELECT 1 AS ok FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?
+             LIMIT 1',
+            ['users', $column]
         ) !== false;
     }
 

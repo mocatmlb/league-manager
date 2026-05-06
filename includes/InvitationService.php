@@ -245,10 +245,12 @@ class InvitationService {
 
         try {
             $row = $this->db->fetchOne(
-                "SHOW COLUMNS FROM user_invitations LIKE :col",
-                ['col' => 'status']
+                'SELECT COLUMN_TYPE AS column_type FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?
+                 LIMIT 1',
+                ['user_invitations', 'status']
             );
-            $type = is_array($row) ? (string) ($row['Type'] ?? '') : '';
+            $type = is_array($row) ? (string) ($row['column_type'] ?? '') : '';
             $cache[$value] = ($type !== '' && stripos($type, "'{$value}'") !== false);
         } catch (Throwable $e) {
             $cache[$value] = false;

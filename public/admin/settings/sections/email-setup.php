@@ -52,9 +52,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'updated_date' => date('Y-m-d H:i:s')
                 ];
 
-                // Only update password if provided
+                // Only update password if provided (must match EmailService::decryptPassword storage)
                 if (!empty($_POST['smtp_password'])) {
-                    $configData['smtp_password'] = password_hash($_POST['smtp_password'], PASSWORD_DEFAULT);
+                    $configData['smtp_password'] = EmailService::encryptPassword($_POST['smtp_password']);
                 }
 
                 // Validate required fields

@@ -20,7 +20,16 @@ define('DB_CHARSET', 'utf8mb4');
 // Application Configuration
 define('APP_NAME', 'District 8 Travel League');
 define('APP_VERSION', '2.0.0-MVP');
-define('APP_URL', 'http://localhost/d8tl-mvp');
+// Base URL for links in emails and redirects. Use http://127.0.0.1:8000 when using: php -S 127.0.0.1:8000 -t public/
+define('APP_URL', 'http://127.0.0.1:8000');
+
+// reCAPTCHA v2 — Google-provided test keys (verification always succeeds). Replace with real keys in production.
+define('RECAPTCHA_SITE_KEY', '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI');
+define('RECAPTCHA_SECRET', '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe');
+
+// When true, direct-address emails (registration verify, reset, invite) are queued and marked Sent without SMTP.
+// Enable locally when SMTP is not configured; MUST be false in production.
+define('EMAIL_DEV_LOG_ONLY', true);
 
 // Security Configuration
 define('SESSION_TIMEOUT', 3600); // 1 hour for coaches
