@@ -97,6 +97,7 @@ $pageTitle = "Home - " . APP_NAME;
                                             <th>Time</th>
                                             <th>Away</th>
                                             <th>Home</th>
+                                            <th>Location</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -106,6 +107,7 @@ $pageTitle = "Home - " . APP_NAME;
                                             <td><?php echo formatTime($game['game_time']); ?></td>
                                             <td><?php echo sanitize($game['away_team']); ?></td>
                                             <td><?php echo sanitize($game['home_team']); ?></td>
+                                            <td><?php echo sanitize($game['location']); ?></td>
                                         </tr>
                                         <?php endforeach; ?>
                                     </tbody>
