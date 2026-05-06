@@ -145,7 +145,7 @@ function getUpcomingGames($days = 7) {
             JOIN teams ht ON g.home_team_id = ht.team_id
             JOIN teams at ON g.away_team_id = at.team_id
             WHERE s.game_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
-            AND g.game_status = 'Active'
+            AND g.game_status NOT IN ('Completed', 'Cancelled')
             AND ht.active_status = 'Active'
             AND at.active_status = 'Active'
             ORDER BY s.game_date, s.game_time";
@@ -167,7 +167,7 @@ function getTodaysGames() {
             JOIN teams ht ON g.home_team_id = ht.team_id
             JOIN teams at ON g.away_team_id = at.team_id
             WHERE s.game_date = CURDATE()
-            AND g.game_status = 'Active'
+            AND g.game_status NOT IN ('Completed', 'Cancelled')
             AND ht.active_status = 'Active'
             AND at.active_status = 'Active'
             ORDER BY s.game_time";
