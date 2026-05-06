@@ -239,3 +239,4 @@ Try the following:
   - Generate an SSH key in cPanel or locally and add the public key to GitHub (Deploy keys for the repo or your account keys).
   - Use the SSH clone URL in cPanel: git@github.com:mocatmlb/league-manager.git
 - If your org enforces SSO, ensure the PAT is authorized for the org.
+*test*
