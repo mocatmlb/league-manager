@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: '2026-05-04'
-last_updated: '2026-05-05'  # epic 2 started
+last_updated: '2026-05-06'  # epic 3 stories 3-1 through 3-6 moved to review
 project: league-manager
 project_key: NOKEY
 tracking_system: file-system
@@ -56,13 +56,13 @@ development_status:
   epic-2-retrospective: optional
 
   # Epic 3: Coach Registration & Authentication
-  epic-3: backlog
-  3-1-registration-service-and-email-verification-backend: backlog
-  3-2-coach-registration-page-open-self-registration: backlog
-  3-3-invitation-service-and-admin-invitation-management: backlog
-  3-4-coach-login-page-with-auth-controls: backlog
-  3-5-password-reset-flow: backlog
-  3-6-registration-toggle-and-qr-code-display: backlog
+  epic-3: in-progress
+  3-1-registration-service-and-email-verification-backend: review
+  3-2-coach-registration-page-open-self-registration: review
+  3-3-invitation-service-and-admin-invitation-management: review
+  3-4-coach-login-page-with-auth-controls: review
+  3-5-password-reset-flow: review
+  3-6-registration-toggle-and-qr-code-display: review
   epic-3-retrospective: optional
 
   # Epic 4: Team Registration & Coach Assignment

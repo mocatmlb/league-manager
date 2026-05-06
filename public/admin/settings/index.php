@@ -29,6 +29,7 @@ if (!$__found) {
 unset($__dir, $__found, $__i, $__candidate);
 
 @include_once EnvLoader::getPath('includes/admin_bootstrap.php');
+@include_once EnvLoader::getPath('includes/ActivityLogger.php');
 
 // Require admin authentication
 Auth::requireAdmin();
@@ -84,6 +85,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                 } catch (Exception $e) {
                     $error = 'Error updating general settings: ' . $e->getMessage();
+                }
+                break;
+
+            case 'update_open_registration':
+                try {
+                    require_once EnvLoader::getPath('includes/RegistrationSettingsService.php');
+                    $enabled = isset($_POST['open_registration']) && $_POST['open_registration'] === '1';
+                    RegistrationSettingsService::setOpenRegistration(
+                        $enabled,
+                        (int) ($currentUser['id'] ?? 0)
+                    );
+                    $message = 'Registration toggle updated successfully!';
+                } catch (Exception $e) {
+                    $error = 'Error updating registration toggle: ' . $e->getMessage();
                 }
                 break;
         }

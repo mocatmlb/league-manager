@@ -3,62 +3,106 @@
  * District 8 Travel League - Coaches Login Page
  */
 
-// Handle both development and production paths
 try {
-    $bootstrapPath = file_exists(__DIR__ . '/../includes/coach_bootstrap.php') 
-        ? __DIR__ . '/../includes/coach_bootstrap.php'  // Production: includes is one level up
-        : __DIR__ . '/../../includes/coach_bootstrap.php';  // Development: includes is two levels up
+    $bootstrapPath = file_exists(__DIR__ . '/../includes/coach_bootstrap.php')
+        ? __DIR__ . '/../includes/coach_bootstrap.php'
+        : __DIR__ . '/../../includes/coach_bootstrap.php';
     require_once $bootstrapPath;
 } catch (Throwable $e) {
     echo '<div class="alert alert-danger">Application error: ' . htmlspecialchars($e->getMessage()) . '</div>';
     exit;
 }
 
+require_once EnvLoader::getPath('includes/AuthService.php');
+
 $error = '';
 $success = '';
+$identifier = trim((string) ($_POST['identifier'] ?? ''));
+$ipAddress = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 
-// Determine asset path (production vs development)
 $cssPath = file_exists(__DIR__ . '/../assets/css/style.css')
-    ? '../assets/css/style.css'        // Production: coaches/ -> ../assets/
-    : '../../assets/css/style.css';    // Development: public/coaches/ -> ../../assets/
+    ? '../assets/css/style.css'
+    : '../../assets/css/style.css';
+$jsPath = file_exists(__DIR__ . '/../assets/js/coaches-registration.js')
+    ? '../assets/js/coaches-registration.js'
+    : '../../assets/js/coaches-registration.js';
 
-// Check for logout message
+$captchaSiteKey = defined('RECAPTCHA_SITE_KEY')
+    ? (string) RECAPTCHA_SITE_KEY
+    : (defined('RECAPTCHA_SITE') ? (string) RECAPTCHA_SITE : '');
+
+if (isset($_SESSION['flash_success'])) {
+    $success = (string) $_SESSION['flash_success'];
+    unset($_SESSION['flash_success']);
+}
 if (isset($_GET['message']) && $_GET['message'] === 'logged_out') {
     $success = 'You have been successfully logged out.';
 }
 
-// Check if already logged in as coach
 if (Auth::isCoach()) {
     header('Location: dashboard.php');
     exit;
 }
 
-// Handle login form submission
-if ($_POST && isset($_POST['password'])) {
-    // Verify CSRF token
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid form submission. Please try again.';
     } else {
-        $error = 'The shared coach password login has been retired. Please contact the league administrator to receive your individual account credentials.';
-        logActivity('coach_login_attempted_legacy', 'Attempted shared password login after deprecation');
+        $requiresCaptcha = AuthService::captchaRequired($ipAddress);
+        if ($requiresCaptcha && !AuthService::verifyRecaptcha($_POST['g-recaptcha-response'] ?? null)) {
+            $error = 'Please complete the CAPTCHA';
+        } else {
+            try {
+                $loggedIn = AuthService::authenticate(
+                    $identifier,
+                    (string) ($_POST['password'] ?? ''),
+                    $ipAddress,
+                    !empty($_POST['remember_me'])
+                );
+
+                if ($loggedIn) {
+                    header('Location: dashboard.php');
+                    exit;
+                }
+
+                // Keep generic error except for explicit deprecated shared-credential message.
+                if (strtolower($identifier) === 'coach') {
+                    $error = 'Coach login has been updated — please use your individual account.';
+                } else {
+                    $error = 'Invalid username or password';
+                }
+            } catch (RuntimeException $e) {
+                $error = $e->getMessage();
+            } catch (Throwable $e) {
+                $error = 'Unable to sign in right now. Please try again.';
+            }
+        }
     }
 }
 
-$pageTitle = "Coaches Login - " . APP_NAME;
+$failedAttempts = AuthService::failedAttemptsForIp($ipAddress);
+$pageTitle = 'Coach Login — District 8 Travel League';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $pageTitle; ?></title>
+    <title><?php echo sanitize($pageTitle); ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="<?php echo $cssPath; ?>" rel="stylesheet">
+    <link href="<?php echo sanitize($cssPath); ?>" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <?php if ($captchaSiteKey !== ''): ?>
+        <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <?php endif; ?>
 </head>
 <body>
-    <!-- Navigation -->
-    <?php include EnvLoader::getPath('includes/nav.php'); ?>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="../index.php"><?php echo sanitize(APP_NAME); ?></a>
+            <span class="badge bg-secondary">Team: Not assigned</span>
+        </div>
+    </nav>
 
     <!-- Main Content -->
     <div class="container">
@@ -66,18 +110,18 @@ $pageTitle = "Coaches Login - " . APP_NAME;
             <div class="card login-card">
                 <div class="card-header login-header">
                     <h2>Coaches Login</h2>
-                    <p class="mb-0">Enter the coaches password to access team management tools</p>
+                    <p class="mb-0">Sign in with your username or email</p>
                 </div>
                 <div class="card-body p-4">
                     <?php if ($error): ?>
-                        <div class="alert alert-danger">
+                        <div class="alert alert-danger" role="alert">
                             <i class="fas fa-exclamation-triangle"></i>
                             <?php echo sanitize($error); ?>
                         </div>
                     <?php endif; ?>
 
                     <?php if ($success): ?>
-                        <div class="alert alert-success">
+                        <div class="alert alert-success" role="alert">
                             <i class="fas fa-check-circle"></i>
                             <?php echo sanitize($success); ?>
                         </div>
@@ -85,39 +129,47 @@ $pageTitle = "Coaches Login - " . APP_NAME;
 
                     <form method="POST" action="">
                         <input type="hidden" name="csrf_token" value="<?php echo Auth::generateCSRFToken(); ?>">
-                        
                         <div class="mb-3">
-                            <label for="password" class="form-label">Coaches Password</label>
+                            <label for="identifier" class="form-label">Username or Email</label>
+                            <input type="text"
+                                   class="form-control form-control-lg"
+                                   id="identifier"
+                                   name="identifier"
+                                   value="<?php echo sanitize($identifier); ?>"
+                                   required
+                                   autocomplete="username">
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
                             <input type="password" 
                                    class="form-control form-control-lg" 
                                    id="password" 
                                    name="password" 
                                    required 
-                                   placeholder="Enter coaches password"
+                                   placeholder="Enter password"
                                    autocomplete="current-password">
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="remember_me" name="remember_me" value="1">
+                            <label class="form-check-label" for="remember_me">Remember me</label>
+                        </div>
+                        <div id="recaptcha-container" class="d-none mb-3" data-failed-attempts="<?php echo (int) $failedAttempts; ?>">
+                            <?php if ($captchaSiteKey !== ''): ?>
+                                <div class="g-recaptcha" data-sitekey="<?php echo sanitize($captchaSiteKey); ?>"></div>
+                            <?php else: ?>
+                                <div class="alert alert-info mb-0">CAPTCHA is unavailable in this environment.</div>
+                            <?php endif; ?>
                         </div>
 
                         <div class="d-grid">
                             <button type="submit" class="btn btn-primary btn-lg">
-                                Login
+                                Sign In
                             </button>
                         </div>
+                        <div class="mt-3">
+                            <a href="forgot-password.php">Forgot Password?</a>
+                        </div>
                     </form>
-
-                    <hr class="my-4">
-
-                    <div class="text-center">
-                        <h6>What can coaches do?</h6>
-                        <ul class="list-unstyled text-start">
-                            <li>✅ Submit schedule change requests</li>
-                            <li>✅ Input game scores</li>
-                            <li>✅ Access team contact information</li>
-                        </ul>
-                        
-                        <small class="text-muted">
-                            Password is shared among all coaches. Contact the league administrator if you need the password.
-                        </small>
-                    </div>
                 </div>
             </div>
         </div>
@@ -137,16 +189,6 @@ $pageTitle = "Coaches Login - " . APP_NAME;
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     
-    <script>
-        // Auto-focus password field
-        document.getElementById('password').focus();
-        
-        // Show/hide password toggle (optional enhancement)
-        function togglePassword() {
-            const passwordField = document.getElementById('password');
-            const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
-            passwordField.setAttribute('type', type);
-        }
-    </script>
+    <script src="<?php echo sanitize($jsPath); ?>"></script>
 </body>
 </html>

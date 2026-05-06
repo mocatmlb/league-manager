@@ -50,6 +50,7 @@ class Auth {
                 $_SESSION['user_type'] = 'admin';
                 $_SESSION['admin_id'] = $admin['id'];
                 $_SESSION['admin_username'] = $admin['username'];
+                $_SESSION['role'] = 'administrator';
                 $_SESSION['login_time'] = time();
                 $_SESSION['expires'] = time() + ADMIN_SESSION_TIMEOUT;
                 
@@ -72,29 +73,37 @@ class Auth {
      * Note: Admins are also considered coaches for access purposes
      */
     public static function isCoach() {
-        error_log("isCoach called - checking session");
         self::startSession();
-        error_log("Session data: " . print_r($_SESSION, true));
-        
-        // Check if user is an admin (admins can access coach sections)
+
+        // Admins can access coach sections.
         if (self::isAdmin()) {
-            error_log("User is admin, allowing access");
             return true;
         }
-        
+
+        // Attempt remember-me re-authentication when no session exists.
+        if ((!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'coach') && !empty($_COOKIE['d8tl_remember'])) {
+            if (file_exists(__DIR__ . '/AuthService.php')) {
+                require_once __DIR__ . '/AuthService.php';
+                if (AuthService::attemptRememberLogin()) {
+                    return true;
+                }
+            }
+        }
+
         if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'coach') {
-            error_log("Not a coach session");
             return false;
         }
-        
-        // Check session timeout
-        if (time() > $_SESSION['expires']) {
-            error_log("Session expired");
-            self::logout();
-            return false;
+
+        // Enforce sliding inactivity timeout + password-changed invalidation.
+        // No hard absolute "expires" cap — purely activity-based per Story 3-4 AC8.
+        if (file_exists(__DIR__ . '/AuthService.php')) {
+            require_once __DIR__ . '/AuthService.php';
+            if (!AuthService::enforceSessionLifetime()) {
+                self::logout();
+                return false;
+            }
         }
-        
-        error_log("Valid coach session found");
+
         return true;
     }
     
@@ -122,25 +131,18 @@ class Auth {
      * Note: Admins can also access coach sections
      */
     public static function requireCoach() {
-        error_log("requireCoach called - checking auth");
         if (!self::isCoach()) {
-            error_log("Not authenticated as coach");
             // If not logged in at all, redirect to coach login
             if (!self::isLoggedIn()) {
-                error_log("Not logged in, redirecting to login");
                 $loginPath = EnvLoader::isProduction() ? '/coaches/login.php' : '/public/coaches/login.php';
-                error_log("Login redirect path: " . $loginPath);
                 header('Location: ' . $loginPath);
                 exit;
             }
             // If logged in but not as coach/admin, redirect to home
-            error_log("Logged in but not as coach, redirecting to home");
             $homePath = EnvLoader::isProduction() ? '/index.php' : '/public/index.php';
-            error_log("Home redirect path: " . $homePath);
             header('Location: ' . $homePath);
             exit;
         }
-        error_log("Coach authentication verified");
     }
     
     /**
@@ -154,13 +156,46 @@ class Auth {
     }
     
     /**
-     * Logout user
+     * Logout user.
+     *
+     * Standard logout sequence: clear $_SESSION array contents, expire the
+     * session cookie at the client, then destroy server-side session storage.
+     * Do NOT call session_start() again afterward — that resurrects an
+     * authenticated cookie at the client and leaks $_SESSION contents to
+     * the new session id.
      */
     public static function logout() {
         self::startSession();
+
+        // Service-level cleanup (invalidate remember-me token, log auth.logout
+        // for coach sessions). Done first so it can read $_SESSION values.
+        if (file_exists(__DIR__ . '/AuthService.php')) {
+            require_once __DIR__ . '/AuthService.php';
+            AuthService::logout();
+        }
+
+        // Clear all session data.
+        $_SESSION = [];
+
+        // Expire the session cookie at the client.
+        if (ini_get('session.use_cookies')) {
+            $params = session_get_cookie_params();
+            setcookie(
+                session_name(),
+                '',
+                [
+                    'expires' => time() - 42000,
+                    'path' => $params['path'] ?? '/',
+                    'domain' => $params['domain'] ?? '',
+                    'secure' => $params['secure'] ?? false,
+                    'httponly' => $params['httponly'] ?? true,
+                    'samesite' => $params['samesite'] ?? 'Lax',
+                ]
+            );
+        }
+
+        // Destroy server-side storage.
         session_destroy();
-        session_start();
-        session_regenerate_id(true);
     }
     
     /**

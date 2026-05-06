@@ -84,6 +84,58 @@ class EmailService {
     }
     
     /**
+     * Trigger an email notification with an explicit recipient address.
+     *
+     * Bypasses the email_recipients table lookup (which is team/game-based)
+     * and instead sends to the provided recipient. Use for individual-user
+     * emails like registration verification, password reset, and invitation
+     * emails where the recipient comes from request context, not config.
+     *
+     * @param string $templateName Email template to use
+     * @param string $toEmail      Recipient email address
+     * @param array  $context      Template variable context
+     * @return bool                True on success, false on failure (errors logged)
+     */
+    public function triggerNotificationToAddress($templateName, $toEmail, $context = []) {
+        try {
+            $toEmail = trim((string) $toEmail);
+            if ($toEmail === '' || !filter_var($toEmail, FILTER_VALIDATE_EMAIL)) {
+                Logger::warn("triggerNotificationToAddress called with invalid recipient", ['template' => $templateName]);
+                return false;
+            }
+
+            $template = $this->getEmailTemplate($templateName);
+            if (!$template) {
+                Logger::error("Email template '{$templateName}' not found");
+                return false;
+            }
+            if (!$template['is_active']) {
+                Logger::info("Email template '{$templateName}' is inactive, skipping notification");
+                return true;
+            }
+
+            $processedSubject = $this->processTemplate($template['subject_template'], $context);
+            $processedBody = $this->processTemplate($template['body_template'], $context);
+
+            $queueId = $this->queueEmail([
+                'template_name' => $templateName,
+                'to_addresses' => json_encode([$toEmail]),
+                'cc_addresses' => json_encode([]),
+                'bcc_addresses' => json_encode([]),
+                'subject' => $processedSubject,
+                'body' => $processedBody,
+                'game_id' => $context['game_id'] ?? null,
+                'schedule_change_id' => $context['schedule_change_id'] ?? null,
+            ]);
+
+            return (bool) $this->processQueuedEmail($queueId);
+        } catch (Exception $e) {
+            Logger::error("Email notification (direct) failed for template '{$templateName}': " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Get email template by name
      */
     private function getEmailTemplate($templateName) {

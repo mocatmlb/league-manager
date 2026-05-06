@@ -131,6 +131,12 @@ $rootPath = getPathToRoot();
                                         <i class="fas fa-list-ul"></i> League List
                                     </a>
                                 </li>
+                                <li>
+                                    <a class="dropdown-item <?php echo isActiveNav('invitations', 'users'); ?>"
+                                       href="<?php echo $rootPath; ?>admin/users/invitations.php">
+                                        <i class="fas fa-envelope-open-text"></i> Coach Invitations
+                                    </a>
+                                </li>
                             </ul>
                         </li>
 

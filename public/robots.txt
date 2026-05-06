@@ -1,0 +1,6 @@
+User-agent: *
+Disallow: /coaches/register.php
+Disallow: /coaches/verify-email.php
+Disallow: /coaches/forgot-password.php
+Disallow: /coaches/reset-password.php
+Disallow: /coaches/login.php
