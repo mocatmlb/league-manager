@@ -1,0 +1,24 @@
+-- Migration: 006_remove_legacy_auth.sql
+-- Date: 2026-05-05
+-- Description: FORMAL DEPRECATION RECORD — Legacy shared coach credential.
+--
+--              This migration contains NO destructive DDL. Its sole purpose is
+--              to record in schema_migrations that the legacy auth system has been
+--              formally deprecated as of this migration.
+--
+--              What this deprecation means:
+--              - The 'coaches_password' setting in the settings table remains in
+--                the database as a disabled/historical record but MUST NOT be used
+--                for authentication by any code path after this migration.
+--              - LegacyAuthManager.php is to be deleted in Story 1.2 (code removal).
+--              - The cutover (Story 9.x) will null/disable the coaches_password
+--                setting value when all teams have individual Team Owners assigned.
+--
+--              IMPORTANT: Any code that reads settings WHERE setting_key =
+--              'coaches_password' for authentication purposes is in violation of
+--              this deprecation record and must be removed.
+--
+-- Affected tables: schema_migrations only (INSERT)
+-- Idempotent: Yes (INSERT IGNORE)
+
+INSERT IGNORE INTO schema_migrations (version) VALUES ('006');
