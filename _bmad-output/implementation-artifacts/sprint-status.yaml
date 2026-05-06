@@ -1,0 +1,107 @@
+# generated: 2026-05-04
+# last_updated: 2026-05-04
+# project: league-manager
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: '2026-05-04'
+last_updated: '2026-05-05'  # epic 2 started
+project: league-manager
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  # Epic 1: Foundation — Database, Migrations & Cross-Cutting Utilities
+  epic-1: in-progress
+  1-1-apply-database-migrations: review
+  1-2-remove-legacy-auth: review
+  1-3-implement-cross-cutting-utility-classes: review
+  epic-1-retrospective: optional
+
+  # Epic 2: Admin League List Management
+  epic-2: done
+  2-1-leaguelistmanager-service: done
+  2-2-admin-league-list-management-page: done
+  epic-2-retrospective: optional
+
+  # Epic 3: Coach Registration & Authentication
+  epic-3: backlog
+  3-1-registration-service-and-email-verification-backend: backlog
+  3-2-coach-registration-page-open-self-registration: backlog
+  3-3-invitation-service-and-admin-invitation-management: backlog
+  3-4-coach-login-page-with-auth-controls: backlog
+  3-5-password-reset-flow: backlog
+  3-6-registration-toggle-and-qr-code-display: backlog
+  epic-3-retrospective: optional
+
+  # Epic 4: Team Registration & Coach Assignment
+  epic-4: backlog
+  4-1-teamregistrationservice-backend: backlog
+  4-2-coach-team-registration-pages-step-2-of-self-registration: backlog
+  4-3-admin-team-assignment-and-pending-queue: backlog
+  4-4-coach-dashboard-with-team-identity-hero: backlog
+  epic-4-retrospective: optional
+
+  # Epic 5: Team-Scoped Score Submission
+  epic-5: backlog
+  5-1-scoreservice-backend: backlog
+  5-2-score-submission-page: backlog
+  epic-5-retrospective: optional
+
+  # Epic 6: Team-Scoped Reschedule Requests
+  epic-6: backlog
+  6-1-rescheduleservice-backend: backlog
+  6-2-reschedule-request-page: backlog
+  epic-6-retrospective: optional
+
+  # Epic 7: Coach Profile, Team Schedule & Authenticated Resources
+  epic-7: backlog
+  7-1-profileservice-backend: backlog
+  7-2-coach-profile-page: backlog
+  7-3-coach-team-schedule-view: backlog
+  7-4-authenticated-access-to-rules-and-contact-directory: backlog
+  epic-7-retrospective: optional
+
+  # Epic 8: Admin User Management
+  epic-8: backlog
+  8-1-usermanagementservice-full-crud: backlog
+  8-2-admin-user-list-page: backlog
+  8-3-admin-user-detail-page: backlog
+  epic-8-retrospective: optional
+
+  # Epic 9: Migration Cutover & Shared Credential Deprecation
+  epic-9: backlog
+  9-1-cutoverservice-backend: backlog
+  9-2-admin-migration-cutover-panel: backlog
+  epic-9-retrospective: optional

@@ -77,3 +77,42 @@ function run_all_tests(): int {
     echo "\n";
     return $_d8tl_results['failed'] > 0 ? 1 : 0;
 }
+
+// ---------------------------------------------------------------------------
+// Assertion helpers (shared across all test files)
+// ---------------------------------------------------------------------------
+
+if (!function_exists('assert_equals')) {
+    function assert_equals($actual, $expected, string $message): void {
+        if ($actual !== $expected) {
+            throw new RuntimeException(
+                "ASSERTION FAILED — $message\n  Expected: " . var_export($expected, true) .
+                "\n  Got:      " . var_export($actual, true)
+            );
+        }
+    }
+}
+
+if (!function_exists('assert_true')) {
+    function assert_true(bool $condition, string $message): void {
+        if (!$condition) {
+            throw new RuntimeException("ASSERTION FAILED — $message");
+        }
+    }
+}
+
+if (!function_exists('assert_not_null')) {
+    function assert_not_null($value, string $message): void {
+        if ($value === null || $value === false) {
+            throw new RuntimeException("ASSERTION FAILED — $message (got null/false)");
+        }
+    }
+}
+
+if (!function_exists('assert_null')) {
+    function assert_null($value, string $message): void {
+        if ($value !== null) {
+            throw new RuntimeException("ASSERTION FAILED — $message");
+        }
+    }
+}
