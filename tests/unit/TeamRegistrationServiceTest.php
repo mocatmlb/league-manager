@@ -39,6 +39,7 @@ class TRSMockDatabase extends Database {
     public array $teams        = [];
     public array $teamOwners   = [];
     public array $locations    = [];
+    public array $divisions    = [];
     public array $activityEvents = [];
     public array $queryCalls   = [];
     public int   $nextTeamId   = 100;
@@ -99,6 +100,18 @@ class TRSMockDatabase extends Database {
             foreach ($this->teamOwners as $owner) {
                 if ((int) $owner['user_id'] === (int) ($params['user_id'] ?? -1)) {
                     return $owner;
+                }
+            }
+            return false;
+        }
+
+        // Division must belong to team's season (approve validation)
+        if (stripos($sql, 'FROM divisions WHERE division_id') !== false
+            && stripos($sql, 'season_id') !== false) {
+            foreach ($this->divisions as $div) {
+                if ((int) ($div['division_id'] ?? 0) === (int) ($params['division_id'] ?? -1)
+                    && (int) ($div['season_id'] ?? 0) === (int) ($params['season_id'] ?? -1)) {
+                    return $div;
                 }
             }
             return false;
@@ -316,6 +329,7 @@ register_test('AC3: approve sets team active, assigns team owner, and logs audit
         'status'             => 'pending',
         'created_date'       => date('Y-m-d H:i:s'),
     ];
+    $db->divisions[] = ['division_id' => 7, 'season_id' => 5];
     $db->users[] = ['id' => 10, 'first_name' => 'Cara', 'last_name' => 'Williams', 'email' => 'cara@example.com'];
     Database::setInstance($db);
     $service = new TeamRegistrationService($db, $email);
@@ -340,6 +354,38 @@ register_test('AC3: approve sets team active, assigns team owner, and logs audit
     // Approval email sent
     assert_equals(count($email->calls), 1, 'approve must trigger one notification email');
     assert_equals($email->calls[0]['template'], 'team_registration_approved', 'approval email must use team_registration_approved template');
+
+    Database::setInstance(null);
+});
+
+register_test('approve throws RuntimeException when division is not in team season', function () {
+    $db    = new TRSMockDatabase();
+    $email = new TRSMockEmail();
+    $db->teams[] = [
+        'team_id'            => 201,
+        'team_name'          => 'West-Lee',
+        'league_name'        => 'West',
+        'season_id'          => 5,
+        'manager_first_name' => 'Pat',
+        'manager_last_name'  => 'Lee',
+        'manager_email'      => 'pat@example.com',
+        'status'             => 'pending',
+        'created_date'       => date('Y-m-d H:i:s'),
+    ];
+    // Division 99 exists only for season 9, not team's season 5
+    $db->divisions[] = ['division_id' => 99, 'season_id' => 9];
+    $db->users[] = ['id' => 11, 'first_name' => 'Pat', 'last_name' => 'Lee', 'email' => 'pat@example.com'];
+    Database::setInstance($db);
+    $service = new TeamRegistrationService($db, $email);
+
+    $thrown = false;
+    try {
+        $service->approve(201, 1, 99);
+    } catch (RuntimeException $e) {
+        $thrown = str_contains($e->getMessage(), 'not valid for this team');
+    }
+
+    assert_true($thrown, 'approve must reject division that does not belong to team season');
 
     Database::setInstance(null);
 });

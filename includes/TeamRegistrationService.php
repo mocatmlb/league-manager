@@ -116,7 +116,7 @@ class TeamRegistrationService {
     public function approve(int $teamId, int $adminUserId, int $divisionId): void {
         // 1. Load pending team and resolve coach before mutating rows
         $team = $this->db->fetchOne(
-            'SELECT team_id, team_name, manager_email, status FROM teams WHERE team_id = :id LIMIT 1',
+            'SELECT team_id, team_name, manager_email, status, season_id FROM teams WHERE team_id = :id LIMIT 1',
             ['id' => $teamId]
         );
         if ($team === false) {
@@ -124,6 +124,15 @@ class TeamRegistrationService {
         }
         if (($team['status'] ?? '') !== 'pending') {
             throw new RuntimeException('Team is not pending approval.');
+        }
+
+        $teamSeasonId = (int) ($team['season_id'] ?? 0);
+        $divisionOk = $this->db->fetchOne(
+            'SELECT division_id FROM divisions WHERE division_id = :division_id AND season_id = :season_id LIMIT 1',
+            ['division_id' => $divisionId, 'season_id' => $teamSeasonId]
+        );
+        if ($divisionOk === false) {
+            throw new RuntimeException('Selected division is not valid for this team\'s season.');
         }
 
         $coachUser = $this->db->fetchOne(

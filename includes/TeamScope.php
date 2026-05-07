@@ -29,7 +29,7 @@ class TeamScope {
 
         $sql = 'SELECT t.*
                 FROM teams t
-                INNER JOIN team_owners o ON o.team_id = t.id
+                INNER JOIN team_owners o ON o.team_id = t.team_id
                 WHERE o.user_id = :user_id';
 
         $result = $db->fetchAll($sql, ['user_id' => $userId]);

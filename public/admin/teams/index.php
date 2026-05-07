@@ -47,6 +47,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = $_POST['action'] ?? '';
         
         switch ($action) {
+            case 'approve_registration':
+                try {
+                    $teamId      = (int) ($_POST['team_id']     ?? 0);
+                    $divisionId  = (int) ($_POST['division_id'] ?? 0);
+                    $adminUserId = (int) ($_SESSION['admin_id'] ?? 0);
+
+                    if ($adminUserId < 1) {
+                        $error = 'Your admin session is invalid. Please sign in again.';
+                        break;
+                    }
+
+                    if ($teamId === 0 || $divisionId === 0) {
+                        $error = 'Please select a division before approving.';
+                        break;
+                    }
+
+                    if (!class_exists('TeamRegistrationService')) {
+                        require_once EnvLoader::getPath('includes/TeamRegistrationService.php');
+                    }
+                    $regService = new TeamRegistrationService();
+                    $regService->approve($teamId, $adminUserId, $divisionId);
+
+                    $_SESSION['flash_message'] = 'Team registration approved successfully.';
+                    header('Location: index.php');
+                    exit;
+                } catch (TeamAlreadyClaimedException $e) {
+                    $error = 'This coach already has a team assigned. Multiple team assignments are not supported in this version.';
+                } catch (Throwable $e) {
+                    Logger::error('Team registration approval failed', ['error' => $e->getMessage()]);
+                    $error = 'Approval could not be completed. Please try again or contact support.';
+                }
+                break;
+
             case 'add_team':
                 try {
                     $leagueName = sanitize($_POST['league_name']);
@@ -205,6 +238,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Flash messages from PRG redirects
+$flashMessage = $_SESSION['flash_message'] ?? '';
+$flashError   = $_SESSION['flash_error']   ?? '';
+unset($_SESSION['flash_message'], $_SESSION['flash_error']);
+
+// Pending team registrations (AC1)
+if (!class_exists('TeamRegistrationService')) {
+    require_once EnvLoader::getPath('includes/TeamRegistrationService.php');
+}
+$pendingRegistrations = (new TeamRegistrationService())->getPendingRegistrations();
+
+/** @var array<int, array<int, array<string, mixed>>> Divisions keyed by team season_id (code review: scoped picker) */
+$approveDivisionsBySeason = [];
+
 // Get teams with division and season info
 $teams = $db->fetchAll("
     SELECT t.*, d.division_name, s.season_name,
@@ -270,6 +317,20 @@ $pageTitle = "Teams Management - " . APP_NAME;
                     </button>
                 </div>
 
+                <?php if ($flashMessage): ?>
+                    <div class="alert alert-success alert-dismissible fade show">
+                        <i class="fas fa-check-circle"></i> <?php echo sanitize($flashMessage); ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <?php endif; ?>
+
+                <?php if ($flashError): ?>
+                    <div class="alert alert-danger alert-dismissible fade show">
+                        <i class="fas fa-exclamation-triangle"></i> <?php echo sanitize($flashError); ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <?php endif; ?>
+
                 <?php if ($message): ?>
                     <div class="alert alert-success alert-dismissible fade show">
                         <i class="fas fa-check-circle"></i> <?php echo $message; ?>
@@ -283,6 +344,98 @@ $pageTitle = "Teams Management - " . APP_NAME;
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 <?php endif; ?>
+
+                <!-- Pending Team Registrations (AC1) -->
+                <div class="card mb-4">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">
+                            <i class="fas fa-clock me-1"></i>
+                            Pending Team Registrations (<?php echo count($pendingRegistrations); ?>)
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <?php if (empty($pendingRegistrations)): ?>
+                            <p class="p-3 mb-0 text-muted">No pending registrations.</p>
+                        <?php else: ?>
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Coach</th>
+                                        <th>Team Name</th>
+                                        <th>League</th>
+                                        <th>Season / Program</th>
+                                        <th>Submitted</th>
+                                        <th>Approve</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                <?php foreach ($pendingRegistrations as $reg):
+                                    // Fetch season/program context for this pending team
+                                    $regSeason = $db->fetchOne(
+                                        'SELECT s.season_name, s.season_year, p.program_name
+                                         FROM teams t
+                                         INNER JOIN seasons s  ON s.season_id  = t.season_id
+                                         INNER JOIN programs p ON p.program_id = s.program_id
+                                         WHERE t.team_id = :id LIMIT 1',
+                                        ['id' => $reg['team_id']]
+                                    );
+                                    $seasonKey = (int) ($reg['season_id'] ?? 0);
+                                    if (!isset($approveDivisionsBySeason[$seasonKey])) {
+                                        $approveDivisionsBySeason[$seasonKey] = $seasonKey > 0
+                                            ? $db->fetchAll(
+                                                'SELECT d.division_id, d.division_name, s.season_name, s.season_year, p.program_name
+                                                 FROM divisions d
+                                                 INNER JOIN seasons s ON s.season_id = d.season_id
+                                                 INNER JOIN programs p ON p.program_id = s.program_id
+                                                 WHERE d.season_id = :sid
+                                                 ORDER BY p.program_name, d.division_name',
+                                                ['sid' => $seasonKey]
+                                            )
+                                            : [];
+                                    }
+                                    $rowDivisions = $approveDivisionsBySeason[$seasonKey];
+                                ?>
+                                    <tr>
+                                        <td><?php echo sanitize($reg['manager_first_name'] . ' ' . $reg['manager_last_name']); ?></td>
+                                        <td><strong><?php echo sanitize($reg['team_name']); ?></strong></td>
+                                        <td><?php echo sanitize($reg['league_name']); ?></td>
+                                        <td>
+                                            <?php if ($regSeason !== false): ?>
+                                                <?php echo sanitize($regSeason['program_name'] . ' — ' . $regSeason['season_name'] . ' ' . $regSeason['season_year']); ?>
+                                            <?php else: ?>
+                                                <span class="text-muted">—</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td><?php echo sanitize($reg['created_date']); ?></td>
+                                        <td>
+                                            <?php if (empty($rowDivisions)): ?>
+                                                <span class="text-muted small">No divisions for this season.</span>
+                                            <?php else: ?>
+                                            <form method="POST" class="d-flex align-items-center gap-1">
+                                                <input type="hidden" name="csrf_token"  value="<?php echo Auth::generateCSRFToken(); ?>">
+                                                <input type="hidden" name="action"      value="approve_registration">
+                                                <input type="hidden" name="team_id"     value="<?php echo (int) $reg['team_id']; ?>">
+                                                <select name="division_id" class="form-select form-select-sm" style="min-width:200px;" required>
+                                                    <option value="">— Select Division —</option>
+                                                    <?php foreach ($rowDivisions as $div): ?>
+                                                        <option value="<?php echo (int) $div['division_id']; ?>">
+                                                            <?php echo sanitize($div['program_name'] . ': ' . $div['division_name'] . ' (' . $div['season_year'] . ')'); ?>
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                                <button type="submit" class="btn btn-success btn-sm">
+                                                    <i class="fas fa-check"></i> Approve
+                                                </button>
+                                            </form>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        <?php endif; ?>
+                    </div>
+                </div>
 
                 <!-- Teams Table -->
                 <div class="card">
