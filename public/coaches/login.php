@@ -15,6 +15,30 @@ try {
 
 require_once EnvLoader::getPath('includes/AuthService.php');
 
+/**
+ * Only allow same-site coach paths in Location after login (mitigate open redirect).
+ */
+function coach_login_safe_redirect_target(?string $raw): string
+{
+    $t = trim((string) $raw);
+    if ($t === '' || strpbrk($t, "\r\n") !== false) {
+        return 'dashboard.php';
+    }
+    if (str_contains($t, '..') || str_contains($t, '://') || str_starts_with($t, '//')) {
+        return 'dashboard.php';
+    }
+    // Relative coach PHP page (same directory as login.php)
+    if (preg_match('/^[A-Za-z0-9_-]+\.php(?:\?[A-Za-z0-9_.~=&%-]*)?$/', $t)) {
+        return $t;
+    }
+    // Absolute path on this host: coaches area only
+    if ($t[0] === '/' && preg_match('#^/(?:public/)?coaches/[A-Za-z0-9_-]+\.php(?:\?[A-Za-z0-9_.~=&%-]*)?$#', $t)) {
+        return $t;
+    }
+
+    return 'dashboard.php';
+}
+
 $error = '';
 $success = '';
 $identifier = trim((string) ($_POST['identifier'] ?? ''));
@@ -61,7 +85,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
 
                 if ($loggedIn) {
-                    header('Location: dashboard.php');
+                    // AC4 (Story 4.4): honour intended_url set by auth guard (sanitized)
+                    $raw = isset($_SESSION['intended_url']) ? (string) $_SESSION['intended_url'] : '';
+                    unset($_SESSION['intended_url']);
+                    $redirect = coach_login_safe_redirect_target($raw !== '' ? $raw : null);
+                    header('Location: ' . $redirect);
                     exit;
                 }
 

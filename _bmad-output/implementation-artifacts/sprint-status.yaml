@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: '2026-05-04'
-last_updated: '2026-05-06'  # epic 3 stories 3-1 through 3-6 moved to review
+last_updated: '2026-05-07'  # epic 4: 4-1 done; 4-2 review; 4-3 done; 4-4 review (picker + review patches)
 project: league-manager
 project_key: NOKEY
 tracking_system: file-system
@@ -66,11 +66,11 @@ development_status:
   epic-3-retrospective: optional
 
   # Epic 4: Team Registration & Coach Assignment
-  epic-4: backlog
-  4-1-teamregistrationservice-backend: backlog
-  4-2-coach-team-registration-pages-step-2-of-self-registration: backlog
-  4-3-admin-team-assignment-and-pending-queue: backlog
-  4-4-coach-dashboard-with-team-identity-hero: backlog
+  epic-4: in-progress
+  4-1-teamregistrationservice-backend: done
+  4-2-coach-team-registration-pages-step-2-of-self-registration: review
+  4-3-admin-team-assignment-and-pending-queue: done
+  4-4-coach-dashboard-with-team-identity-hero: review
   epic-4-retrospective: optional
 
   # Epic 5: Team-Scoped Score Submission

@@ -134,6 +134,7 @@ class Auth {
         if (!self::isCoach()) {
             // If not logged in at all, redirect to coach login
             if (!self::isLoggedIn()) {
+                $_SESSION['intended_url'] = $_SERVER['REQUEST_URI'] ?? '';
                 $loginPath = EnvLoader::isProduction() ? '/coaches/login.php' : '/public/coaches/login.php';
                 header('Location: ' . $loginPath);
                 exit;
