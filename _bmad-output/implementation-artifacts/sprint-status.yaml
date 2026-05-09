@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: '2026-05-04'
-last_updated: '2026-05-07'  # epic 4: 4-1 done; 4-2 review; 4-3 done; 4-4 review (picker + review patches)
+last_updated: '2026-05-08'  # 5-2 in-progress (code review patches applied)
 project: league-manager
 project_key: NOKEY
 tracking_system: file-system
@@ -43,10 +43,10 @@ story_location: _bmad-output/implementation-artifacts
 
 development_status:
   # Epic 1: Foundation — Database, Migrations & Cross-Cutting Utilities
-  epic-1: in-progress
-  1-1-apply-database-migrations: review
-  1-2-remove-legacy-auth: review
-  1-3-implement-cross-cutting-utility-classes: review
+  epic-1: done
+  1-1-apply-database-migrations: done
+  1-2-remove-legacy-auth: done
+  1-3-implement-cross-cutting-utility-classes: done
   epic-1-retrospective: optional
 
   # Epic 2: Admin League List Management
@@ -56,27 +56,27 @@ development_status:
   epic-2-retrospective: optional
 
   # Epic 3: Coach Registration & Authentication
-  epic-3: in-progress
-  3-1-registration-service-and-email-verification-backend: review
-  3-2-coach-registration-page-open-self-registration: review
-  3-3-invitation-service-and-admin-invitation-management: review
-  3-4-coach-login-page-with-auth-controls: review
-  3-5-password-reset-flow: review
-  3-6-registration-toggle-and-qr-code-display: review
+  epic-3: done
+  3-1-registration-service-and-email-verification-backend: done
+  3-2-coach-registration-page-open-self-registration: done
+  3-3-invitation-service-and-admin-invitation-management: done
+  3-4-coach-login-page-with-auth-controls: done
+  3-5-password-reset-flow: done
+  3-6-registration-toggle-and-qr-code-display: done
   epic-3-retrospective: optional
 
   # Epic 4: Team Registration & Coach Assignment
-  epic-4: in-progress
+  epic-4: done
   4-1-teamregistrationservice-backend: done
-  4-2-coach-team-registration-pages-step-2-of-self-registration: review
+  4-2-coach-team-registration-pages-step-2-of-self-registration: done
   4-3-admin-team-assignment-and-pending-queue: done
-  4-4-coach-dashboard-with-team-identity-hero: review
+  4-4-coach-dashboard-with-team-identity-hero: done
   epic-4-retrospective: optional
 
   # Epic 5: Team-Scoped Score Submission
-  epic-5: backlog
-  5-1-scoreservice-backend: backlog
-  5-2-score-submission-page: backlog
+  epic-5: in-progress
+  5-1-scoreservice-backend: done
+  5-2-score-submission-page: in-progress
   epic-5-retrospective: optional
 
   # Epic 6: Team-Scoped Reschedule Requests

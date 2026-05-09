@@ -195,26 +195,43 @@ class AuthService {
         }
 
         $coachUserId = (int) ($_SESSION['coach_user_id'] ?? 0);
-        if ($coachUserId > 0 && self::usersHasColumn('password_changed_at')) {
+        if ($coachUserId > 0) {
             $db = Database::getInstance();
-            $user = $db->fetchOne(
-                'SELECT password_changed_at FROM users WHERE id = :id LIMIT 1',
-                ['id' => $coachUserId]
-            );
 
-            if ($user !== false) {
-                $sessionPwdChanged = (string) ($_SESSION['coach_password_changed_at'] ?? '');
-                $dbPwdChanged = (string) ($user['password_changed_at'] ?? '');
+            if (self::usersHasColumn('password_changed_at')) {
+                $user = $db->fetchOne(
+                    'SELECT password_changed_at FROM users WHERE id = :id LIMIT 1',
+                    ['id' => $coachUserId]
+                );
 
-                // If the DB has a password_changed_at and either: (a) the session
-                // doesn't, or (b) the session timestamp is older — invalidate.
-                // This forces sessions issued before this column existed to
-                // re-auth the next time the user changes their password.
-                if ($dbPwdChanged !== '') {
-                    if ($sessionPwdChanged === '' || strtotime($sessionPwdChanged) < strtotime($dbPwdChanged)) {
-                        return false;
+                if ($user !== false) {
+                    $sessionPwdChanged = (string) ($_SESSION['coach_password_changed_at'] ?? '');
+                    $dbPwdChanged = (string) ($user['password_changed_at'] ?? '');
+
+                    // If the DB has a password_changed_at and either: (a) the session
+                    // doesn't, or (b) the session timestamp is older — invalidate.
+                    // This forces sessions issued before this column existed to
+                    // re-auth the next time the user changes their password.
+                    if ($dbPwdChanged !== '') {
+                        if ($sessionPwdChanged === '' || strtotime($sessionPwdChanged) < strtotime($dbPwdChanged)) {
+                            return false;
+                        }
                     }
                 }
+            }
+
+            // Sync session role with current DB team assignment so that
+            // PermissionGuard::requireRole('team_owner') reflects live state
+            // without requiring re-login after team assignment/removal.
+            // Guard: only update role for sessions that are coach-role sessions;
+            // do not overwrite admin or other roles that happen to carry coach_user_id.
+            $currentRole = (string) ($_SESSION['role'] ?? '');
+            if ($currentRole === 'coach' || $currentRole === 'team_owner' || $currentRole === '') {
+                $hasTeam = $db->fetchOne(
+                    'SELECT 1 FROM team_owners WHERE user_id = :id LIMIT 1',
+                    ['id' => $coachUserId]
+                );
+                $_SESSION['role'] = ($hasTeam !== false) ? 'team_owner' : 'coach';
             }
         }
 

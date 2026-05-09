@@ -13,3 +13,9 @@ Items deferred from code reviews — captured here so they aren't lost.
 ## Deferred from: code review of 4-3-admin-team-assignment-pending-queue.md (2026-05-07)
 
 - **N+1 query pattern loading season/program per pending row** [`public/admin/teams/index.php` pending loop] — Performance optimization; acceptable at low queue volume; could fold program/season into `getPendingRegistrations()` later.
+
+## Deferred from: code review of 5-2-score-submission-page.md (2026-05-08)
+
+- **20 CSRF tokens generated per page load for edit section** — One token per completed game (LIMIT 20 loop). Pre-existing CSRF token design; atomic single-use token strategy requires cross-codebase change.
+- **Concurrent double-click `edit()` — no optimistic lock** — Two simultaneous POSTs can both pass `enforceCompletedForEdit` and the second silently overwrites the first. Requires schema-level row versioning or application lock; deferred to a future hardening epic.
+- **`password_changed_at` refactor changes schema-incomplete semantics** — `AuthService::enforceSessionLifetime()` now always hits the `team_owners` table even when `password_changed_at` column is absent. Low risk in production (column is present); worth noting if the app is ever deployed fresh without running migrations.

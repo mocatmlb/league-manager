@@ -385,6 +385,30 @@ body {
     }
 }
 
+/* VS Score Entry (score-input.php) */
+.vs-score-entry {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 1rem;
+}
+
+.vs-label {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #6c757d;
+    text-align: center;
+    padding: 0 0.5rem;
+}
+
+.vs-score-input {
+    font-size: 2rem;
+    font-weight: 700;
+    text-align: center;
+    width: 100%;
+    min-height: 44px;
+}
+
 /* Footer */
 footer {
     margin-top: auto;
