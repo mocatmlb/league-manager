@@ -185,6 +185,10 @@ class InvitationMockDatabase extends Database {
 class InvitationMockEmail {
     public array $calls = [];
     public bool $forceFailure = false;
+    public function triggerNotificationToAddress($templateName, $toEmail, $context = []) {
+        $this->calls[] = ['template' => $templateName, 'to' => $toEmail, 'context' => $context];
+        return !$this->forceFailure;
+    }
     public function triggerNotification($templateName, $context = []) {
         $this->calls[] = ['template' => $templateName, 'context' => $context];
         return !$this->forceFailure;

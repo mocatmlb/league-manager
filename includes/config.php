@@ -29,7 +29,7 @@ define('RECAPTCHA_SECRET', '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe');
 
 // When true, direct-address emails (registration verify, reset, invite) are queued and marked Sent without SMTP.
 // Enable locally when SMTP is not configured; MUST be false in production.
-define('EMAIL_DEV_LOG_ONLY', true);
+define('EMAIL_DEV_LOG_ONLY', false);
 
 // Security Configuration
 define('SESSION_TIMEOUT', 3600); // 1 hour for coaches

@@ -68,15 +68,18 @@ class TeamRegistrationService {
         try {
             $this->db->query(
                 "INSERT INTO teams (season_id, league_name, team_name, status,
+                                    submitted_by_user_id,
                                     manager_first_name, manager_last_name, manager_email,
                                     created_date)
                  VALUES (:season_id, :league_name, :team_name, 'pending',
+                         :submitted_by_user_id,
                          :manager_first_name, :manager_last_name, :manager_email,
                          NOW())",
                 [
                     'season_id'           => (int) $data['season_id'],
                     'league_name'         => $leagueName,
                     'team_name'           => $teamName,
+                    'submitted_by_user_id' => $userId,
                     'manager_first_name'  => $user['first_name'],
                     'manager_last_name'   => $user['last_name'],
                     'manager_email'       => $user['email'],

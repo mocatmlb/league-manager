@@ -36,7 +36,7 @@ class InvitationService {
         }
     }
 
-    public function send(string $email, int $adminUserId): void {
+    public function send(string $email, int $adminUserId): string {
         $email = trim(strtolower($email));
         if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             throw new InvalidArgumentException('A valid email address is required.');
@@ -83,6 +83,8 @@ class InvitationService {
             'email' => $email,
             'admin_user_id' => $adminUserId,
         ]);
+
+        return $invitationUrl;
     }
 
     public function validate(string $token): array {
@@ -165,7 +167,7 @@ class InvitationService {
      * (already cancelled, completed, or expired) — closes the loophole where
      * a forged POST could resurrect a cancelled invitation.
      */
-    public function resend(int $invitationId, int $adminUserId): void {
+    public function resend(int $invitationId, int $adminUserId): string {
         $row = $this->db->fetchOne(
             'SELECT email, status FROM user_invitations WHERE id = :id LIMIT 1',
             ['id' => $invitationId]
@@ -190,7 +192,7 @@ class InvitationService {
             ['id' => $invitationId, 'cancel_status' => $cancelStatus]
         );
 
-        $this->send($email, $adminUserId);
+        return $this->send($email, $adminUserId);
     }
 
     /**

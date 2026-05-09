@@ -102,6 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } catch (RuntimeException $e) {
                 $error = $e->getMessage();
             } catch (Throwable $e) {
+                error_log('[login] Throwable during authenticate: ' . get_class($e) . ': ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
                 $error = 'Unable to sign in right now. Please try again.';
             }
         }

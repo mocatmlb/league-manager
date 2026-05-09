@@ -130,11 +130,15 @@ class EmailService {
 
             // Local development: skip SMTP when EMAIL_DEV_LOG_ONLY is true (see includes/config.php).
             if (defined('EMAIL_DEV_LOG_ONLY') && EMAIL_DEV_LOG_ONLY === true) {
-                Logger::info('EMAIL_DEV_LOG_ONLY: queued email not sent via SMTP (dev only)', [
-                    'queue_id' => $queueId,
-                    'template' => $templateName,
-                    'to' => $toEmail,
-                ]);
+                $devLogContext = [
+                    'queue_id'         => $queueId,
+                    'template'         => $templateName,
+                    'to'               => $toEmail,
+                    'invitation_link'  => $context['invitation_link'] ?? null,
+                    'verification_url' => $context['verification_url'] ?? null,
+                    'reset_link'       => $context['reset_link'] ?? null,
+                ];
+                Logger::info('EMAIL_DEV_LOG_ONLY: queued email not sent via SMTP (dev only)', array_filter($devLogContext));
                 $this->db->update('email_queue', [
                     'status' => 'Sent',
                     'sent_time' => date('Y-m-d H:i:s'),

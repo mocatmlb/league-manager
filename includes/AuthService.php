@@ -41,9 +41,9 @@ class AuthService {
             "SELECT id, username, email, {$passwordColumn} AS password_hash, status,
                     " . (self::usersHasColumn('password_changed_at') ? 'password_changed_at' : "NULL AS password_changed_at") . "
              FROM users
-             WHERE username = :identifier OR email = :identifier
+             WHERE username = :identifier_u OR email = :identifier_e
              LIMIT 1",
-            ['identifier' => $identifier]
+            ['identifier_u' => $identifier, 'identifier_e' => $identifier]
         );
 
         // Canonical identifier for failure counting: prefer the resolved
