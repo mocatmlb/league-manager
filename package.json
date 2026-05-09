@@ -1,0 +1,20 @@
+{
+  "name": "league-manager",
+  "private": true,
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:golden": "playwright test tests/e2e/golden-path",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:report": "playwright show-report tests/reports/html",
+    "test:log": "node tests/scripts/append-run-log.mjs",
+    "test:tickets-md": "node tests/scripts/failures-to-tickets-md.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^22.10.0",
+    "dotenv": "^16.4.5",
+    "fs-extra": "^11.2.0",
+    "typescript": "^5.7.0"
+  }
+}

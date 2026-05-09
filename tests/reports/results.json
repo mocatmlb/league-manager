@@ -1,0 +1,278 @@
+{
+  "config": {
+    "configFile": "/Users/Mike.Oconnell/IdeaProjects/league-manager/playwright.config.ts",
+    "rootDir": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/config/global-setup.ts",
+    "globalTeardown": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/config/global-teardown.ts",
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/reports/artifacts",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 90000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "html",
+        {
+          "outputFolder": "tests/reports/html",
+          "open": "never"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "tests/reports/results.json"
+        }
+      ],
+      [
+        "junit",
+        {
+          "outputFile": "tests/reports/results.xml"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.59.1",
+    "workers": 7,
+    "webServer": {
+      "command": "php -S localhost:8080 -t public/",
+      "url": "http://localhost:8080",
+      "reuseExistingServer": true,
+      "timeout": 120000,
+      "stdout": "pipe",
+      "stderr": "pipe"
+    }
+  },
+  "suites": [
+    {
+      "title": "database-migrations.spec.ts",
+      "file": "database-migrations.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Story 1.1: Database Migrations — Application-Level Smoke Tests (ATDD)",
+          "file": "database-migrations.spec.ts",
+          "line": 23,
+          "column": 6,
+          "specs": [
+            {
+              "title": "[P0] public schedule page still loads after migrations applied",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/database-migrations.spec.ts",
+                        "line": 31,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a5a624be5f61d73dc53a-2b6432c4b28051c22cf4",
+              "file": "database-migrations.spec.ts",
+              "line": 31,
+              "column": 8
+            },
+            {
+              "title": "[P0] public standings page still loads after migrations applied",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/database-migrations.spec.ts",
+                        "line": 45,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a5a624be5f61d73dc53a-7c97732955b95bd6e62e",
+              "file": "database-migrations.spec.ts",
+              "line": 45,
+              "column": 8
+            },
+            {
+              "title": "[P1] coach login page still loads after migrations applied",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/database-migrations.spec.ts",
+                        "line": 56,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a5a624be5f61d73dc53a-8cfaf1edc5bab68b9eca",
+              "file": "database-migrations.spec.ts",
+              "line": 56,
+              "column": 8
+            },
+            {
+              "title": "[P1] admin login page still loads after migrations applied",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/database-migrations.spec.ts",
+                        "line": 71,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a5a624be5f61d73dc53a-461b25b58ba5502b0959",
+              "file": "database-migrations.spec.ts",
+              "line": 71,
+              "column": 8
+            },
+            {
+              "title": "[P1] teams-related page loads without DB column error after migration 003",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/database-migrations.spec.ts",
+                        "line": 86,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a5a624be5f61d73dc53a-3a8e7def57b88c9c8763",
+              "file": "database-migrations.spec.ts",
+              "line": 86,
+              "column": 8
+            },
+            {
+              "title": "[P2] application remains fully functional after migrations are applied twice (idempotency regression)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/database-migrations.spec.ts",
+                        "line": 115,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a5a624be5f61d73dc53a-3f00290b5e164b5c72a1",
+              "file": "database-migrations.spec.ts",
+              "line": 115,
+              "column": 8
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-05-05T02:51:39.589Z",
+    "duration": 160.699,
+    "expected": 0,
+    "skipped": 6,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

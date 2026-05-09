@@ -1,0 +1,52 @@
+<testsuites id="" name="" tests="6" failures="0" skipped="6" errors="0" time="0.160699">
+<testsuite name="database-migrations.spec.ts" timestamp="2026-05-05T02:51:39.750Z" hostname="chromium" tests="6" failures="0" skipped="6" time="0" errors="0">
+<testcase name="Story 1.1: Database Migrations — Application-Level Smoke Tests (ATDD) › [P0] public schedule page still loads after migrations applied" classname="database-migrations.spec.ts">
+<properties>
+<property name="skip" value="">
+</property>
+</properties>
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Story 1.1: Database Migrations — Application-Level Smoke Tests (ATDD) › [P0] public standings page still loads after migrations applied" classname="database-migrations.spec.ts">
+<properties>
+<property name="skip" value="">
+</property>
+</properties>
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Story 1.1: Database Migrations — Application-Level Smoke Tests (ATDD) › [P1] coach login page still loads after migrations applied" classname="database-migrations.spec.ts">
+<properties>
+<property name="skip" value="">
+</property>
+</properties>
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Story 1.1: Database Migrations — Application-Level Smoke Tests (ATDD) › [P1] admin login page still loads after migrations applied" classname="database-migrations.spec.ts">
+<properties>
+<property name="skip" value="">
+</property>
+</properties>
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Story 1.1: Database Migrations — Application-Level Smoke Tests (ATDD) › [P1] teams-related page loads without DB column error after migration 003" classname="database-migrations.spec.ts">
+<properties>
+<property name="skip" value="">
+</property>
+</properties>
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Story 1.1: Database Migrations — Application-Level Smoke Tests (ATDD) › [P2] application remains fully functional after migrations are applied twice (idempotency regression)" classname="database-migrations.spec.ts">
+<properties>
+<property name="skip" value="">
+</property>
+</properties>
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+</testsuites>

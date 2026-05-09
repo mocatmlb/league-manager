@@ -19,3 +19,16 @@ Items deferred from code reviews — captured here so they aren't lost.
 - **20 CSRF tokens generated per page load for edit section** — One token per completed game (LIMIT 20 loop). Pre-existing CSRF token design; atomic single-use token strategy requires cross-codebase change.
 - **Concurrent double-click `edit()` — no optimistic lock** — Two simultaneous POSTs can both pass `enforceCompletedForEdit` and the second silently overwrites the first. Requires schema-level row versioning or application lock; deferred to a future hardening epic.
 - **`password_changed_at` refactor changes schema-incomplete semantics** — `AuthService::enforceSessionLifetime()` now always hits the `team_owners` table even when `password_changed_at` column is absent. Low risk in production (column is present); worth noting if the app is ever deployed fresh without running migrations.
+
+## Deferred from: code review of 6-1-rescheduleservice-backend.md (2026-05-09)
+
+- **No transaction around submit** — `insert()` commits immediately; notification/ActivityLogger failure can't roll back the DB row. Depends on whether Database layer supports transactions.
+- **Orphaned requests permanently uncancellable** — FK `ON DELETE SET NULL` + `(int) NULL === 0` in cancel() makes deleted-user requests stuck in Pending. Rare scenario; `requested_by` preserves context.
+- **Semantic confusion mapping cancellation to `Denied`** [includes/RescheduleService.php:123] — Coach-initiated cancellation is mapped to `'Denied'` in the database. While required by schema, it may trigger incorrect downstream logic/emails.
+- **`RescheduleService::cancel()` Race Condition** [includes/RescheduleService.php:123] — Concurrent cancel requests can both pass the status check and update the same row.
+- **No LIMIT/OFFSET on getCoachRequests** — Returns all rows with no pagination. Enhancement, not blocking review.
+- **FK cascade handling for soft delete** — `ON DELETE SET NULL` silently drops the submitter link while `requested_by` holds old data. Pre-existing design decision.
+
+## Deferred from: code review of 6-2-reschedule-request-page.md (2026-05-09)
+
+- **Cancel confirmation is client-side only** — `onclick="return confirm(...)"` is trivially bypassed. No server-side secondary confirmation. Client-side confirm is sufficient for current UX flow.

@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: '2026-05-04'
-last_updated: '2026-05-08'  # 5-2 in-progress (code review patches applied)
+last_updated: '2026-05-09'  # code review applied, patches fixed
 project: league-manager
 project_key: NOKEY
 tracking_system: file-system
@@ -74,15 +74,15 @@ development_status:
   epic-4-retrospective: optional
 
   # Epic 5: Team-Scoped Score Submission
-  epic-5: in-progress
+  epic-5: done
   5-1-scoreservice-backend: done
-  5-2-score-submission-page: in-progress
+  5-2-score-submission-page: done
   epic-5-retrospective: optional
 
   # Epic 6: Team-Scoped Reschedule Requests
-  epic-6: backlog
-  6-1-rescheduleservice-backend: backlog
-  6-2-reschedule-request-page: backlog
+  epic-6: done
+  6-1-rescheduleservice-backend: done
+  6-2-reschedule-request-page: done
   epic-6-retrospective: optional
 
   # Epic 7: Coach Profile, Team Schedule & Authenticated Resources

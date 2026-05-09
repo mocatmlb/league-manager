@@ -1,0 +1,54 @@
+### Edge Case Hunter Findings
+
+```json
+[
+  {
+    "location": "includes/RescheduleService.php:51-60",
+    "trigger_condition": "game_id refers to a non-existent game",
+    "guard_snippet": "if (!$game) { throw new TeamScopeViolationException('Game not found'); }",
+    "potential_consequence": "Undefined array keys 'home_team_id' and 'away_team_id' in submit()"
+  },
+  {
+    "location": "includes/RescheduleService.php:80-83",
+    "trigger_condition": "requestData keys missing or empty",
+    "guard_snippet": "foreach(['requested_date', 'requested_time', 'requested_location', 'reason'] as $key) { if (empty($requestData[$key])) throw new InvalidArgumentException(\"Missing $key\"); }",
+    "potential_consequence": "DB integrity constraint violation or invalid data stored"
+  },
+  {
+    "location": "includes/RescheduleService.php:123",
+    "trigger_condition": "requestId refers to a non-existent request",
+    "guard_snippet": "if (!$row) { throw new RequestNotCancellableException('Request not found'); }",
+    "potential_consequence": "cancel() continues with NULL row, throws Property fetch error"
+  },
+  {
+    "location": "public/coaches/schedule-change.php:54",
+    "trigger_condition": "POST game_id is missing or zero",
+    "guard_snippet": "if ($gameId <= 0) { $error = 'Please select a game.'; } else { ... }",
+    "potential_consequence": "Service throws exception, caught and rendered as misleading 'Not authorized' error"
+  },
+  {
+    "location": "public/coaches/schedule-change.php:261",
+    "trigger_condition": "JavaScript onGameSelected called with empty select or no option selected",
+    "guard_snippet": "if (!sel || !sel.value) { detailPanel.style.display = 'none'; return; }",
+    "potential_consequence": "JS error accessing data attributes of null/undefined"
+  },
+  {
+    "location": "includes/RescheduleService.php:143-157",
+    "trigger_condition": "getEligibleGames called for user with no teams",
+    "guard_snippet": "if (empty($teamIds)) return [];",
+    "potential_consequence": "SQL error on empty IN clause (handled by early return, but good to verify)"
+  },
+  {
+    "location": "includes/RescheduleService.php:65",
+    "trigger_condition": "User submitting request is not found in users table",
+    "guard_snippet": "if (!$user) { throw new RuntimeException('User record not found'); }",
+    "potential_consequence": "submit() fails when trying to build requested_by string from user data"
+  },
+  {
+    "location": "database/migrations/013_add_schedule_change_requests_user_id.sql:19-20",
+    "trigger_condition": "Constraint fk_scr_submitted_by already exists under a different name or configuration",
+    "guard_snippet": "IF NOT EXISTS (SELECT 1 FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_NAME = 'fk_scr_submitted_by') THEN ...",
+    "potential_consequence": "Migration fails with 'Duplicate constraint' error if partially applied previously"
+  }
+]
+```

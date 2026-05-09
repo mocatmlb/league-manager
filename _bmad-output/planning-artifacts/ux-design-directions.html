@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>District 8 Travel League — UX Design Directions</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<style>
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a2e; color: #eee; }
+  .direction-nav { position: sticky; top: 0; z-index: 1000; background: #12122a; padding: 1rem; border-bottom: 2px solid #007bff; }
+  .direction-nav h1 { font-size: 1rem; color: #adb5bd; margin: 0; }
+  .direction-btn { cursor: pointer; border: 2px solid transparent; border-radius: 8px; padding: 0.5rem 1.25rem; font-weight: 600; font-size: 0.875rem; transition: all 0.2s; background: #2d2d4e; color: #adb5bd; }
+  .direction-btn.active { border-color: #007bff; background: #007bff; color: white; }
+  .direction-btn:hover:not(.active) { border-color: #495057; color: white; }
+  .direction-label { font-size: 0.7rem; display: block; margin-top: 2px; opacity: 0.8; font-weight: 400; }
+  .device-frame { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+  .device-mobile { width: 390px; min-height: 844px; }
+  .device-desktop { width: 100%; min-height: 768px; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+  .section-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6c757d; padding: 0.25rem 0.75rem; background: #f0f0f0; border-bottom: 1px solid #dee2e6; }
+  /* Direction 1 — Prototype Extended */
+  .d1-nav { background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); padding: 0.75rem 1rem; display: flex; align-items: center; justify-content: space-between; }
+  .d1-nav .brand { color: white; font-weight: 700; font-size: 1rem; }
+  .d1-nav .user-chip { background: rgba(255,255,255,0.2); color: white; border-radius: 20px; padding: 0.25rem 0.75rem; font-size: 0.8rem; display: flex; align-items: center; gap: 0.4rem; }
+  .d1-body { background: #f8f9fa; padding: 1rem; }
+  .d1-team-card { background: white; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #007bff; }
+  .d1-team-name { font-weight: 700; font-size: 1.1rem; color: #212529; }
+  .d1-team-meta { font-size: 0.8rem; color: #6c757d; }
+  .d1-tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+  .d1-tool-card { background: white; border-radius: 8px; padding: 1rem; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-top: 3px solid transparent; }
+  .d1-tool-card.green { border-top-color: #28a745; }
+  .d1-tool-card.blue { border-top-color: #17a2b8; }
+  .d1-tool-card.purple { border-top-color: #6f42c1; }
+  .d1-tool-card.gray { border-top-color: #6c757d; }
+  .d1-tool-card i { font-size: 1.5rem; margin-bottom: 0.5rem; display: block; }
+  .d1-tool-card .tool-label { font-size: 0.8rem; font-weight: 600; color: #212529; }
+  .d1-tool-card .tool-sub { font-size: 0.7rem; color: #6c757d; }
+  .d1-score-page { background: #f8f9fa; padding: 1rem; }
+  .d1-score-card { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; margin-bottom: 1rem; }
+  .d1-score-header { background: #28a745; color: white; padding: 0.75rem 1rem; font-weight: 600; font-size: 0.95rem; }
+  .d1-score-body { padding: 1rem; }
+  .d1-game-chip { background: #e8f5e9; border: 1px solid #28a745; border-radius: 6px; padding: 0.6rem 0.8rem; font-size: 0.8rem; margin-bottom: 1rem; color: #1b5e20; font-weight: 600; }
+  .d1-score-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .d1-score-input-group label { font-size: 0.75rem; font-weight: 700; color: #495057; display: block; margin-bottom: 0.3rem; }
+  .d1-score-input-group input { width: 100%; font-size: 2rem; font-weight: 700; text-align: center; border: 2px solid #dee2e6; border-radius: 8px; padding: 0.75rem; color: #212529; background: white; }
+  .d1-submit-btn { background: #28a745; color: white; border: none; border-radius: 8px; padding: 0.85rem; width: 100%; font-size: 1rem; font-weight: 600; margin-top: 1rem; }
+  .d1-success-alert { background: #d4edda; border: 1px solid #c3e6cb; border-radius: 6px; padding: 0.75rem; font-size: 0.85rem; color: #155724; margin-bottom: 1rem; }
+  /* Direction 2 — Action-First */
+  .d2-nav { background: #212529; padding: 0.75rem 1rem; display: flex; align-items: center; justify-content: space-between; }
+  .d2-nav .brand { color: white; font-weight: 700; font-size: 0.95rem; }
+  .d2-nav .team-tag { background: #007bff; color: white; border-radius: 4px; padding: 0.2rem 0.6rem; font-size: 0.75rem; font-weight: 600; }
+  .d2-body { background: white; padding: 0; }
+  .d2-hero { background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); padding: 1.25rem 1rem 2.5rem; color: white; }
+  .d2-hero-name { font-size: 0.85rem; opacity: 0.85; }
+  .d2-hero-team { font-size: 1.3rem; font-weight: 700; }
+  .d2-hero-status { font-size: 0.75rem; background: rgba(255,255,255,0.2); display: inline-block; border-radius: 20px; padding: 0.2rem 0.6rem; margin-top: 0.4rem; }
+  .d2-actions { margin: -1.5rem 1rem 0; position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .d2-action-card { background: white; border-radius: 10px; padding: 1rem 0.75rem; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+  .d2-action-card .action-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-size: 1.1rem; color: white; }
+  .d2-action-card .action-icon.green { background: #28a745; }
+  .d2-action-card .action-icon.blue { background: #17a2b8; }
+  .d2-action-card .action-icon.purple { background: #6f42c1; }
+  .d2-action-card .action-icon.gray { background: #6c757d; }
+  .d2-action-card .action-label { font-size: 0.75rem; font-weight: 700; color: #212529; }
+  .d2-content { padding: 1.75rem 1rem 1rem; }
+  .d2-section-title { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #6c757d; margin-bottom: 0.6rem; }
+  .d2-game-item { display: flex; align-items: center; justify-content: space-between; background: #f8f9fa; border-radius: 8px; padding: 0.75rem; margin-bottom: 0.5rem; }
+  .d2-game-item .game-info { font-size: 0.8rem; }
+  .d2-game-item .game-num { font-weight: 700; color: #212529; }
+  .d2-game-item .game-date { color: #6c757d; font-size: 0.72rem; }
+  .d2-game-item .badge { font-size: 0.65rem; padding: 0.3rem 0.6rem; border-radius: 20px; }
+  .d2-score-page { background: white; }
+  .d2-score-header-bar { background: #212529; padding: 0.75rem 1rem; display: flex; align-items: center; gap: 0.75rem; color: white; }
+  .d2-score-header-bar .back-btn { color: rgba(255,255,255,0.7); font-size: 0.85rem; }
+  .d2-score-header-bar .page-title { font-weight: 600; font-size: 0.95rem; }
+  .d2-score-game-banner { background: #e8f5e9; border-bottom: 1px solid #c8e6c9; padding: 0.75rem 1rem; font-size: 0.8rem; color: #1b5e20; font-weight: 600; }
+  .d2-score-inputs-wrap { padding: 1.5rem 1rem; }
+  .d2-vs-layout { display: grid; grid-template-columns: 1fr auto 1fr; gap: 0.5rem; align-items: center; }
+  .d2-vs-label { text-align: center; font-weight: 900; color: #dee2e6; font-size: 1.2rem; }
+  .d2-input-group-v2 label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: #6c757d; text-align: center; display: block; margin-bottom: 0.4rem; }
+  .d2-input-group-v2 input { width: 100%; font-size: 2.5rem; font-weight: 700; text-align: center; border: 2px solid #dee2e6; border-radius: 10px; padding: 0.75rem 0.5rem; color: #212529; }
+  .d2-input-group-v2 input:focus { border-color: #28a745; outline: none; }
+  .d2-team-name-label { font-size: 0.8rem; font-weight: 600; text-align: center; color: #495057; margin-top: 0.35rem; }
+  .d2-submit-wrap { padding: 0 1rem 1.5rem; }
+  .d2-submit-btn { background: #28a745; color: white; border: none; border-radius: 10px; padding: 1rem; width: 100%; font-size: 1rem; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+  /* Direction 3 — Admin-Focused (showing admin cutover panel) */
+  .d3-sidebar-layout { display: flex; min-height: 768px; }
+  .d3-sidebar { width: 220px; background: #1e2a3a; flex-shrink: 0; }
+  .d3-sidebar .brand { padding: 1.25rem 1rem; color: white; font-weight: 700; font-size: 0.95rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .d3-sidebar .brand small { display: block; font-size: 0.65rem; color: rgba(255,255,255,0.5); font-weight: 400; }
+  .d3-sidebar nav { padding: 0.75rem 0; }
+  .d3-sidebar .nav-section { padding: 0.5rem 1rem 0.25rem; font-size: 0.65rem; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+  .d3-sidebar .nav-item { padding: 0.6rem 1rem; color: rgba(255,255,255,0.7); font-size: 0.82rem; display: flex; align-items: center; gap: 0.6rem; cursor: pointer; }
+  .d3-sidebar .nav-item:hover, .d3-sidebar .nav-item.active { background: rgba(255,255,255,0.1); color: white; }
+  .d3-sidebar .nav-item i { width: 16px; text-align: center; font-size: 0.82rem; }
+  .d3-main { flex: 1; background: #f4f6f9; }
+  .d3-topbar { background: white; border-bottom: 1px solid #dee2e6; padding: 0.75rem 1.5rem; display: flex; align-items: center; justify-content: space-between; }
+  .d3-topbar .page-title { font-weight: 700; font-size: 1rem; color: #212529; }
+  .d3-topbar .page-sub { font-size: 0.75rem; color: #6c757d; }
+  .d3-topbar .admin-chip { font-size: 0.8rem; color: #495057; display: flex; align-items: center; gap: 0.4rem; }
+  .d3-content { padding: 1.5rem; }
+  .d3-alert-banner { background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1.25rem; display: flex; align-items: flex-start; gap: 0.75rem; }
+  .d3-alert-banner i { color: #856404; margin-top: 1px; }
+  .d3-alert-banner p { font-size: 0.82rem; color: #856404; margin: 0; font-weight: 600; }
+  .d3-alert-banner small { display: block; font-weight: 400; }
+  .d3-card { background: white; border-radius: 8px; border: 1px solid #dee2e6; margin-bottom: 1.25rem; overflow: hidden; }
+  .d3-card-header { padding: 0.85rem 1.25rem; border-bottom: 1px solid #dee2e6; display: flex; align-items: center; justify-content: space-between; }
+  .d3-card-header h5 { font-size: 0.9rem; font-weight: 700; margin: 0; color: #212529; }
+  .d3-card-header .badge { font-size: 0.7rem; }
+  .d3-table { width: 100%; font-size: 0.8rem; border-collapse: collapse; }
+  .d3-table th { background: #f8f9fa; padding: 0.6rem 1rem; font-weight: 700; color: #495057; font-size: 0.75rem; text-align: left; border-bottom: 1px solid #dee2e6; }
+  .d3-table td { padding: 0.65rem 1rem; border-bottom: 1px solid #f0f0f0; color: #212529; }
+  .d3-table tr:last-child td { border-bottom: none; }
+  .d3-table .status-ok { color: #28a745; font-weight: 600; }
+  .d3-table .status-gap { color: #dc3545; font-weight: 600; }
+  .d3-table .status-warn { color: #856404; font-weight: 600; }
+  .d3-cutover-btn { background: #dc3545; color: white; border: none; border-radius: 6px; padding: 0.6rem 1.25rem; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
+  .d3-cutover-btn:disabled { background: #e9ecef; color: #adb5bd; cursor: not-allowed; }
+  .d3-stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.25rem; }
+  .d3-stat-card { background: white; border-radius: 8px; border: 1px solid #dee2e6; padding: 1rem; text-align: center; }
+  .d3-stat-num { font-size: 1.75rem; font-weight: 700; }
+  .d3-stat-label { font-size: 0.72rem; color: #6c757d; font-weight: 600; }
+  .d3-stat-card.green .d3-stat-num { color: #28a745; }
+  .d3-stat-card.red .d3-stat-num { color: #dc3545; }
+  .d3-stat-card.blue .d3-stat-num { color: #007bff; }
+  /* Shared tab switcher */
+  .screen-tabs { display: flex; gap: 0.5rem; padding: 0.75rem 1rem; background: #16213e; border-bottom: 1px solid #2d2d4e; }
+  .screen-tab { font-size: 0.72rem; padding: 0.3rem 0.75rem; border-radius: 20px; cursor: pointer; background: #2d2d4e; color: #adb5bd; border: none; font-weight: 600; }
+  .screen-tab.active { background: #495057; color: white; }
+  /* Responsive preview label */
+  .preview-label { text-align: center; font-size: 0.7rem; color: #6c757d; margin-bottom: 0.5rem; letter-spacing: 0.05em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+
+<!-- Sticky Direction Nav -->
+<div class="direction-nav">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div>
+      <h1>D8TL — UX Design Directions</h1>
+      <div style="font-size:0.65rem;color:#6c757d;">District 8 Travel League · Individual Coach Logins</div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <button class="direction-btn active" onclick="showDirection(1)">
+        Direction 1
+        <span class="direction-label">Prototype Extended</span>
+      </button>
+      <button class="direction-btn" onclick="showDirection(2)">
+        Direction 2
+        <span class="direction-label">Action-First</span>
+      </button>
+      <button class="direction-btn" onclick="showDirection(3)">
+        Direction 3
+        <span class="direction-label">Admin Cutover View</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     DIRECTION 1: Prototype Extended
+     Same card-grid pattern, extended with team context block
+     ============================================================ -->
+<div id="dir1" class="screen active">
+  <div class="container-fluid py-4">
+    <div class="row mb-3">
+      <div class="col-12">
+        <div class="text-center mb-2" style="color:#adb5bd;font-size:0.8rem;font-weight:600;">DIRECTION 1 — Prototype Extended</div>
+        <p class="text-center" style="color:#6c757d;font-size:0.78rem;max-width:600px;margin:0 auto;">Familiar card grid with a team context block added above the tools. Lowest learning curve — builds directly on what coaches will recognize from the existing portal.</p>
+      </div>
+    </div>
+
+    <div class="row justify-content-center g-4">
+      <!-- Mobile: Dashboard -->
+      <div class="col-auto">
+        <div class="preview-label">📱 Mobile · Dashboard</div>
+        <div class="device-frame device-mobile">
+          <!-- Nav -->
+          <div class="d1-nav">
+            <span class="brand">District 8 Travel League</span>
+            <div class="user-chip"><i class="fas fa-user-circle"></i> Coach Jones</div>
+          </div>
+          <div class="d1-body">
+            <!-- Team context card -->
+            <div class="d1-team-card">
+              <div class="d1-team-name">Springfield-Jones</div>
+              <div class="d1-team-meta">12U Fall 2026 · Division 2</div>
+              <div class="mt-2 d-flex gap-2">
+                <span class="badge" style="background:#28a745;font-size:0.68rem;padding:0.3rem 0.6rem;">● Team Owner</span>
+                <span class="badge" style="background:#007bff;font-size:0.68rem;padding:0.3rem 0.6rem;">2 games need scores</span>
+              </div>
+            </div>
+            <!-- Tool grid -->
+            <div class="d1-tool-grid">
+              <div class="d1-tool-card green">
+                <i class="fas fa-baseball-ball" style="color:#28a745;"></i>
+                <div class="tool-label">Score Input</div>
+                <div class="tool-sub">2 eligible</div>
+              </div>
+              <div class="d1-tool-card blue">
+                <i class="fas fa-calendar-alt" style="color:#17a2b8;"></i>
+                <div class="tool-label">Schedule Change</div>
+                <div class="tool-sub">Submit request</div>
+              </div>
+              <div class="d1-tool-card gray">
+                <i class="fas fa-calendar-week" style="color:#6c757d;"></i>
+                <div class="tool-label">My Schedule</div>
+                <div class="tool-sub">View all games</div>
+              </div>
+              <div class="d1-tool-card purple">
+                <i class="fas fa-address-book" style="color:#6f42c1;"></i>
+                <div class="tool-label">Contacts</div>
+                <div class="tool-sub">League directory</div>
+              </div>
+            </div>
+            <!-- Info block -->
+            <div style="background:#fff;border-radius:8px;padding:0.85rem;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+              <div style="font-size:0.72rem;font-weight:700;color:#6c757d;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.5rem;">Session</div>
+              <div style="font-size:0.78rem;color:#495057;"><i class="fas fa-clock text-info me-1"></i> Session expires in 60 min</div>
+              <div style="font-size:0.78rem;color:#495057;margin-top:0.35rem;"><i class="fas fa-sign-out-alt text-secondary me-1"></i> <a href="#" style="color:#007bff;text-decoration:none;">Log out</a></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile: Score Input -->
+      <div class="col-auto">
+        <div class="preview-label">📱 Mobile · Score Input</div>
+        <div class="device-frame device-mobile">
+          <div class="d1-nav">
+            <span class="brand">District 8 Travel League</span>
+            <div class="user-chip"><i class="fas fa-user-circle"></i> Coach Jones</div>
+          </div>
+          <div class="d1-score-page">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+              <h1 style="font-size:1.25rem;font-weight:700;margin:0;color:#212529;">Score Input</h1>
+              <a href="#" style="font-size:0.8rem;color:#6c757d;text-decoration:none;"><i class="fas fa-arrow-left"></i> Dashboard</a>
+            </div>
+            <!-- Success state -->
+            <div class="d1-success-alert">
+              <i class="fas fa-check-circle me-1"></i> <strong>Score submitted.</strong><br>
+              Game #47, May 4 — Springfield-Jones 6, Marlins 3. Standings updated.
+            </div>
+            <!-- Score card -->
+            <div class="d1-score-card">
+              <div class="d1-score-header"><i class="fas fa-baseball-ball me-2"></i>Submit Game Score</div>
+              <div class="d1-score-body">
+                <div class="d1-game-chip">
+                  <i class="fas fa-check-circle me-1"></i> Game #48 · May 11 · Springfield-Jones @ Cubs · auto-selected
+                </div>
+                <div class="d1-score-inputs">
+                  <div class="d1-score-input-group">
+                    <label>Springfield-Jones</label>
+                    <input type="number" value="4" inputmode="numeric">
+                  </div>
+                  <div class="d1-score-input-group">
+                    <label>Cubs</label>
+                    <input type="number" value="" placeholder="0" inputmode="numeric">
+                  </div>
+                </div>
+                <button class="d1-submit-btn"><i class="fas fa-save me-2"></i>Submit Score</button>
+              </div>
+            </div>
+            <!-- Recently completed -->
+            <div class="d1-score-card">
+              <div style="padding:0.75rem 1rem;font-weight:600;font-size:0.85rem;color:#495057;border-bottom:1px solid #dee2e6;">Recently Completed</div>
+              <div style="padding:0.75rem 1rem;">
+                <div style="font-size:0.78rem;display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid #f0f0f0;">
+                  <span><strong>#47</strong> May 4 · vs Marlins</span>
+                  <span class="badge" style="background:#28a745;font-size:0.68rem;">6 – 3</span>
+                </div>
+                <div style="font-size:0.78rem;display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;">
+                  <span><strong>#44</strong> Apr 27 · vs Tigers</span>
+                  <span class="badge" style="background:#28a745;font-size:0.68rem;">8 – 2</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile: Login -->
+      <div class="col-auto">
+        <div class="preview-label">📱 Mobile · Login</div>
+        <div class="device-frame device-mobile">
+          <div class="d1-nav">
+            <span class="brand">District 8 Travel League</span>
+          </div>
+          <div style="background:#f8f9fa;padding:1.5rem 1rem;">
+            <div style="max-width:340px;margin:0 auto;">
+              <div style="background:linear-gradient(135deg,#007bff 0%,#0056b3 100%);color:white;border-radius:8px 8px 0 0;padding:1.5rem;text-align:center;">
+                <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:0.25rem;">Coach Login</h2>
+                <p style="font-size:0.8rem;opacity:0.85;margin:0;">Sign in to manage your team</p>
+              </div>
+              <div style="background:white;border-radius:0 0 8px 8px;padding:1.5rem;box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+                <div style="margin-bottom:1rem;">
+                  <label style="font-size:0.82rem;font-weight:600;color:#495057;display:block;margin-bottom:0.35rem;">Username or Email</label>
+                  <input type="text" style="width:100%;border:1px solid #dee2e6;border-radius:6px;padding:0.65rem 0.75rem;font-size:0.9rem;" placeholder="Enter username or email">
+                </div>
+                <div style="margin-bottom:1.25rem;">
+                  <label style="font-size:0.82rem;font-weight:600;color:#495057;display:block;margin-bottom:0.35rem;">Password</label>
+                  <input type="password" style="width:100%;border:1px solid #dee2e6;border-radius:6px;padding:0.65rem 0.75rem;font-size:0.9rem;" placeholder="Enter password">
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+                  <label style="font-size:0.78rem;color:#495057;display:flex;align-items:center;gap:0.4rem;cursor:pointer;"><input type="checkbox"> Remember me</label>
+                  <a href="#" style="font-size:0.78rem;color:#007bff;text-decoration:none;">Forgot password?</a>
+                </div>
+                <button style="width:100%;background:#007bff;color:white;border:none;border-radius:6px;padding:0.75rem;font-size:0.95rem;font-weight:600;margin-bottom:1rem;">Log In</button>
+                <hr style="margin:1rem 0;">
+                <div style="text-align:center;">
+                  <span style="font-size:0.78rem;color:#6c757d;">New coach? </span>
+                  <a href="#" style="font-size:0.78rem;color:#007bff;text-decoration:none;font-weight:600;">Register your team →</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-center mt-4" style="color:#6c757d;font-size:0.78rem;">
+      <strong style="color:#adb5bd;">Direction 1 characteristics:</strong> Familiar two-column tool grid · Team context card at top · Blue gradient login header · Green score card header · Auto-selection state shown
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     DIRECTION 2: Action-First
+     Hero banner with overlapping action cards, dark nav
+     ============================================================ -->
+<div id="dir2" class="screen">
+  <div class="container-fluid py-4">
+    <div class="row mb-3">
+      <div class="col-12">
+        <div class="text-center mb-2" style="color:#adb5bd;font-size:0.8rem;font-weight:600;">DIRECTION 2 — Action-First</div>
+        <p class="text-center" style="color:#6c757d;font-size:0.78rem;max-width:600px;margin:0 auto;">Hero banner establishes team identity immediately. Action cards overlap the hero for visual momentum. Score entry uses a VS-layout for maximum clarity on mobile.</p>
+      </div>
+    </div>
+
+    <div class="row justify-content-center g-4">
+      <!-- Mobile: Dashboard -->
+      <div class="col-auto">
+        <div class="preview-label">📱 Mobile · Dashboard</div>
+        <div class="device-frame device-mobile">
+          <div class="d2-nav">
+            <span class="brand">D8TL</span>
+            <span class="d2-team-tag">Springfield-Jones</span>
+          </div>
+          <div class="d2-body">
+            <div class="d2-hero">
+              <div class="d2-hero-name">Welcome back, Coach Jones</div>
+              <div class="d2-hero-team">Springfield-Jones</div>
+              <div class="d2-hero-status">12U Fall 2026 · Division 2 · Team Owner</div>
+            </div>
+            <div class="d2-actions">
+              <div class="d2-action-card">
+                <div class="action-icon green"><i class="fas fa-baseball-ball"></i></div>
+                <div class="action-label">Score Input</div>
+                <div style="font-size:0.65rem;color:#28a745;font-weight:600;margin-top:0.2rem;">2 eligible</div>
+              </div>
+              <div class="d2-action-card">
+                <div class="action-icon blue"><i class="fas fa-calendar-alt"></i></div>
+                <div class="action-label">Schedule Change</div>
+                <div style="font-size:0.65rem;color:#6c757d;margin-top:0.2rem;">Submit request</div>
+              </div>
+              <div class="d2-action-card">
+                <div class="action-icon gray"><i class="fas fa-calendar-week"></i></div>
+                <div class="action-label">My Schedule</div>
+                <div style="font-size:0.65rem;color:#6c757d;margin-top:0.2rem;">All games</div>
+              </div>
+              <div class="d2-action-card">
+                <div class="action-icon purple"><i class="fas fa-address-book"></i></div>
+                <div class="action-label">Contacts</div>
+                <div style="font-size:0.65rem;color:#6c757d;margin-top:0.2rem;">Directory</div>
+              </div>
+            </div>
+            <div class="d2-content">
+              <div class="d2-section-title">Upcoming Games</div>
+              <div class="d2-game-item">
+                <div class="game-info">
+                  <div class="game-num">#48 vs Cubs</div>
+                  <div class="game-date">May 11 · 10:00 AM · Riverdale Field</div>
+                </div>
+                <span class="badge" style="background:#007bff;color:white;">Scheduled</span>
+              </div>
+              <div class="d2-game-item">
+                <div class="game-info">
+                  <div class="game-num">#51 vs Marlins</div>
+                  <div class="game-date">May 18 · 1:00 PM · Memorial Park</div>
+                </div>
+                <span class="badge" style="background:#007bff;color:white;">Scheduled</span>
+              </div>
+              <div class="d2-section-title mt-3">Pending Requests</div>
+              <div class="d2-game-item">
+                <div class="game-info">
+                  <div class="game-num">Game #45 reschedule</div>
+                  <div class="game-date">Submitted May 1 · Awaiting review</div>
+                </div>
+                <span class="badge" style="background:#ffc107;color:#212529;">Pending</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile: Score Input (VS layout) -->
+      <div class="col-auto">
+        <div class="preview-label">📱 Mobile · Score Input (VS layout)</div>
+        <div class="device-frame device-mobile">
+          <div class="d2-score-header-bar">
+            <span class="back-btn"><i class="fas fa-arrow-left"></i></span>
+            <span class="page-title">Score Input</span>
+          </div>
+          <div class="d2-score-game-banner">
+            <i class="fas fa-check-circle me-1"></i> Game #48 · May 11 · Springfield-Jones @ Cubs · auto-selected
+          </div>
+          <div class="d2-score-inputs-wrap">
+            <div class="d2-vs-layout">
+              <div>
+                <div class="d2-input-group-v2">
+                  <label>Home</label>
+                  <input type="number" value="4" inputmode="numeric">
+                </div>
+                <div class="d2-team-name-label">Springfield-Jones</div>
+              </div>
+              <div class="d2-vs-label">VS</div>
+              <div>
+                <div class="d2-input-group-v2">
+                  <label>Away</label>
+                  <input type="number" placeholder="0" inputmode="numeric">
+                </div>
+                <div class="d2-team-name-label">Cubs</div>
+              </div>
+            </div>
+          </div>
+          <div class="d2-submit-wrap">
+            <button class="d2-submit-btn"><i class="fas fa-save"></i> Submit Score</button>
+          </div>
+          <!-- Success state -->
+          <div style="padding:0 1rem;">
+            <div style="background:#d4edda;border:1px solid #c3e6cb;border-radius:8px;padding:0.85rem;font-size:0.82rem;color:#155724;">
+              <i class="fas fa-check-circle me-1"></i> <strong>Score submitted.</strong><br>
+              Game #47, May 4 — Springfield-Jones 6, Marlins 3. Standings updated.
+            </div>
+          </div>
+          <div style="padding:1rem;">
+            <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#6c757d;margin-bottom:0.5rem;">Recent Scores</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.78rem;padding:0.4rem 0;border-bottom:1px solid #f0f0f0;">
+              <span><strong>#47</strong> May 4 · vs Marlins</span>
+              <span style="font-weight:700;color:#28a745;">6 – 3 W</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.78rem;padding:0.4rem 0;">
+              <span><strong>#44</strong> Apr 27 · vs Tigers</span>
+              <span style="font-weight:700;color:#28a745;">8 – 2 W</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Registration Step 1 -->
+      <div class="col-auto">
+        <div class="preview-label">📱 Mobile · Registration Step 1 of 2</div>
+        <div class="device-frame device-mobile">
+          <div class="d2-nav">
+            <span class="brand">D8TL · Coach Registration</span>
+          </div>
+          <div style="background:#f8f9fa;padding:1rem;">
+            <!-- Progress indicator -->
+            <div style="background:white;border-radius:8px;padding:0.85rem 1rem;margin-bottom:1rem;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+              <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
+                <div style="width:24px;height:24px;border-radius:50%;background:#007bff;color:white;font-size:0.7rem;font-weight:700;display:flex;align-items:center;justify-content:center;">1</div>
+                <div style="font-size:0.8rem;font-weight:700;color:#212529;">Create Your Account</div>
+                <div style="flex:1;height:2px;background:#dee2e6;margin:0 0.25rem;"></div>
+                <div style="width:24px;height:24px;border-radius:50%;background:#dee2e6;color:#6c757d;font-size:0.7rem;font-weight:700;display:flex;align-items:center;justify-content:center;">2</div>
+                <div style="font-size:0.8rem;color:#6c757d;">Register Team</div>
+              </div>
+              <div style="height:4px;border-radius:2px;background:#e9ecef;"><div style="width:50%;height:100%;background:#007bff;border-radius:2px;"></div></div>
+            </div>
+            <div style="background:white;border-radius:8px;padding:1rem;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+              <div style="margin-bottom:0.85rem;">
+                <label style="font-size:0.78rem;font-weight:700;color:#495057;display:block;margin-bottom:0.3rem;">First Name *</label>
+                <input type="text" style="width:100%;border:1px solid #dee2e6;border-radius:6px;padding:0.55rem 0.75rem;font-size:0.875rem;" value="Michael">
+              </div>
+              <div style="margin-bottom:0.85rem;">
+                <label style="font-size:0.78rem;font-weight:700;color:#495057;display:block;margin-bottom:0.3rem;">Last Name *</label>
+                <input type="text" style="width:100%;border:1px solid #dee2e6;border-radius:6px;padding:0.55rem 0.75rem;font-size:0.875rem;" value="Jones">
+              </div>
+              <div style="margin-bottom:0.85rem;">
+                <label style="font-size:0.78rem;font-weight:700;color:#495057;display:block;margin-bottom:0.3rem;">League *</label>
+                <select style="width:100%;border:1px solid #dee2e6;border-radius:6px;padding:0.55rem 0.75rem;font-size:0.875rem;background:white;">
+                  <option>Springfield</option>
+                </select>
+              </div>
+              <div style="margin-bottom:0.85rem;">
+                <label style="font-size:0.78rem;font-weight:700;color:#495057;display:block;margin-bottom:0.3rem;">Email *</label>
+                <input type="email" style="width:100%;border:1px solid #dee2e6;border-radius:6px;padding:0.55rem 0.75rem;font-size:0.875rem;" value="mjones@email.com">
+              </div>
+              <div style="margin-bottom:1rem;">
+                <label style="font-size:0.78rem;font-weight:700;color:#495057;display:block;margin-bottom:0.3rem;">Primary Phone *</label>
+                <div style="display:flex;gap:0.5rem;">
+                  <select style="width:90px;border:1px solid #dee2e6;border-radius:6px;padding:0.55rem 0.5rem;font-size:0.78rem;background:white;"><option>Cell</option></select>
+                  <input type="tel" style="flex:1;border:1px solid #dee2e6;border-radius:6px;padding:0.55rem 0.75rem;font-size:0.875rem;" value="(555) 234-5678">
+                </div>
+              </div>
+              <button style="width:100%;background:#007bff;color:white;border:none;border-radius:6px;padding:0.75rem;font-size:0.9rem;font-weight:600;">Continue to Team Registration →</button>
+              <div style="font-size:0.7rem;color:#6c757d;text-align:center;margin-top:0.6rem;">Step 1 of 2 · Fields marked * are required</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-center mt-4" style="color:#6c757d;font-size:0.78rem;">
+      <strong style="color:#adb5bd;">Direction 2 characteristics:</strong> Dark nav with team name chip · Hero banner with coach/team identity · Overlapping action cards · VS-layout score entry · Progress bar on registration
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     DIRECTION 3: Admin Cutover Panel (desktop-focused)
+     ============================================================ -->
+<div id="dir3" class="screen">
+  <div class="container-fluid py-4">
+    <div class="row mb-3">
+      <div class="col-12">
+        <div class="text-center mb-2" style="color:#adb5bd;font-size:0.8rem;font-weight:600;">DIRECTION 3 — Admin Cutover Panel (Desktop)</div>
+        <p class="text-center" style="color:#6c757d;font-size:0.78rem;max-width:600px;margin:0 auto;">Admin-side view showing the migration cutover panel. Sidebar navigation, data-dense tables, pre-cutover gap checklist, and the disabled cutover button until all teams are covered.</p>
+      </div>
+    </div>
+
+    <div class="row justify-content-center">
+      <div class="col-12" style="max-width:1100px;">
+        <div class="preview-label">🖥️ Desktop · Admin · Migration Cutover Panel</div>
+        <div class="device-frame device-desktop">
+          <div class="d3-sidebar-layout">
+            <!-- Sidebar -->
+            <div class="d3-sidebar">
+              <div class="brand">
+                District 8 TL
+                <small>Admin Console</small>
+              </div>
+              <nav>
+                <div class="nav-section">Dashboard</div>
+                <div class="nav-item"><i class="fas fa-tachometer-alt"></i> Overview</div>
+                <div class="nav-section">League</div>
+                <div class="nav-item"><i class="fas fa-gamepad"></i> Games</div>
+                <div class="nav-item"><i class="fas fa-calendar-check"></i> Schedules</div>
+                <div class="nav-item"><i class="fas fa-users"></i> Teams</div>
+                <div class="nav-item"><i class="fas fa-sitemap"></i> Divisions</div>
+                <div class="nav-section">Users</div>
+                <div class="nav-item"><i class="fas fa-user-friends"></i> All Users</div>
+                <div class="nav-item"><i class="fas fa-envelope"></i> Invitations</div>
+                <div class="nav-section">Settings</div>
+                <div class="nav-item"><i class="fas fa-cog"></i> General</div>
+                <div class="nav-item"><i class="fas fa-list"></i> Leagues</div>
+                <div class="nav-item active"><i class="fas fa-exchange-alt"></i> Migration</div>
+                <div class="nav-item"><i class="fas fa-envelope-open-text"></i> Email</div>
+              </nav>
+            </div>
+            <!-- Main content -->
+            <div class="d3-main">
+              <div class="d3-topbar">
+                <div>
+                  <div class="page-title">Migration & Cutover</div>
+                  <div class="page-sub">Manage transition from shared coach credential to individual accounts</div>
+                </div>
+                <div class="admin-chip"><i class="fas fa-user-shield"></i> Admin · admin@d8tl.org</div>
+              </div>
+              <div class="d3-content">
+                <!-- Warning banner -->
+                <div class="d3-alert-banner">
+                  <i class="fas fa-exclamation-triangle"></i>
+                  <p>2 active-season teams have no assigned Team Owner. <small>Resolve all gaps before disabling the shared credential.</small></p>
+                </div>
+                <!-- Stats row -->
+                <div class="d3-stats-row">
+                  <div class="d3-stat-card green">
+                    <div class="d3-stat-num">14</div>
+                    <div class="d3-stat-label">Teams Covered</div>
+                  </div>
+                  <div class="d3-stat-card red">
+                    <div class="d3-stat-num">2</div>
+                    <div class="d3-stat-label">Teams with No Owner</div>
+                  </div>
+                  <div class="d3-stat-card blue">
+                    <div class="d3-stat-num">18</div>
+                    <div class="d3-stat-label">Active Team Owners</div>
+                  </div>
+                </div>
+                <!-- Pre-cutover checklist -->
+                <div class="d3-card">
+                  <div class="d3-card-header">
+                    <h5><i class="fas fa-clipboard-check me-2 text-primary"></i>Pre-Cutover Checklist — Active Season Teams</h5>
+                    <span class="badge bg-warning text-dark">2 gaps remaining</span>
+                  </div>
+                  <table class="d3-table">
+                    <thead>
+                      <tr>
+                        <th>Team</th>
+                        <th>Division</th>
+                        <th>Program</th>
+                        <th>Team Owners</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><strong>Springfield-Jones</strong></td>
+                        <td>Division 2</td>
+                        <td>12U Fall</td>
+                        <td>Michael Jones</td>
+                        <td class="status-ok"><i class="fas fa-check-circle"></i> Covered</td>
+                        <td><a href="#" style="font-size:0.75rem;color:#007bff;text-decoration:none;">Manage</a></td>
+                      </tr>
+                      <tr>
+                        <td><strong>Lakewood-Smith</strong></td>
+                        <td>Division 1</td>
+                        <td>12U Fall</td>
+                        <td>David Smith, R. Brown</td>
+                        <td class="status-ok"><i class="fas fa-check-circle"></i> Covered</td>
+                        <td><a href="#" style="font-size:0.75rem;color:#007bff;text-decoration:none;">Manage</a></td>
+                      </tr>
+                      <tr style="background:#fff9f9;">
+                        <td><strong>Riverside-Garcia</strong></td>
+                        <td>Division 3</td>
+                        <td>10U Fall</td>
+                        <td><span style="color:#adb5bd;font-style:italic;">None assigned</span></td>
+                        <td class="status-gap"><i class="fas fa-times-circle"></i> No Owner</td>
+                        <td><a href="#" style="font-size:0.75rem;color:#007bff;text-decoration:none;font-weight:600;">Assign Coach →</a></td>
+                      </tr>
+                      <tr style="background:#fff9f9;">
+                        <td><strong>Central-Kim</strong></td>
+                        <td>Division 2</td>
+                        <td>10U Fall</td>
+                        <td><span style="color:#adb5bd;font-style:italic;">None assigned</span></td>
+                        <td class="status-gap"><i class="fas fa-times-circle"></i> No Owner</td>
+                        <td><a href="#" style="font-size:0.75rem;color:#007bff;text-decoration:none;font-weight:600;">Assign Coach →</a></td>
+                      </tr>
+                      <tr>
+                        <td><strong>Northside-Park</strong></td>
+                        <td>Division 1</td>
+                        <td>14U Fall</td>
+                        <td>Sarah Park</td>
+                        <td class="status-ok"><i class="fas fa-check-circle"></i> Covered</td>
+                        <td><a href="#" style="font-size:0.75rem;color:#007bff;text-decoration:none;">Manage</a></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <!-- Cutover action -->
+                <div class="d3-card">
+                  <div class="d3-card-header">
+                    <h5><i class="fas fa-power-off me-2 text-danger"></i>Disable Shared Coach Credential</h5>
+                  </div>
+                  <div style="padding:1.25rem;">
+                    <p style="font-size:0.82rem;color:#495057;margin-bottom:1rem;">Once all teams have at least one assigned Team Owner, you can disable the shared <code>coaches_password</code> credential. All coaches must then use their individual accounts. <strong>This action requires confirmation and cannot be automatically undone.</strong></p>
+                    <div style="display:flex;align-items:center;gap:1rem;">
+                      <button class="d3-cutover-btn" disabled>
+                        <i class="fas fa-lock"></i> Disable Shared Login
+                      </button>
+                      <span style="font-size:0.78rem;color:#856404;"><i class="fas fa-info-circle me-1"></i>Resolve 2 gaps above to enable this action</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-center mt-4" style="color:#6c757d;font-size:0.78rem;">
+      <strong style="color:#adb5bd;">Direction 3 characteristics:</strong> Sidebar admin nav · Stat summary cards · Color-coded gap checklist table · Disabled cutover button with clear reason · Warning banner · GOV.UK-style density
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function showDirection(n) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.direction-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('dir' + n).classList.add('active');
+  document.querySelectorAll('.direction-btn')[n-1].classList.add('active');
+}
+</script>
+</body>
+</html>

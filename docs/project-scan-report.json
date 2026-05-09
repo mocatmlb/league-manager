@@ -1,0 +1,132 @@
+{
+  "workflow_version": "1.2.0",
+  "timestamps": {
+    "started": "2026-04-27T01:08:47Z",
+    "last_updated": "2026-04-27T01:08:47Z",
+    "completed": "2026-04-27T01:08:47Z"
+  },
+  "mode": "initial_scan",
+  "scan_level": "deep",
+  "project_root": "/Users/Mike.Oconnell/IdeaProjects/league-manager",
+  "project_knowledge": "/Users/Mike.Oconnell/IdeaProjects/league-manager/docs",
+  "repository_type": "monolith",
+  "project_parts": [
+    {
+      "part_id": "app",
+      "root_path": "/Users/Mike.Oconnell/IdeaProjects/league-manager",
+      "project_type_id": "web",
+      "display_name": "PHP server-rendered web application",
+      "notes": "Classified as web tier (public docroot, admin/coach portals). composer.json present but not in CSV key_file_patterns; stack is PHP 8.1+, MariaDB/MySQL, PDO, shared hosting."
+    }
+  ],
+  "completed_steps": [
+    {
+      "step": "step_1",
+      "status": "completed",
+      "timestamp": "2026-04-27T01:08:47Z",
+      "summary": "Classified as monolith with 1 part; project_type_id web (PHP MVC-style, public/includes)"
+    },
+    {
+      "step": "step_2",
+      "status": "completed",
+      "timestamp": "2026-04-27T01:08:47Z",
+      "summary": "Inventoried README.md, docs/**, database SQL, deployment guides referenced in docs"
+    },
+    {
+      "step": "step_3",
+      "status": "completed",
+      "timestamp": "2026-04-27T01:08:47Z",
+      "summary": "Tech stack: PHP >=8.1, Composer, PHPMailer, MariaDB/MySQL, Apache, Bootstrap/jQuery per README/docs"
+    },
+    {
+      "step": "step_4",
+      "status": "completed",
+      "timestamp": "2026-04-27T01:08:47Z",
+      "summary": "Conditional analysis: api-contracts.md, data-models.md, component-inventory.md; no GitHub Actions CI"
+    },
+    {
+      "step": "step_5",
+      "status": "completed",
+      "timestamp": "2026-04-27T01:08:47Z",
+      "summary": "source-tree-analysis.md written"
+    },
+    {
+      "step": "step_6",
+      "status": "completed",
+      "timestamp": "2026-04-27T01:08:47Z",
+      "summary": "Dev and deployment captured in development-guide.md and deployment-guide.md"
+    },
+    {
+      "step": "step_7",
+      "status": "skipped",
+      "timestamp": "2026-04-27T01:08:47Z",
+      "summary": "Single-part monolith; no integration-architecture.md required"
+    },
+    {
+      "step": "step_8",
+      "status": "completed",
+      "timestamp": "2026-04-27T01:08:47Z",
+      "summary": "architecture.md written"
+    },
+    {
+      "step": "step_9",
+      "status": "completed",
+      "timestamp": "2026-04-27T01:08:47Z",
+      "summary": "project-overview.md, supporting guides aligned with index"
+    },
+    {
+      "step": "step_10",
+      "status": "completed",
+      "timestamp": "2026-04-27T01:08:47Z",
+      "summary": "index.md generated"
+    },
+    {
+      "step": "step_11",
+      "status": "completed",
+      "timestamp": "2026-04-27T01:08:47Z",
+      "summary": "Validation: no _(To be generated)_ markers in index for files that exist"
+    },
+    {
+      "step": "step_12",
+      "status": "completed",
+      "timestamp": "2026-04-27T01:08:47Z",
+      "summary": "Workflow complete"
+    }
+  ],
+  "current_step": "completed",
+  "findings": {
+    "project_classification": "Monolith PHP web app: public webroot, includes/ for services and bootstraps, database/ SQL migrations, dual-path auth (legacy + user accounts per docs).",
+    "technology_stack": "PHP 8.1+, Composer (district8/travel-league-mvp), PHPMailer, PDO MariaDB/MySQL, cPanel Git deploy (.cpanel.yml).",
+    "batches_completed": [
+      {
+        "path": "public/",
+        "files_scanned": 43,
+        "summary": "Mapped entry PHP pages for admin, coaches, auth, schedule, standings"
+      },
+      {
+        "path": "includes/",
+        "files_scanned": 30,
+        "summary": "Bootstrap, AuthService, legacy auth, email, DB singleton"
+      },
+      {
+        "path": "database/",
+        "files_scanned": 5,
+        "summary": "schema.sql MVP + user_accounts and patch SQL files"
+      }
+    ]
+  },
+  "outputs_generated": [
+    "project-scan-report.json",
+    "directory-index.md",
+    "index.md",
+    "project-overview.md",
+    "architecture.md",
+    "source-tree-analysis.md",
+    "api-contracts.md",
+    "data-models.md",
+    "component-inventory.md",
+    "development-guide.md",
+    "deployment-guide.md"
+  ],
+  "resume_instructions": "Workflow completed; delete or archive project-scan-report.json to start fresh"
+}
