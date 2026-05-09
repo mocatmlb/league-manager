@@ -135,3 +135,41 @@ PHP;
         'requireRole should exit when no role is set in session'
     );
 });
+
+// ---------------------------------------------------------------------------
+// AC1-P3: requireRole('user') accepts 'coach' and 'team_owner' session roles
+// ---------------------------------------------------------------------------
+
+register_test('AC1-P3: PermissionGuard::requireRole(user) accepts coach role', function () {
+    if (session_status() === PHP_SESSION_NONE) {
+        @session_start();
+    }
+    $_SESSION['role'] = 'coach';
+
+    $exited = false;
+    try {
+        PermissionGuard::requireRole('user');
+    } catch (Throwable $e) {
+        $exited = true;
+    }
+
+    assert_true(!$exited, 'requireRole(user) should allow coach session role');
+    unset($_SESSION['role']);
+});
+
+register_test('AC1-P4: PermissionGuard::requireRole(user) accepts team_owner role', function () {
+    if (session_status() === PHP_SESSION_NONE) {
+        @session_start();
+    }
+    $_SESSION['role'] = 'team_owner';
+
+    $exited = false;
+    try {
+        PermissionGuard::requireRole('user');
+    } catch (Throwable $e) {
+        $exited = true;
+    }
+
+    assert_true(!$exited, 'requireRole(user) should allow team_owner session role');
+    unset($_SESSION['role']);
+});
