@@ -32,3 +32,9 @@ Items deferred from code reviews — captured here so they aren't lost.
 ## Deferred from: code review of 6-2-reschedule-request-page.md (2026-05-09)
 
 - **Cancel confirmation is client-side only** — `onclick="return confirm(...)"` is trivially bypassed. No server-side secondary confirmation. Client-side confirm is sufficient for current UX flow.
+
+## Deferred from: code review of email-as-username-registration (2026-05-09)
+
+- **`type="email"` blocks login for legacy coaches with non-email usernames** [`public/coaches/login.php`] — Any coach registered before this change with a non-email username can no longer type it into the login field (browser HTML5 validation rejects it before POST). `AuthService` still accepts usernames on the backend. Suggested fix: run a one-time data migration in Epic 9 cutover to set `username = email` for all existing `users` rows.
+- **Pre-existing validation bug: first_name and last_name validated against phone field** [`public/coaches/register.php` lines ~99–100] — Both checks read `if ($formData['phone'] === '')` instead of their own field keys. Field is still required at the HTML level (`required` attribute), so submissions without the values are blocked. Low-impact cosmetic server-side bug.
+- **Redundant `DuplicateUsernameException`/`DuplicateEmailException` catches** [`public/coaches/register.php`] — With `username = email` both exceptions produce an identical `$fieldErrors['email']` message. Could be collapsed to a single catch, but functionally correct as-is.

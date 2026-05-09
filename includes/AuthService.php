@@ -362,7 +362,7 @@ class AuthService {
             case 'disabled':
                 return 'This account is currently disabled. Please contact league administration.';
             default:
-                return 'Invalid username or password';
+                return 'Invalid email or password';
         }
     }
 

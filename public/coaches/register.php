@@ -44,7 +44,6 @@ $formData = [
     'phone_type' => 'mobile',
     'league' => '',
     'league_other' => '',
-    'username' => '',
 ];
 $fieldErrors = [];
 $globalError = '';
@@ -101,14 +100,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($formData['phone'] === '') $fieldErrors['phone'] = 'Phone is required.';
         if ($formData['league'] === '') $fieldErrors['league'] = 'League selection is required.';
         if ($formData['league'] === 'other' && $formData['league_other'] === '') $fieldErrors['league_other'] = 'Enter your league name.';
-        if ($formData['username'] === '') $fieldErrors['username'] = 'Username is required.';
         if ($password === '') $fieldErrors['password'] = 'Password is required.';
         if ($confirmPassword === '' || $password !== $confirmPassword) $fieldErrors['confirm_password'] = 'Passwords must match.';
 
         if ($globalError === '' && empty($fieldErrors) && $inviteError === '') {
             try {
                 $service->register([
-                    'username' => $formData['username'],
+                    'username' => $formData['email'],
                     'email' => $formData['email'],
                     'password' => $password,
                     'first_name' => $formData['first_name'],
@@ -127,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: verify-email.php');
                 exit;
             } catch (DuplicateUsernameException $e) {
-                $fieldErrors['username'] = 'This username is already taken';
+                $fieldErrors['email'] = 'An account with this email already exists.';
             } catch (DuplicateEmailException $e) {
                 $fieldErrors['email'] = 'An account with this email already exists.';
             } catch (InvalidPasswordException $e) {
@@ -242,11 +240,6 @@ $jsPath = file_exists(__DIR__ . '/../assets/js/coaches-registration.js') ? '../a
                             <label class="form-label" for="league_other">Enter your league name</label>
                             <input class="form-control form-control-lg" id="league_other" name="league_other" value="<?php echo sanitize($formData['league_other']); ?>" aria-describedby="league_other_error">
                             <div id="league_other_error" class="text-danger small"><?php echo sanitize($fieldErrors['league_other'] ?? ''); ?></div>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label" for="username">Username</label>
-                            <input class="form-control form-control-lg" id="username" name="username" value="<?php echo sanitize($formData['username']); ?>" aria-describedby="username_error" required>
-                            <div id="username_error" class="text-danger small"><?php echo sanitize($fieldErrors['username'] ?? ''); ?></div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label" for="password">Password</label>

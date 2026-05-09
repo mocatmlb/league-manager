@@ -97,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (strtolower($identifier) === 'coach') {
                     $error = 'Coach login has been updated — please use your individual account.';
                 } else {
-                    $error = 'Invalid username or password';
+                    $error = 'Invalid email or password';
                 }
             } catch (RuntimeException $e) {
                 $error = $e->getMessage();
@@ -139,7 +139,7 @@ $pageTitle = 'Coach Login — District 8 Travel League';
             <div class="card login-card">
                 <div class="card-header login-header">
                     <h2>Coaches Login</h2>
-                    <p class="mb-0">Sign in with your username or email</p>
+                    <p class="mb-0">Sign in with your email address</p>
                 </div>
                 <div class="card-body p-4">
                     <?php if ($error): ?>
@@ -159,14 +159,14 @@ $pageTitle = 'Coach Login — District 8 Travel League';
                     <form method="POST" action="">
                         <input type="hidden" name="csrf_token" value="<?php echo Auth::generateCSRFToken(); ?>">
                         <div class="mb-3">
-                            <label for="identifier" class="form-label">Username or Email</label>
-                            <input type="text"
+                            <label for="identifier" class="form-label">Email</label>
+                            <input type="email"
                                    class="form-control form-control-lg"
                                    id="identifier"
                                    name="identifier"
                                    value="<?php echo sanitize($identifier); ?>"
                                    required
-                                   autocomplete="username">
+                                   autocomplete="email">
                         </div>
                         <div class="mb-3">
                             <label for="password" class="form-label">Password</label>
