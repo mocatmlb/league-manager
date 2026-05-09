@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: '2026-05-04'
-last_updated: '2026-05-09'  # code review applied, patches fixed
+last_updated: '2026-05-09'
 project: league-manager
 project_key: NOKEY
 tracking_system: file-system
@@ -86,11 +86,11 @@ development_status:
   epic-6-retrospective: optional
 
   # Epic 7: Coach Profile, Team Schedule & Authenticated Resources
-  epic-7: backlog
-  7-1-profileservice-backend: backlog
-  7-2-coach-profile-page: backlog
-  7-3-coach-team-schedule-view: backlog
-  7-4-authenticated-access-to-rules-and-contact-directory: backlog
+  epic-7: in-progress
+  7-1-profileservice-backend: ready-for-dev
+  7-2-coach-profile-page: ready-for-dev
+  7-3-coach-team-schedule-view: ready-for-dev
+  7-4-authenticated-access-to-rules-and-contact-directory: ready-for-dev
   epic-7-retrospective: optional
 
   # Epic 8: Admin User Management
