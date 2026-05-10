@@ -3,7 +3,27 @@
  * District 8 Travel League - Admin Coach Invitations
  */
 
-require_once __DIR__ . '/../../../includes/env-loader.php';
+$__dir   = __DIR__;
+$__found = false;
+for ($__i = 0; $__i < 6; $__i++) {
+    if (file_exists($__dir . '/includes/env-loader.php')) {
+        require_once $__dir . '/includes/env-loader.php';
+        $__found = true;
+        break;
+    }
+    $__dir = dirname($__dir);
+}
+if (!$__found && !empty($_SERVER['DOCUMENT_ROOT']) && file_exists($_SERVER['DOCUMENT_ROOT'] . '/includes/env-loader.php')) {
+    require_once $_SERVER['DOCUMENT_ROOT'] . '/includes/env-loader.php';
+    $__found = true;
+}
+if (!$__found) {
+    error_log('D8TL ERROR: Unable to locate includes/env-loader.php from ' . __FILE__);
+    http_response_code(500);
+    exit('Configuration error: env-loader not found');
+}
+unset($__dir, $__found, $__i);
+
 require_once EnvLoader::getPath('includes/admin_bootstrap.php');
 require_once EnvLoader::getPath('includes/PermissionGuard.php');
 require_once EnvLoader::getPath('includes/InvitationService.php');
