@@ -172,27 +172,39 @@ $rootPath = getPathToRoot();
                             </a>
                             <ul class="dropdown-menu">
                                 <li>
-                                    <a class="dropdown-item <?php echo isActiveNav('dashboard', 'coaches'); ?>" 
+                                    <a class="dropdown-item <?php echo isActiveNav('dashboard', 'coaches'); ?>"
                                        href="<?php echo $rootPath; ?>coaches/dashboard.php">
                                         <i class="fas fa-tachometer-alt"></i> Dashboard
                                     </a>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item <?php echo isActiveNav('score-input', 'coaches'); ?>" 
-                                       href="<?php echo $rootPath; ?>coaches/score-input.php">
-                                        <i class="fas fa-edit"></i> Score Input
+                                    <a class="dropdown-item <?php echo isActiveNav('schedule', 'coaches'); ?>"
+                                       href="<?php echo $rootPath; ?>coaches/schedule.php">
+                                        <i class="fas fa-list-ul"></i> My Schedule
                                     </a>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item <?php echo isActiveNav('schedule-change', 'coaches'); ?>" 
+                                    <a class="dropdown-item <?php echo isActiveNav('score-input', 'coaches'); ?>"
+                                       href="<?php echo $rootPath; ?>coaches/score-input.php">
+                                        <i class="fas fa-baseball-ball"></i> Score Input
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item <?php echo isActiveNav('schedule-change', 'coaches'); ?>"
                                        href="<?php echo $rootPath; ?>coaches/schedule-change.php">
                                         <i class="fas fa-calendar-alt"></i> Schedule Changes
                                     </a>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item <?php echo isActiveNav('contacts', 'coaches'); ?>" 
+                                    <a class="dropdown-item <?php echo isActiveNav('contacts', 'coaches'); ?>"
                                        href="<?php echo $rootPath; ?>coaches/contacts.php">
                                         <i class="fas fa-address-book"></i> Contacts
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item <?php echo isActiveNav('rules', 'coaches'); ?>"
+                                       href="<?php echo $rootPath; ?>coaches/rules.php">
+                                        <i class="fas fa-book"></i> Rules
                                     </a>
                                 </li>
                             </ul>
@@ -218,12 +230,21 @@ $rootPath = getPathToRoot();
                                 <li><hr class="dropdown-divider"></li>
                             <?php endif; ?>
                             <li>
+                                <?php if ($isCoach && !$isAdmin): ?>
+                                <a class="dropdown-item" href="<?php echo $rootPath; ?>coaches/profile.php">
+                                    <i class="fas fa-user-circle"></i> Profile
+                                </a>
+                                <?php else: ?>
                                 <a class="dropdown-item" href="<?php echo $rootPath; ?>admin/profile.php">
                                     <i class="fas fa-user-circle"></i> Profile
                                 </a>
+                                <?php endif; ?>
                             </li>
                             <li>
-                                <a class="dropdown-item" href="<?php echo $rootPath; ?>admin/logout.php">
+                                <?php $logoutUrl = $isCoach && !$isAdmin
+                                    ? $rootPath . 'coaches/logout.php'
+                                    : $rootPath . 'admin/logout.php'; ?>
+                                <a class="dropdown-item" href="<?php echo $logoutUrl; ?>">
                                     <i class="fas fa-sign-out-alt"></i> Logout
                                 </a>
                             </li>

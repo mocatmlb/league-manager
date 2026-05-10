@@ -37,13 +37,17 @@ function isSettingsActive($section) {
             </div>
         </div>
         <div class="collapse <?php echo strpos($currentSection, 'email') === 0 ? 'show' : ''; ?>" id="emailSubmenu">
-            <a href="?section=email-setup" 
+            <a href="?section=email-setup"
                class="list-group-item list-group-item-action sub-item <?php echo isSettingsActive('email-setup'); ?>">
                 <i class="fas fa-server"></i> Email Setup
             </a>
-            <a href="?section=email-templates" 
+            <a href="?section=email-templates"
                class="list-group-item list-group-item-action sub-item <?php echo isSettingsActive('email-templates'); ?>">
                 <i class="fas fa-file-alt"></i> Email Templates
+            </a>
+            <a href="?section=email-recipients"
+               class="list-group-item list-group-item-action sub-item <?php echo isSettingsActive('email-recipients'); ?>">
+                <i class="fas fa-users"></i> Email Recipients
             </a>
         </div>
 

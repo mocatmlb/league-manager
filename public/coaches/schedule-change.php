@@ -88,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 http_response_code(403);
                 $error = 'Not authorized — you are not permitted to reschedule this game.';
                 // Halt execution to ensure 403 response is clean
-                include EnvLoader::getPath('includes/nav.php');
+                include EnvLoader::getPath('includes/coaches_nav.php');
                 echo '<div class="container mt-4"><div class="alert alert-danger">' . htmlspecialchars($error) . '</div></div>';
                 include EnvLoader::getPath('includes/footer.php');
                 exit;
@@ -141,7 +141,7 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-    <?php include '../../includes/nav.php'; ?>
+    <?php include EnvLoader::getPath('includes/coaches_nav.php'); ?>
 
     <div class="container mt-4">
         <div class="row">

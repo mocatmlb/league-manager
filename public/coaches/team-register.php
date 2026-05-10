@@ -127,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-    <?php include '../../includes/nav.php'; ?>
+    <?php include EnvLoader::getPath('includes/coaches_nav.php'); ?>
 
     <div class="container py-4">
         <div class="reg-progress step-2-active mb-4" aria-label="Registration step 2 of 2">

@@ -197,10 +197,14 @@ class TeamRegistrationService {
             "SELECT t.team_id, t.team_name, t.league_name, t.season_id,
                     t.manager_first_name, t.manager_last_name, t.manager_email,
                     t.created_date,
-                    u.first_name AS submitter_first_name,
-                    u.last_name  AS submitter_last_name
+                    u.first_name  AS submitter_first_name,
+                    u.last_name   AS submitter_last_name,
+                    s.season_name, s.season_year,
+                    p.program_name
              FROM teams t
-             LEFT JOIN users u ON u.email = t.manager_email
+             LEFT JOIN users u    ON u.email         = t.manager_email
+             LEFT JOIN seasons s  ON s.season_id     = t.season_id
+             LEFT JOIN programs p ON p.program_id    = s.program_id
              WHERE t.status = 'pending'
              ORDER BY t.created_date ASC"
         );

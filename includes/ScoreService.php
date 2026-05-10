@@ -14,6 +14,7 @@ if (!defined('D8TL_APP')) {
 
 class TeamScopeViolationException extends RuntimeException {}
 class GameNotEligibleException extends RuntimeException {}
+class ScoreConflictException extends RuntimeException {}
 
 class ScoreService {
 
@@ -72,9 +73,12 @@ class ScoreService {
     /**
      * Edit the score of an already-completed game.
      * Applies the same team scope and time gate enforcement as submit().
+     * Uses modified_date as an optimistic lock — throws ScoreConflictException
+     * if a concurrent request already updated the row.
      *
      * @throws TeamScopeViolationException
      * @throws GameNotEligibleException  Not completed, missing schedule, or not yet eligible
+     * @throws ScoreConflictException    Concurrent edit detected
      * @throws InvalidArgumentException
      */
     public function edit(int $userId, int $gameId, int $homeScore, int $awayScore): void {
@@ -88,20 +92,29 @@ class ScoreService {
         $this->enforceCompletedForEdit($game);
         $this->enforceTimeGate($game);
 
-        $oldHomeScore = isset($game['home_score']) ? (int) $game['home_score'] : null;
-        $oldAwayScore = isset($game['away_score']) ? (int) $game['away_score'] : null;
+        $expectedModifiedDate = $game['modified_date'] ?? null;
+        $oldHomeScore         = isset($game['home_score']) ? (int) $game['home_score'] : null;
+        $oldAwayScore         = isset($game['away_score']) ? (int) $game['away_score'] : null;
 
-        $this->db->query(
+        $stmt = $this->db->query(
             'UPDATE games
              SET home_score = :home_score, away_score = :away_score,
-                 modified_date = NOW()
-             WHERE game_id = :game_id',
+                 modified_date = NOW(6)
+             WHERE game_id = :game_id
+               AND modified_date = :expected_modified_date',
             [
-                'home_score' => $homeScore,
-                'away_score' => $awayScore,
-                'game_id'    => $gameId,
+                'home_score'             => $homeScore,
+                'away_score'             => $awayScore,
+                'game_id'                => $gameId,
+                'expected_modified_date' => $expectedModifiedDate,
             ]
         );
+
+        if ($stmt->rowCount() === 0) {
+            throw new ScoreConflictException(
+                "Game {$gameId} was modified by a concurrent request. Please reload and try again."
+            );
+        }
 
         ActivityLogger::log('score.edited', [
             'user_id'        => $userId,

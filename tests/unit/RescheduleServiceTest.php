@@ -29,7 +29,9 @@ if (!function_exists('sendNotification')) {
 // ---------------------------------------------------------------------------
 
 class RSMockStatement {
-    public function rowCount(): int { return 1; }
+    public int $rows;
+    public function __construct(int $rows = 1) { $this->rows = $rows; }
+    public function rowCount(): int { return $this->rows; }
 }
 
 class RSMockDatabase extends Database {
@@ -49,10 +51,22 @@ class RSMockDatabase extends Database {
     public array $activityEvents = [];
     /** @var int  Next auto-increment ID returned by insert() */
     public int $nextInsertId = 42;
+    /** @var int  rowCount returned by the next UPDATE query (1 = success, 0 = conflict) */
+    public int $nextUpdateRowCount = 1;
+    /** @var bool  Whether beginTransaction was called */
+    public bool $transactionStarted = false;
+    /** @var bool  Whether commit was called */
+    public bool $committed = false;
+    /** @var bool  Whether rollback was called */
+    public bool $rolledBack = false;
 
     public function __construct() {
         // Bypass real PDO connection
     }
+
+    public function beginTransaction(): bool { $this->transactionStarted = true; return true; }
+    public function commit(): bool           { $this->committed = true; return true; }
+    public function rollback(): bool         { $this->rolledBack = true; return true; }
 
     public function fetchOne($sql, $params = []) {
         // Game lookup (submit)
@@ -154,7 +168,10 @@ class RSMockDatabase extends Database {
             ];
         }
 
-        return new RSMockStatement();
+        $rows = stripos($sql, 'UPDATE schedule_change_requests') !== false
+            ? $this->nextUpdateRowCount
+            : 1;
+        return new RSMockStatement($rows);
     }
 
     public function insert($table, $data) {
@@ -482,6 +499,87 @@ register_test('AC7: getCoachRequests returns all requests submitted by the coach
     $result = $service->getCoachRequests(5);
 
     assert_equals(count($result), 2, 'must return only requests submitted by user 5');
+
+    Database::setInstance(null);
+});
+
+// ---------------------------------------------------------------------------
+// AC2 (Story 10.1) — submit() wraps insert + log in a transaction
+// ---------------------------------------------------------------------------
+
+register_test('AC2-10: submit wraps insert and ActivityLogger in a transaction', function () {
+    $db = new RSMockDatabase();
+    $db->teams[] = rsTeam(10, 5);
+    $db->games[] = rsGame(1, 10, 20);
+    $db->users[] = rsUser(5);
+    Database::setInstance($db);
+    $service = new RescheduleService($db);
+
+    $service->submit(5, 1, rsRequestData());
+
+    assert_true($db->transactionStarted, 'submit must call beginTransaction');
+    assert_true($db->committed, 'submit must commit on success');
+    assert_true(!$db->rolledBack, 'submit must not rollback on success');
+
+    Database::setInstance(null);
+});
+
+register_test('AC2-10: submit rolls back transaction when insert fails (DB constraint)', function () {
+    // Simulate a DB failure during the schedule_change_requests INSERT.
+    // Note: ActivityLogger::log() swallows its own exceptions by design, so failures
+    // inside it cannot propagate. The transaction guard covers INSERT-level failures.
+    $db = new class extends RSMockDatabase {
+        public function insert($table, $data) {
+            if ($table === 'schedule_change_requests') {
+                throw new RuntimeException('Duplicate key constraint violation');
+            }
+            return parent::insert($table, $data);
+        }
+    };
+    $db->teams[] = rsTeam(10, 5);
+    $db->games[] = rsGame(1, 10, 20);
+    $db->users[] = rsUser(5);
+    Database::setInstance($db);
+    $service = new RescheduleService($db);
+
+    $thrown = false;
+    try {
+        $service->submit(5, 1, rsRequestData());
+    } catch (RuntimeException $e) {
+        $thrown = true;
+    }
+
+    assert_true($thrown, 'submit must re-throw when a DB failure occurs inside the transaction');
+    assert_true($db->rolledBack, 'submit must rollback when a DB failure occurs inside the transaction');
+
+    Database::setInstance(null);
+});
+
+// ---------------------------------------------------------------------------
+// AC3 (Story 10.1) — cancel() resolves race condition via rowCount check
+// ---------------------------------------------------------------------------
+
+register_test('AC3-10: cancel throws RequestNotCancellableException when rowCount is 0 (concurrent cancel)', function () {
+    $db = new RSMockDatabase();
+    $db->requests[] = rsRequest(7, 5, 'Pending');
+    $db->nextUpdateRowCount = 0; // simulate concurrent cancel already applied
+    Database::setInstance($db);
+    $service = new RescheduleService($db);
+
+    $thrown = false;
+    try {
+        $service->cancel(7, 5);
+    } catch (RequestNotCancellableException $e) {
+        $thrown = true;
+    }
+
+    assert_true($thrown, 'cancel must throw when rowCount is 0 (concurrent cancel race)');
+
+    $logEvents = array_column($db->activityEvents, 'event');
+    assert_true(
+        !in_array('reschedule.request_cancelled', $logEvents, true),
+        'reschedule.request_cancelled must NOT be logged when conflict is detected'
+    );
 
     Database::setInstance(null);
 });

@@ -139,8 +139,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $pageTitle = 'My Profile';
-include EnvLoader::getPath('includes/admin_header.php');
 ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?php echo htmlspecialchars($pageTitle); ?> - League Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../../assets/css/admin.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <?php
+    $__nav = file_exists(__DIR__ . '/../../includes/nav.php')
+        ? __DIR__ . '/../../includes/nav.php'
+        : __DIR__ . '/../../../includes/nav.php';
+    include $__nav;
+    unset($__nav);
+    ?>
 
 <!-- Main content area with proper spacing -->
 <div class="container py-4">
@@ -229,4 +246,6 @@ include EnvLoader::getPath('includes/admin_header.php');
     </div>
 </div>
 
-<?php include EnvLoader::getPath('includes/admin_footer.php'); ?>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

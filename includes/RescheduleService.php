@@ -100,21 +100,36 @@ class RescheduleService {
             throw new RequestNotCancellableException('A pending request already exists for this game');
         }
 
-        $requestId = (int) $this->db->insert('schedule_change_requests', [
-            'game_id'              => $gameId,
-            'submitted_by_user_id' => $userId,
-            'requested_by'         => $requestedBy,
-            'request_type'         => 'Reschedule',
-            'original_date'        => $game['game_date'] ?? null,
-            'original_time'        => $game['game_time'] ?? null,
-            'original_location'    => $game['location'] ?? null,
-            'requested_date'       => $requestedDate,
-            'requested_time'       => $requestedTime,
-            'requested_location'   => $requestedLocation,
-            'reason'               => $reason,
-            'request_status'       => 'Pending',
-        ]);
+        $this->db->beginTransaction();
+        try {
+            $requestId = (int) $this->db->insert('schedule_change_requests', [
+                'game_id'              => $gameId,
+                'submitted_by_user_id' => $userId,
+                'requested_by'         => $requestedBy,
+                'request_type'         => 'Reschedule',
+                'original_date'        => $game['game_date'] ?? null,
+                'original_time'        => $game['game_time'] ?? null,
+                'original_location'    => $game['location'] ?? null,
+                'requested_date'       => $requestedDate,
+                'requested_time'       => $requestedTime,
+                'requested_location'   => $requestedLocation,
+                'reason'               => $reason,
+                'request_status'       => 'Pending',
+            ]);
 
+            ActivityLogger::log('reschedule.request_submitted', [
+                'user_id'    => $userId,
+                'game_id'    => $gameId,
+                'request_id' => $requestId,
+            ]);
+
+            $this->db->commit();
+        } catch (Throwable $e) {
+            $this->db->rollback();
+            throw $e;
+        }
+
+        // Notification is fire-and-forget — runs after commit so a failure never orphans the row.
         try {
             if (function_exists('sendNotification')) {
                 sendNotification('onScheduleChangeRequest', $gameId, $requestId);
@@ -123,12 +138,6 @@ class RescheduleService {
             error_log('[RescheduleService] Notification failed — game_id=' . $gameId
                 . ' request_id=' . $requestId . ' error=' . $e->getMessage());
         }
-
-        ActivityLogger::log('reschedule.request_submitted', [
-            'user_id'    => $userId,
-            'game_id'    => $gameId,
-            'request_id' => $requestId,
-        ]);
 
         return $requestId;
     }
@@ -161,15 +170,28 @@ class RescheduleService {
             );
         }
 
-        $this->db->query(
-            "UPDATE schedule_change_requests SET request_status = 'Denied' WHERE request_id = :rid AND request_status = 'Pending'",
-            ['rid' => $requestId]
-        );
+        $this->db->beginTransaction();
+        try {
+            $stmt = $this->db->query(
+                "UPDATE schedule_change_requests SET request_status = 'Denied' WHERE request_id = :rid AND request_status = 'Pending'",
+                ['rid' => $requestId]
+            );
 
-        ActivityLogger::log('reschedule.request_cancelled', [
-            'user_id'    => $userId,
-            'request_id' => $requestId,
-        ]);
+            // rowCount = 0 means a concurrent cancel already applied — both cannot succeed.
+            if ($stmt->rowCount() === 0) {
+                throw new RequestNotCancellableException('Request was already processed by a concurrent action');
+            }
+
+            ActivityLogger::log('reschedule.request_cancelled', [
+                'user_id'    => $userId,
+                'request_id' => $requestId,
+            ]);
+
+            $this->db->commit();
+        } catch (Throwable $e) {
+            $this->db->rollback();
+            throw $e;
+        }
     }
 
     /**

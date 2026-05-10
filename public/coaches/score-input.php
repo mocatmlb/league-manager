@@ -27,6 +27,9 @@ $db     = Database::getInstance();
 $userId = (int) ($_SESSION['coach_user_id'] ?? 0);
 $service = new ScoreService($db);
 
+// Single CSRF token shared across all forms on this page (AC4 Story 10.1).
+$csrfToken = Auth::generateCSRFToken();
+
 // ---------------------------------------------------------------------------
 // POST handler — PRG pattern (AR-10)
 // ---------------------------------------------------------------------------
@@ -109,6 +112,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php
         exit;
 
+    } catch (ScoreConflictException $e) {
+        $_SESSION['flash_error'] = 'Score not saved — another submission was just processed for this game. Please reload and try again.';
+        header('Location: score-input.php');
+        exit;
+
     } catch (InvalidArgumentException $e) {
         $_SESSION['flash_error'] = 'Score not submitted — scores must be between 0 and 99.';
         $_SESSION['flash_preserved_game_id']    = $gameId;
@@ -187,7 +195,7 @@ $pageTitle = 'Score Input — District 8 Travel League';
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-    <?php include '../../includes/nav.php'; ?>
+    <?php include EnvLoader::getPath('includes/coaches_nav.php'); ?>
 
     <div class="container mt-4">
         <div class="row">
@@ -273,7 +281,7 @@ $pageTitle = 'Score Input — District 8 Travel League';
                         <form id="scoreForm" method="POST"
                               <?php if ($gameCount > 1 && !$preservedGameId): ?>style="display:none"<?php endif; ?>>
                             <input type="hidden" name="csrf_token"
-                                   value="<?php echo htmlspecialchars(Auth::generateCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>">
+                                   value="<?php echo htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8'); ?>">
                             <input type="hidden" name="action" value="submit">
                             <input type="hidden" name="game_id" id="formGameId"
                                    value="<?php echo $autoSelected ? (int) $autoSelected['game_id'] : ($preservedGameId ?? ''); ?>">
@@ -362,7 +370,7 @@ $pageTitle = 'Score Input — District 8 Travel League';
                                 </summary>
                                 <form method="POST" class="mt-3">
                                     <input type="hidden" name="csrf_token"
-                                           value="<?php echo htmlspecialchars(Auth::generateCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>">
+                                           value="<?php echo htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8'); ?>">
                                     <input type="hidden" name="action" value="edit">
                                     <input type="hidden" name="game_id" value="<?php echo (int) $cg['game_id']; ?>">
 

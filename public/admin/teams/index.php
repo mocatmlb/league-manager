@@ -370,15 +370,7 @@ $pageTitle = "Teams Management - " . APP_NAME;
                                 </thead>
                                 <tbody>
                                 <?php foreach ($pendingRegistrations as $reg):
-                                    // Fetch season/program context for this pending team
-                                    $regSeason = $db->fetchOne(
-                                        'SELECT s.season_name, s.season_year, p.program_name
-                                         FROM teams t
-                                         INNER JOIN seasons s  ON s.season_id  = t.season_id
-                                         INNER JOIN programs p ON p.program_id = s.program_id
-                                         WHERE t.team_id = :id LIMIT 1',
-                                        ['id' => $reg['team_id']]
-                                    );
+                                    // season_name, season_year, program_name are JOINed in getPendingRegistrations() (Story 10.1 AC5)
                                     $seasonKey = (int) ($reg['season_id'] ?? 0);
                                     if (!isset($approveDivisionsBySeason[$seasonKey])) {
                                         $approveDivisionsBySeason[$seasonKey] = $seasonKey > 0
@@ -400,8 +392,8 @@ $pageTitle = "Teams Management - " . APP_NAME;
                                         <td><strong><?php echo sanitize($reg['team_name']); ?></strong></td>
                                         <td><?php echo sanitize($reg['league_name']); ?></td>
                                         <td>
-                                            <?php if ($regSeason !== false): ?>
-                                                <?php echo sanitize($regSeason['program_name'] . ' — ' . $regSeason['season_name'] . ' ' . $regSeason['season_year']); ?>
+                                            <?php if (!empty($reg['season_name'])): ?>
+                                                <?php echo sanitize($reg['program_name'] . ' — ' . $reg['season_name'] . ' ' . $reg['season_year']); ?>
                                             <?php else: ?>
                                                 <span class="text-muted">—</span>
                                             <?php endif; ?>

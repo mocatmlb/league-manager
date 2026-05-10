@@ -28,7 +28,9 @@ if (!function_exists('sendNotification')) {
 // ---------------------------------------------------------------------------
 
 class SSMockStatement {
-    public function rowCount(): int { return 1; }
+    public int $rows;
+    public function __construct(int $rows = 1) { $this->rows = $rows; }
+    public function rowCount(): int { return $this->rows; }
 }
 
 class SSMockDatabase extends Database {
@@ -40,6 +42,8 @@ class SSMockDatabase extends Database {
     public array $queryCalls = [];
     /** @var array[] Captured ActivityLogger events */
     public array $activityEvents = [];
+    /** @var int  rowCount returned by the next UPDATE query (1 = success, 0 = conflict) */
+    public int $nextUpdateRowCount = 1;
 
     public function __construct() {
         // Bypass real PDO connection
@@ -95,7 +99,8 @@ class SSMockDatabase extends Database {
             ];
         }
 
-        return new SSMockStatement();
+        $rows = stripos($sql, 'UPDATE games') !== false ? $this->nextUpdateRowCount : 1;
+        return new SSMockStatement($rows);
     }
 }
 
@@ -429,6 +434,85 @@ register_test('AC5: getEligibleGames returns empty array when coach has no assig
     $result = $service->getEligibleGames(5);
 
     assert_equals($result, [], 'must return empty array when user has no assigned teams');
+
+    Database::setInstance(null);
+});
+
+// ---------------------------------------------------------------------------
+// AC1 (Story 10.1) — edit() includes modified_date in UPDATE WHERE clause
+// ---------------------------------------------------------------------------
+
+register_test('AC1-10: edit includes modified_date in UPDATE WHERE for optimistic lock', function () {
+    $db = new SSMockDatabase();
+    $db->teams[] = makeTeam(10, 5);
+
+    $game                  = makePastGame(3, 10, 20);
+    $game['home_score']    = 2;
+    $game['away_score']    = 1;
+    $game['game_status']   = 'Completed';
+    $game['modified_date'] = '2026-01-01 10:00:00';
+    $db->games[]           = $game;
+
+    Database::setInstance($db);
+    $service = new ScoreService($db);
+
+    $service->edit(5, 3, 3, 2);
+
+    $updateCall = null;
+    foreach ($db->queryCalls as $call) {
+        if (stripos($call['sql'], 'UPDATE games') !== false) {
+            $updateCall = $call;
+            break;
+        }
+    }
+    assert_not_null($updateCall, 'edit must issue UPDATE games');
+    assert_true(
+        stripos($updateCall['sql'], 'modified_date = :expected_modified_date') !== false,
+        'UPDATE WHERE must include modified_date optimistic lock'
+    );
+    assert_equals(
+        $updateCall['params']['expected_modified_date'],
+        '2026-01-01 10:00:00',
+        'expected_modified_date param must match loaded modified_date'
+    );
+
+    Database::setInstance(null);
+});
+
+// ---------------------------------------------------------------------------
+// AC1 (Story 10.1) — edit() throws ScoreConflictException when rowCount = 0
+// ---------------------------------------------------------------------------
+
+register_test('AC1-10: edit throws ScoreConflictException when rowCount is 0 (concurrent edit)', function () {
+    $db = new SSMockDatabase();
+    $db->teams[] = makeTeam(10, 5);
+
+    $game                  = makePastGame(4, 10, 20);
+    $game['home_score']    = 1;
+    $game['away_score']    = 0;
+    $game['game_status']   = 'Completed';
+    $game['modified_date'] = '2026-01-01 10:00:00';
+    $db->games[]           = $game;
+
+    $db->nextUpdateRowCount = 0; // simulate concurrent update
+
+    Database::setInstance($db);
+    $service = new ScoreService($db);
+
+    $thrown = false;
+    try {
+        $service->edit(5, 4, 2, 1);
+    } catch (ScoreConflictException $e) {
+        $thrown = true;
+    }
+
+    assert_true($thrown, 'edit must throw ScoreConflictException when rowCount is 0');
+
+    $logEvents = array_column($db->activityEvents, 'event');
+    assert_true(
+        !in_array('score.edited', $logEvents, true),
+        'score.edited must NOT be logged when conflict is detected'
+    );
 
     Database::setInstance(null);
 });
