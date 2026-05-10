@@ -31,6 +31,10 @@ define('SESSION_TIMEOUT', EnvLoader::getInt('SESSION_TIMEOUT', 3600)); // 1 hour
 define('ADMIN_SESSION_TIMEOUT', EnvLoader::getInt('ADMIN_SESSION_TIMEOUT', 7200)); // 2 hours for admin
 define('CSRF_TOKEN_NAME', EnvLoader::get('CSRF_TOKEN_NAME', 'd8tl_csrf_token'));
 
+// reCAPTCHA v2 — obtain keys from https://www.google.com/recaptcha/admin
+define('RECAPTCHA_SITE_KEY', EnvLoader::get('RECAPTCHA_SITE_KEY', ''));
+define('RECAPTCHA_SECRET', EnvLoader::get('RECAPTCHA_SECRET', ''));
+
 // Default Passwords - Load from environment variables (CHANGE IN .htaccess!)
 define('DEFAULT_ADMIN_PASSWORD', EnvLoader::get('DEFAULT_ADMIN_PASSWORD', 'CHANGE_THIS_ADMIN_PASSWORD'));
 
