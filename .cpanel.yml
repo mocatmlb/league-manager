@@ -7,6 +7,10 @@ deployment:
     - mkdir -p $HOME/public_html/district8travelleague.com/uploads
     - mkdir -p $HOME/public_html/district8travelleague.com/backups
     
+    # Copy vendor (Composer dependencies — PHPMailer etc.)
+    - mkdir -p $HOME/public_html/district8travelleague.com/vendor
+    - cp -R vendor/* $HOME/public_html/district8travelleague.com/vendor/
+
     # Copy includes directory to site root
     - cp -R includes/* $HOME/public_html/district8travelleague.com/includes/
     
@@ -32,9 +36,11 @@ deployment:
     - rm -rf $HOME/public_html/district8travelleague.com/logs/*
     - rm -rf $HOME/tmp/*
     
-    # Create .htaccess to protect includes directory
+    # Create .htaccess to protect includes and vendor directories
     - echo "Order deny,allow" > $HOME/public_html/district8travelleague.com/includes/.htaccess
     - echo "Deny from all" >> $HOME/public_html/district8travelleague.com/includes/.htaccess
+    - echo "Order deny,allow" > $HOME/public_html/district8travelleague.com/vendor/.htaccess
+    - echo "Deny from all" >> $HOME/public_html/district8travelleague.com/vendor/.htaccess
     
     # Create empty log file with correct permissions
     - touch $HOME/public_html/district8travelleague.com/logs/app.log
