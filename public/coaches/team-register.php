@@ -119,11 +119,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $pendingTeam === false && !empty($s
                 ]);
                 header('Location: team-register-confirm.php');
                 exit;
-            } catch (InvitationRegisteredUserException $e) {
-                $globalError = 'Team self-registration is not available for invitation-registered accounts. Contact your administrator.';
             } catch (RuntimeException $e) {
                 $globalError = $e->getMessage();
             } catch (Throwable $e) {
+                error_log('[team-register.php] submit() threw '
+                    . get_class($e) . ': ' . $e->getMessage()
+                    . ' in ' . $e->getFile() . ':' . $e->getLine());
                 $globalError = 'An error occurred. Please try again.';
             }
         }

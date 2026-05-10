@@ -394,7 +394,7 @@ register_test('AC1: submit uses "other" league value in team name', function () 
     Database::setInstance(null);
 });
 
-register_test('AC2: submit throws InvitationRegisteredUserException for invitation-registered user', function () {
+register_test('Post-Epic-11: invitation-registered user CAN self-register a team (guard removed 2026-05-10)', function () {
     $db    = new TRSMockDatabase();
     $email = new TRSMockEmail();
     $db->users[]       = ['id' => 3, 'first_name' => 'Bob', 'last_name' => 'Lee', 'email' => 'bob@example.com'];
@@ -402,15 +402,11 @@ register_test('AC2: submit throws InvitationRegisteredUserException for invitati
     Database::setInstance($db);
     $service = new TeamRegistrationService($db, $email);
 
-    $thrown = false;
-    try {
-        $service->submit(3, ['season_id' => 5, 'league_name' => 'Metro', 'locations' => []]);
-    } catch (InvitationRegisteredUserException $e) {
-        $thrown = true;
-    }
+    $teamId = $service->submit(3, ['season_id' => 5, 'league_name' => 'Metro', 'locations' => []]);
 
-    assert_true($thrown, 'submit must throw InvitationRegisteredUserException for invitation-registered user');
-    assert_equals(count($db->teams), 0, 'no team must be created when exception is thrown');
+    assert_true($teamId > 0, 'submit must succeed for invitation-registered user');
+    assert_equals(count($db->teams), 1, 'one pending team must be created');
+    assert_equals($db->teams[0]['status'], 'pending', 'team must be pending pending admin approval');
 
     Database::setInstance(null);
 });

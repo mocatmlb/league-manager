@@ -45,14 +45,9 @@ class TeamRegistrationService {
             throw new RuntimeException('User not found.');
         }
 
-        // 2. Detect invitation-registered user (AC2)
-        $invite = $this->db->fetchOne(
-            "SELECT id FROM user_invitations WHERE email = :email AND status = 'completed' LIMIT 1",
-            ['email' => $user['email']]
-        );
-        if ($invite !== false) {
-            throw new InvitationRegisteredUserException('Invitation-registered coaches cannot self-register a team.');
-        }
+        // 2. (Removed Epic 11.1 invitation-registered guard — per product decision
+        //    2026-05-10, all authenticated users may self-register a team regardless
+        //    of how their account was created. Admin approval remains the gate.)
 
         // 3. Guard: one team per season (pending or active records block a new submission)
         $dupCheck = $this->db->fetchOne(
