@@ -44,7 +44,7 @@ $pageTitle = 'Registration Submitted — District 8 Travel League';
             </div>
 
             <div class="alert alert-success" role="alert">
-                Account created and team registration submitted. An administrator will review your registration and assign you to your team.
+                Your team registration has been submitted. An administrator will review and assign your team.
             </div>
 
             <div class="card mt-3">
@@ -52,7 +52,7 @@ $pageTitle = 'Registration Submitted — District 8 Travel League';
                     <h5 class="card-title">What happens next?</h5>
                     <ul class="mb-0">
                         <li>An administrator will review your team registration.</li>
-                        <li>Once approved, you will be assigned to your team and can access the coaches portal.</li>
+                        <li>Once approved, you will be assigned as the owner of your team in the portal.</li>
                         <li>You will receive an email notification when your registration is approved.</li>
                     </ul>
                 </div>

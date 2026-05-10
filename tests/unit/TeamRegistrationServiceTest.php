@@ -40,6 +40,8 @@ class TRSMockDatabase extends Database {
     public array $teamOwners   = [];
     public array $locations    = [];
     public array $divisions    = [];
+    public array $games        = [];
+    public array $roles        = [];
     public array $activityEvents = [];
     public array $queryCalls   = [];
     public int   $nextTeamId   = 100;
@@ -95,7 +97,31 @@ class TRSMockDatabase extends Database {
             return false;
         }
 
-        // Team-owner duplicate guard
+        // Team-owner lookup by team_id (used in deleteRegistration)
+        if (stripos($sql, 'FROM team_owners WHERE team_id = :team_id') !== false) {
+            foreach ($this->teamOwners as $owner) {
+                if ((int) $owner['team_id'] === (int) ($params['team_id'] ?? -1)) {
+                    return $owner;
+                }
+            }
+            return false;
+        }
+
+        // COUNT of team_owners remaining for user (deleteRegistration role-revert check)
+        if (stripos($sql, 'COUNT(*)') !== false
+            && stripos($sql, 'FROM team_owners') !== false
+            && stripos($sql, 'user_id = :user_id') !== false) {
+            $uid = (int) ($params['user_id'] ?? -1);
+            $cnt = 0;
+            foreach ($this->teamOwners as $owner) {
+                if ((int) ($owner['user_id'] ?? 0) === $uid) {
+                    $cnt++;
+                }
+            }
+            return ['cnt' => $cnt];
+        }
+
+        // Team-owner duplicate guard (approve — exists check, no COUNT)
         if (stripos($sql, 'FROM team_owners WHERE user_id = :user_id') !== false) {
             foreach ($this->teamOwners as $owner) {
                 if ((int) $owner['user_id'] === (int) ($params['user_id'] ?? -1)) {
@@ -112,6 +138,46 @@ class TRSMockDatabase extends Database {
                 if ((int) ($div['division_id'] ?? 0) === (int) ($params['division_id'] ?? -1)
                     && (int) ($div['season_id'] ?? 0) === (int) ($params['season_id'] ?? -1)) {
                     return $div;
+                }
+            }
+            return false;
+        }
+
+        // Duplicate-season check (AC1 Story 11.3)
+        if (stripos($sql, 'submitted_by_user_id') !== false
+            && stripos($sql, 'season_id') !== false
+            && stripos($sql, "status IN ('pending', 'active')") !== false) {
+            $uid = (int) ($params['uid'] ?? -1);
+            $sid = (int) ($params['sid'] ?? -1);
+            $cnt = 0;
+            foreach ($this->teams as $team) {
+                if ((int) ($team['submitted_by_user_id'] ?? 0) === $uid
+                    && (int) ($team['season_id'] ?? 0) === $sid
+                    && in_array($team['status'] ?? '', ['pending', 'active'], true)) {
+                    $cnt++;
+                }
+            }
+            return ['cnt' => $cnt];
+        }
+
+        // Game assignment count (deleteRegistration guard)
+        if (stripos($sql, 'FROM games WHERE home_team_id') !== false) {
+            $id = (int) ($params['id'] ?? -1);
+            $cnt = 0;
+            foreach ($this->games as $game) {
+                if ((int) ($game['home_team_id'] ?? 0) === $id
+                    || (int) ($game['away_team_id'] ?? 0) === $id) {
+                    $cnt++;
+                }
+            }
+            return ['cnt' => $cnt];
+        }
+
+        // Roles lookup by name (deleteRegistration role-revert)
+        if (stripos($sql, "FROM roles WHERE name") !== false) {
+            foreach ($this->roles as $role) {
+                if (stripos($sql, "'" . $role['name'] . "'") !== false) {
+                    return $role;
                 }
             }
             return false;
@@ -170,15 +236,16 @@ class TRSMockDatabase extends Database {
             $id = $this->nextTeamId++;
             $this->conn->setLastInsertId($id);
             $this->teams[] = [
-                'team_id'            => $id,
-                'team_name'          => $params['team_name'],
-                'league_name'        => $params['league_name'],
-                'season_id'          => $params['season_id'],
-                'manager_first_name' => $params['manager_first_name'],
-                'manager_last_name'  => $params['manager_last_name'],
-                'manager_email'      => $params['manager_email'],
-                'status'             => 'pending',
-                'created_date'       => date('Y-m-d H:i:s'),
+                'team_id'               => $id,
+                'team_name'             => $params['team_name'],
+                'league_name'           => $params['league_name'],
+                'season_id'             => $params['season_id'],
+                'submitted_by_user_id'  => $params['submitted_by_user_id'],
+                'manager_first_name'    => $params['manager_first_name'],
+                'manager_last_name'     => $params['manager_last_name'],
+                'manager_email'         => $params['manager_email'],
+                'status'                => 'pending',
+                'created_date'          => date('Y-m-d H:i:s'),
             ];
             return new TRSMockStatement(1);
         }
@@ -201,6 +268,44 @@ class TRSMockDatabase extends Database {
             return new TRSMockStatement(1);
         }
 
+        // Team UPDATE on reject()
+        if (stripos($sql, "UPDATE teams SET status = 'rejected'") !== false) {
+            foreach ($this->teams as &$team) {
+                if ((int) $team['team_id'] === (int) ($params['team_id'] ?? -1)) {
+                    $team['status'] = 'rejected';
+                }
+            }
+            unset($team);
+            return new TRSMockStatement(1);
+        }
+
+        // Team UPDATE on update()
+        if (stripos($sql, 'UPDATE teams SET team_name') !== false) {
+            foreach ($this->teams as &$team) {
+                if ((int) $team['team_id'] === (int) ($params['team_id'] ?? -1)) {
+                    $team['team_name']            = $params['team_name'] ?? $team['team_name'];
+                    $team['season_id']             = $params['season_id'] ?? $team['season_id'];
+                    $team['league_name']           = $params['league_name'] ?? $team['league_name'];
+                    $team['submitted_by_user_id']  = $params['submitted_by_user_id'] ?? $team['submitted_by_user_id'];
+                }
+            }
+            unset($team);
+            return new TRSMockStatement(1);
+        }
+
+        // Team DELETE on deleteRegistration()
+        if (stripos($sql, 'DELETE FROM teams WHERE team_id') !== false) {
+            $id = (int) ($params['team_id'] ?? -1);
+            foreach ($this->teams as $k => $team) {
+                if ((int) $team['team_id'] === $id) {
+                    unset($this->teams[$k]);
+                    $this->teams = array_values($this->teams);
+                    return new TRSMockStatement(1);
+                }
+            }
+            return new TRSMockStatement(0);
+        }
+
         // Team-owner INSERT
         if (stripos($sql, 'INSERT INTO team_owners') !== false) {
             $this->teamOwners[] = [
@@ -208,6 +313,26 @@ class TRSMockDatabase extends Database {
                 'team_id'     => $params['team_id'],
                 'assigned_by' => $params['assigned_by'],
             ];
+            return new TRSMockStatement(1);
+        }
+
+        // Team-owner DELETE on deleteRegistration()
+        if (stripos($sql, 'DELETE FROM team_owners WHERE team_id') !== false) {
+            $id = (int) ($params['team_id'] ?? -1);
+            $this->teamOwners = array_values(
+                array_filter($this->teamOwners, fn($o) => (int) ($o['team_id'] ?? 0) !== $id)
+            );
+            return new TRSMockStatement(1);
+        }
+
+        // User role update (deleteRegistration role-revert)
+        if (stripos($sql, 'UPDATE users SET role_id') !== false) {
+            foreach ($this->users as &$user) {
+                if ((int) $user['id'] === (int) ($params['id'] ?? -1)) {
+                    $user['role_id'] = $params['role_id'];
+                }
+            }
+            unset($user);
             return new TRSMockStatement(1);
         }
 
@@ -473,6 +598,479 @@ register_test('approve throws RuntimeException when team is not pending', functi
     }
 
     assert_true($thrown, 'approve must reject non-pending teams');
+
+    Database::setInstance(null);
+});
+
+// ---------------------------------------------------------------------------
+// Story 11.3 — One Team Per Season Limit
+// ---------------------------------------------------------------------------
+
+register_test('11.3 AC1: submit throws RuntimeException when user has pending team for same season', function () {
+    $db    = new TRSMockDatabase();
+    $email = new TRSMockEmail();
+    $db->users[] = ['id' => 1, 'first_name' => 'Jane', 'last_name' => 'Smith', 'email' => 'jane@example.com'];
+    // Pre-seed a pending team for the same user + season
+    $db->teams[] = [
+        'team_id'              => 500,
+        'team_name'            => 'Metro-Smith',
+        'league_name'          => 'Metro',
+        'season_id'            => 5,
+        'submitted_by_user_id' => 1,
+        'manager_first_name'   => 'Jane',
+        'manager_last_name'    => 'Smith',
+        'manager_email'        => 'jane@example.com',
+        'status'               => 'pending',
+        'created_date'         => date('Y-m-d H:i:s'),
+    ];
+    Database::setInstance($db);
+    $service = new TeamRegistrationService($db, $email);
+
+    $thrown = false;
+    $msg = '';
+    try {
+        $service->submit(1, ['season_id' => 5, 'league_name' => 'Metro', 'locations' => []]);
+    } catch (RuntimeException $e) {
+        $thrown = true;
+        $msg = $e->getMessage();
+    }
+
+    assert_true($thrown, 'submit must throw RuntimeException when user has pending team for the same season');
+    assert_equals($msg, 'You already have a team registration for this season.', 'exception message must match AC1');
+    assert_equals(count($db->teams), 1, 'no new team must be inserted when duplicate is detected');
+
+    Database::setInstance(null);
+});
+
+register_test('11.3 AC1: submit throws RuntimeException when user has active team for same season', function () {
+    $db    = new TRSMockDatabase();
+    $email = new TRSMockEmail();
+    $db->users[] = ['id' => 2, 'first_name' => 'Tom', 'last_name' => 'Jones', 'email' => 'tom@example.com'];
+    $db->teams[] = [
+        'team_id'              => 501,
+        'team_name'            => 'East-Jones',
+        'league_name'          => 'East',
+        'season_id'            => 7,
+        'submitted_by_user_id' => 2,
+        'manager_first_name'   => 'Tom',
+        'manager_last_name'    => 'Jones',
+        'manager_email'        => 'tom@example.com',
+        'status'               => 'active',
+        'created_date'         => date('Y-m-d H:i:s'),
+    ];
+    Database::setInstance($db);
+    $service = new TeamRegistrationService($db, $email);
+
+    $thrown = false;
+    try {
+        $service->submit(2, ['season_id' => 7, 'league_name' => 'West', 'locations' => []]);
+    } catch (RuntimeException $e) {
+        $thrown = str_contains($e->getMessage(), 'already have a team registration');
+    }
+
+    assert_true($thrown, 'submit must throw when user has an active team for the same season');
+
+    Database::setInstance(null);
+});
+
+register_test('11.3 AC3: submit succeeds when user\'s only prior registration for season is rejected', function () {
+    $db    = new TRSMockDatabase();
+    $email = new TRSMockEmail();
+    $db->users[] = ['id' => 3, 'first_name' => 'Ana', 'last_name' => 'Cruz', 'email' => 'ana@example.com'];
+    // Pre-seed a rejected team for the same user + season
+    $db->teams[] = [
+        'team_id'              => 502,
+        'team_name'            => 'North-Cruz',
+        'league_name'          => 'North',
+        'season_id'            => 9,
+        'submitted_by_user_id' => 3,
+        'manager_first_name'   => 'Ana',
+        'manager_last_name'    => 'Cruz',
+        'manager_email'        => 'ana@example.com',
+        'status'               => 'rejected',
+        'created_date'         => date('Y-m-d H:i:s'),
+    ];
+    Database::setInstance($db);
+    $service = new TeamRegistrationService($db, $email);
+
+    $teamId = $service->submit(3, ['season_id' => 9, 'league_name' => 'North', 'locations' => []]);
+
+    assert_true($teamId > 0, 'submit must succeed when prior registration for season is rejected');
+    assert_equals(count($db->teams), 2, 'a new pending team must be inserted alongside the rejected one');
+    assert_equals($db->teams[1]['status'], 'pending', 'new team must have status=pending');
+    assert_equals($db->teams[0]['status'], 'rejected', 'rejected record must remain unaffected');
+
+    Database::setInstance(null);
+});
+
+// ---------------------------------------------------------------------------
+// Story 11.4 — Admin Team Registration Approval (reject path)
+// ---------------------------------------------------------------------------
+
+register_test('11.4 AC2: reject() updates pending team status to rejected', function () {
+    $db    = new TRSMockDatabase();
+    $email = new TRSMockEmail();
+    $db->teams[] = [
+        'team_id'              => 600,
+        'team_name'            => 'East-Park',
+        'league_name'          => 'East',
+        'season_id'            => 5,
+        'submitted_by_user_id' => 1,
+        'manager_first_name'   => 'Pat',
+        'manager_last_name'    => 'Park',
+        'manager_email'        => 'pat@example.com',
+        'status'               => 'pending',
+        'created_date'         => date('Y-m-d H:i:s'),
+    ];
+    Database::setInstance($db);
+    $service = new TeamRegistrationService($db, $email);
+
+    $service->reject(600, 99, 'Roster incomplete');
+
+    assert_equals($db->teams[0]['status'], 'rejected', 'reject must set team status to rejected');
+
+    Database::setInstance(null);
+});
+
+register_test('11.4 AC2: reject() throws RuntimeException when team is not pending', function () {
+    $db    = new TRSMockDatabase();
+    $email = new TRSMockEmail();
+    $db->teams[] = [
+        'team_id'              => 601,
+        'team_name'            => 'West-Lo',
+        'league_name'          => 'West',
+        'season_id'            => 5,
+        'submitted_by_user_id' => 1,
+        'manager_first_name'   => 'Sam',
+        'manager_last_name'    => 'Lo',
+        'manager_email'        => 'sam@example.com',
+        'status'               => 'active',
+        'created_date'         => date('Y-m-d H:i:s'),
+    ];
+    Database::setInstance($db);
+    $service = new TeamRegistrationService($db, $email);
+
+    $thrown = false;
+    try {
+        $service->reject(601, 99);
+    } catch (RuntimeException $e) {
+        $thrown = str_contains($e->getMessage(), 'not pending');
+    }
+    assert_true($thrown, 'reject must throw when team is not pending');
+    assert_equals($db->teams[0]['status'], 'active', 'team status must be unchanged on failure');
+
+    Database::setInstance(null);
+});
+
+register_test('11.4 AC2: reject() logs team.registration_rejected and sends rejection email', function () {
+    $db    = new TRSMockDatabase();
+    $email = new TRSMockEmail();
+    $db->teams[] = [
+        'team_id'              => 602,
+        'team_name'            => 'North-Ko',
+        'league_name'          => 'North',
+        'season_id'            => 5,
+        'submitted_by_user_id' => 1,
+        'manager_first_name'   => 'Lee',
+        'manager_last_name'    => 'Ko',
+        'manager_email'        => 'lee@example.com',
+        'status'               => 'pending',
+        'created_date'         => date('Y-m-d H:i:s'),
+    ];
+    Database::setInstance($db);
+    $service = new TeamRegistrationService($db, $email);
+
+    $service->reject(602, 42, 'Duplicate submission.');
+
+    $events = array_column($db->activityEvents, 'event');
+    assert_true(in_array('team.registration_rejected', $events, true), 'reject must log team.registration_rejected');
+
+    assert_equals(count($email->calls), 1, 'reject must trigger one notification email');
+    assert_equals($email->calls[0]['template'], 'team_registration_rejected', 'rejection email must use team_registration_rejected template');
+    assert_equals($email->calls[0]['email'], 'lee@example.com', 'rejection email must go to coach manager_email');
+    assert_equals($email->calls[0]['context']['reason'], 'Duplicate submission.', 'reason must be carried in template context');
+
+    Database::setInstance(null);
+});
+
+register_test('11.4 AC2: reject() default reason "No reason provided." when none supplied', function () {
+    $db    = new TRSMockDatabase();
+    $email = new TRSMockEmail();
+    $db->teams[] = [
+        'team_id'              => 603,
+        'team_name'            => 'South-Vo',
+        'league_name'          => 'South',
+        'season_id'            => 5,
+        'submitted_by_user_id' => 1,
+        'manager_first_name'   => 'Min',
+        'manager_last_name'    => 'Vo',
+        'manager_email'        => 'min@example.com',
+        'status'               => 'pending',
+        'created_date'         => date('Y-m-d H:i:s'),
+    ];
+    Database::setInstance($db);
+    $service = new TeamRegistrationService($db, $email);
+
+    $service->reject(603, 1);
+
+    assert_equals($email->calls[0]['context']['reason'], 'No reason provided.', 'empty reason must default to "No reason provided."');
+
+    Database::setInstance(null);
+});
+
+// ---------------------------------------------------------------------------
+// Story 11.6 — Admin Create Team Registration
+// ---------------------------------------------------------------------------
+
+register_test('11.6 AC1: adminCreate() inserts a pending team for the target user', function () {
+    $db    = new TRSMockDatabase();
+    $email = new TRSMockEmail();
+    $db->users[] = ['id' => 7, 'first_name' => 'Rio', 'last_name' => 'Park', 'email' => 'rio@example.com'];
+    Database::setInstance($db);
+    $service = new TeamRegistrationService($db, $email);
+
+    $teamId = $service->adminCreate(
+        7,
+        ['season_id' => 5, 'league_name' => 'Metro', 'team_name' => 'Metro-Park'],
+        99
+    );
+
+    assert_true($teamId > 0, 'adminCreate must return inserted team_id');
+    assert_equals(count($db->teams), 1, 'adminCreate must insert one team');
+    assert_equals($db->teams[0]['status'], 'pending', 'admin-created team must be pending');
+    assert_equals($db->teams[0]['submitted_by_user_id'], 7, 'submitted_by_user_id must be the target user');
+    assert_equals($db->teams[0]['team_name'], 'Metro-Park', 'team_name must use provided value');
+    assert_equals($db->teams[0]['manager_email'], 'rio@example.com', 'manager_email must come from target user');
+
+    Database::setInstance(null);
+});
+
+register_test('11.6: adminCreate() auto-generates {league}-{last_name} when team_name omitted', function () {
+    $db    = new TRSMockDatabase();
+    $email = new TRSMockEmail();
+    $db->users[] = ['id' => 8, 'first_name' => 'Eli', 'last_name' => 'Wu', 'email' => 'eli@example.com'];
+    Database::setInstance($db);
+    $service = new TeamRegistrationService($db, $email);
+
+    $service->adminCreate(8, ['season_id' => 5, 'league_name' => 'East'], 99);
+
+    assert_equals($db->teams[0]['team_name'], 'East-Wu', 'team_name must default to {league}-{last_name}');
+
+    Database::setInstance(null);
+});
+
+register_test('11.6 AC5: adminCreate() bypasses the 1-per-season limit', function () {
+    $db    = new TRSMockDatabase();
+    $email = new TRSMockEmail();
+    $db->users[] = ['id' => 9, 'first_name' => 'Bo', 'last_name' => 'Ng', 'email' => 'bo@example.com'];
+    // Pre-seed an existing pending team for same user + season
+    $db->teams[] = [
+        'team_id'              => 700,
+        'team_name'            => 'East-Ng',
+        'league_name'          => 'East',
+        'season_id'            => 5,
+        'submitted_by_user_id' => 9,
+        'manager_first_name'   => 'Bo',
+        'manager_last_name'    => 'Ng',
+        'manager_email'        => 'bo@example.com',
+        'status'               => 'pending',
+        'created_date'         => date('Y-m-d H:i:s'),
+    ];
+    Database::setInstance($db);
+    $service = new TeamRegistrationService($db, $email);
+
+    $teamId = $service->adminCreate(9, ['season_id' => 5, 'league_name' => 'West'], 99);
+
+    assert_true($teamId > 0, 'adminCreate must succeed even when user already has a pending team for the season');
+    assert_equals(count($db->teams), 2, 'adminCreate must insert a second team for the same user/season');
+
+    Database::setInstance(null);
+});
+
+register_test('11.6: adminCreate() logs admin.team_registration_created', function () {
+    $db    = new TRSMockDatabase();
+    $email = new TRSMockEmail();
+    $db->users[] = ['id' => 10, 'first_name' => 'Iz', 'last_name' => 'Su', 'email' => 'iz@example.com'];
+    Database::setInstance($db);
+    $service = new TeamRegistrationService($db, $email);
+
+    $service->adminCreate(10, ['season_id' => 5, 'league_name' => 'North'], 42);
+
+    $events = array_column($db->activityEvents, 'event');
+    assert_true(in_array('admin.team_registration_created', $events, true), 'adminCreate must log admin.team_registration_created');
+
+    Database::setInstance(null);
+});
+
+register_test('11.6: adminCreate() throws when target user does not exist', function () {
+    $db    = new TRSMockDatabase();
+    $email = new TRSMockEmail();
+    Database::setInstance($db);
+    $service = new TeamRegistrationService($db, $email);
+
+    $thrown = false;
+    try {
+        $service->adminCreate(9999, ['season_id' => 5, 'league_name' => 'X'], 1);
+    } catch (RuntimeException $e) {
+        $thrown = str_contains($e->getMessage(), 'User not found');
+    }
+    assert_true($thrown, 'adminCreate must throw when target user is missing');
+
+    Database::setInstance(null);
+});
+
+// ---------------------------------------------------------------------------
+// Story 11.7 — Admin Edit / Update / Delete Team Registration
+// ---------------------------------------------------------------------------
+
+register_test('11.7 AC1: update() modifies team record for pending team', function () {
+    $db    = new TRSMockDatabase();
+    $email = new TRSMockEmail();
+    $db->teams[] = [
+        'team_id'              => 800,
+        'team_name'            => 'East-Old',
+        'league_name'          => 'East',
+        'season_id'            => 5,
+        'submitted_by_user_id' => 1,
+        'manager_first_name'   => 'X',
+        'manager_last_name'    => 'Y',
+        'manager_email'        => 'xy@example.com',
+        'status'               => 'pending',
+        'created_date'         => date('Y-m-d H:i:s'),
+    ];
+    Database::setInstance($db);
+    $service = new TeamRegistrationService($db, $email);
+
+    $service->update(800, [
+        'team_name'            => 'West-New',
+        'season_id'            => 6,
+        'league_name'          => 'West',
+        'submitted_by_user_id' => 2,
+    ], 99);
+
+    assert_equals($db->teams[0]['team_name'], 'West-New', 'team_name must be updated');
+    assert_equals($db->teams[0]['season_id'], 6, 'season_id must be updated');
+    assert_equals($db->teams[0]['league_name'], 'West', 'league_name must be updated');
+    assert_equals($db->teams[0]['submitted_by_user_id'], 2, 'submitted_by_user_id must be updated');
+
+    $events = array_column($db->activityEvents, 'event');
+    assert_true(in_array('admin.team_registration_updated', $events, true), 'update must log admin.team_registration_updated');
+
+    Database::setInstance(null);
+});
+
+register_test('11.7 AC3: update() throws RuntimeException when team is active', function () {
+    $db    = new TRSMockDatabase();
+    $email = new TRSMockEmail();
+    $db->teams[] = [
+        'team_id'              => 801,
+        'team_name'            => 'Active-Team',
+        'league_name'          => 'East',
+        'season_id'            => 5,
+        'submitted_by_user_id' => 1,
+        'manager_first_name'   => 'A',
+        'manager_last_name'    => 'B',
+        'manager_email'        => 'ab@example.com',
+        'status'               => 'active',
+        'created_date'         => date('Y-m-d H:i:s'),
+    ];
+    Database::setInstance($db);
+    $service = new TeamRegistrationService($db, $email);
+
+    $thrown = false;
+    try {
+        $service->update(801, [
+            'team_name'            => 'Will-Fail',
+            'season_id'            => 5,
+            'league_name'          => 'East',
+            'submitted_by_user_id' => 1,
+        ], 99);
+    } catch (RuntimeException $e) {
+        $thrown = str_contains($e->getMessage(), 'pending or rejected');
+    }
+    assert_true($thrown, 'update must reject active team with the documented message');
+    assert_equals($db->teams[0]['team_name'], 'Active-Team', 'team must be unchanged on failure');
+
+    Database::setInstance(null);
+});
+
+register_test('11.7 AC4: deleteRegistration() removes team and team_owners row', function () {
+    $db    = new TRSMockDatabase();
+    $email = new TRSMockEmail();
+    $db->roles[] = ['id' => 2, 'name' => 'user'];
+    $db->users[] = ['id' => 21, 'first_name' => 'Owner', 'last_name' => 'One', 'email' => 'o@example.com', 'role_id' => 5];
+    $db->teams[] = [
+        'team_id'              => 900,
+        'team_name'            => 'Doomed',
+        'league_name'          => 'X',
+        'season_id'            => 5,
+        'submitted_by_user_id' => 21,
+        'manager_first_name'   => 'O',
+        'manager_last_name'    => 'One',
+        'manager_email'        => 'o@example.com',
+        'status'               => 'active',
+        'created_date'         => date('Y-m-d H:i:s'),
+    ];
+    $db->teamOwners[] = ['user_id' => 21, 'team_id' => 900, 'assigned_by' => 1];
+    Database::setInstance($db);
+    $service = new TeamRegistrationService($db, $email);
+
+    $service->deleteRegistration(900, 99);
+
+    assert_equals(count($db->teams), 0, 'team row must be deleted');
+    assert_equals(count($db->teamOwners), 0, 'team_owners row must be deleted');
+    assert_equals($db->users[0]['role_id'], 2, 'owner role must revert to user when no remaining teams');
+
+    $events = array_column($db->activityEvents, 'event');
+    assert_true(in_array('admin.team_registration_deleted', $events, true), 'deleteRegistration must log admin.team_registration_deleted');
+
+    Database::setInstance(null);
+});
+
+register_test('11.7 AC5: deleteRegistration() throws when team has game assignments', function () {
+    $db    = new TRSMockDatabase();
+    $email = new TRSMockEmail();
+    $db->teams[] = [
+        'team_id'              => 901,
+        'team_name'            => 'Has-Games',
+        'league_name'          => 'X',
+        'season_id'            => 5,
+        'submitted_by_user_id' => 1,
+        'manager_first_name'   => 'G',
+        'manager_last_name'    => 'A',
+        'manager_email'        => 'g@example.com',
+        'status'               => 'active',
+        'created_date'         => date('Y-m-d H:i:s'),
+    ];
+    $db->games[] = ['home_team_id' => 901, 'away_team_id' => 999];
+    Database::setInstance($db);
+    $service = new TeamRegistrationService($db, $email);
+
+    $thrown = false;
+    try {
+        $service->deleteRegistration(901, 99);
+    } catch (RuntimeException $e) {
+        $thrown = str_contains($e->getMessage(), 'has game assignments');
+    }
+    assert_true($thrown, 'deleteRegistration must throw when team has game assignments');
+    assert_equals(count($db->teams), 1, 'team must remain on failure');
+
+    Database::setInstance(null);
+});
+
+register_test('11.7: deleteRegistration() throws when team_id does not exist', function () {
+    $db    = new TRSMockDatabase();
+    $email = new TRSMockEmail();
+    Database::setInstance($db);
+    $service = new TeamRegistrationService($db, $email);
+
+    $thrown = false;
+    try {
+        $service->deleteRegistration(99999, 1);
+    } catch (RuntimeException $e) {
+        $thrown = str_contains($e->getMessage(), 'Team not found');
+    }
+    assert_true($thrown, 'deleteRegistration must throw for unknown team_id');
 
     Database::setInstance(null);
 });

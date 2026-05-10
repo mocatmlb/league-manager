@@ -90,8 +90,8 @@ $cssPath = file_exists(__DIR__ . '/../assets/css/style.css') ? '../assets/css/st
         <div class="card-body">
             <?php if ($mode === 'verified'): ?>
                 <h1 class="h4">Email Verified</h1>
-                <div class="alert alert-success" role="alert"><?php echo sanitize($message); ?></div>
-                <a class="btn btn-primary btn-lg" href="login.php">Continue to Login</a>
+                <div class="alert alert-success" role="alert">Your email has been verified. Please log in to continue.</div>
+                <a class="btn btn-primary btn-lg" href="login.php">Log In to Continue</a>
             <?php elseif ($mode === 'expired'): ?>
                 <h1 class="h4">Verification Link Problem</h1>
                 <div class="alert alert-warning" role="alert"><?php echo sanitize($error); ?></div>

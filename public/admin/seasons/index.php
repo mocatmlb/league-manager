@@ -36,6 +36,13 @@ $db = Database::getInstance();
 $message = '';
 $messageType = '';
 
+// Pick up flash from PRG redirects (open/close registration quick-action)
+if (!empty($_SESSION['flash_message'])) {
+    $message     = $_SESSION['flash_message'];
+    $messageType = $_SESSION['flash_type'] ?? 'success';
+    unset($_SESSION['flash_message'], $_SESSION['flash_type']);
+}
+
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
@@ -80,6 +87,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message = 'Season updated successfully!';
                     $messageType = 'success';
                     break;
+
+                case 'open_registration':
+                case 'close_registration':
+                    $seasonId = (int) ($_POST['season_id'] ?? 0);
+                    if ($seasonId < 1) {
+                        throw new Exception('Invalid season.');
+                    }
+
+                    $season = $db->fetchOne(
+                        'SELECT season_id, season_name FROM seasons WHERE season_id = ?',
+                        [$seasonId]
+                    );
+                    if (!$season) {
+                        throw new Exception('Season not found.');
+                    }
+
+                    $newStatus = ($action === 'open_registration') ? 'Registration' : 'Active';
+                    $db->update(
+                        'seasons',
+                        ['season_status' => $newStatus],
+                        'season_id = :season_id',
+                        ['season_id' => $seasonId]
+                    );
+
+                    $verb = ($action === 'open_registration') ? 'opened' : 'closed';
+                    $_SESSION['flash_message'] = 'Team registration ' . $verb . ' for ' . $season['season_name'] . '.';
+                    $_SESSION['flash_type']    = 'success';
+                    header('Location: index.php');
+                    exit;
                     
                 case 'delete_season':
                     $seasonId = (int)$_POST['season_id'];
@@ -346,6 +382,18 @@ $programs = $db->fetchAll("SELECT program_id, program_name, sport_type FROM prog
                                                 </div>
                                             </div>
                                             <div class="card-footer bg-transparent">
+                                                <?php $isReg = ($season['season_status'] === 'Registration'); ?>
+                                                <form method="POST" class="mb-2">
+                                                    <input type="hidden" name="csrf_token" value="<?php echo Auth::generateCSRFToken(); ?>">
+                                                    <input type="hidden" name="action"
+                                                           value="<?php echo $isReg ? 'close_registration' : 'open_registration'; ?>">
+                                                    <input type="hidden" name="season_id" value="<?php echo (int) $season['season_id']; ?>">
+                                                    <button type="submit"
+                                                            class="btn btn-sm w-100 <?php echo $isReg ? 'btn-warning' : 'btn-success'; ?>">
+                                                        <i class="fas fa-<?php echo $isReg ? 'lock' : 'unlock'; ?>"></i>
+                                                        <?php echo $isReg ? 'Close Registration' : 'Open Registration'; ?>
+                                                    </button>
+                                                </form>
                                                 <div class="btn-group w-100" role="group">
                                                     <button type="button" class="btn btn-sm btn-outline-primary" 
                                                             onclick="editSeason(<?php echo htmlspecialchars(json_encode($season)); ?>)">

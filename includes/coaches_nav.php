@@ -46,6 +46,32 @@ if (!isset($coachName) || !isset($teamName)) {
     unset($_coachId, $_cn, $_tn);
 }
 
+// Determine whether to show "Register Team" link:
+// shown only when user is active and has no row in team_owners
+$_navUserId = (int) ($_SESSION['coach_user_id'] ?? 0);
+$_navShowRegisterTeam = false;
+if ($_navUserId > 0 && class_exists('Database')) {
+    try {
+        $_navDb = Database::getInstance();
+        $_navUser = $_navDb->fetchOne(
+            'SELECT status FROM users WHERE id = :id LIMIT 1',
+            ['id' => $_navUserId]
+        );
+        if ($_navUser && ($_navUser['status'] ?? '') === 'active') {
+            $_navHasTeam = $_navDb->fetchOne(
+                'SELECT 1 FROM team_owners WHERE user_id = :uid LIMIT 1',
+                ['uid' => $_navUserId]
+            ) !== false;
+            $_navShowRegisterTeam = !$_navHasTeam;
+        }
+        unset($_navDb, $_navUser, $_navHasTeam);
+    } catch (Throwable $_navE) {
+        // Degrades gracefully — link simply won't appear
+        unset($_navE);
+    }
+}
+unset($_navUserId);
+
 // Active-page detection
 $_currentScript = basename($_SERVER['PHP_SELF'] ?? '', '.php');
 
@@ -107,6 +133,14 @@ function _coachNavActive(string $page): string {
                         <i class="fas fa-book"></i> Rules
                     </a>
                 </li>
+                <?php if ($_navShowRegisterTeam): ?>
+                <li class="nav-item">
+                    <a class="nav-link <?php echo _coachNavActive('team-register'); ?>"
+                       href="<?php echo $_rootPath; ?>coaches/team-register.php">
+                        <i class="fas fa-users"></i> Register Team
+                    </a>
+                </li>
+                <?php endif; ?>
             </ul>
 
             <ul class="navbar-nav">
@@ -134,4 +168,4 @@ function _coachNavActive(string $page): string {
         </div>
     </div>
 </nav>
-<?php unset($_rootPath, $_currentScript); ?>
+<?php unset($_rootPath, $_currentScript, $_navShowRegisterTeam); ?>

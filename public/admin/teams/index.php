@@ -36,6 +36,9 @@ Auth::requireAdmin();
 $db = Database::getInstance();
 $currentUser = Auth::getCurrentUser();
 
+// Shared CSRF token for all forms (Blind Hunter Finding 2)
+$csrfToken = Auth::generateCSRFToken();
+
 // Handle form submissions
 $message = '';
 $error = '';
@@ -77,6 +80,150 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } catch (Throwable $e) {
                     Logger::error('Team registration approval failed', ['error' => $e->getMessage()]);
                     $error = 'Approval could not be completed. Please try again or contact support.';
+                }
+                break;
+
+            case 'reject_registration':
+                try {
+                    $teamId      = (int) ($_POST['team_id'] ?? 0);
+                    $reason      = trim((string) ($_POST['reject_reason'] ?? ''));
+                    $adminUserId = (int) ($_SESSION['admin_id'] ?? 0);
+
+                    if ($adminUserId < 1) {
+                        $error = 'Your admin session is invalid. Please sign in again.';
+                        break;
+                    }
+                    if ($teamId === 0) {
+                        $error = 'Invalid registration.';
+                        break;
+                    }
+
+                    if (!class_exists('TeamRegistrationService')) {
+                        require_once EnvLoader::getPath('includes/TeamRegistrationService.php');
+                    }
+                    (new TeamRegistrationService())->reject($teamId, $adminUserId, $reason);
+
+                    $_SESSION['flash_message'] = 'Team registration rejected.';
+                    header('Location: index.php');
+                    exit;
+                } catch (Throwable $e) {
+                    Logger::error('Team registration rejection failed', ['error' => $e->getMessage()]);
+                    $error = 'Rejection could not be completed: ' . $e->getMessage();
+                }
+                break;
+
+            case 'admin_create_registration':
+                try {
+                    $adminUserId  = (int) ($_SESSION['admin_id'] ?? 0);
+                    $targetUserId = (int) ($_POST['target_user_id'] ?? 0);
+                    $seasonId     = (int) ($_POST['season_id'] ?? 0);
+                    $leagueName   = trim((string) ($_POST['league_name'] ?? ''));
+                    $teamName     = trim((string) ($_POST['team_name'] ?? ''));
+
+                    if ($adminUserId < 1) {
+                        $error = 'Your admin session is invalid. Please sign in again.';
+                        break;
+                    }
+
+                    $missing = [];
+                    if ($targetUserId < 1) $missing[] = 'user';
+                    if ($seasonId < 1)     $missing[] = 'season';
+                    if ($leagueName === '') $missing[] = 'league';
+                    if ($teamName === '')   $missing[] = 'team name';
+                    if (!empty($missing)) {
+                        $error = 'Please provide: ' . implode(', ', $missing) . '.';
+                        break;
+                    }
+
+                    if (!class_exists('TeamRegistrationService')) {
+                        require_once EnvLoader::getPath('includes/TeamRegistrationService.php');
+                    }
+                    (new TeamRegistrationService())->adminCreate(
+                        $targetUserId,
+                        [
+                            'season_id'   => $seasonId,
+                            'league_name' => $leagueName,
+                            'team_name'   => $teamName,
+                        ],
+                        $adminUserId
+                    );
+
+                    $_SESSION['flash_message'] = 'Team registration created.';
+                    header('Location: index.php');
+                    exit;
+                } catch (Throwable $e) {
+                    Logger::error('Admin team registration creation failed', ['error' => $e->getMessage()]);
+                    $error = 'Could not create registration: ' . $e->getMessage();
+                }
+                break;
+
+            case 'edit_registration':
+                try {
+                    $adminUserId  = (int) ($_SESSION['admin_id'] ?? 0);
+                    $teamId       = (int) ($_POST['team_id'] ?? 0);
+                    $teamName     = trim((string) ($_POST['team_name'] ?? ''));
+                    $seasonId     = (int) ($_POST['season_id'] ?? 0);
+                    $leagueName   = trim((string) ($_POST['league_name'] ?? ''));
+                    $targetUserId = (int) ($_POST['submitted_by_user_id'] ?? 0);
+
+                    if ($adminUserId < 1) {
+                        $error = 'Your admin session is invalid. Please sign in again.';
+                        break;
+                    }
+                    if ($teamId === 0 || $teamName === '' || $seasonId === 0
+                        || $leagueName === '' || $targetUserId === 0) {
+                        $error = 'All fields are required to update the registration.';
+                        break;
+                    }
+
+                    if (!class_exists('TeamRegistrationService')) {
+                        require_once EnvLoader::getPath('includes/TeamRegistrationService.php');
+                    }
+                    (new TeamRegistrationService())->update(
+                        $teamId,
+                        [
+                            'team_name'            => $teamName,
+                            'season_id'            => $seasonId,
+                            'league_name'          => $leagueName,
+                            'submitted_by_user_id' => $targetUserId,
+                        ],
+                        $adminUserId
+                    );
+
+                    $_SESSION['flash_message'] = 'Team registration updated.';
+                    header('Location: index.php');
+                    exit;
+                } catch (Throwable $e) {
+                    Logger::error('Team registration update failed', ['error' => $e->getMessage()]);
+                    $error = 'Update failed: ' . $e->getMessage();
+                }
+                break;
+
+            case 'delete_registration':
+                try {
+                    $adminUserId = (int) ($_SESSION['admin_id'] ?? 0);
+                    $teamId      = (int) ($_POST['team_id'] ?? 0);
+
+                    if ($adminUserId < 1) {
+                        $error = 'Your admin session is invalid. Please sign in again.';
+                        break;
+                    }
+                    if ($teamId === 0) {
+                        $error = 'Invalid registration.';
+                        break;
+                    }
+
+                    if (!class_exists('TeamRegistrationService')) {
+                        require_once EnvLoader::getPath('includes/TeamRegistrationService.php');
+                    }
+                    (new TeamRegistrationService())->deleteRegistration($teamId, $adminUserId);
+
+                    $_SESSION['flash_message'] = 'Team registration deleted.';
+                    header('Location: index.php');
+                    exit;
+                } catch (Throwable $e) {
+                    Logger::error('Team registration deletion failed', ['error' => $e->getMessage()]);
+                    $error = 'Delete failed: ' . $e->getMessage();
                 }
                 break;
 
@@ -165,71 +312,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
             case 'delete_team':
                 try {
-                    $teamId = (int)$_POST['team_id'];
-                    
-                    // Check if team is assigned to any games
-                    $gameCount = $db->fetchOne("
-                        SELECT COUNT(*) as count 
-                        FROM games 
-                        WHERE home_team_id = ? OR away_team_id = ?
-                    ", [$teamId, $teamId]);
-                    
-                    if ($gameCount['count'] > 0) {
-                        // Get specific games for better error message
-                        $assignedGames = $db->fetchAll("
-                            SELECT g.game_id, g.game_number, s.game_date, s.game_time,
-                                   ht.team_name as home_team, at.team_name as away_team
-                            FROM games g
-                            LEFT JOIN schedules s ON g.game_id = s.game_id
-                            LEFT JOIN teams ht ON g.home_team_id = ht.team_id
-                            LEFT JOIN teams at ON g.away_team_id = at.team_id
-                            WHERE g.home_team_id = ? OR g.away_team_id = ?
-                            ORDER BY s.game_date, s.game_time
-                            LIMIT 5
-                        ", [$teamId, $teamId]);
-                        
-                        $gamesList = [];
-                        foreach ($assignedGames as $game) {
-                            $gamesList[] = "Game #{$game['game_number']} ({$game['home_team']} vs {$game['away_team']})";
-                        }
-                        
-                        $error = 'Cannot delete team: Team is assigned to ' . $gameCount['count'] . ' game(s). ';
-                        if (count($assignedGames) > 0) {
-                            $error .= 'Examples: ' . implode(', ', array_slice($gamesList, 0, 3));
-                            if ($gameCount['count'] > 3) {
-                                $error .= ' and ' . ($gameCount['count'] - 3) . ' more';
-                            }
-                            $error .= '. ';
-                        }
-                        $error .= 'Please remove the team from all games first.';
-                        
-                        Logger::warn("Team deletion blocked - has game assignments", [
-                            'team_id' => $teamId,
-                            'game_count' => $gameCount['count'],
-                            'assigned_games' => $gamesList,
-                            'admin_user' => $_SESSION['admin_username'] ?? 'unknown'
-                        ]);
-                    } else {
-                        // Get team info for logging before deletion
-                        $teamInfo = $db->fetchOne("SELECT team_name, league_name FROM teams WHERE team_id = ?", [$teamId]);
-                        
-                        // Safe to delete - no game assignments
-                        $db->delete('teams', 'team_id = ?', [$teamId]);
-                        
-                        Logger::info("Team deleted successfully", [
-                            'team_id' => $teamId,
-                            'team_name' => $teamInfo['team_name'] ?? 'unknown',
-                            'league_name' => $teamInfo['league_name'] ?? 'unknown',
-                            'admin_user' => $_SESSION['admin_username'] ?? 'unknown'
-                        ]);
-                        
-                        $message = 'Team deleted successfully!';
+                    $teamId      = (int) ($_POST['team_id'] ?? 0);
+                    $adminUserId = (int) ($_SESSION['admin_id'] ?? 0);
+
+                    if ($adminUserId < 1) {
+                        $error = 'Your admin session is invalid. Please sign in again.';
+                        break;
                     }
-                } catch (Exception $e) {
-                    Logger::error("Team deletion failed", [
-                        'team_id' => $teamId ?? 'unknown',
-                        'error' => $e->getMessage(),
-                        'admin_user' => $_SESSION['admin_username'] ?? 'unknown'
+                    if ($teamId === 0) {
+                        $error = 'Invalid team.';
+                        break;
+                    }
+
+                    // Capture team info for logging before deletion
+                    $teamInfo = $db->fetchOne(
+                        "SELECT team_name, league_name FROM teams WHERE team_id = ?",
+                        [$teamId]
+                    );
+
+                    if (!class_exists('TeamRegistrationService')) {
+                        require_once EnvLoader::getPath('includes/TeamRegistrationService.php');
+                    }
+                    (new TeamRegistrationService())->deleteRegistration($teamId, $adminUserId);
+
+                    Logger::info("Team deleted successfully", [
+                        'team_id'     => $teamId,
+                        'team_name'   => $teamInfo['team_name']   ?? 'unknown',
+                        'league_name' => $teamInfo['league_name'] ?? 'unknown',
+                        'admin_user'  => $_SESSION['admin_username'] ?? 'unknown',
+                    ]);
+
+                    $_SESSION['flash_message'] = 'Team deleted successfully!';
+                    header('Location: index.php');
+                    exit;
+                } catch (Throwable $e) {
+                    // Service throws "Cannot delete: team has game assignments." — surface that
+                    Logger::warn("Team deletion failed", [
+                        'team_id'    => $teamId ?? 'unknown',
+                        'error'      => $e->getMessage(),
+                        'admin_user' => $_SESSION['admin_username'] ?? 'unknown',
                     ]);
                     $error = 'Error deleting team: ' . $e->getMessage();
                 }
@@ -247,7 +368,29 @@ unset($_SESSION['flash_message'], $_SESSION['flash_error']);
 if (!class_exists('TeamRegistrationService')) {
     require_once EnvLoader::getPath('includes/TeamRegistrationService.php');
 }
-$pendingRegistrations = (new TeamRegistrationService())->getPendingRegistrations();
+$regServiceForList = new TeamRegistrationService();
+$pendingRegistrations  = $regServiceForList->getPendingRegistrations();
+$rejectedRegistrations = $regServiceForList->getRejectedRegistrations();
+
+// Active users for admin "Create Registration" + "Edit Registration" forms (Stories 11.6, 11.7)
+$activeUsers = $db->fetchAll(
+    "SELECT id, first_name, last_name, username
+     FROM users WHERE status = 'active'
+     ORDER BY last_name, first_name"
+);
+
+// All seasons (admin-create + edit are not restricted to Registration status — Story 11.6 AC, 11.7 AC1)
+$adminFormSeasons = $db->fetchAll(
+    "SELECT season_id, season_name, season_year, season_status
+     FROM seasons
+     ORDER BY season_year DESC, season_name"
+);
+
+// Active leagues for admin-create form (Story 11.6 Task 2)
+if (!class_exists('LeagueListManager')) {
+    require_once EnvLoader::getPath('includes/LeagueListManager.php');
+}
+$adminFormLeagues = LeagueListManager::getActiveList();
 
 /** @var array<int, array<int, array<string, mixed>>> Divisions keyed by team season_id (code review: scoped picker) */
 $approveDivisionsBySeason = [];
@@ -365,7 +508,7 @@ $pageTitle = "Teams Management - " . APP_NAME;
                                         <th>League</th>
                                         <th>Season / Program</th>
                                         <th>Submitted</th>
-                                        <th>Approve</th>
+                                        <th style="min-width: 360px;">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -400,32 +543,211 @@ $pageTitle = "Teams Management - " . APP_NAME;
                                         </td>
                                         <td><?php echo sanitize($reg['created_date']); ?></td>
                                         <td>
-                                            <?php if (empty($rowDivisions)): ?>
-                                                <span class="text-muted small">No divisions for this season.</span>
-                                            <?php else: ?>
-                                            <form method="POST" class="d-flex align-items-center gap-1">
-                                                <input type="hidden" name="csrf_token"  value="<?php echo Auth::generateCSRFToken(); ?>">
-                                                <input type="hidden" name="action"      value="approve_registration">
-                                                <input type="hidden" name="team_id"     value="<?php echo (int) $reg['team_id']; ?>">
-                                                <select name="division_id" class="form-select form-select-sm" style="min-width:200px;" required>
-                                                    <option value="">— Select Division —</option>
-                                                    <?php foreach ($rowDivisions as $div): ?>
-                                                        <option value="<?php echo (int) $div['division_id']; ?>">
-                                                            <?php echo sanitize($div['program_name'] . ': ' . $div['division_name'] . ' (' . $div['season_year'] . ')'); ?>
-                                                        </option>
-                                                    <?php endforeach; ?>
-                                                </select>
-                                                <button type="submit" class="btn btn-success btn-sm">
-                                                    <i class="fas fa-check"></i> Approve
-                                                </button>
-                                            </form>
-                                            <?php endif; ?>
+                                            <div class="d-flex flex-column gap-1">
+                                                <?php if (empty($rowDivisions)): ?>
+                                                    <span class="text-muted small">No divisions for this season.</span>
+                                                <?php else: ?>
+                                                <form method="POST" class="d-flex align-items-center gap-1">
+                                                    <input type="hidden" name="csrf_token"  value="<?php echo $csrfToken; ?>">
+                                                    <input type="hidden" name="action"      value="approve_registration">
+                                                    <input type="hidden" name="team_id"     value="<?php echo (int) $reg['team_id']; ?>">
+                                                    <select name="division_id" class="form-select form-select-sm" style="min-width:200px;" required>
+                                                        <option value="">— Select Division —</option>
+                                                        <?php foreach ($rowDivisions as $div): ?>
+                                                            <option value="<?php echo (int) $div['division_id']; ?>">
+                                                                <?php echo sanitize($div['program_name'] . ': ' . $div['division_name'] . ' (' . $div['season_year'] . ')'); ?>
+                                                            </option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                    <button type="submit" class="btn btn-success btn-sm">
+                                                        <i class="fas fa-check"></i> Approve
+                                                    </button>
+                                                </form>
+                                                <?php endif; ?>
+
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    <!-- Reject (Story 11.4) -->
+                                                    <button type="button" class="btn btn-outline-warning"
+                                                            onclick="openRejectModal(<?php echo (int) $reg['team_id']; ?>, '<?php echo htmlspecialchars(addslashes($reg['team_name']), ENT_QUOTES); ?>')">
+                                                        <i class="fas fa-times"></i> Reject
+                                                    </button>
+
+                                                    <!-- Edit (Story 11.7) -->
+                                                    <button type="button" class="btn btn-outline-primary"
+                                                            onclick='openEditRegistrationModal(<?php echo json_encode([
+                                                                "team_id"              => (int) $reg["team_id"],
+                                                                "team_name"            => $reg["team_name"],
+                                                                "season_id"            => (int) $reg["season_id"],
+                                                                "league_name"          => $reg["league_name"],
+                                                                "submitted_by_user_id" => (int) $reg["submitted_by_user_id"],
+                                                            ], JSON_HEX_APOS | JSON_HEX_QUOT); ?>)'>
+                                                        <i class="fas fa-edit"></i> Edit
+                                                    </button>
+
+                                                    <!-- Delete (Story 11.7) -->
+                                                    <form method="POST" class="d-inline"
+                                                          onsubmit="return confirm('Delete this registration? This cannot be undone.');">
+                                                        <input type="hidden" name="csrf_token" value="<?php echo $csrfToken; ?>">
+                                                        <input type="hidden" name="action"     value="delete_registration">
+                                                        <input type="hidden" name="team_id"    value="<?php echo (int) $reg['team_id']; ?>">
+                                                        <button type="submit" class="btn btn-outline-danger">
+                                                            <i class="fas fa-trash"></i> Delete
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
                                 </tbody>
                             </table>
                         <?php endif; ?>
+                    </div>
+                </div>
+
+                <!-- Rejected Team Registrations (Story 11.4 AC3) -->
+                <div class="card mb-4">
+                    <div class="card-header bg-secondary text-white">
+                        <button class="btn btn-link text-white text-decoration-none p-0 w-100 text-start"
+                                type="button" data-bs-toggle="collapse" data-bs-target="#rejectedRegistrationsBody"
+                                aria-expanded="false">
+                            <i class="fas fa-ban me-1"></i>
+                            Rejected Registrations (<?php echo count($rejectedRegistrations); ?>)
+                        </button>
+                    </div>
+                    <div class="collapse" id="rejectedRegistrationsBody">
+                        <div class="card-body p-0">
+                            <?php if (empty($rejectedRegistrations)): ?>
+                                <p class="p-3 mb-0 text-muted">No rejected registrations.</p>
+                            <?php else: ?>
+                                <table class="table table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Team Name</th>
+                                            <th>Coach</th>
+                                            <th>Season</th>
+                                            <th>Date Rejected</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    <?php foreach ($rejectedRegistrations as $rej): ?>
+                                        <tr>
+                                            <td><strong><?php echo sanitize($rej['team_name']); ?></strong></td>
+                                            <td>
+                                                <?php
+                                                  $coachName = trim(($rej['submitter_first_name'] ?? '') . ' ' . ($rej['submitter_last_name'] ?? ''));
+                                                  echo sanitize($coachName !== '' ? $coachName : '—');
+                                                ?>
+                                            </td>
+                                            <td>
+                                                <?php if (!empty($rej['season_name'])): ?>
+                                                    <?php echo sanitize(($rej['program_name'] ?? '') . ' — ' . $rej['season_name'] . ' ' . $rej['season_year']); ?>
+                                                <?php else: ?>
+                                                    <span class="text-muted">—</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td><?php echo sanitize($rej['modified_date'] ?? ''); ?></td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button type="button" class="btn btn-outline-primary"
+                                                            onclick='openEditRegistrationModal(<?php echo json_encode([
+                                                                "team_id"              => (int) $rej["team_id"],
+                                                                "team_name"            => $rej["team_name"],
+                                                                "season_id"            => (int) $rej["season_id"],
+                                                                "league_name"          => $rej["league_name"],
+                                                                "submitted_by_user_id" => (int) $rej["submitted_by_user_id"],
+                                                            ], JSON_HEX_APOS | JSON_HEX_QUOT); ?>)'>
+                                                        <i class="fas fa-edit"></i> Edit
+                                                    </button>
+                                                    <form method="POST" class="d-inline"
+                                                          onsubmit="return confirm('Delete this registration? This cannot be undone.');">
+                                                        <input type="hidden" name="csrf_token" value="<?php echo $csrfToken; ?>">
+                                                        <input type="hidden" name="action"     value="delete_registration">
+                                                        <input type="hidden" name="team_id"    value="<?php echo (int) $rej['team_id']; ?>">
+                                                        <button type="submit" class="btn btn-outline-danger">
+                                                            <i class="fas fa-trash"></i> Delete
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Create Team Registration (Story 11.6) -->
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <button class="btn btn-link text-white text-decoration-none p-0 w-100 text-start"
+                                type="button" data-bs-toggle="collapse" data-bs-target="#adminCreateRegistrationBody"
+                                aria-expanded="false">
+                            <i class="fas fa-user-plus me-1"></i>
+                            Create Team Registration (on behalf of a user)
+                        </button>
+                    </div>
+                    <div class="collapse" id="adminCreateRegistrationBody">
+                        <div class="card-body">
+                            <form method="POST" class="row g-3">
+                                <input type="hidden" name="csrf_token" value="<?php echo $csrfToken; ?>">
+                                <input type="hidden" name="action"     value="admin_create_registration">
+
+                                <div class="col-md-6">
+                                    <label class="form-label">User *</label>
+                                    <select name="target_user_id" id="adminCreateUser" class="form-select" required>
+                                        <option value="">— Select User —</option>
+                                        <?php foreach ($activeUsers as $u): ?>
+                                            <option value="<?php echo (int) $u['id']; ?>"
+                                                    data-last-name="<?php echo htmlspecialchars($u['last_name'], ENT_QUOTES); ?>">
+                                                <?php echo sanitize($u['last_name'] . ', ' . $u['first_name'] . ' (' . $u['username'] . ')'); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label">Season *</label>
+                                    <select name="season_id" class="form-select" required>
+                                        <option value="">— Select Season —</option>
+                                        <?php foreach ($adminFormSeasons as $s): ?>
+                                            <option value="<?php echo (int) $s['season_id']; ?>">
+                                                <?php echo sanitize($s['season_name'] . ' ' . $s['season_year'] . ' (' . $s['season_status'] . ')'); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label">League *</label>
+                                    <select name="league_name" id="adminCreateLeague" class="form-select" required>
+                                        <option value="">— Select League —</option>
+                                        <?php foreach ($adminFormLeagues as $lg): ?>
+                                            <option value="<?php echo htmlspecialchars($lg['display_name'], ENT_QUOTES); ?>">
+                                                <?php echo sanitize($lg['display_name']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label">Team Name *</label>
+                                    <input type="text" name="team_name" id="adminCreateTeamName"
+                                           class="form-control" data-auto="1" required
+                                           placeholder="Auto-suggested from league + user last name">
+                                    <div class="form-text">Auto-populates as <code>{league}-{last_name}</code>; edit to override.</div>
+                                </div>
+
+                                <div class="col-12">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-plus"></i> Create Registration
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
 
@@ -783,6 +1105,103 @@ $pageTitle = "Teams Management - " . APP_NAME;
         </div>
     </div>
 
+    <!-- Reject Registration Modal (Story 11.4) -->
+    <div class="modal fade" id="rejectRegistrationModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Reject Team Registration</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="csrf_token" value="<?php echo Auth::generateCSRFToken(); ?>">
+                        <input type="hidden" name="action"     value="reject_registration">
+                        <input type="hidden" name="team_id"    id="rejectTeamId">
+                        <p>You are about to reject the registration for
+                            <strong id="rejectTeamName"></strong>. The coach will be notified by email.</p>
+                        <div class="mb-3">
+                            <label class="form-label">Reason (optional)</label>
+                            <textarea name="reject_reason" class="form-control" rows="3"
+                                      placeholder="e.g., Roster incomplete; please reapply with full information."></textarea>
+                            <div class="form-text">Included in the rejection email if provided.</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-times"></i> Reject Registration
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Registration Modal (Story 11.7) -->
+    <div class="modal fade" id="editRegistrationModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Edit Team Registration</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="csrf_token" value="<?php echo Auth::generateCSRFToken(); ?>">
+                        <input type="hidden" name="action"     value="edit_registration">
+                        <input type="hidden" name="team_id"    id="editRegTeamId">
+
+                        <div class="mb-3">
+                            <label class="form-label">Team Name *</label>
+                            <input type="text" name="team_name" id="editRegTeamName" class="form-control" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Season *</label>
+                            <select name="season_id" id="editRegSeason" class="form-select" required>
+                                <?php foreach ($adminFormSeasons as $s): ?>
+                                    <option value="<?php echo (int) $s['season_id']; ?>">
+                                        <?php echo sanitize($s['season_name'] . ' ' . $s['season_year'] . ' (' . $s['season_status'] . ')'); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">League *</label>
+                            <select name="league_name" id="editRegLeague" class="form-select" required>
+                                <?php foreach ($adminFormLeagues as $lg): ?>
+                                    <option value="<?php echo htmlspecialchars($lg['display_name'], ENT_QUOTES); ?>">
+                                        <?php echo sanitize($lg['display_name']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Assigned User *</label>
+                            <select name="submitted_by_user_id" id="editRegUser" class="form-select" required>
+                                <?php foreach ($activeUsers as $u): ?>
+                                    <option value="<?php echo (int) $u['id']; ?>">
+                                        <?php echo sanitize($u['last_name'] . ', ' . $u['first_name'] . ' (' . $u['username'] . ')'); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text">Changing this updates who will be assigned as team owner upon approval.</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
@@ -1096,6 +1515,48 @@ $pageTitle = "Teams Management - " . APP_NAME;
             var deleteModal = new bootstrap.Modal(document.getElementById('deleteTeamModal'));
             deleteModal.show();
         }
+
+        // ----- Story 11.4: Reject modal -----
+        function openRejectModal(teamId, teamName) {
+            document.getElementById('rejectTeamId').value = teamId;
+            document.getElementById('rejectTeamName').textContent = teamName;
+            new bootstrap.Modal(document.getElementById('rejectRegistrationModal')).show();
+        }
+
+        // ----- Story 11.7: Edit registration modal -----
+        function openEditRegistrationModal(reg) {
+            document.getElementById('editRegTeamId').value   = reg.team_id;
+            document.getElementById('editRegTeamName').value = reg.team_name || '';
+            document.getElementById('editRegSeason').value   = reg.season_id;
+            document.getElementById('editRegLeague').value   = reg.league_name || '';
+            document.getElementById('editRegUser').value     = reg.submitted_by_user_id;
+            new bootstrap.Modal(document.getElementById('editRegistrationModal')).show();
+        }
+
+        // ----- Story 11.6: Auto-populate team name from league + user last name -----
+        (function () {
+            const userSel  = document.getElementById('adminCreateUser');
+            const leagueSel = document.getElementById('adminCreateLeague');
+            const nameInp  = document.getElementById('adminCreateTeamName');
+            if (!userSel || !leagueSel || !nameInp) return;
+
+            function recompute() {
+                if (nameInp.dataset.auto !== '1') return;
+                const lastName = userSel.options[userSel.selectedIndex]?.dataset?.lastName || '';
+                const league   = leagueSel.value || '';
+                if (league && lastName) {
+                    nameInp.value = league + '-' + lastName;
+                }
+            }
+
+            // Detect manual edits — once the admin types, stop auto-populating.
+            nameInp.addEventListener('input', function () {
+                nameInp.dataset.auto = '0';
+            });
+
+            userSel.addEventListener('change', recompute);
+            leagueSel.addEventListener('change', recompute);
+        })();
     </script>
 </body>
 </html>

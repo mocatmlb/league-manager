@@ -24,12 +24,13 @@ if ($userId === 0 && Auth::isAdmin()) {
 }
 
 $user = $db->fetchOne(
-    'SELECT id, first_name, last_name FROM users WHERE id = :id LIMIT 1',
+    'SELECT id, first_name, last_name, status FROM users WHERE id = :id LIMIT 1',
     ['id' => $userId]
 );
-$coachName = ($user !== false)
-    ? sanitize($user['first_name'] . ' ' . $user['last_name'])
+$coachName  = ($user !== false)
+    ? $user['first_name'] . ' ' . $user['last_name']
     : 'Coach';
+$userStatus = (string) ($user['status'] ?? '');
 
 // ---------------------------------------------------------------------------
 // Active assignments — direct DB only (do not use TeamScope::getScopedTeams()).
@@ -169,7 +170,7 @@ unset($_coachNavPath, $coachNavWebRoot);
             </form>
 
         <?php elseif ($heroState === 'active'): ?>
-            <div class="coach-name-line"><?php echo $coachName; ?></div>
+            <div class="coach-name-line"><?php echo sanitize($coachName); ?></div>
             <h1 class="coach-hero-team"><?php echo sanitize($teamName); ?></h1>
             <div class="coach-hero-meta">
                 <?php echo sanitize($leagueName); ?>
@@ -186,7 +187,7 @@ unset($_coachNavPath, $coachNavWebRoot);
             <?php endif; ?>
 
         <?php elseif ($heroState === 'pending'): ?>
-            <div class="coach-name-line"><?php echo $coachName; ?></div>
+            <div class="coach-name-line"><?php echo sanitize($coachName); ?></div>
             <h1 class="coach-hero-team"><?php echo sanitize($teamName ?: 'Team Registration'); ?></h1>
             <span class="badge status-team-pending mt-1">Pending Team Approval</span>
             <p class="mt-2 mb-0" style="font-size:0.9rem;opacity:0.9;">
@@ -194,7 +195,7 @@ unset($_coachNavPath, $coachNavWebRoot);
             </p>
 
         <?php else: /* unassigned */ ?>
-            <div class="coach-name-line"><?php echo $coachName; ?></div>
+            <div class="coach-name-line"><?php echo sanitize($coachName); ?></div>
             <h1 class="coach-hero-team">No team assigned</h1>
             <p class="mt-1 mb-0" style="font-size:0.9rem;opacity:0.85;">
                 No team assigned — contact your admin
@@ -232,6 +233,19 @@ $cards = [
         <?php endforeach; ?>
     </div>
 </div>
+
+<!-- Register Team CTA (AC1) — shown when active user has no team and no pending registration -->
+<?php if ($heroState === 'unassigned' && $userStatus === 'active'): ?>
+<div class="container mt-4">
+    <div class="card border-primary mb-4">
+        <div class="card-body text-center">
+            <h5 class="card-title">Register Your Team</h5>
+            <p class="text-muted">Register your team for an upcoming season.</p>
+            <a href="team-register.php" class="btn btn-primary">Register Team</a>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <!-- Footer -->
 <footer class="bg-light mt-5 py-4">

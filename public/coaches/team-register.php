@@ -1,6 +1,6 @@
 <?php
 /**
- * District 8 Travel League - Step 2: Team Registration
+ * District 8 Travel League - Team Registration
  */
 
 try {
@@ -29,10 +29,17 @@ $db = Database::getInstance();
 $userId = (int) ($_SESSION['coach_user_id'] ?? 0);
 
 $currentCoach = $db->fetchOne(
-    'SELECT id, first_name, last_name, email FROM users WHERE id = :id LIMIT 1',
+    'SELECT id, first_name, last_name, email, status FROM users WHERE id = :id LIMIT 1',
     ['id' => $userId]
 );
 if ($currentCoach === false) {
+    header('Location: login.php');
+    exit;
+}
+
+// AC2: require active status
+if (($currentCoach['status'] ?? '') !== 'active') {
+    $_SESSION['flash_error'] = 'Your account must be active to register a team. Please contact the league administrator.';
     header('Location: login.php');
     exit;
 }
@@ -46,6 +53,12 @@ if ($existingTeam !== false) {
     header('Location: dashboard.php');
     exit;
 }
+
+// AC4: check for pending team registration
+$pendingTeam = $db->fetchOne(
+    "SELECT team_id FROM teams WHERE submitted_by_user_id = :uid AND status = 'pending' LIMIT 1",
+    ['uid' => $userId]
+);
 
 $seasons = $db->fetchAll(
     "SELECT s.season_id, s.season_name, s.season_year, p.program_name
@@ -62,7 +75,7 @@ $globalError = '';
 $fieldErrors = [];
 $formData = ['season_id' => '', 'league_name' => '', 'other_league' => ''];
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $pendingTeam === false && !empty($seasons)) {
     if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
         $globalError = 'Form submission error. Please try again.';
     } else {
@@ -84,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $locationAddresses = (array) ($_POST['location_address'] ?? []);
         $locationNotes     = (array) ($_POST['location_notes'] ?? []);
         $locations = [];
-        foreach (array_slice($locationNames, 0, 5) as $i => $name) {
+        foreach (array_slice($locationNames, 0, 5, true) as $i => $name) {
             $name = trim((string) $name);
             if ($name !== '') {
                 $locations[] = [
@@ -108,6 +121,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit;
             } catch (InvitationRegisteredUserException $e) {
                 $globalError = 'Team self-registration is not available for invitation-registered accounts. Contact your administrator.';
+            } catch (RuntimeException $e) {
+                $globalError = $e->getMessage();
             } catch (Throwable $e) {
                 $globalError = 'An error occurred. Please try again.';
             }
@@ -130,25 +145,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php include EnvLoader::getPath('includes/coaches_nav.php'); ?>
 
     <div class="container py-4">
-        <div class="reg-progress step-2-active mb-4" aria-label="Registration step 2 of 2">
-            <div class="progress mb-3">
-                <div class="progress-bar" role="progressbar" style="width:100%" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+        <?php if ($pendingTeam !== false): ?>
+            <div class="alert alert-info" role="alert">
+                You have a team registration pending review. You will be notified when it is approved.
             </div>
-            <div class="d-flex justify-content-between">
-                <span class="step step-done">&#10003; Account Created</span>
-                <span class="step step-active" aria-current="step">Step 2: Register Your Team</span>
-            </div>
-        </div>
-
+        <?php else: ?>
         <?php if ($globalError !== ''): ?>
             <div class="alert alert-danger" role="alert"><?php echo sanitize($globalError); ?></div>
         <?php endif; ?>
 
         <div class="card">
             <div class="card-header">
-                <h1 class="h4 mb-0">Step 2 of 2: Register Your Team</h1>
+                <h1 class="h4 mb-0">Register Your Team</h1>
             </div>
             <div class="card-body">
+                <?php if (empty($seasons)): ?>
+                    <div class="alert alert-warning" role="alert">
+                        No seasons are currently open for team registration.
+                    </div>
+                <?php else: ?>
                 <form method="POST" novalidate>
                     <input type="hidden" name="csrf_token" value="<?php echo sanitize(Auth::generateCSRFToken()); ?>">
 
@@ -241,8 +256,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                     </div>
                 </form>
+                <?php endif; /* empty($seasons) */ ?>
             </div>
         </div>
+        <?php endif; /* $pendingTeam !== false */ ?>
     </div>
 
     <footer class="bg-light mt-5 py-4">

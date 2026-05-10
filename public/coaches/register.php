@@ -1,6 +1,6 @@
 <?php
 /**
- * District 8 Travel League - Coach Self Registration
+ * District 8 Travel League - Coach Registration
  */
 
 try {
@@ -14,27 +14,10 @@ try {
 }
 
 require_once EnvLoader::getPath('includes/RegistrationService.php');
-require_once EnvLoader::getPath('includes/LeagueListManager.php');
 require_once EnvLoader::getPath('includes/AuthService.php');
-if (file_exists(EnvLoader::getPath('includes/InvitationService.php'))) {
-    require_once EnvLoader::getPath('includes/InvitationService.php');
-}
 
 $registrationEnabled = getSetting('open_registration', '0') === '1';
 $service = new RegistrationService();
-$invitationService = class_exists('InvitationService') ? new InvitationService() : null;
-$inviteData = null;
-$inviteError = '';
-$invitationToken = trim((string) ($_GET['token'] ?? ''));
-
-if ($invitationToken !== '' && $invitationService !== null) {
-    try {
-        $inviteData = $invitationService->validate($invitationToken);
-    } catch (ExpiredTokenException $e) {
-        $inviteError = 'Invitation expired. Please contact the league administrator for a new invitation.';
-    }
-}
-
 $formData = [
     'first_name' => '',
     'last_name' => '',
@@ -42,15 +25,8 @@ $formData = [
     'email' => '',
     'phone' => '',
     'phone_type' => 'mobile',
-    'league' => '',
-    'league_other' => '',
 ];
 $fieldErrors = [];
-$globalError = '';
-
-if ($inviteData !== null) {
-    $formData['email'] = $inviteData['email'];
-}
 
 $captchaSiteKey = defined('RECAPTCHA_SITE_KEY')
     ? (string) RECAPTCHA_SITE_KEY
@@ -62,31 +38,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     foreach (array_keys($formData) as $key) {
         $formData[$key] = trim((string) ($_POST[$key] ?? $formData[$key]));
     }
-    $postedToken = trim((string) ($_POST['invitation_token'] ?? ''));
     $password = (string) ($_POST['password'] ?? '');
     $confirmPassword = (string) ($_POST['confirm_password'] ?? '');
 
-    // Abort early on CSRF failure — do NOT fall through into invitation
-    // token validation, CAPTCHA verification, or any side-effecting code.
+    // Abort early on CSRF failure
     if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
         $globalError = 'Invalid form submission. Please try again.';
     } else {
-        if ($postedToken !== '' && $invitationService !== null) {
-            try {
-                $inviteData = $invitationService->validate($postedToken);
-                $formData['email'] = $inviteData['email'];
-            } catch (ExpiredTokenException $e) {
-                $inviteError = 'Invitation expired. Please contact the league administrator for a new invitation.';
-            }
-        }
-
-        if ($inviteError === '' && !$registrationEnabled && $inviteData === null) {
+        if (!$registrationEnabled) {
             $globalError = 'Registration is currently closed.';
         }
 
         // CAPTCHA: fail-closed if the site/secret keys are not configured.
         // AR-8 fail-open is for "Google unreachable", not for missing config.
-        if ($globalError === '' && $inviteError === '') {
+        if ($globalError === '') {
             if ($captchaSiteKey === '' || !$captchaSecretConfigured) {
                 $globalError = 'Registration is temporarily unavailable. Please contact the league administrator.';
             } elseif (!AuthService::verifyRecaptcha($_POST['g-recaptcha-response'] ?? null)) {
@@ -98,12 +63,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($formData['last_name'] === '') $fieldErrors['last_name'] = 'Last name is required.';
         if ($formData['email'] === '' || !isValidEmail($formData['email'])) $fieldErrors['email'] = 'A valid email is required.';
         if ($formData['phone'] === '') $fieldErrors['phone'] = 'Phone is required.';
-        if ($formData['league'] === '') $fieldErrors['league'] = 'League selection is required.';
-        if ($formData['league'] === 'other' && $formData['league_other'] === '') $fieldErrors['league_other'] = 'Enter your league name.';
         if ($password === '') $fieldErrors['password'] = 'Password is required.';
         if ($confirmPassword === '' || $password !== $confirmPassword) $fieldErrors['confirm_password'] = 'Passwords must match.';
 
-        if ($globalError === '' && empty($fieldErrors) && $inviteError === '') {
+        if ($globalError === '' && empty($fieldErrors)) {
             try {
                 $service->register([
                     'username' => $formData['email'],
@@ -113,10 +76,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'last_name' => $formData['last_name'],
                     'phone' => $formData['phone'],
                 ]);
-
-                if ($inviteData !== null && $invitationService !== null) {
-                    $invitationService->markConsumed((int) $inviteData['invitation_id']);
-                }
 
                 $_SESSION['flash_success'] = 'Registration complete. Please check your email to verify your account.'
                     . ((defined('EMAIL_DEV_LOG_ONLY') && EMAIL_DEV_LOG_ONLY === true)
@@ -139,10 +98,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$leagues = LeagueListManager::getActiveList();
 $title = 'Coach Registration — District 8 Travel League';
 $cssPath = file_exists(__DIR__ . '/../assets/css/style.css') ? '../assets/css/style.css' : '../../assets/css/style.css';
-$jsPath = file_exists(__DIR__ . '/../assets/js/coaches-registration.js') ? '../assets/js/coaches-registration.js' : '../../assets/js/coaches-registration.js';
 
 ?>
 <!DOCTYPE html>
@@ -166,30 +123,18 @@ $jsPath = file_exists(__DIR__ . '/../assets/js/coaches-registration.js') ? '../a
 </nav>
 
 <div class="container py-4">
-    <?php if ($inviteError !== ''): ?>
-        <div class="alert alert-warning" role="alert"><?php echo sanitize($inviteError); ?></div>
-    <?php elseif (!$registrationEnabled && $inviteData === null): ?>
+    <?php if (!$registrationEnabled): ?>
         <div class="alert alert-warning" role="alert">Registration is currently closed.</div>
     <?php else: ?>
-        <div class="reg-progress mb-4">
-            <div class="steps">
-                <div class="step active"><span class="circle">1</span><span class="label">Create Account</span></div>
-                <div class="connector"></div>
-                <div class="step"><span class="circle">2</span><span class="label">Team Registration</span></div>
-            </div>
-            <div class="progress mt-2"><div class="progress-bar" role="progressbar" style="width: 50%;"></div></div>
-        </div>
-
         <?php if ($globalError !== ''): ?>
             <div class="alert alert-danger" role="alert"><?php echo sanitize($globalError); ?></div>
         <?php endif; ?>
 
         <div class="card">
-            <div class="card-header"><h1 class="h4 mb-0">Step 1 of 2: Create Your Account</h1></div>
+            <div class="card-header"><h1 class="h4 mb-0">Create Your Account</h1></div>
             <div class="card-body">
                 <form method="POST" novalidate>
                     <input type="hidden" name="csrf_token" value="<?php echo sanitize(Auth::generateCSRFToken()); ?>">
-                    <input type="hidden" name="invitation_token" value="<?php echo sanitize($invitationToken); ?>">
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label" for="first_name">First Name</label>
@@ -207,7 +152,7 @@ $jsPath = file_exists(__DIR__ . '/../assets/js/coaches-registration.js') ? '../a
                         </div>
                         <div class="col-md-6">
                             <label class="form-label" for="email">Email</label>
-                            <input class="form-control form-control-lg" id="email" name="email" type="email" value="<?php echo sanitize($formData['email']); ?>" aria-describedby="email_error" <?php echo $inviteData ? 'readonly' : ''; ?> required>
+                            <input class="form-control form-control-lg" id="email" name="email" type="email" value="<?php echo sanitize($formData['email']); ?>" aria-describedby="email_error" required>
                             <div id="email_error" class="text-danger small"><?php echo sanitize($fieldErrors['email'] ?? ''); ?></div>
                         </div>
                         <div class="col-md-6">
@@ -222,24 +167,6 @@ $jsPath = file_exists(__DIR__ . '/../assets/js/coaches-registration.js') ? '../a
                                 <option value="home" <?php echo $formData['phone_type'] === 'home' ? 'selected' : ''; ?>>Home</option>
                                 <option value="work" <?php echo $formData['phone_type'] === 'work' ? 'selected' : ''; ?>>Work</option>
                             </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label" for="league">League</label>
-                            <select class="form-select form-select-lg" id="league" name="league" aria-describedby="league_error" required>
-                                <option value="">Select league</option>
-                                <?php foreach ($leagues as $league): ?>
-                                    <option value="<?php echo sanitize((string) $league['display_name']); ?>" <?php echo $formData['league'] === (string) $league['display_name'] ? 'selected' : ''; ?>>
-                                        <?php echo sanitize((string) $league['display_name']); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                                <option value="other" <?php echo $formData['league'] === 'other' ? 'selected' : ''; ?>>Other</option>
-                            </select>
-                            <div id="league_error" class="text-danger small"><?php echo sanitize($fieldErrors['league'] ?? ''); ?></div>
-                        </div>
-                        <div class="col-md-6 d-none" id="league-other-container">
-                            <label class="form-label" for="league_other">Enter your league name</label>
-                            <input class="form-control form-control-lg" id="league_other" name="league_other" value="<?php echo sanitize($formData['league_other']); ?>" aria-describedby="league_other_error">
-                            <div id="league_other_error" class="text-danger small"><?php echo sanitize($fieldErrors['league_other'] ?? ''); ?></div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label" for="password">Password</label>
@@ -271,6 +198,5 @@ $jsPath = file_exists(__DIR__ . '/../assets/js/coaches-registration.js') ? '../a
     <?php endif; ?>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="<?php echo sanitize($jsPath); ?>"></script>
 </body>
 </html>
