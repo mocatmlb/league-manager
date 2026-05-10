@@ -159,6 +159,21 @@ class ProfileService {
         }
     }
 
+    public function forceSetPassword(int $userId, string $newPassword): void {
+        $this->validateNewPasswordComplexity($newPassword);
+
+        $hash = password_hash($newPassword, PASSWORD_BCRYPT);
+        $this->db->query(
+            'UPDATE users SET password_hash = :hash, password_changed_at = NOW(), updated_at = NOW() WHERE id = :user_id',
+            ['hash' => $hash, 'user_id' => $userId]
+        );
+
+        ActivityLogger::log('profile.password_changed', [
+            'user_id' => $userId,
+            'forced' => true,
+        ]);
+    }
+
     private function validateNewPasswordComplexity(string $password): void {
         if (strlen($password) < 8) {
             throw new WeakPasswordException('Password must be at least 8 characters.');

@@ -75,7 +75,7 @@ $rootPath = getPathToRoot();
                     <?php if ($isAdmin): ?>
                         <!-- Admin Management Dropdown -->
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle <?php echo in_array($currentDir, ['games', 'schedules', 'teams', 'programs', 'seasons', 'divisions', 'locations', 'league-list']) ? 'active' : ''; ?>" 
+                            <a class="nav-link dropdown-toggle <?php echo in_array($currentDir, ['games', 'schedules', 'teams', 'programs', 'seasons', 'divisions', 'locations', 'league-list', 'users']) ? 'active' : ''; ?>"
                                href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fas fa-cogs"></i> Management
                             </a>
@@ -129,6 +129,12 @@ $rootPath = getPathToRoot();
                                     <a class="dropdown-item <?php echo isActiveNav('index', 'league-list'); ?>" 
                                        href="<?php echo $rootPath; ?>admin/league-list/">
                                         <i class="fas fa-list-ul"></i> League List
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item <?php echo isActiveNav('index', 'users'); ?>"
+                                       href="<?php echo $rootPath; ?>admin/users/">
+                                        <i class="fas fa-user-cog"></i> User Management
                                     </a>
                                 </li>
                                 <li>

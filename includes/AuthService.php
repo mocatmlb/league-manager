@@ -198,6 +198,30 @@ class AuthService {
         if ($coachUserId > 0) {
             $db = Database::getInstance();
 
+            if (self::usersHasColumn('session_invalidated_at')) {
+                $user = $db->fetchOne(
+                    'SELECT session_invalidated_at FROM users WHERE id = :id LIMIT 1',
+                    ['id' => $coachUserId]
+                );
+                if ($user !== false && !empty($user['session_invalidated_at'])) {
+                    $invalidatedAt = strtotime($user['session_invalidated_at']);
+                    $loginTime = (int) ($_SESSION['login_time'] ?? 0);
+                    if ($invalidatedAt !== false && $loginTime > 0 && $loginTime < $invalidatedAt) {
+                        return false;
+                    }
+                }
+            }
+
+            if (self::usersHasColumn('force_password_change')) {
+                $user = $db->fetchOne(
+                    'SELECT force_password_change FROM users WHERE id = :id LIMIT 1',
+                    ['id' => $coachUserId]
+                );
+                if ($user !== false && (int) ($user['force_password_change'] ?? 0) === 1) {
+                    $_SESSION['force_password_change'] = true;
+                }
+            }
+
             if (self::usersHasColumn('password_changed_at')) {
                 $user = $db->fetchOne(
                     'SELECT password_changed_at FROM users WHERE id = :id LIMIT 1',
@@ -357,9 +381,11 @@ class AuthService {
         switch ($status) {
             case 'unverified':
                 return 'Your email address is not yet verified. Please check your inbox for the verification link.';
+            case 'disabled':
+                // Story 8.1 AC4 — exact wording required
+                return 'Your account has been disabled — contact the league administrator';
             case 'suspended':
             case 'locked':
-            case 'disabled':
                 return 'This account is currently disabled. Please contact league administration.';
             default:
                 return 'Invalid email or password';

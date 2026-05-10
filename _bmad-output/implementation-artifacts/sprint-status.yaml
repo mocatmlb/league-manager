@@ -35,7 +35,8 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: '2026-05-04'
-last_updated: '2026-05-09'
+last_updated: '2026-05-10'
+# Updated: Epic 8 complete — 8-1, 8-2, 8-3 → done
 project: league-manager
 project_key: NOKEY
 tracking_system: file-system
@@ -86,18 +87,18 @@ development_status:
   epic-6-retrospective: optional
 
   # Epic 7: Coach Profile, Team Schedule & Authenticated Resources
-  epic-7: in-progress
-  7-1-profileservice-backend: ready-for-dev
-  7-2-coach-profile-page: ready-for-dev
-  7-3-coach-team-schedule-view: ready-for-dev
-  7-4-authenticated-access-to-rules-and-contact-directory: ready-for-dev
+  epic-7: done
+  7-1-profileservice-backend: done
+  7-2-coach-profile-page: done
+  7-3-coach-team-schedule-view: done
+  7-4-authenticated-access-to-rules-and-contact-directory: done
   epic-7-retrospective: optional
 
   # Epic 8: Admin User Management
-  epic-8: backlog
-  8-1-usermanagementservice-full-crud: backlog
-  8-2-admin-user-list-page: backlog
-  8-3-admin-user-detail-page: backlog
+  epic-8: done
+  8-1-usermanagementservice-full-crud: done
+  8-2-admin-user-list-page: done
+  8-3-admin-user-detail-page: done
   epic-8-retrospective: optional
 
   # Epic 9: Migration Cutover & Shared Credential Deprecation
@@ -105,3 +106,8 @@ development_status:
   9-1-cutoverservice-backend: backlog
   9-2-admin-migration-cutover-panel: backlog
   epic-9-retrospective: optional
+
+  # Epic 10: Post-Launch Hardening
+  epic-10: backlog
+  10-1-post-launch-hardening: backlog
+  epic-10-retrospective: optional

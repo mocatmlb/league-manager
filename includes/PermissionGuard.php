@@ -39,5 +39,14 @@ class PermissionGuard {
             header('Location: ' . $loginUrl);
             exit;
         }
+
+        if (!empty($_SESSION['force_password_change'])) {
+            $currentScript = basename($_SERVER['SCRIPT_NAME'] ?? '');
+            if ($currentScript !== 'force-change-password.php') {
+                $basePath = dirname($loginUrl);
+                header('Location: ' . $basePath . '/force-change-password.php');
+                exit;
+            }
+        }
     }
 }

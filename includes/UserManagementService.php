@@ -2,17 +2,14 @@
 /**
  * District 8 Travel League — User Management Service
  *
- * Story 4.3 initial version: assignTeam() + removeTeam() only.
- * Story 8.1 will add getList(), update(), setRole(), disable(), enable(),
- * delete(), and resetPassword() — do NOT add those here.
+ * Story 4.3: assignTeam() + removeTeam()
+ * Story 8.1: getList(), update(), setRole(), disable(), enable(), delete(), resetPassword()
  */
 
 if (!defined('D8TL_APP')) {
     die('Direct access not permitted');
 }
 
-// TeamAlreadyClaimedException is defined in TeamRegistrationService — load it
-// before we need it so callers can catch the exception without requiring TRS.
 if (!class_exists('TeamRegistrationService')) {
     require_once __DIR__ . '/TeamRegistrationService.php';
 }
@@ -41,7 +38,204 @@ class UserManagementService {
     }
 
     // -----------------------------------------------------------------------
-    // Public API
+    // Public API — Story 8.1: Full CRUD
+    // -----------------------------------------------------------------------
+
+    public function getList(array $filters, int $page = 1, int $perPage = 25): array {
+        $where = [];
+        $params = [];
+
+        if (!empty($filters['search'])) {
+            $term = '%' . $filters['search'] . '%';
+            $where[] = "(u.first_name LIKE :search1 OR u.last_name LIKE :search2 OR u.username LIKE :search3 OR u.email LIKE :search4)";
+            $params['search1'] = $term;
+            $params['search2'] = $term;
+            $params['search3'] = $term;
+            $params['search4'] = $term;
+        }
+        if (!empty($filters['role'])) {
+            $where[] = "r.name = :role_filter";
+            $params['role_filter'] = $filters['role'];
+        }
+        if (!empty($filters['status'])) {
+            $where[] = "u.status = :status_filter";
+            $params['status_filter'] = $filters['status'];
+        }
+
+        $whereClause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+        $perPage = max(1, min($perPage, 100));
+        // Patch 3: clamp page to prevent integer overflow before multiplication
+        $page    = min(max(1, $page), 1_000_000);
+        $offset  = (int) (((float) $page - 1) * $perPage);
+
+        $countSql = "SELECT COUNT(*) AS cnt FROM users u LEFT JOIN roles r ON u.role_id = r.id {$whereClause}";
+        $countRow = $this->db->fetchOne($countSql, $params);
+        $totalCount = (int) ($countRow['cnt'] ?? 0);
+
+        $limitInt = (int) $perPage;
+        $offsetInt = (int) $offset;
+        $dataSql = "SELECT u.id, u.username, u.email, u.first_name, u.last_name, u.preferred_name,
+                           u.status, u.created_at, r.name AS role_name
+                    FROM users u
+                    LEFT JOIN roles r ON u.role_id = r.id
+                    {$whereClause}
+                    ORDER BY u.last_name ASC, u.first_name ASC
+                    LIMIT {$limitInt} OFFSET {$offsetInt}";
+        // Patch 5: guard against query() returning a non-object on failure
+        $stmt  = $this->db->query($dataSql, $params);
+        $users = ($stmt && method_exists($stmt, 'fetchAll')) ? $stmt->fetchAll() : [];
+
+        return ['users' => $users, 'total_count' => $totalCount];
+    }
+
+    public function update(int $userId, array $data): void {
+        // Patch 2: validate before touching the DB
+        if (array_key_exists('email', $data)) {
+            $email = trim((string) ($data['email'] ?? ''));
+            if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                throw new InvalidArgumentException('Invalid email address.');
+            }
+            $conflict = $this->db->fetchOne(
+                'SELECT id FROM users WHERE email = :email AND id <> :id LIMIT 1',
+                ['email' => $email, 'id' => $userId]
+            );
+            if ($conflict !== false) {
+                throw new InvalidArgumentException('That email address is already in use by another account.');
+            }
+        }
+        if (array_key_exists('username', $data)) {
+            $username = trim((string) ($data['username'] ?? ''));
+            if ($username === '') {
+                throw new InvalidArgumentException('Username cannot be empty.');
+            }
+            $conflict = $this->db->fetchOne(
+                'SELECT id FROM users WHERE username = :username AND id <> :id LIMIT 1',
+                ['username' => $username, 'id' => $userId]
+            );
+            if ($conflict !== false) {
+                throw new InvalidArgumentException('That username is already taken.');
+            }
+        }
+        foreach (['first_name', 'last_name'] as $required) {
+            if (array_key_exists($required, $data) && trim((string) ($data[$required] ?? '')) === '') {
+                throw new InvalidArgumentException(ucwords(str_replace('_', ' ', $required)) . ' cannot be empty.');
+            }
+        }
+
+        $allowed = ['first_name', 'last_name', 'preferred_name', 'email', 'username'];
+        $sets = [];
+        $params = ['id' => $userId];
+
+        foreach ($allowed as $field) {
+            if (array_key_exists($field, $data)) {
+                $sets[] = "{$field} = :{$field}";
+                $params[$field] = $data[$field];
+            }
+        }
+        if (empty($sets)) {
+            return;
+        }
+        $sets[] = "updated_at = NOW()";
+        $sql = "UPDATE users SET " . implode(', ', $sets) . " WHERE id = :id";
+        $this->db->query($sql, $params);
+
+        ActivityLogger::log('admin.user_edited', [
+            'user_id' => $userId,
+            'fields'  => array_keys(array_intersect_key($data, array_flip($allowed))),
+        ]);
+    }
+
+    public function setRole(int $userId, string $role, int $adminUserId): void {
+        $validRoles = ['user', 'team_owner', 'administrator'];
+        if (!in_array($role, $validRoles, true)) {
+            throw new InvalidArgumentException("Invalid role: {$role}");
+        }
+
+        $user = $this->db->fetchOne(
+            'SELECT role_id FROM users WHERE id = :id LIMIT 1',
+            ['id' => $userId]
+        );
+        if ($user === false) {
+            throw new RuntimeException("User not found: {$userId}");
+        }
+        $oldRoleName = $this->resolveRoleName((int) ($user['role_id'] ?? 0));
+
+        $this->setUserRole($userId, $role);
+
+        ActivityLogger::log('admin.user_role_changed', [
+            'user_id'       => $userId,
+            'old_role'      => $oldRoleName,
+            'new_role'      => $role,
+            'admin_user_id' => $adminUserId,
+        ]);
+    }
+
+    public function disable(int $userId, int $adminUserId): void {
+        $this->db->query(
+            "UPDATE users SET status = 'disabled', session_invalidated_at = NOW(), updated_at = NOW() WHERE id = :id",
+            ['id' => $userId]
+        );
+
+        ActivityLogger::log('admin.user_disabled', [
+            'user_id'       => $userId,
+            'admin_user_id' => $adminUserId,
+        ]);
+    }
+
+    public function enable(int $userId, int $adminUserId): void {
+        $this->db->query(
+            "UPDATE users SET status = 'active', updated_at = NOW() WHERE id = :id",
+            ['id' => $userId]
+        );
+
+        ActivityLogger::log('admin.user_enabled', [
+            'user_id'       => $userId,
+            'admin_user_id' => $adminUserId,
+        ]);
+    }
+
+    public function delete(int $userId, int $adminUserId): void {
+        $this->db->beginTransaction();
+        try {
+            $this->db->query(
+                'DELETE FROM team_owners WHERE user_id = :user_id',
+                ['user_id' => $userId]
+            );
+            $this->db->query(
+                'DELETE FROM users WHERE id = :id',
+                ['id' => $userId]
+            );
+            $this->db->commit();
+        } catch (Throwable $e) {
+            $this->db->rollback();
+            throw $e;
+        }
+
+        ActivityLogger::log('admin.user_deleted', [
+            'user_id'       => $userId,
+            'admin_user_id' => $adminUserId,
+        ]);
+    }
+
+    public function resetPassword(int $userId, int $adminUserId): string {
+        $tempPassword = $this->generateTempPassword();
+        $hash = password_hash($tempPassword, PASSWORD_BCRYPT);
+
+        $this->db->query(
+            "UPDATE users SET password_hash = :hash, force_password_change = 1, updated_at = NOW() WHERE id = :id",
+            ['hash' => $hash, 'id' => $userId]
+        );
+
+        ActivityLogger::log('admin.user_password_reset', [
+            'user_id'       => $userId,
+            'admin_user_id' => $adminUserId,
+        ]);
+
+        return $tempPassword;
+    }
+
+    // -----------------------------------------------------------------------
+    // Public API — Story 4.3: Team Assignment
     // -----------------------------------------------------------------------
 
     /**
@@ -221,5 +415,33 @@ class UserManagementService {
              LIMIT 1',
             ['users', $column]
         ) !== false;
+    }
+
+    private function generateTempPassword(int $length = 12): string {
+        $lower = 'abcdefghijkmnopqrstuvwxyz';
+        $upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+        $digits = '23456789';
+        $special = '!@#$%';
+        $all = $lower . $upper . $digits . $special;
+        $maxAll = strlen($all) - 1;
+
+        // Guarantee at least one from each category
+        $password = '';
+        $password .= $upper[random_int(0, strlen($upper) - 1)];
+        $password .= $digits[random_int(0, strlen($digits) - 1)];
+        $password .= $special[random_int(0, strlen($special) - 1)];
+
+        for ($i = 3; $i < $length; $i++) {
+            $password .= $all[random_int(0, $maxAll)];
+        }
+
+        // Shuffle to avoid predictable positions
+        $chars = str_split($password);
+        for ($i = count($chars) - 1; $i > 0; $i--) {
+            $j = random_int(0, $i);
+            [$chars[$i], $chars[$j]] = [$chars[$j], $chars[$i]];
+        }
+
+        return implode('', $chars);
     }
 }

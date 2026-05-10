@@ -14,7 +14,7 @@ require_once EnvLoader::getPath('includes/bootstrap.php');
 
 // Require coach authentication on protected pages (skip on login page)
 $__d8tl_script = basename($_SERVER['SCRIPT_NAME'] ?? '');
-$__publicCoachPages = ['login.php', 'register.php', 'verify-email.php', 'forgot-password.php', 'reset-password.php'];
+$__publicCoachPages = ['login.php', 'register.php', 'verify-email.php', 'forgot-password.php', 'reset-password.php', 'force-change-password.php'];
 if (!in_array($__d8tl_script, $__publicCoachPages, true)) {
     Auth::requireCoach();
 }
