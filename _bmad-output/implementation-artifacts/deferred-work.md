@@ -1,40 +1,62 @@
 # Deferred Work
 
-Items deferred from code reviews — captured here so they aren't lost.
+Items deferred from code reviews — triaged 2026-05-09.
 
-## Deferred from: code review of Epic 3 (2026-05-06)
+---
 
-- **PII (raw email/identifier) logged on every failed auth attempt** [`includes/AuthService.php` `authenticate()`] — Story 3-1. Broader audit-log/PII-redaction policy decision spans the whole codebase, not story-specific.
-- **`reg-progress` always shows step 1 active regardless of state** [`public/coaches/register.php`] — Story 3-2. Cosmetic; step-2 rendering belongs to Story 4.2.
-- **Inconsistent session keys: new `coach_user_id` vs. existing `user_id`/`admin_id`** [`includes/AuthService.php`, `public/coaches/logout.php`] — Story 3-4. Cross-cutting; pages outside this diff that read `$_SESSION['user_id']` won't recognize logged-in coaches. Needs a codebase-wide audit (Epic 9 cutover scope).
-- **Plaintext `users.password_reset_token` storage** — Story 3-5. Covered by the cross-story decision-needed in Story 3-1 (token hashing). Tracked there.
-- **`robots.txt` only disallows production path `/coaches/register.php` but not the dev path `/public/coaches/register.php`** [`public/robots.txt`] — Story 3-6. Dev environments shouldn't be crawled regardless; low-impact.
+## Routed to Story 9-1 (Cutover Service Backend)
 
-## Deferred from: code review of 4-3-admin-team-assignment-pending-queue.md (2026-05-07)
+These are cross-cutting issues that belong in the cutover scope. See the "Deferred Work" section in [9-1-cutover-service-backend.md](9-1-cutover-service-backend.md).
 
-- **N+1 query pattern loading season/program per pending row** [`public/admin/teams/index.php` pending loop] — Performance optimization; acceptable at low queue volume; could fold program/season into `getPendingRegistrations()` later.
+- **PII logged on failed auth** — audit-log/PII-redaction policy (Epic 3 review)
+- **Session key inconsistency** — `coach_user_id` vs `user_id`/`admin_id` (Epic 3 review)
+- **Plaintext `password_reset_token`** — token hashing (Story 3-1/3-5 review)
+- **Legacy non-email username login breakage** — one-time data migration (email-as-username review)
+- **`password_changed_at` schema-incomplete semantics** — verify column post-migration (Story 5-2 review)
 
-## Deferred from: code review of 5-2-score-submission-page.md (2026-05-08)
+## Routed to Story 9-2 (Admin Migration Cutover Panel)
 
-- **20 CSRF tokens generated per page load for edit section** — One token per completed game (LIMIT 20 loop). Pre-existing CSRF token design; atomic single-use token strategy requires cross-codebase change.
-- **Concurrent double-click `edit()` — no optimistic lock** — Two simultaneous POSTs can both pass `enforceCompletedForEdit` and the second silently overwrites the first. Requires schema-level row versioning or application lock; deferred to a future hardening epic.
-- **`password_changed_at` refactor changes schema-incomplete semantics** — `AuthService::enforceSessionLifetime()` now always hits the `team_owners` table even when `password_changed_at` column is absent. Low risk in production (column is present); worth noting if the app is ever deployed fresh without running migrations.
+- **Disabled-credential login message for legacy usernames** — coordinate with username migration in 9-1 (email-as-username review)
 
-## Deferred from: code review of 6-1-rescheduleservice-backend.md (2026-05-09)
+## Routed to Story 10-1 (Post-Launch Hardening)
 
-- **No transaction around submit** — `insert()` commits immediately; notification/ActivityLogger failure can't roll back the DB row. Depends on whether Database layer supports transactions.
-- **Orphaned requests permanently uncancellable** — FK `ON DELETE SET NULL` + `(int) NULL === 0` in cancel() makes deleted-user requests stuck in Pending. Rare scenario; `requested_by` preserves context.
-- **Semantic confusion mapping cancellation to `Denied`** [includes/RescheduleService.php:123] — Coach-initiated cancellation is mapped to `'Denied'` in the database. While required by schema, it may trigger incorrect downstream logic/emails.
-- **`RescheduleService::cancel()` Race Condition** [includes/RescheduleService.php:123] — Concurrent cancel requests can both pass the status check and update the same row.
-- **No LIMIT/OFFSET on getCoachRequests** — Returns all rows with no pagination. Enhancement, not blocking review.
-- **FK cascade handling for soft delete** — `ON DELETE SET NULL` silently drops the submitter link while `requested_by` holds old data. Pre-existing design decision.
+These are race conditions, missing transactions, and performance issues. See [10-1-post-launch-hardening.md](10-1-post-launch-hardening.md).
 
-## Deferred from: code review of 6-2-reschedule-request-page.md (2026-05-09)
+- **Score edit race condition** — concurrent double-click overwrites (Story 5-2 review)
+- **Reschedule submit not transactional** — insert commits before notification (Story 6-1 review)
+- **Reschedule cancel race condition** — concurrent cancels both succeed (Story 6-1 review)
+- **CSRF token-per-row on score page** — 20 tokens generated per load (Story 5-2 review)
+- **N+1 query on pending registrations** — per-row season/program lookup (Story 4-3 review)
 
-- **Cancel confirmation is client-side only** — `onclick="return confirm(...)"` is trivially bypassed. No server-side secondary confirmation. Client-side confirm is sufficient for current UX flow.
+## Accepted as-is (no action planned)
 
-## Deferred from: code review of email-as-username-registration (2026-05-09)
+- **`reg-progress` always shows step 1 active** — cosmetic; step-2 rendering belongs to Story 4.2 which is done (Epic 3 review)
+- **`robots.txt` missing dev path** — dev environments shouldn't be publicly crawled (Epic 3 review)
+- **Redundant `DuplicateUsernameException`/`DuplicateEmailException` catches** — functionally correct as-is (email-as-username review)
+- **Pre-existing validation bug: name fields validated against phone key** — HTML `required` attribute covers it (email-as-username review)
+- **Cancel confirmation is client-side only** — adequate for current UX flow (Story 6-2 review)
+- **Hardcoded role map in PermissionGuard** — fine until roles change; no near-term need (Story 7-1 review)
+- **No transaction for profile updates** — name update + log is low-risk non-transactional (Story 7-1 review)
+- **Orphaned requests permanently uncancellable** — extremely rare edge case; `requested_by` preserves context (Story 6-1 review)
+- **Semantic confusion: cancellation mapped to `Denied`** — required by schema; no downstream issue today (Story 6-1 review)
+- **No LIMIT/OFFSET on getCoachRequests** — enhancement, not blocking (Story 6-1 review)
+- **FK cascade handling for soft delete** — pre-existing design decision (Story 6-1 review)
 
-- **`type="email"` blocks login for legacy coaches with non-email usernames** [`public/coaches/login.php`] — Any coach registered before this change with a non-email username can no longer type it into the login field (browser HTML5 validation rejects it before POST). `AuthService` still accepts usernames on the backend. Suggested fix: run a one-time data migration in Epic 9 cutover to set `username = email` for all existing `users` rows.
-- **Pre-existing validation bug: first_name and last_name validated against phone field** [`public/coaches/register.php` lines ~99–100] — Both checks read `if ($formData['phone'] === '')` instead of their own field keys. Field is still required at the HTML level (`required` attribute), so submissions without the values are blocked. Low-impact cosmetic server-side bug.
-- **Redundant `DuplicateUsernameException`/`DuplicateEmailException` catches** [`public/coaches/register.php`] — With `username = email` both exceptions produce an identical `$fieldErrors['email']` message. Could be collapsed to a single catch, but functionally correct as-is.
+## Deferred from: code review of 8-1-user-management-service-full-crud.md (2026-05-09)
+
+- Missing Activity Log Details: `admin.user_role_changed` logs the role name but `admin.user_edited` only logs the field keys, not the old/new values. Existing patterns only log keys for large profile updates.
+- Race Condition in `session_invalidated_at`: If `disable()` is called at the exact same second as a login, the `login_time < invalidatedAt` check might fail depending on precision. 1-second resolution is standard for this app.
+
+## Deferred from: code review of 9-1-cutover-service-backend.md (2026-05-10)
+
+- Hardcoded setting key string: The settings table uses `setting_key` and `setting_value`. `disableSharedCredential` uses a hardcoded string `'coaches_password'`.
+- Fallback to `Database::getInstance()`: The constructor falls back to the static singleton if no instance is provided, which is a pre-existing pattern in the codebase.
+
+## Deferred from: code review of 10-1-post-launch-hardening.md (2026-05-10)
+
+- ActivityLogger exception swallowing limits transaction effectiveness for log failures. Pre-existing issue in `ActivityLogger` class where internal `try-catch` prevents exceptions from propagating to calling transactions.
+
+## Deferred from: code review of spec-admin-email-verification-override.md (2026-05-10)
+
+- TOCTOU race on status check in POST handlers: `$user['status']` loaded at page-boot is used as a guard but may be stale by the time the POST executes. The service-layer `WHERE status='unverified'` check is the true safety net — a stale outer check shows a generic error to the admin rather than an accurate "already verified" message. Pre-existing pattern across all actions on this page.
+- `$stmt->rowCount()` crash if `query()` returns a non-object (DB failure): `forceVerify()` does not guard against a non-object return from `$this->db->query()` before calling `rowCount()`. Pre-existing pattern in `disable()`, `enable()`, `resetPassword()` across the service.

@@ -185,6 +185,10 @@ class RegistrationService {
      * locked accounts get a silent no-op (returned without error to avoid
      * account enumeration).
      */
+    public function notifyAdminOfVerification(int $userId, string $email): void {
+        $this->sendAdminNotification($userId, $email);
+    }
+
     public function resendVerification(string $email): void {
         $email = trim(strtolower($email));
         if ($email === '') {

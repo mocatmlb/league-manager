@@ -943,6 +943,70 @@ register_test('Story 8.3 resetPassword: bcrypt hash stored must verify against r
         'bcrypt hash in UPDATE must verify against the returned temp password string');
 });
 
+// ---------------------------------------------------------------------------
+// Admin Email Verification Override — forceVerify tests
+// ---------------------------------------------------------------------------
+
+register_test('forceVerify: sets status=active and clears verification token for unverified user', function () {
+    $db    = new UMSMockDatabase();
+    $email = new UMSMockEmail();
+    $db->users = [['id' => 10, 'status' => 'unverified', 'verification_token' => 'abc123']];
+
+    $svc = makeUMS($db, $email);
+    $svc->forceVerify(10, 99);
+
+    $found = false;
+    foreach ($db->queries as $q) {
+        if (stripos($q['sql'], "UPDATE users") !== false
+            && stripos($q['sql'], "status = 'active'") !== false
+            && stripos($q['sql'], "verification_token = NULL") !== false
+            && stripos($q['sql'], "status = 'unverified'") !== false
+            && (int) ($q['params']['id'] ?? 0) === 10) {
+            $found = true;
+        }
+    }
+    assert_true($found, "forceVerify must UPDATE status='active', clear token, with WHERE status='unverified'");
+});
+
+register_test('forceVerify: throws RuntimeException when user is already active', function () {
+    $mockDb = new class extends UMSMockDatabase {
+        public function query($sql, $params = []) {
+            if (stripos($sql, "status = 'unverified'") !== false) {
+                return new class { public function rowCount(): int { return 0; } };
+            }
+            return parent::query($sql, $params);
+        }
+    };
+    $mockDb->users = [['id' => 11, 'status' => 'active']];
+    $svc = makeUMS($mockDb, new UMSMockEmail());
+    $threw = false;
+    try {
+        $svc->forceVerify(11, 99);
+    } catch (RuntimeException $e) {
+        $threw = true;
+    }
+    assert_true($threw, 'forceVerify should throw RuntimeException when user is not unverified');
+});
+
+register_test('forceVerify: throws RuntimeException for non-existent user', function () {
+    $mockDb = new class extends UMSMockDatabase {
+        public function query($sql, $params = []) {
+            if (stripos($sql, "status = 'unverified'") !== false) {
+                return new class { public function rowCount(): int { return 0; } };
+            }
+            return parent::query($sql, $params);
+        }
+    };
+    $svc = makeUMS($mockDb, new UMSMockEmail());
+    $threw = false;
+    try {
+        $svc->forceVerify(999, 99);
+    } catch (RuntimeException $e) {
+        $threw = true;
+    }
+    assert_true($threw, 'forceVerify should throw RuntimeException for non-existent user');
+});
+
 register_test('Story 8.3 delete: user 2 unaffected when user 1 is deleted', function () {
     $db    = new UMSMockDatabase();
     $email = new UMSMockEmail();

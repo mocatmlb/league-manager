@@ -194,6 +194,27 @@ class UserManagementService {
         ]);
     }
 
+    public function forceVerify(int $userId, int $adminUserId): void {
+        $stmt = $this->db->query(
+            "UPDATE users
+             SET status = 'active',
+                 verification_token = NULL,
+                 verification_expiry = NULL,
+                 updated_at = NOW()
+             WHERE id = :id AND status = 'unverified'",
+            ['id' => $userId]
+        );
+
+        if ((int) $stmt->rowCount() !== 1) {
+            throw new RuntimeException('User not found or account is not in unverified state.');
+        }
+
+        ActivityLogger::log('registration.account_verified', [
+            'user_id'       => $userId,
+            'admin_user_id' => $adminUserId,
+        ]);
+    }
+
     public function delete(int $userId, int $adminUserId): void {
         $this->db->beginTransaction();
         try {

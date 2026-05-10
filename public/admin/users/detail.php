@@ -232,6 +232,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
         // ------------------------------------------------------------------
+        // Force-verify / Resend verification email
+        // ------------------------------------------------------------------
+        } elseif ($action === 'force_verify') {
+            if (($user['status'] ?? '') !== 'unverified') {
+                $error = 'Action not applicable.';
+            } else {
+                try {
+                    $service->forceVerify($userId, $adminUserId);
+                    if (!class_exists('RegistrationService')) {
+                        require_once EnvLoader::getPath('includes/RegistrationService.php');
+                    }
+                    (new RegistrationService())->notifyAdminOfVerification($userId, (string) $user['email']);
+                    $_SESSION['flash_message'] = 'Account verified.';
+                    header('Location: detail.php?id=' . $userId);
+                    exit;
+                } catch (Throwable $e) {
+                    Logger::error('User detail force verify failed', ['error' => $e->getMessage()]);
+                    $error = 'Account could not be verified. Please try again.';
+                }
+            }
+
+        } elseif ($action === 'resend_verification') {
+            if (($user['status'] ?? '') !== 'unverified') {
+                $error = 'Action not applicable.';
+            } else {
+                try {
+                    if (!class_exists('RegistrationService')) {
+                        require_once EnvLoader::getPath('includes/RegistrationService.php');
+                    }
+                    (new RegistrationService())->resendVerification((string) $user['email']);
+                    $_SESSION['flash_message'] = 'Verification email sent.';
+                    header('Location: detail.php?id=' . $userId);
+                    exit;
+                } catch (Throwable $e) {
+                    Logger::error('User detail resend verification failed', ['error' => $e->getMessage()]);
+                    $error = 'Failed to send verification email — check mail settings.';
+                }
+            }
+
+        // ------------------------------------------------------------------
         // Team assignment (Story 4.3 — preserved)
         // ------------------------------------------------------------------
         } elseif ($action === 'assign_team') {
@@ -579,6 +619,26 @@ $pageTitle = 'User Detail — ' . sanitize($user['first_name'] . ' ' . $user['la
                             <i class="fas fa-key"></i> Reset Password
                         </button>
                     </form>
+
+                    <?php if ($userStatus === 'unverified'): ?>
+                        <!-- Force Verify -->
+                        <form method="POST" onsubmit="return confirm('Mark this account as verified? This bypasses the email verification step.');">
+                            <input type="hidden" name="csrf_token" value="<?php echo $csrfToken; ?>">
+                            <input type="hidden" name="action" value="force_verify">
+                            <button type="submit" class="btn btn-success btn-sm">
+                                <i class="fas fa-check-double"></i> Force Verify
+                            </button>
+                        </form>
+
+                        <!-- Resend Verification Email -->
+                        <form method="POST">
+                            <input type="hidden" name="csrf_token" value="<?php echo $csrfToken; ?>">
+                            <input type="hidden" name="action" value="resend_verification">
+                            <button type="submit" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-envelope"></i> Resend Verification Email
+                            </button>
+                        </form>
+                    <?php endif; ?>
 
                 </div>
             </div>
