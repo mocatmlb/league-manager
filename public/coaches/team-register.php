@@ -16,13 +16,13 @@ try {
 Auth::requireCoach();
 
 if (!class_exists('Database')) {
-    require_once __DIR__ . '/../../includes/database.php';
+    require_once EnvLoader::getPath('includes/database.php');
 }
 if (!class_exists('TeamRegistrationService')) {
-    require_once __DIR__ . '/../../includes/TeamRegistrationService.php';
+    require_once EnvLoader::getPath('includes/TeamRegistrationService.php');
 }
 if (!class_exists('LeagueListManager')) {
-    require_once __DIR__ . '/../../includes/LeagueListManager.php';
+    require_once EnvLoader::getPath('includes/LeagueListManager.php');
 }
 
 $db = Database::getInstance();

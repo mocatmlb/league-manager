@@ -3,7 +3,7 @@
  * Email Templates Section
  */
 
-require_once __DIR__ . '/../../../../includes/EmailService.php';
+require_once EnvLoader::getPath('includes/EmailService.php');
 
 // Get all email templates
 $templates = $db->fetchAll("

@@ -15,11 +15,11 @@ try {
     exit;
 }
 
-require_once __DIR__ . '/../../includes/PermissionGuard.php';
-require_once __DIR__ . '/../../includes/ActivityLogger.php';
-require_once __DIR__ . '/../../includes/TeamScope.php';
-require_once __DIR__ . '/../../includes/GameTimeGate.php';
-require_once __DIR__ . '/../../includes/ScoreService.php';
+require_once EnvLoader::getPath('includes/PermissionGuard.php');
+require_once EnvLoader::getPath('includes/ActivityLogger.php');
+require_once EnvLoader::getPath('includes/TeamScope.php');
+require_once EnvLoader::getPath('includes/GameTimeGate.php');
+require_once EnvLoader::getPath('includes/ScoreService.php');
 
 PermissionGuard::requireRole('team_owner');
 
