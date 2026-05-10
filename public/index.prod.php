@@ -154,7 +154,7 @@ $pageTitle = "Home - " . APP_NAME;
         <div class="container">
             <div class="row">
                 <div class="col-12 text-center">
-                    <p>&copy; <?php echo date('Y'); ?> <?php echo APP_NAME; ?>. All rights reserved.</p>
+                    <p>&copy; <?php echo date('Y'); ?> <?php echo htmlspecialchars(APP_NAME, ENT_QUOTES, 'UTF-8'); ?>. All rights reserved.</p>
                     <p><small>Version <?php echo APP_VERSION; ?></small></p>
                 </div>
             </div>

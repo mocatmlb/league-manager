@@ -3,19 +3,34 @@
  * District 8 Travel League - Coaches Contact Directory
  */
 
-// Handle both development and production paths
-try {
-    $bootstrapPath = file_exists(__DIR__ . '/../includes/coach_bootstrap.php') 
-        ? __DIR__ . '/../includes/coach_bootstrap.php'  // Production: includes is one level up
-        : __DIR__ . '/../../includes/coach_bootstrap.php';  // Development: includes is two levels up
-    require_once $bootstrapPath;
-} catch (Throwable $e) {
-    echo '<div class="alert alert-danger">Application error: ' . htmlspecialchars($e->getMessage()) . '</div>';
-    exit;
+$__dir = __DIR__;
+$__found = false;
+for ($__i = 0; $__i < 6; $__i++) {
+    $__candidate = $__dir . '/includes/env-loader.php';
+    if (file_exists($__candidate)) {
+        require_once $__candidate;
+        $__found = true;
+        break;
+    }
+    $__dir = dirname($__dir);
 }
+if (!$__found) {
+    if (!empty($_SERVER['DOCUMENT_ROOT']) && file_exists($_SERVER['DOCUMENT_ROOT'] . '/includes/env-loader.php')) {
+        require_once $_SERVER['DOCUMENT_ROOT'] . '/includes/env-loader.php';
+        $__found = true;
+    }
+}
+if (!$__found) {
+    error_log('D8TL ERROR: Unable to locate includes/env-loader.php from ' . __FILE__);
+    http_response_code(500);
+    exit('Configuration error: env-loader not found');
+}
+unset($__dir, $__found, $__i, $__candidate);
 
-// Require coach authentication
-Auth::requireCoach();
+require_once EnvLoader::getPath('includes/coach_bootstrap.php');
+require_once EnvLoader::getPath('includes/PermissionGuard.php');
+
+PermissionGuard::requireRole('user', '/coaches/login.php');
 
 $db = Database::getInstance();
 
@@ -144,7 +159,13 @@ $pageTitle = "Contact Directory - " . APP_NAME;
 </head>
 <body>
     <!-- Navigation -->
-    <?php include '../../includes/nav.php'; ?>
+    <?php
+    $user = $db->fetchOne('SELECT first_name, last_name FROM users WHERE id = :id', ['id' => (int) ($_SESSION['coach_user_id'] ?? 0)]);
+    $teamRow = $db->fetchOne('SELECT t.team_name FROM teams t JOIN team_owners o ON t.team_id = o.team_id WHERE o.user_id = :id LIMIT 1', ['id' => (int) ($_SESSION['coach_user_id'] ?? 0)]);
+    $coachName = htmlspecialchars(trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')));
+    $teamName  = htmlspecialchars((string) ($teamRow['team_name'] ?? ''));
+    include __DIR__ . '/../../includes/coaches_nav.php';
+    ?>
 
     <!-- Main Content -->
     <div class="container mt-4">
@@ -406,7 +427,7 @@ $pageTitle = "Contact Directory - " . APP_NAME;
         <div class="container">
             <div class="row">
                 <div class="col-12 text-center">
-                    <p>&copy; <?php echo date('Y'); ?> <?php echo APP_NAME; ?>. All rights reserved.</p>
+                    <p>&copy; <?php echo date('Y'); ?> <?php echo htmlspecialchars(APP_NAME, ENT_QUOTES, 'UTF-8'); ?>. All rights reserved.</p>
                     <p><small>Version <?php echo APP_VERSION; ?></small></p>
                 </div>
             </div>
