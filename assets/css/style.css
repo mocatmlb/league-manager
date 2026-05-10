@@ -415,3 +415,13 @@ footer {
     background-color: #f8f9fa !important;
     border-top: 1px solid #dee2e6;
 }
+
+/* Migration Cutover — Gap Checklist Rows (UX-DR6) */
+.gap-row-covered {
+    color: #28a745;
+}
+
+.gap-row-missing {
+    color: #dc3545;
+    background-color: #fff9f9;
+}

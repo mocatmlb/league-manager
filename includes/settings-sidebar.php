@@ -79,11 +79,17 @@ function isSettingsActive($section) {
                class="list-group-item list-group-item-action sub-item <?php echo isSettingsActive('system-timezone'); ?>">
                 <i class="fas fa-clock"></i> Timezone
             </a>
-            <a href="?section=system-backup" 
+            <a href="?section=system-backup"
                class="list-group-item list-group-item-action sub-item <?php echo isSettingsActive('system-backup'); ?>">
                 <i class="fas fa-database"></i> Backup & Restore
             </a>
         </div>
+
+        <!-- Migration Cutover -->
+        <a href="?section=cutover"
+           class="list-group-item list-group-item-action <?php echo isSettingsActive('cutover'); ?>">
+            <i class="fas fa-exchange-alt"></i> Migration Cutover
+        </a>
     </div>
 </div>
 

@@ -14,6 +14,7 @@ try {
 }
 
 require_once EnvLoader::getPath('includes/AuthService.php');
+require_once EnvLoader::getPath('includes/CutoverService.php');
 
 /**
  * Only allow same-site coach paths in Location after login (mitigate open redirect).
@@ -93,8 +94,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     exit;
                 }
 
-                // Keep generic error except for explicit deprecated shared-credential message.
-                if (strtolower($identifier) === 'coach') {
+                // If the shared credential has been disabled, direct coaches to individual accounts.
+                $sharedActive = (new CutoverService())->isSharedCredentialActive();
+                if (!$sharedActive || strtolower($identifier) === 'coach') {
                     $error = 'Coach login has been updated — please use your individual account.';
                 } else {
                     $error = 'Invalid email or password';

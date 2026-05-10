@@ -30,6 +30,7 @@ unset($__dir, $__found, $__i, $__candidate);
 
 @include_once EnvLoader::getPath('includes/admin_bootstrap.php');
 @include_once EnvLoader::getPath('includes/ActivityLogger.php');
+@include_once EnvLoader::getPath('includes/CutoverService.php');
 
 // Require admin authentication
 Auth::requireAdmin();
@@ -101,6 +102,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $error = 'Error updating registration toggle: ' . $e->getMessage();
                 }
                 break;
+
+            case 'disable_shared_credential':
+                try {
+                    $adminId = (int) ($currentUser['id'] ?? 0);
+                    if ($adminId <= 0) {
+                        throw new Exception('Invalid admin session. Please log in again.');
+                    }
+                    $svc = new CutoverService();
+                    $svc->disableSharedCredential($adminId);
+                    $_SESSION['cutover_flash_success'] =
+                        'Shared credential disabled. All coach access is now through individual accounts. Rollback window: 30 days.';
+                } catch (CutoverGapsRemainingException $e) {
+                    $_SESSION['cutover_flash_error'] =
+                        'Cannot disable — gaps were detected. Please resolve all gaps first.';
+                } catch (Exception $e) {
+                    $_SESSION['cutover_flash_error'] = 'Error disabling shared credential: ' . $e->getMessage();
+                }
+                header('Location: ?section=cutover');
+                exit;
         }
     }
 }
@@ -124,7 +144,8 @@ $sectionTitles = [
     'users-admin' => 'Admin Users',
     'users-coach' => 'Coach Access',
     'system-timezone' => 'Timezone Settings',
-    'system-backup' => 'Backup & Restore'
+    'system-backup' => 'Backup & Restore',
+    'cutover' => 'Migration Cutover',
 ];
 
 $pageTitle = ($sectionTitles[$currentSection] ?? 'Settings') . " - " . APP_NAME;
@@ -223,6 +244,9 @@ $pageTitle = ($sectionTitles[$currentSection] ?? 'Settings') . " - " . APP_NAME;
                             break;
                         case 'system-backup':
                             include 'sections/system-backup.php';
+                            break;
+                        case 'cutover':
+                            include 'sections/cutover.php';
                             break;
                         default:
                             echo '<div class="alert alert-warning">Unknown settings section.</div>';
