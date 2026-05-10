@@ -18,6 +18,7 @@ require_once EnvLoader::getPath('includes/AuthService.php');
 
 $registrationEnabled = getSetting('open_registration', '0') === '1';
 $service = new RegistrationService();
+$globalError = '';
 $formData = [
     'first_name' => '',
     'last_name' => '',
@@ -92,7 +93,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $password = '';
                 $confirmPassword = '';
             } catch (Throwable $e) {
-                $globalError = 'Unable to complete registration right now. Please try again.';
+                error_log('[register.php] RegistrationService::register() threw '
+                    . get_class($e) . ': ' . $e->getMessage()
+                    . ' in ' . $e->getFile() . ':' . $e->getLine());
+                $globalError = 'Unable to complete registration right now. Please try again.'
+                    . ' (' . get_class($e) . ': ' . $e->getMessage() . ')';
             }
         }
     }
