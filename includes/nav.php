@@ -75,7 +75,7 @@ $rootPath = getPathToRoot();
                     <?php if ($isAdmin): ?>
                         <!-- Admin Management Dropdown -->
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle <?php echo in_array($currentDir, ['games', 'schedules', 'teams', 'programs', 'seasons', 'divisions', 'locations', 'league-list', 'users']) ? 'active' : ''; ?>"
+                            <a class="nav-link dropdown-toggle <?php echo in_array($currentDir, ['games', 'schedules', 'teams', 'programs', 'seasons', 'divisions', 'locations', 'league-list', 'users', 'logs']) ? 'active' : ''; ?>"
                                href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fas fa-cogs"></i> Management
                             </a>
@@ -141,6 +141,14 @@ $rootPath = getPathToRoot();
                                     <a class="dropdown-item <?php echo isActiveNav('invitations', 'users'); ?>"
                                        href="<?php echo $rootPath; ?>admin/users/invitations.php">
                                         <i class="fas fa-envelope-open-text"></i> Coach Invitations
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header">System</h6></li>
+                                <li>
+                                    <a class="dropdown-item <?php echo isActiveNav('index', 'logs'); ?>"
+                                       href="<?php echo $rootPath; ?>admin/logs/">
+                                        <i class="fas fa-clipboard-list"></i> Activity Logs
                                     </a>
                                 </li>
                             </ul>

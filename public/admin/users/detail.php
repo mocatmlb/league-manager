@@ -315,8 +315,9 @@ $activeTeams = $db->fetchAll(
 // Delete confirmation pending?
 $deleteConfirmPending = ((int) ($_SESSION['confirm_delete_user'] ?? 0)) === $userId;
 
-// Self-protection: is the logged-in admin viewing their own account?
-$isSelf = $adminUserId === $userId;
+// Admins live in admin_users; users live in users — different tables, incomparable IDs.
+// An admin account can never appear in the users table, so $isSelf is always false.
+$isSelf = false;
 
 // Patch 1: generate token once so all forms on this page share the same value
 $csrfToken = Auth::generateCSRFToken();
