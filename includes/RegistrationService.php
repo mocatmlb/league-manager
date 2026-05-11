@@ -20,6 +20,7 @@ if (!class_exists('Logger')) {
 class DuplicateUsernameException extends RuntimeException {}
 class DuplicateEmailException extends RuntimeException {}
 class ExpiredTokenException extends RuntimeException {}
+class AlreadyVerifiedException extends RuntimeException {}
 class InvalidPasswordException extends RuntimeException {}
 class WeakPasswordException extends RuntimeException {}
 
@@ -135,13 +136,21 @@ class RegistrationService {
 
     public function verifyEmail(string $token): int {
         $user = $this->db->fetchOne(
-            'SELECT id, email, first_name, verification_expiry
+            'SELECT id, email, first_name, status, verification_expiry
              FROM users
              WHERE verification_token = :token',
             ['token' => $token]
         );
 
         if ($user === false) {
+            throw new RuntimeException('Verification token is invalid or already consumed.');
+        }
+
+        if ((string) $user['status'] === 'active') {
+            throw new AlreadyVerifiedException('Account is already verified.');
+        }
+
+        if ((string) $user['status'] !== 'unverified') {
             throw new RuntimeException('Verification token is invalid or already consumed.');
         }
 
@@ -152,8 +161,6 @@ class RegistrationService {
         $stmt = $this->db->query(
             "UPDATE users
              SET status = 'active',
-                 verification_token = NULL,
-                 verification_expiry = NULL,
                  updated_at = NOW()
              WHERE id = :id AND verification_token = :token",
             [

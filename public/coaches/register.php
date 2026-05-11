@@ -78,6 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'phone' => $formData['phone'],
                 ]);
 
+                $_SESSION['registered_email'] = $formData['email'];
                 $_SESSION['flash_success'] = 'Registration complete. Please check your email to verify your account.'
                     . ((defined('EMAIL_DEV_LOG_ONLY') && EMAIL_DEV_LOG_ONLY === true)
                         ? ' (Local dev: outgoing mail is off — set EMAIL_DEV_LOG_ONLY to false and configure SMTP, or copy your verification token from the database.)'

@@ -21,6 +21,7 @@ $expiredToken = false;
 $message = '';
 $error = '';
 $mode = 'check-email';
+$registeredEmail = '';
 
 // Resend handler — accepts user-supplied email rather than a leaked user_id
 // from a prior page render. The service silently no-ops for unknown or
@@ -53,6 +54,8 @@ if ($token !== '' && $error === '') {
         $service->verifyEmail($token);
         $mode = 'verified';
         $message = 'Email verified — your account is active.';
+    } catch (AlreadyVerifiedException $e) {
+        $mode = 'already-verified';
     } catch (ExpiredTokenException $e) {
         $mode = 'expired';
         $expiredToken = true;
@@ -64,6 +67,13 @@ if ($token !== '' && $error === '') {
 } elseif (isset($_SESSION['flash_success'])) {
     $message = (string) $_SESSION['flash_success'];
     unset($_SESSION['flash_success']);
+}
+
+if (isset($_SESSION['registered_email'])) {
+    if ($mode === 'check-email') {
+        $registeredEmail = (string) $_SESSION['registered_email'];
+    }
+    unset($_SESSION['registered_email']);
 }
 
 $title = 'Verify Email — District 8 Travel League';
@@ -92,6 +102,10 @@ $cssPath = file_exists(__DIR__ . '/../assets/css/style.css') ? '../assets/css/st
                 <h1 class="h4">Email Verified</h1>
                 <div class="alert alert-success" role="alert">Your email has been verified. Please log in to continue.</div>
                 <a class="btn btn-primary btn-lg" href="login.php">Log In to Continue</a>
+            <?php elseif ($mode === 'already-verified'): ?>
+                <h1 class="h4">Email Already Verified</h1>
+                <div class="alert alert-success" role="alert">Your email is already verified. Please log in to access your account.</div>
+                <a class="btn btn-primary btn-lg" href="login.php">Log In</a>
             <?php elseif ($mode === 'expired'): ?>
                 <h1 class="h4">Verification Link Problem</h1>
                 <div class="alert alert-warning" role="alert"><?php echo sanitize($error); ?></div>
@@ -110,7 +124,11 @@ $cssPath = file_exists(__DIR__ . '/../assets/css/style.css') ? '../assets/css/st
                 <?php endif; ?>
             <?php else: ?>
                 <h1 class="h4">Check Your Email</h1>
-                <?php if ($message !== ''): ?>
+                <?php if ($registeredEmail !== ''): ?>
+                    <div class="alert alert-success" role="alert">
+                        Registration complete! Please check <strong><?php echo sanitize($registeredEmail); ?></strong> and click the verification link to activate your account.
+                    </div>
+                <?php elseif ($message !== ''): ?>
                     <div class="alert alert-success" role="alert"><?php echo sanitize($message); ?></div>
                 <?php else: ?>
                     <div class="alert alert-info" role="alert">
