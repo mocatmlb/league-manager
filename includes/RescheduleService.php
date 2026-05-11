@@ -206,12 +206,15 @@ class RescheduleService {
             return [];
         }
 
-        $teamIds    = array_map('intval', array_column($teams, 'team_id'));
-        $teamParams = [];
+        $teamIds      = array_map('intval', array_column($teams, 'team_id'));
+        $homeParams   = [];
+        $awayParams   = [];
         foreach ($teamIds as $i => $id) {
-            $teamParams['tid' . $i] = $id;
+            $homeParams['h' . $i] = $id;
+            $awayParams['a' . $i] = $id;
         }
-        $placeholders = implode(',', array_map(fn($k) => ':' . $k, array_keys($teamParams)));
+        $homePlaceholders = implode(',', array_map(fn($k) => ':' . $k, array_keys($homeParams)));
+        $awayPlaceholders = implode(',', array_map(fn($k) => ':' . $k, array_keys($awayParams)));
 
         $games = $this->db->fetchAll(
             "SELECT g.*, s.game_date, s.game_time, s.location,
@@ -220,7 +223,7 @@ class RescheduleService {
              LEFT JOIN schedules s ON g.game_id = s.game_id
              JOIN teams ht ON g.home_team_id = ht.team_id
              JOIN teams at ON g.away_team_id = at.team_id
-             WHERE (g.home_team_id IN ({$placeholders}) OR g.away_team_id IN ({$placeholders}))
+             WHERE (g.home_team_id IN ({$homePlaceholders}) OR g.away_team_id IN ({$awayPlaceholders}))
                AND g.game_status NOT IN ('Completed', 'Cancelled')
                AND NOT EXISTS (
                  SELECT 1 FROM schedule_change_requests scr
@@ -228,7 +231,7 @@ class RescheduleService {
                    AND scr.submitted_by_user_id = :uid
                    AND scr.request_status = 'Pending'
                )",
-            array_merge(['uid' => $userId], $teamParams)
+            array_merge(['uid' => $userId], $homeParams, $awayParams)
         );
 
         // Exclude rows where the schedules JOIN returned no game_date (NULL).
