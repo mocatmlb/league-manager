@@ -77,6 +77,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     exit;
                 } catch (TeamAlreadyClaimedException $e) {
                     $error = 'This coach already has a team assigned. Multiple team assignments are not supported in this version.';
+                } catch (RuntimeException $e) {
+                    $error = 'Approval could not be completed: ' . $e->getMessage();
                 } catch (Throwable $e) {
                     Logger::error('Team registration approval failed', ['error' => $e->getMessage()]);
                     $error = 'Approval could not be completed. Please try again or contact support.';
