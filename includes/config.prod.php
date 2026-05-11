@@ -35,9 +35,6 @@ define('CSRF_TOKEN_NAME', EnvLoader::get('CSRF_TOKEN_NAME', 'd8tl_csrf_token'));
 define('RECAPTCHA_SITE_KEY', EnvLoader::get('RECAPTCHA_SITE_KEY', ''));
 define('RECAPTCHA_SECRET', EnvLoader::get('RECAPTCHA_SECRET', ''));
 
-// Google Maps API Key — obtain from https://console.cloud.google.com/apis/credentials
-define('GOOGLE_MAPS_API_KEY', EnvLoader::get('GOOGLE_MAPS_API_KEY', ''));
-
 // Default Passwords - Load from environment variables (CHANGE IN .htaccess!)
 define('DEFAULT_ADMIN_PASSWORD', EnvLoader::get('DEFAULT_ADMIN_PASSWORD', 'CHANGE_THIS_ADMIN_PASSWORD'));
 

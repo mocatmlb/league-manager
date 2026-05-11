@@ -187,13 +187,6 @@ class TRSMockDatabase extends Database {
     }
 
     public function fetchAll($sql, $params = []): array {
-        // findDuplicateCandidates() — locations query
-        if (stripos($sql, 'FROM locations') !== false
-            && (stripos($sql, "active_status = 'Active'") !== false
-                || stripos($sql, "status = 'pending'") !== false)) {
-            return array_values($this->locations);
-        }
-
         if (stripos($sql, "WHERE t.status = 'pending'") !== false) {
             $pending = array_values(
                 array_filter($this->teams, fn($t) => ($t['status'] ?? '') === 'pending')
@@ -1074,93 +1067,6 @@ register_test('11.7: deleteRegistration() throws when team_id does not exist', f
         $thrown = str_contains($e->getMessage(), 'Team not found');
     }
     assert_true($thrown, 'deleteRegistration must throw for unknown team_id');
-
-    Database::setInstance(null);
-});
-
-// ---------------------------------------------------------------------------
-// Story 14.1 — findDuplicateCandidates()
-// ---------------------------------------------------------------------------
-
-register_test('14.1: findDuplicateCandidates returns empty array when no locations exist', function () {
-    $db    = new TRSMockDatabase();
-    $email = new TRSMockEmail();
-    // $db->locations is empty by default
-    Database::setInstance($db);
-    $service = new TeamRegistrationService($db, $email);
-
-    $result = $service->findDuplicateCandidates(['name' => 'Riverside Park', 'address' => '100 Main St']);
-
-    assert_equals($result, [], 'must return empty array when no existing locations to compare against');
-
-    Database::setInstance(null);
-});
-
-register_test('14.1: findDuplicateCandidates returns candidate when name similarity >= 70%', function () {
-    $db    = new TRSMockDatabase();
-    $email = new TRSMockEmail();
-    $db->locations[] = [
-        'location_id'   => 1,
-        'location_name' => 'Riverside Park',
-        'address'       => '100 Main St',
-        'city'          => 'Springfield',
-        'state'         => 'IL',
-        'active_status' => 'Active',
-        'status'        => 'active',
-    ];
-    Database::setInstance($db);
-    $service = new TeamRegistrationService($db, $email);
-
-    $result = $service->findDuplicateCandidates(['name' => 'Riverside Prk', 'address' => '']);
-
-    assert_true(count($result) >= 1, 'must return candidate when name similarity is >= 70%');
-    assert_equals($result[0]['location_id'], 1, 'candidate must include the similar location row');
-
-    Database::setInstance(null);
-});
-
-register_test('14.1: findDuplicateCandidates returns candidate on exact case-insensitive address match', function () {
-    $db    = new TRSMockDatabase();
-    $email = new TRSMockEmail();
-    $db->locations[] = [
-        'location_id'   => 2,
-        'location_name' => 'City Field',
-        'address'       => '200 Oak Avenue',
-        'city'          => 'Shelbyville',
-        'state'         => 'IL',
-        'active_status' => 'Active',
-        'status'        => 'active',
-    ];
-    Database::setInstance($db);
-    $service = new TeamRegistrationService($db, $email);
-
-    // Name is completely different but address matches exactly (case-insensitive)
-    $result = $service->findDuplicateCandidates(['name' => 'Totally Different Name', 'address' => '200 oak avenue']);
-
-    assert_true(count($result) >= 1, 'must return candidate when address matches case-insensitively');
-    assert_equals($result[0]['location_id'], 2, 'candidate must include the address-matched row');
-
-    Database::setInstance(null);
-});
-
-register_test('14.1: findDuplicateCandidates returns empty when similarity < 70% and addresses differ', function () {
-    $db    = new TRSMockDatabase();
-    $email = new TRSMockEmail();
-    $db->locations[] = [
-        'location_id'   => 3,
-        'location_name' => 'Northside Complex',
-        'address'       => '999 Far Away Rd',
-        'city'          => 'Shelbyville',
-        'state'         => 'IL',
-        'active_status' => 'Active',
-        'status'        => 'active',
-    ];
-    Database::setInstance($db);
-    $service = new TeamRegistrationService($db, $email);
-
-    $result = $service->findDuplicateCandidates(['name' => 'Southside Gym', 'address' => '1 Close St']);
-
-    assert_equals($result, [], 'must return empty when name similarity < 70% and address does not match');
 
     Database::setInstance(null);
 });

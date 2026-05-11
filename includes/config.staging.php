@@ -11,28 +11,25 @@ if (!defined('D8TL_APP')) {
 }
 
 // Database Configuration - Staging (MUST BE CONFIGURED)
-define('DB_HOST', EnvLoader::get('DB_HOST', 'localhost'));
-define('DB_NAME', EnvLoader::get('DB_NAME', 'moc835_d8tl_staging'));
-define('DB_USER', EnvLoader::get('DB_USER', 'REPLACE_WITH_STAGING_DB_USERNAME'));
-define('DB_PASS', EnvLoader::get('DB_PASS', 'REPLACE_WITH_STAGING_DB_PASSWORD'));
-define('DB_CHARSET', EnvLoader::get('DB_CHARSET', 'utf8mb4'));
+define('DB_HOST', 'localhost'); // Usually localhost for shared hosting
+define('DB_NAME', 'moc835_d8tl_staging');
+define('DB_USER', 'REPLACE_WITH_STAGING_DB_USERNAME');
+define('DB_PASS', 'REPLACE_WITH_STAGING_DB_PASSWORD');
+define('DB_CHARSET', 'utf8mb4');
 
 // Application Configuration - Staging
-define('APP_NAME', EnvLoader::get('APP_NAME', 'District 8 Travel League - STAGING'));
-define('APP_VERSION', EnvLoader::get('APP_VERSION', '2.0.0-MVP-STAGING'));
-define('APP_URL', EnvLoader::get('APP_URL', 'https://staging.district8travelleague.com'));
-define('APP_ENV', EnvLoader::get('APP_ENV', 'staging'));
+define('APP_NAME', 'District 8 Travel League - STAGING');
+define('APP_VERSION', '2.0.0-MVP-STAGING');
+define('APP_URL', 'https://staging.district8travelleague.com');
+define('APP_ENV', 'staging');
 
 // Security Configuration - Staging
-define('SESSION_TIMEOUT', EnvLoader::getInt('SESSION_TIMEOUT', 3600)); // 1 hour for coaches
-define('ADMIN_SESSION_TIMEOUT', EnvLoader::getInt('ADMIN_SESSION_TIMEOUT', 7200)); // 2 hours for admin
-define('CSRF_TOKEN_NAME', EnvLoader::get('CSRF_TOKEN_NAME', 'd8tl_csrf_token_staging'));
+define('SESSION_TIMEOUT', 3600); // 1 hour for coaches
+define('ADMIN_SESSION_TIMEOUT', 7200); // 2 hours for admin
+define('CSRF_TOKEN_NAME', 'd8tl_csrf_token_staging');
 
 // Staging Passwords (MUST BE CHANGED - DO NOT USE THESE VALUES)
-define('DEFAULT_ADMIN_PASSWORD', EnvLoader::get('DEFAULT_ADMIN_PASSWORD', 'CHANGE_THIS_STAGING_ADMIN_PASSWORD'));
-
-// Google Maps API Key — obtain from https://console.cloud.google.com/apis/credentials
-define('GOOGLE_MAPS_API_KEY', EnvLoader::get('GOOGLE_MAPS_API_KEY', ''));
+define('DEFAULT_ADMIN_PASSWORD', 'CHANGE_THIS_STAGING_ADMIN_PASSWORD');
 
 // Email Configuration - Staging (use test email)
 define('SMTP_HOST', 'mail.asmallorange.com');

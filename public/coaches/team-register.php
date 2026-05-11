@@ -74,16 +74,13 @@ $pageTitle = 'Register Your Team — District 8 Travel League';
 $globalError = '';
 $fieldErrors = [];
 $formData = ['season_id' => '', 'league_name' => '', 'other_league' => ''];
-$duplicateCandidates = [];
-$dupLocationIndex    = -1;
-$confirmedDupIndices = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $pendingTeam === false && !empty($seasons)) {
     if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
         $globalError = 'Form submission error. Please try again.';
     } else {
-        $formData['season_id']    = trim((string) ($_POST['season_id'] ?? ''));
-        $formData['league_name']  = trim((string) ($_POST['league_name'] ?? ''));
+        $formData['season_id']   = trim((string) ($_POST['season_id'] ?? ''));
+        $formData['league_name'] = trim((string) ($_POST['league_name'] ?? ''));
         $formData['other_league'] = trim((string) ($_POST['other_league'] ?? ''));
 
         if ($formData['season_id'] === '') {
@@ -96,18 +93,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $pendingTeam === false && !empty($s
             $fieldErrors['other_league'] = 'Enter your league name.';
         }
 
-        // Get location data
         $locationNames     = (array) ($_POST['location_name'] ?? []);
         $locationAddresses = (array) ($_POST['location_address'] ?? []);
         $locationNotes     = (array) ($_POST['location_notes'] ?? []);
-
-        // Also check for hidden round-trip fields to prevent data loss
-        if (isset($_POST['dup_location_name'])) {
-            $locationNames     = (array) $_POST['dup_location_name'];
-            $locationAddresses = (array) $_POST['dup_location_address'];
-            $locationNotes     = (array) $_POST['dup_location_notes'];
-        }
-
         $locations = [];
         foreach (array_slice($locationNames, 0, 5, true) as $i => $name) {
             $name = trim((string) $name);
@@ -120,72 +108,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $pendingTeam === false && !empty($s
             }
         }
 
-        // Handle duplicate confirmation/skipping
-        $dupConfirmed      = trim((string) ($_POST['dup_confirmed'] ?? ''));
-        $dupConfirmedIndex = (int) ($_POST['dup_location_index'] ?? -1);
-        
-        // Load existing confirmed indices
-        if (!empty($_POST['confirmed_dup_indices'])) {
-            $rawIndices = explode(',', (string) $_POST['confirmed_dup_indices']);
-            foreach ($rawIndices as $idx) {
-                if (is_numeric($idx)) $confirmedDupIndices[] = (int) $idx;
-            }
-        }
-
-        // Determine scan start index and update confirmed list
-        $dupScanStartIdx = 0;
-        if ($dupConfirmed === 'skip' && isset($locations[$dupConfirmedIndex])) {
-            array_splice($locations, $dupConfirmedIndex, 1);
-            $dupScanStartIdx = $dupConfirmedIndex; // same slot now holds next location
-            
-            // Adjust indices of any subsequent confirmed items
-            $confirmedDupIndices = array_map(function($idx) use ($dupConfirmedIndex) {
-                return $idx > $dupConfirmedIndex ? $idx - 1 : $idx;
-            }, $confirmedDupIndices);
-            $confirmedDupIndices = array_unique(array_filter($confirmedDupIndices, function($idx) use ($dupConfirmedIndex) {
-                return $idx !== $dupConfirmedIndex;
-            }));
-        } elseif ($dupConfirmed === 'add' && $dupConfirmedIndex >= 0) {
-            $confirmedDupIndices[] = $dupConfirmedIndex;
-            $dupScanStartIdx = $dupConfirmedIndex + 1; // skip past confirmed location
-        }
-
         if ($globalError === '' && empty($fieldErrors)) {
-            $service = new TeamRegistrationService();
-
-            foreach ($locations as $idx => $loc) {
-                if ($idx < $dupScanStartIdx) continue;
-                if (in_array($idx, $confirmedDupIndices)) continue; // skip confirmed unique-amongst-peers
-
-                $candidates = $service->findDuplicateCandidates($loc);
-                if (!empty($candidates)) {
-                    $duplicateCandidates = $candidates;
-                    $dupLocationIndex    = $idx;
-                    break;
-                }
+            try {
+                $service = new TeamRegistrationService();
+                $service->submit($userId, [
+                    'season_id'    => (int) $formData['season_id'],
+                    'league_name'  => $formData['league_name'],
+                    'other_league' => $formData['other_league'],
+                    'locations'    => $locations,
+                ]);
+                header('Location: team-register-confirm.php');
+                exit;
+            } catch (RuntimeException $e) {
+                $globalError = $e->getMessage();
+            } catch (Throwable $e) {
+                error_log('[team-register.php] submit() threw '
+                    . get_class($e) . ': ' . $e->getMessage()
+                    . ' in ' . $e->getFile() . ':' . $e->getLine());
+                $globalError = 'An error occurred. Please try again.';
             }
-
-            if (empty($duplicateCandidates)) {
-                // No duplicates remaining — submit normally
-                try {
-                    $service->submit($userId, [
-                        'season_id'    => (int) $formData['season_id'],
-                        'league_name'  => $formData['league_name'],
-                        'other_league' => $formData['other_league'],
-                        'locations'    => $locations,
-                    ]);
-                    header('Location: team-register-confirm.php');
-                    exit;
-                } catch (RuntimeException $e) {
-                    $globalError = $e->getMessage();
-                } catch (Throwable $e) {
-                    error_log('[team-register.php] submit() threw '
-                        . get_class($e) . ': ' . $e->getMessage()
-                        . ' in ' . $e->getFile() . ':' . $e->getLine());
-                    $globalError = 'An error occurred. Please try again.';
-                }
-            }
-            // If $duplicateCandidates is non-empty, fall through to re-render with warning
         }
     }
 }
@@ -224,45 +165,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $pendingTeam === false && !empty($s
                         No seasons are currently open for team registration.
                     </div>
                 <?php else: ?>
-                <?php if (!empty($duplicateCandidates)): ?>
-                <div class="alert alert-warning" role="alert">
-                    <h5 class="alert-heading">Possible Duplicate Location</h5>
-                    <p>The location you entered looks similar to one or more existing locations:</p>
-                    <ul class="mb-3">
-                        <?php foreach ($duplicateCandidates as $cand): ?>
-                        <li>
-                            <strong><?php echo sanitize($cand['location_name']); ?></strong>
-                            <?php if (!empty($cand['address'])): ?>
-                                — <?php echo sanitize($cand['address']); ?>
-                                <?php if (!empty($cand['city'])): ?>, <?php echo sanitize($cand['city']); ?><?php endif; ?>
-                                <?php if (!empty($cand['state'])): ?>, <?php echo sanitize($cand['state']); ?><?php endif; ?>
-                            <?php endif; ?>
-                        </li>
-                        <?php endforeach; ?>
-                    </ul>
-                    <p class="mb-2">Is this the same location?</p>
-                    <form method="POST" novalidate class="d-inline">
-                        <input type="hidden" name="csrf_token" value="<?php echo sanitize(Auth::generateCSRFToken()); ?>">
-                        <input type="hidden" name="season_id" value="<?php echo sanitize($formData['season_id']); ?>">
-                        <input type="hidden" name="league_name" value="<?php echo sanitize($formData['league_name']); ?>">
-                        <input type="hidden" name="other_league" value="<?php echo sanitize($formData['other_league']); ?>">
-                        <?php foreach ($locations as $i => $loc): ?>
-                        <input type="hidden" name="dup_location_name[<?php echo (int) $i; ?>]" value="<?php echo sanitize($loc['name']); ?>">
-                        <input type="hidden" name="dup_location_address[<?php echo (int) $i; ?>]" value="<?php echo sanitize($loc['address']); ?>">
-                        <input type="hidden" name="dup_location_notes[<?php echo (int) $i; ?>]" value="<?php echo sanitize($loc['notes']); ?>">
-                        <?php endforeach; ?>
-                        <input type="hidden" name="dup_location_index" value="<?php echo (int) $dupLocationIndex; ?>">
-                        <input type="hidden" name="confirmed_dup_indices" value="<?php echo sanitize(implode(',', $confirmedDupIndices)); ?>">
-                        <button type="submit" name="dup_confirmed" value="skip" class="btn btn-success me-2">
-                            Yes, same location — skip
-                        </button>
-                        <button type="submit" name="dup_confirmed" value="add" class="btn btn-outline-secondary">
-                            No, it&rsquo;s different — add anyway
-                        </button>
-                    </form>
-                </div>
-                <?php endif; ?>
-
                 <form method="POST" novalidate>
                     <input type="hidden" name="csrf_token" value="<?php echo sanitize(Auth::generateCSRFToken()); ?>">
 
@@ -332,20 +234,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $pendingTeam === false && !empty($s
                                 <div class="location-block card mb-2 p-3">
                                     <div class="mb-2">
                                         <label for="location_name_0" class="form-label">Location Name <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control location-name-input" id="location_name_0" name="location_name[0]">
+                                        <input type="text" class="form-control" id="location_name_0" name="location_name[0]">
                                     </div>
                                     <div class="mb-2">
                                         <label for="location_address_0" class="form-label">Address (optional)</label>
-                                        <input type="text" class="form-control location-address-input" id="location_address_0" name="location_address[0]">
+                                        <input type="text" class="form-control" id="location_address_0" name="location_address[0]">
                                     </div>
                                     <div class="mb-2">
                                         <label for="location_notes_0" class="form-label">Additional Details (optional)</label>
                                         <input type="text" class="form-control" id="location_notes_0" name="location_notes[0]">
                                     </div>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <a href="#" class="btn btn-sm btn-outline-secondary preview-map-btn" target="_blank" rel="noopener" style="display:none">📍 Preview on Map</a>
-                                        <button type="button" class="btn btn-sm btn-outline-danger remove-location-btn" style="display:none">Remove</button>
-                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-danger remove-location-btn" style="display:none">Remove</button>
                                 </div>
                             </div>
                             <button type="button" id="add-location-btn" class="btn btn-outline-secondary btn-sm mt-1">
