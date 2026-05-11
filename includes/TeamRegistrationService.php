@@ -161,17 +161,29 @@ class TeamRegistrationService {
             throw new TeamAlreadyClaimedException('This coach is already assigned to a team.');
         }
 
-        // 3. Activate team and assign Team Owner
-        $this->db->query(
-            "UPDATE teams SET status = 'active', division_id = :division_id WHERE team_id = :team_id",
-            ['division_id' => $divisionId, 'team_id' => $teamId]
-        );
+        // 3. Activate team and assign Team Owner — wrapped in a transaction so a failed
+        //    INSERT never leaves an orphaned 'active' team with no owner row.
+        //    assigned_by is stored as NULL: admin IDs come from admin_users, not users,
+        //    and cannot satisfy the team_owners.assigned_by FK → users(id).
+        $conn = $this->db->getConnection();
+        $conn->beginTransaction();
+        try {
+            $this->db->query(
+                "UPDATE teams SET status = 'active', division_id = :division_id WHERE team_id = :team_id",
+                ['division_id' => $divisionId, 'team_id' => $teamId]
+            );
 
-        $this->db->query(
-            'INSERT INTO team_owners (user_id, team_id, assigned_by, created_at)
-             VALUES (:user_id, :team_id, :assigned_by, NOW())',
-            ['user_id' => $coachUserId, 'team_id' => $teamId, 'assigned_by' => $adminUserId]
-        );
+            $this->db->query(
+                'INSERT INTO team_owners (user_id, team_id, assigned_by, created_at)
+                 VALUES (:user_id, :team_id, NULL, NOW())',
+                ['user_id' => $coachUserId, 'team_id' => $teamId]
+            );
+
+            $conn->commit();
+        } catch (Throwable $e) {
+            $conn->rollBack();
+            throw $e;
+        }
 
         // 4. Audit log
         ActivityLogger::log('team.registration_approved', [
