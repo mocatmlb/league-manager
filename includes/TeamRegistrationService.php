@@ -352,12 +352,6 @@ class TeamRegistrationService {
         $conn = $this->db->getConnection();
         $conn->beginTransaction();
         try {
-            // Delete associated locations (Story 11.7 Patch 4)
-            $this->db->query(
-                'DELETE FROM team_locations WHERE team_id = :team_id',
-                ['team_id' => $teamId]
-            );
-
             $owner = $this->db->fetchOne(
                 'SELECT user_id FROM team_owners WHERE team_id = :team_id LIMIT 1',
                 ['team_id' => $teamId]

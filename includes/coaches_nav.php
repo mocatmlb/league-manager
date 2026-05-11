@@ -25,9 +25,8 @@ if (!isset($coachName) || !isset($teamName)) {
             $_row = $_db->fetchOne(
                 'SELECT u.first_name, u.last_name, t.team_name
                    FROM users u
-                   LEFT JOIN team_registrations tr
-                          ON tr.user_id = u.id AND tr.status = \'approved\'
-                   LEFT JOIN teams t ON t.id = tr.team_id
+                   LEFT JOIN team_owners o ON o.user_id = u.id
+                   LEFT JOIN teams t ON t.team_id = o.team_id
                   WHERE u.id = :id
                   LIMIT 1',
                 ['id' => $_coachId]

@@ -51,7 +51,6 @@ $identifier = trim((string) ($_POST['identifier'] ?? ''));
 $ipAddress  = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 
 $cssPath = 'assets/css/style.css';
-$jsPath  = 'assets/js/coaches-registration.js';
 
 $captchaSiteKey = defined('RECAPTCHA_SITE_KEY')
     ? (string) RECAPTCHA_SITE_KEY
@@ -83,8 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid form submission. Please try again.';
     } else {
-        $requiresCaptcha = AuthService::captchaRequired($ipAddress);
-        if ($requiresCaptcha && !AuthService::verifyRecaptcha($_POST['g-recaptcha-response'] ?? null)) {
+        if ($captchaSiteKey !== '' && !AuthService::verifyRecaptcha($_POST['g-recaptcha-response'] ?? null)) {
             $error = 'Please complete the CAPTCHA';
         } else {
             $password   = (string) ($_POST['password'] ?? '');
@@ -134,8 +132,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// CAPTCHA threshold check for widget display (AC7)
-$failedAttempts = AuthService::failedAttemptsForIp($ipAddress);
 $pageTitle = 'Sign In — District 8 Travel League';
 ?>
 <!DOCTYPE html>
@@ -211,13 +207,11 @@ $pageTitle = 'Sign In — District 8 Travel League';
                             <label class="form-check-label" for="remember_me">Remember me</label>
                         </div>
 
-                        <div id="recaptcha-container" class="d-none mb-3" data-failed-attempts="<?php echo (int) $failedAttempts; ?>">
-                            <?php if ($captchaSiteKey !== ''): ?>
-                                <div class="g-recaptcha" data-sitekey="<?php echo sanitize($captchaSiteKey); ?>"></div>
-                            <?php else: ?>
-                                <div class="alert alert-info mb-0">CAPTCHA is unavailable in this environment.</div>
-                            <?php endif; ?>
+                        <?php if ($captchaSiteKey !== ''): ?>
+                        <div class="mb-3">
+                            <div class="g-recaptcha" data-sitekey="<?php echo sanitize($captchaSiteKey); ?>"></div>
                         </div>
+                        <?php endif; ?>
 
                         <div class="d-grid">
                             <button type="submit" class="btn btn-primary btn-lg">
@@ -246,6 +240,5 @@ $pageTitle = 'Sign In — District 8 Travel League';
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="<?php echo sanitize($jsPath); ?>"></script>
 </body>
 </html>

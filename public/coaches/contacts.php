@@ -159,13 +159,7 @@ $pageTitle = "Contact Directory - " . APP_NAME;
 </head>
 <body>
     <!-- Navigation -->
-    <?php
-    $user = $db->fetchOne('SELECT first_name, last_name FROM users WHERE id = :id', ['id' => (int) ($_SESSION['coach_user_id'] ?? 0)]);
-    $teamRow = $db->fetchOne('SELECT t.team_name FROM teams t JOIN team_owners o ON t.team_id = o.team_id WHERE o.user_id = :id LIMIT 1', ['id' => (int) ($_SESSION['coach_user_id'] ?? 0)]);
-    $coachName = htmlspecialchars(trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')));
-    $teamName  = htmlspecialchars((string) ($teamRow['team_name'] ?? ''));
-    include __DIR__ . '/../../includes/coaches_nav.php';
-    ?>
+    <?php include EnvLoader::getPath('includes/coaches_nav.php'); ?>
 
     <!-- Main Content -->
     <div class="container mt-4">
