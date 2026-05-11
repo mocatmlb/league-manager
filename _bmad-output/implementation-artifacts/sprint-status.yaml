@@ -35,9 +35,8 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: '2026-05-04'
-last_updated: '2026-05-10'
-# Updated: Epic 12 added (Auth / Login UX); Story 12.1 unified login page added
-# Updated: Story 11.8 added (reverses Story 11.1 AC2 invitation-self-register guard); status review
+last_updated: '2026-05-11'
+# Updated: Story 14.1 completed and reviewed
 project: league-manager
 project_key: NOKEY
 tracking_system: file-system
@@ -129,3 +128,15 @@ development_status:
   epic-12: in-progress
   12-1-unified-login-page: done
   epic-12-retrospective: optional
+
+  # Epic 13: Admin Operational Tools
+  epic-13: in-progress
+  13-1-admin-user-impersonation: ready-for-dev
+  epic-13-retrospective: optional
+
+  # Epic 14: Location Management & Google Maps Integration
+  epic-14: in-progress
+  14-1-location-maps-preview-duplicate-detection: done
+  14-2-game-location-dropdown-not-listed-flow: ready-for-dev
+  14-3-schedule-location-google-maps-links: ready-for-dev
+  epic-14-retrospective: optional

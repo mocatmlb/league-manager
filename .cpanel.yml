@@ -16,7 +16,11 @@ deployment:
     
     # Copy public files
     - cp -R public/* $HOME/public_html/district8travelleague.com/
-    
+
+    # Copy database directory (migrations — run manually via cPanel Terminal, not auto-deployed)
+    - mkdir -p $HOME/public_html/district8travelleague.com/database
+    - cp -R database/* $HOME/public_html/district8travelleague.com/database/
+
     # Copy configuration files
     - cp -f includes/config.prod.php $HOME/public_html/district8travelleague.com/includes/config.php
     

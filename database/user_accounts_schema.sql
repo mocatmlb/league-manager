@@ -63,24 +63,24 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS team_owners (
     user_id INT NOT NULL,
     team_id INT NOT NULL,
-    assigned_by INT NOT NULL,
+    assigned_by INT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, team_id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (team_id) REFERENCES teams(team_id) ON DELETE CASCADE,
-    FOREIGN KEY (assigned_by) REFERENCES users(id)
+    FOREIGN KEY (assigned_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Team officials junction table
 CREATE TABLE IF NOT EXISTS team_officials (
     user_id INT NOT NULL,
     team_id INT NOT NULL,
-    assigned_by INT NOT NULL,
+    assigned_by INT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, team_id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (team_id) REFERENCES teams(team_id) ON DELETE CASCADE,
-    FOREIGN KEY (assigned_by) REFERENCES users(id)
+    FOREIGN KEY (assigned_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Role change requests table
@@ -157,7 +157,7 @@ CREATE TABLE IF NOT EXISTS email_log (
 CREATE TABLE IF NOT EXISTS remember_tokens (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
-    token VARCHAR(100) NOT NULL UNIQUE,
+    token VARCHAR(100) NULL UNIQUE,
     expires_at DATETIME NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
