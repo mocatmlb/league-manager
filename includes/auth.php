@@ -127,17 +127,24 @@ class Auth {
     }
     
     /**
+     * Common redirection helper for login requirements
+     */
+    private static function redirectToLogin() {
+        $_SESSION['intended_url'] = $_SERVER['REQUEST_URI'] ?? '';
+        $loginPath = EnvLoader::isProduction() ? '/login.php' : '/public/login.php';
+        header('Location: ' . $loginPath);
+        exit;
+    }
+
+    /**
      * Require coach authentication
      * Note: Admins can also access coach sections
      */
     public static function requireCoach() {
         if (!self::isCoach()) {
-            // If not logged in at all, redirect to coach login
+            // If not logged in at all, redirect to unified login
             if (!self::isLoggedIn()) {
-                $_SESSION['intended_url'] = $_SERVER['REQUEST_URI'] ?? '';
-                $loginPath = EnvLoader::isProduction() ? '/coaches/login.php' : '/public/coaches/login.php';
-                header('Location: ' . $loginPath);
-                exit;
+                self::redirectToLogin();
             }
             // If logged in but not as coach/admin, redirect to home
             $homePath = EnvLoader::isProduction() ? '/index.php' : '/public/index.php';
@@ -151,8 +158,7 @@ class Auth {
      */
     public static function requireAdmin() {
         if (!self::isAdmin()) {
-            header('Location: /admin/login.php');
-            exit;
+            self::redirectToLogin();
         }
     }
     

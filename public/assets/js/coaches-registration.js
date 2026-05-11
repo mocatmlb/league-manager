@@ -32,6 +32,7 @@
             return;
         }
 
+        // AuthService::CAPTCHA_THRESHOLD is 3
         var failedAttempts = parseInt(captchaContainer.dataset.failedAttempts || '0', 10);
         if (failedAttempts >= 3) {
             captchaContainer.classList.remove('d-none');
@@ -122,11 +123,34 @@
         sync();
     }
 
+    function formatPhoneNumber(raw) {
+        var digits = raw.replace(/\D/g, '').substring(0, 10);
+        if (digits.length === 0) return '';
+        if (digits.length <= 3) return '(' + digits;
+        if (digits.length <= 6) return '(' + digits.substring(0, 3) + ') ' + digits.substring(3);
+        return '(' + digits.substring(0, 3) + ') ' + digits.substring(3, 6) + '-' + digits.substring(6);
+    }
+
+    function initPhoneFormatting() {
+        document.querySelectorAll('input[type="tel"].phone-format').forEach(function (input) {
+            input.addEventListener('input', function () {
+                var pos = this.selectionStart;
+                var before = this.value.length;
+                this.value = formatPhoneNumber(this.value);
+                var after = this.value.length;
+                this.setSelectionRange(pos + (after - before), pos + (after - before));
+            });
+            // Format any pre-filled value on load
+            if (input.value) input.value = formatPhoneNumber(input.value);
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         initLeagueOtherToggle();
         initLoginCaptchaReveal();
         initTeamRegisterLeagueToggle();
         initTeamNamePreview();
         initHomeFieldRepeater();
+        initPhoneFormatting();
     });
 })();

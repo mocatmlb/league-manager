@@ -60,3 +60,5 @@ These are race conditions, missing transactions, and performance issues. See [10
 
 - TOCTOU race on status check in POST handlers: `$user['status']` loaded at page-boot is used as a guard but may be stale by the time the POST executes. The service-layer `WHERE status='unverified'` check is the true safety net — a stale outer check shows a generic error to the admin rather than an accurate "already verified" message. Pre-existing pattern across all actions on this page.
 - `$stmt->rowCount()` crash if `query()` returns a non-object (DB failure): `forceVerify()` does not guard against a non-object return from `$this->db->query()` before calling `rowCount()`. Pre-existing pattern in `disable()`, `enable()`, `resetPassword()` across the service.
+## Deferred from: code review of 12-1-unified-login-page.md (2026-05-10)
+- Legacy redirect cleanup: Old login paths still exist as 301 stubs. These should eventually be removed once all bookmarks/links are updated.

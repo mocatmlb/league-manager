@@ -286,7 +286,7 @@ $pageTitle = "Contact Directory - " . APP_NAME;
                                                             <?php foreach ($teams as $team): ?>
                                                             <tr>
                                                                 <td>
-                                                                    <strong><?php echo sanitize($team['team_name']); ?></strong>
+                                                                    <strong><?php echo sanitize(strtoupper($team['team_name'])); ?></strong>
                                                                 </td>
                                                                 <td><?php echo sanitize($team['league_name']); ?></td>
                                                                 <td>

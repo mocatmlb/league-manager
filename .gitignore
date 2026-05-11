@@ -161,3 +161,4 @@ docs/*.md
 backup_*
 *_backup.*
 *_backup_*
+/_bmad-output/

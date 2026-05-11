@@ -1617,3 +1617,144 @@ So that I can complete the transition to individual coach accounts with full con
 **Files to modify:**
 - `public/admin/settings/index.php` — add link/section for migration cutover panel
 - `public/coaches/login.php` — add disabled-shared-credential check with appropriate message
+
+---
+
+## Epic 10: Post-Launch Hardening
+
+Address race conditions, missing transactions, and performance issues identified during code reviews. Non-blocking for go-live.
+
+### Story 10.1: Post-Launch Hardening
+
+As a developer,
+I want to resolve race conditions in score editing and reschedule cancellation, add transaction safety to reschedule submission, optimize CSRF token usage, and fix the N+1 query on pending registrations,
+So that the application is resilient under concurrent use and performs well as data grows.
+
+**Acceptance Criteria:**
+
+**Given** two concurrent `edit()` POST requests for the same game
+**When** both pass `enforceCompletedForEdit`
+**Then** only one succeeds; the second receives a conflict error (optimistic lock or row versioning)
+
+**Given** `RescheduleService::submit()` inserts a reschedule request
+**When** a downstream failure occurs (notification or ActivityLogger)
+**Then** the DB row is rolled back — no orphaned rows
+
+**Given** two concurrent cancel requests for the same reschedule
+**When** both pass the status check
+**Then** only one succeeds; the second receives a conflict error
+
+**Given** the score submission page loads with up to 20 completed games
+**When** the page renders edit sections
+**Then** a single CSRF token is reused across forms, not one per row
+
+**Given** the admin pending queue page loads
+**When** pending registrations exist
+**Then** season and program data is fetched via JOIN, not N+1 per-row queries
+
+**Files to modify:**
+- `includes/ScoreService.php` — optimistic lock on edit
+- `includes/RescheduleService.php` — transaction wrapping, cancel lock
+- `public/coaches/scores.php` — CSRF token reuse
+- `public/admin/teams/index.php` — JOIN optimization
+- New migration for `games.updated_at` or version column
+
+---
+
+## Epic 11: Team Registration Rework
+
+**Goal:** Decouple team registration from user registration, enforce per-season limits, and give admins full CRUD control over team registrations (create, approve, reject, edit, delete) with open/close season gates.
+
+**Stories:**
+
+### Story 11.1: Separate Registration Flows
+As a coach, I want user registration and team registration to be separate flows, so that I am not blocked on team registration if I have not yet verified my email.
+
+**Acceptance Criteria:**
+- Remove "Step 1 of 2" / "Step 2 of 2" framing from user registration and email verification pages
+- Update `verify-email.php` success redirect to go to login rather than team registration
+- Add "Register a Team" nav link to `coaches_nav.php` (conditional: only shown when coach has no `team_owners` row)
+- Coach can reach team registration at any time post-login via the nav link
+
+**Files to modify:**
+- `public/register.php`
+- `public/verify-email.php`
+- `includes/coaches_nav.php` (or equivalent nav partial)
+
+### Story 11.2: User Team Self-Registration
+As a coach, I want to register my team from the coach dashboard or nav, so that team registration is accessible independent of user registration.
+
+**Acceptance Criteria:**
+- If coach has no active team, dashboard shows a CTA card for team registration
+- `team-register.php` renders pending-registration guard if coach already has a pending team (pending message + no form)
+- If no seasons have `season_status = 'Registration'`, display "No seasons are currently open for registration" (no form)
+- Depends on Story 11.1
+
+**Files to modify:**
+- `public/coaches/dashboard.php`
+- `public/coaches/team-register.php`
+
+### Story 11.3: One Team Per Season Limit
+As an admin, I want to limit a user's ability to register teams, so that a user can only register one team per season.
+
+**Acceptance Criteria:**
+- `TeamRegistrationService::submit()` throws `RuntimeException('You already have a team registration for this season.')` if user has a `pending` or `active` team for the season
+- Rejected registrations do not block re-registration for the same season
+- `team-register.php` surfaces the error inline
+
+**Files to modify:**
+- `includes/TeamRegistrationService.php`
+- `tests/unit/TeamRegistrationServiceTest.php`
+
+### Story 11.4: Admin Team Registration Approval
+As an admin, I want the ability to approve all team registrations, so that team registration is not unchecked.
+
+**Acceptance Criteria:**
+- Admin can reject a pending registration (new `reject()` method + UI button + flash)
+- Rejected registrations panel shown in `admin/teams/index.php` (collapsible, shows team name, coach, season, date)
+- Rejection email sent to coach (new email template migration if needed)
+- Approved registration removed from pending queue
+
+**Files to modify:**
+- `includes/TeamRegistrationService.php`
+- `public/admin/teams/index.php`
+- `tests/unit/TeamRegistrationServiceTest.php`
+- `database/migrations/017_seed_team_rejection_email_template.sql` (if needed)
+
+### Story 11.5: Admin Season Registration Open/Close
+As an admin, I want the ability to open and close team registration for a given season, so that team registration can only occur during defined time periods.
+
+**Acceptance Criteria:**
+- One-click "Open Registration" button sets `season_status = 'Registration'`; "Close Registration" sets it back to `'Active'`
+- Buttons appear in `admin/seasons/index.php` action column (replace full edit form for this action)
+- Coach `team-register.php` already gates on `season_status = 'Registration'` — no change needed
+
+**Files to modify:**
+- `public/admin/seasons/index.php`
+
+### Story 11.6: Admin Create Team Registration
+As an admin, I want the ability to create a team registration and assign a user, so that I can register teams on behalf of a user.
+
+**Acceptance Criteria:**
+- New `adminCreate()` method in `TeamRegistrationService` (skips invitation check and 1-per-season limit)
+- Admin form in `admin/teams/index.php` with user picker, season, league, and team name (auto-populated via JS)
+- Admin-created registrations appear in the pending queue
+
+**Files to modify:**
+- `includes/TeamRegistrationService.php`
+- `public/admin/teams/index.php`
+
+### Story 11.7: Admin Edit, Update, and Delete Team Registrations
+As an admin, I want the ability to edit, update, and delete a team registration, so that I have full control over registration records.
+
+**Acceptance Criteria:**
+- `update()` edits `pending` or `rejected` registrations (throws for `active`)
+- `deleteRegistration()` deletes any registration transactionally (team_locations + team_owners cascade, role revert if owner loses last team), blocked if game assignments exist
+- Edit and Delete buttons visible in pending registrations panel
+- Existing `delete_team` action refactored to call `deleteRegistration()` so game-assignment logic lives in one place
+
+**Files to modify:**
+- `includes/TeamRegistrationService.php`
+- `public/admin/teams/index.php`
+- `tests/unit/TeamRegistrationServiceTest.php`
+

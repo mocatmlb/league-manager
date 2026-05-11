@@ -18,5 +18,5 @@ try {
 // so the contract that "services own ActivityLogger calls" is preserved.
 Auth::logout();
 
-header('Location: login.php?message=logged_out');
+header('Location: ../login.php?message=logged_out');
 exit;

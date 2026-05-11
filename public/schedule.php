@@ -180,10 +180,10 @@ $pageTitle = "Schedule - " . APP_NAME;
                                         </td>
                                         <td><?php echo formatTime($game['game_time']); ?></td>
                                         <td>
-                                            <?php echo sanitize($game['away_team'] ?: $game['away_league']); ?>
+                                            <?php echo sanitize(strtoupper($game['away_team'] ?: $game['away_league'])); ?>
                                         </td>
                                         <td>
-                                            <?php echo sanitize($game['home_team'] ?: $game['home_league']); ?>
+                                            <?php echo sanitize(strtoupper($game['home_team'] ?: $game['home_league'])); ?>
                                         </td>
                                         <td><?php echo sanitize($game['location']); ?></td>
                                         <td>

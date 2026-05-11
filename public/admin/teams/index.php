@@ -532,7 +532,7 @@ $pageTitle = "Teams Management - " . APP_NAME;
                                 ?>
                                     <tr>
                                         <td><?php echo sanitize($reg['manager_first_name'] . ' ' . $reg['manager_last_name']); ?></td>
-                                        <td><strong><?php echo sanitize($reg['team_name']); ?></strong></td>
+                                        <td><strong><?php echo sanitize(strtoupper($reg['team_name'])); ?></strong></td>
                                         <td><?php echo sanitize($reg['league_name']); ?></td>
                                         <td>
                                             <?php if (!empty($reg['season_name'])): ?>
@@ -633,7 +633,7 @@ $pageTitle = "Teams Management - " . APP_NAME;
                                     <tbody>
                                     <?php foreach ($rejectedRegistrations as $rej): ?>
                                         <tr>
-                                            <td><strong><?php echo sanitize($rej['team_name']); ?></strong></td>
+                                            <td><strong><?php echo sanitize(strtoupper($rej['team_name'])); ?></strong></td>
                                             <td>
                                                 <?php
                                                   $coachName = trim(($rej['submitter_first_name'] ?? '') . ' ' . ($rej['submitter_last_name'] ?? ''));
@@ -770,7 +770,7 @@ $pageTitle = "Teams Management - " . APP_NAME;
                             <tbody>
                                 <?php foreach ($teams as $team): ?>
                                 <tr>
-                                    <td><strong><?php echo sanitize($team['team_name']); ?></strong></td>
+                                    <td><strong><?php echo sanitize(strtoupper($team['team_name'])); ?></strong></td>
                                     <td><?php echo sanitize($team['league_name']); ?></td>
                                     <td><?php echo sanitize($team['division_name']); ?></td>
                                     <td><?php echo sanitize($team['season_name']); ?></td>
@@ -802,7 +802,7 @@ $pageTitle = "Teams Management - " . APP_NAME;
                                         <button class="btn btn-sm btn-outline-primary me-1" onclick="editTeam(<?php echo htmlspecialchars(json_encode($team)); ?>)">
                                             <i class="fas fa-edit"></i> Edit
                                         </button>
-                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteTeam(<?php echo $team['team_id']; ?>, '<?php echo htmlspecialchars($team['team_name']); ?>', '<?php echo htmlspecialchars($team['league_name']); ?>')">
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteTeam(<?php echo $team['team_id']; ?>, '<?php echo htmlspecialchars(strtoupper($team['team_name'])); ?>', '<?php echo htmlspecialchars($team['league_name']); ?>')">
                                             <i class="fas fa-trash"></i> Delete
                                         </button>
                                     </td>
@@ -865,7 +865,7 @@ $pageTitle = "Teams Management - " . APP_NAME;
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">Manager Phone *</label>
-                                    <input type="tel" name="manager_phone" class="form-control" required>
+                                    <input type="tel" name="manager_phone" class="form-control phone-format" required>
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -993,7 +993,7 @@ $pageTitle = "Teams Management - " . APP_NAME;
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">Manager Phone *</label>
-                                    <input type="tel" name="manager_phone" id="editManagerPhone" class="form-control" required>
+                                    <input type="tel" name="manager_phone" id="editManagerPhone" class="form-control phone-format" required>
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -1556,6 +1556,36 @@ $pageTitle = "Teams Management - " . APP_NAME;
 
             userSel.addEventListener('change', recompute);
             leagueSel.addEventListener('change', recompute);
+        })();
+
+        // Phone auto-formatting: (###) ###-####
+        (function () {
+            function formatPhone(raw) {
+                var d = raw.replace(/\D/g, '').substring(0, 10);
+                if (d.length === 0) return '';
+                if (d.length <= 3) return '(' + d;
+                if (d.length <= 6) return '(' + d.substring(0, 3) + ') ' + d.substring(3);
+                return '(' + d.substring(0, 3) + ') ' + d.substring(3, 6) + '-' + d.substring(6);
+            }
+            document.querySelectorAll('input.phone-format').forEach(function (inp) {
+                inp.addEventListener('input', function () {
+                    var pos = this.selectionStart;
+                    var before = this.value.length;
+                    this.value = formatPhone(this.value);
+                    var delta = this.value.length - before;
+                    this.setSelectionRange(pos + delta, pos + delta);
+                });
+                if (inp.value) inp.value = formatPhone(inp.value);
+            });
+            // Re-format edit modal phone after it is populated by editTeam()
+            var origEditTeam = window.editTeam;
+            if (typeof origEditTeam === 'function') {
+                window.editTeam = function (team) {
+                    origEditTeam(team);
+                    var ph = document.getElementById('editManagerPhone');
+                    if (ph) ph.value = formatPhone(ph.value);
+                };
+            }
         })();
     </script>
 </body>

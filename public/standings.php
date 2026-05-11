@@ -224,7 +224,7 @@ $pageTitle = "Standings - " . APP_NAME;
                                                     <?php endif; ?>
                                                 </td>
                                                 <td>
-                                                    <strong><?php echo sanitize($team['team_name'] ?: $team['league_name']); ?></strong>
+                                                    <strong><?php echo sanitize(strtoupper($team['team_name'] ?: $team['league_name'])); ?></strong>
                                                     <?php if ($team['team_name'] && $team['league_name']): ?>
                                                         <br><small class="text-muted"><?php echo sanitize($team['league_name']); ?></small>
                                                     <?php endif; ?>

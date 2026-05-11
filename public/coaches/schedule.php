@@ -102,8 +102,8 @@ $pageTitle = 'Team Schedule — District 8 Travel League';
                                 <td><?php echo htmlspecialchars($game['game_number'] ?? ''); ?></td>
                                 <td data-date="<?php echo htmlspecialchars($game['game_date'] ?? ''); ?>"><?php echo htmlspecialchars(formatDate($game['game_date'] ?? '')); ?></td>
                                 <td><?php echo htmlspecialchars($game['game_time'] ?? ''); ?></td>
-                                <td><?php echo htmlspecialchars($game['away_team_name'] ?? ''); ?></td>
-                                <td><?php echo htmlspecialchars($game['home_team_name'] ?? ''); ?></td>
+                                <td><?php echo htmlspecialchars(strtoupper($game['away_team_name'] ?? '')); ?></td>
+                                <td><?php echo htmlspecialchars(strtoupper($game['home_team_name'] ?? '')); ?></td>
                                 <td><?php echo htmlspecialchars($game['location'] ?? ''); ?></td>
                                 <td><?php
                                     if ($game['game_status'] === 'Completed' && $game['away_score'] !== null) {

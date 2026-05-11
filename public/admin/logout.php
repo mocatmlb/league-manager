@@ -19,5 +19,5 @@ if (Auth::isAdmin()) {
 Auth::logout();
 
 // Redirect to login page
-header('Location: login.php?message=logged_out');
+header('Location: ../../login.php?message=logged_out');
 exit;

@@ -90,7 +90,7 @@ function _coachNavActive(string $page): string {
             <?php echo defined('APP_NAME') ? htmlspecialchars(APP_NAME) : 'D8TL'; ?>
         </a>
         <?php if (!empty($teamName)): ?>
-            <span class="badge bg-secondary ms-2"><?php echo $teamName; ?></span>
+            <span class="badge bg-secondary ms-2"><?php echo strtoupper($teamName); ?></span>
         <?php endif; ?>
 
         <button class="navbar-toggler" type="button"

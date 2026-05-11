@@ -161,7 +161,7 @@ unset($_coachNavPath, $coachNavWebRoot);
                                 (string) ($pickRow['league_name'] ?? '')
                                 . (isset($pickRow['season_name']) ? ' · ' . (string) $pickRow['season_name'] : '')
                             );
-                            echo htmlspecialchars(($pickRow['team_name'] ?? 'Team') . ($optMeta !== '' ? ' — ' . $optMeta : ''));
+                            echo htmlspecialchars(strtoupper($pickRow['team_name'] ?? 'Team') . ($optMeta !== '' ? ' — ' . $optMeta : ''));
                             ?>
                         </option>
                     <?php endforeach; ?>
@@ -171,7 +171,7 @@ unset($_coachNavPath, $coachNavWebRoot);
 
         <?php elseif ($heroState === 'active'): ?>
             <div class="coach-name-line"><?php echo sanitize($coachName); ?></div>
-            <h1 class="coach-hero-team"><?php echo sanitize($teamName); ?></h1>
+            <h1 class="coach-hero-team"><?php echo sanitize(strtoupper($teamName)); ?></h1>
             <div class="coach-hero-meta">
                 <?php echo sanitize($leagueName); ?>
                 <?php if ($seasonLabel): ?> · <?php echo sanitize($seasonLabel); ?><?php endif; ?>
@@ -188,7 +188,7 @@ unset($_coachNavPath, $coachNavWebRoot);
 
         <?php elseif ($heroState === 'pending'): ?>
             <div class="coach-name-line"><?php echo sanitize($coachName); ?></div>
-            <h1 class="coach-hero-team">Team Registration Pending</h1>
+            <h1 class="coach-hero-team">Registration Pending</h1>
             <span class="badge status-team-pending mt-1">Pending Team Approval</span>
             <p class="mt-2 mb-0" style="font-size:0.9rem;opacity:0.9;">
                 Your team registration is pending admin review. You'll receive an email when approved.

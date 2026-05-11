@@ -1,6 +1,6 @@
 # Story 7.3: Coach Team Schedule View
 
-**Status:** ready-for-dev
+**Status:** done
 **Epic:** 7 — Coach Profile, Team Schedule & Authenticated Resources
 **Story Key:** 7-3-coach-team-schedule-view
 
@@ -59,11 +59,11 @@ so that I can quickly find specific games or review the full season at a glance.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Implement `CoachScheduleService`**
-  - [ ] Create `includes/CoachScheduleService.php`
-  - [ ] File header: `if (!defined('D8TL_APP')) { die('Direct access not permitted'); }`
-  - [ ] Constructor: `__construct(?Database $db = null)` — `$this->db = $db ?? Database::getInstance()`
-  - [ ] Implement `getTeamSchedule(int $userId): array`:
+- [x] **Task 1: Implement `CoachScheduleService`**
+  - [x] Create `includes/CoachScheduleService.php`
+  - [x] File header: `if (!defined('D8TL_APP')) { die('Direct access not permitted'); }`
+  - [x] Constructor: `__construct(?Database $db = null)` — `$this->db = $db ?? Database::getInstance()`
+  - [x] Implement `getTeamSchedule(int $userId): array`:
     - Call `TeamScope::getScopedTeams($userId)` — if empty, return `[]` immediately
     - Extract `$teamIds = array_column($teams, 'team_id')`
     - Build `$placeholders = implode(',', array_fill(0, count($teamIds), '?'))`
@@ -87,11 +87,11 @@ so that I can quickly find specific games or review the full season at a glance.
     - **No game_status filter** — return ALL statuses (FR-COACHSCHEDULE-5)
     - Return result of `fetchAll()`
 
-- [ ] **Task 2: Write `CoachScheduleServiceTest.php`**
-  - [ ] Create `tests/unit/CoachScheduleServiceTest.php`
-  - [ ] Header: `define('D8TL_APP', true)`, require test-helpers, database.php, ActivityLogger.php, TeamScope.php, CoachScheduleService.php
-  - [ ] `CSSMockDatabase extends Database` — constructor bypasses PDO; `fetchAll()` returns teams for `team_owners` query, games for schedule query; `fetchOne` returns false; `query()` is no-op (no writes)
-  - [ ] Tests:
+- [x] **Task 2: Write `CoachScheduleServiceTest.php`**
+  - [x] Create `tests/unit/CoachScheduleServiceTest.php`
+  - [x] Header: `define('D8TL_APP', true)`, require test-helpers, database.php, ActivityLogger.php, TeamScope.php, CoachScheduleService.php
+  - [x] `CSSMockDatabase extends Database` — constructor bypasses PDO; `fetchAll()` returns teams for `team_owners` query, games for schedule query; `fetchOne` returns false; `query()` is no-op (no writes)
+  - [x] Tests:
     - `getTeamSchedule()` with no assigned teams returns `[]`
     - `getTeamSchedule()` returns home games (home_team_id matches)
     - `getTeamSchedule()` returns away games (away_team_id matches)
@@ -100,8 +100,8 @@ so that I can quickly find specific games or review the full season at a glance.
     - Score fields are null when status = 'Active' (not yet scored)
     - Score fields are populated when status = 'Completed'
 
-- [ ] **Task 3: Create `public/coaches/schedule.php`**
-  - [ ] Bootstrap (env-loader pattern — same as schedule-change.php):
+- [x] **Task 3: Create `public/coaches/schedule.php`**
+  - [x] Bootstrap (env-loader pattern — same as schedule-change.php):
     ```php
     require_once __DIR__ . '/../../includes/env-loader.php';
     require_once EnvLoader::getPath('includes/coach_bootstrap.php');
@@ -109,36 +109,36 @@ so that I can quickly find specific games or review the full season at a glance.
     require_once EnvLoader::getPath('includes/TeamScope.php');
     require_once EnvLoader::getPath('includes/CoachScheduleService.php');
     ```
-  - [ ] Auth: `PermissionGuard::requireRole('team_owner', '/coaches/login.php')`
-  - [ ] `$db = Database::getInstance(); $userId = (int) ($_SESSION['coach_user_id'] ?? 0); $service = new CoachScheduleService($db);`
-  - [ ] Load: `$games = $service->getTeamSchedule($userId)`
-  - [ ] Load nav vars:
+  - [x] Auth: `PermissionGuard::requireRole('team_owner', '/coaches/login.php')`
+  - [x] `$db = Database::getInstance(); $userId = (int) ($_SESSION['coach_user_id'] ?? 0); $service = new CoachScheduleService($db);`
+  - [x] Load: `$games = $service->getTeamSchedule($userId)`
+  - [x] Load nav vars:
     - `$user = $db->fetchOne('SELECT first_name, last_name FROM users WHERE id = :id', ['id' => $userId])`
     - `$teamRow = $db->fetchOne('SELECT t.team_name FROM teams t JOIN team_owners o ON t.team_id = o.team_id WHERE o.user_id = :id LIMIT 1', ['id' => $userId])`
     - `$coachName = htmlspecialchars(trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')))`
     - `$teamName = htmlspecialchars((string) ($teamRow['team_name'] ?? ''))`
-  - [ ] `$pageTitle = 'Team Schedule — District 8 Travel League'`
+  - [x] `$pageTitle = 'Team Schedule — District 8 Travel League'`
 
-- [ ] **Task 4: Render `schedule.php` HTML**
-  - [ ] Doctype, Bootstrap 5.1.3 CSS CDN + FA 6.0.0 CSS CDN (same as score-input.php); NO DataTables CDN
-  - [ ] Include `coaches_nav.php` (path: `__DIR__ . '/../../includes/coaches_nav.php'`)
-  - [ ] `<div class="container mt-4"><div class="row"><div class="col-12">`
-  - [ ] Page heading: `<h1>Team Schedule</h1>` + back-to-dashboard link
-  - [ ] **If `empty($games)`**: render `alert alert-info` with exact AC6 text; skip table entirely
-  - [ ] **Else**: render filter controls + table:
+- [x] **Task 4: Render `schedule.php` HTML**
+  - [x] Doctype, Bootstrap 5.1.3 CSS CDN + FA 6.0.0 CSS CDN (same as score-input.php); NO DataTables CDN
+  - [x] Include `coaches_nav.php` (path: `__DIR__ . '/../../includes/coaches_nav.php'`)
+  - [x] `<div class="container mt-4"><div class="row"><div class="col-12">`
+  - [x] Page heading: `<h1>Team Schedule</h1>` + back-to-dashboard link
+  - [x] **If `empty($games)`**: render `alert alert-info` with exact AC6 text; skip table entirely
+  - [x] **Else**: render filter controls + table:
     - "Clear Filters" button above table: `<button id="clearFilters" class="btn btn-outline-secondary btn-sm mb-3">Clear Filters</button>`
     - `<div class="table-responsive"><table id="scheduleTable" class="table table-striped table-hover">`
     - `<thead>` with two rows:
       - Row 1: sortable headers — each `<th>` with `data-col="0"` (index), `style="cursor:pointer"`, text + sort indicator span: `<th data-col="0">Game # <span class="sort-indicator"></span></th>`, columns: Game #, Date, Time, Away Team, Home Team, Location, Score
       - Row 2: filter inputs — `<th>` containing filter input; Date column gets two `<input type="date">` (id="dateFrom", id="dateTo"); all other text columns get `<input type="text" class="col-filter form-control form-control-sm" data-col="N" placeholder="Filter...">`
     - `<tbody>` rows: encode `game_date` as `data-date="YYYY-MM-DD"` on the Date `<td>` for sort/filter JS; Score cell: if `game_status === 'Completed' && $game['away_score'] !== null` → `{$game['away_score']} – {$game['home_score']}`; else `<span class="text-muted">—</span>`
-  - [ ] Script tag at bottom: `<script src="../../assets/js/coaches-schedule.js"></script>`
-  - [ ] Bootstrap 5.1.3 JS bundle CDN at bottom (no jQuery, no DataTables)
-  - [ ] Inline `<footer>` (same pattern as score-input.php)
+  - [x] Script tag at bottom: `<script src="../../assets/js/coaches-schedule.js"></script>`
+  - [x] Bootstrap 5.1.3 JS bundle CDN at bottom (no jQuery, no DataTables)
+  - [x] Inline `<footer>` (same pattern as score-input.php)
 
-- [ ] **Task 5: Create `public/assets/js/coaches-schedule.js`**
-  - [ ] Self-contained vanilla JS (no jQuery) — IIFE or `DOMContentLoaded` listener
-  - [ ] **Sort logic**:
+- [x] **Task 5: Create `public/assets/js/coaches-schedule.js`**
+  - [x] Self-contained vanilla JS (no jQuery) — IIFE or `DOMContentLoaded` listener
+  - [x] **Sort logic**:
     - Track `{ col: null, dir: 'asc' }` state
     - On header `<th[data-col]>` click: if same col toggle dir; else set new col, dir='asc'
     - Read all `<tbody>` rows into array, sort by `td.children[col].dataset.sort || td.children[col].textContent.trim()`
@@ -146,16 +146,16 @@ so that I can quickly find specific games or review the full season at a glance.
     - Score column: sort numerically by away score value (or push empty scores to bottom)
     - Re-append sorted rows to `<tbody>`
     - Update all sort indicator spans: sorted col gets ▲ or ▼; others get blank
-  - [ ] **Filter logic** (called on every `input` event on any filter):
+  - [x] **Filter logic** (called on every `input` event on any filter):
     - Collect active text filters: `col-filter` inputs with non-empty value → `{ col: N, val: lower }`
     - Collect date range from `#dateFrom` and `#dateTo`
     - For each row: check all active text filters (row text at col contains val, case-insensitive) AND date range (row `data-date` between dateFrom and dateTo) — hide row if any fails, show if all pass
-  - [ ] **Clear Filters**: clear all `.col-filter` inputs, clear `#dateFrom`/`#dateTo`, show all rows, reset sort state + indicators
-  - [ ] Wire up: `querySelectorAll('th[data-col]')` for sort; `querySelectorAll('.col-filter')` + `#dateFrom` + `#dateTo` for filter (addEventListener 'input'); `#clearFilters` for clear
+  - [x] **Clear Filters**: clear all `.col-filter` inputs, clear `#dateFrom`/`#dateTo`, show all rows, reset sort state + indicators
+  - [x] Wire up: `querySelectorAll('th[data-col]')` for sort; `querySelectorAll('.col-filter')` + `#dateFrom` + `#dateTo` for filter (addEventListener 'input'); `#clearFilters` for clear
 
-- [ ] **Task 6: Verify**
-  - [ ] `php tests/unit/run-unit-tests.php` — full suite passes, no regressions
-  - [ ] Manual browser check: load as team_owner; verify sort (click header twice); type a filter; set date range; clear filters; verify empty state with a user who has no games
+- [x] **Task 6: Verify**
+  - [x] `php tests/unit/run-unit-tests.php` — full suite passes, no regressions
+  - [x] Manual browser check: load as team_owner; verify sort (click header twice); type a filter; set date range; clear filters; verify empty state with a user who has no games
 
 ---
 
@@ -233,10 +233,27 @@ Use `CSSMockDatabase` and `CSSMockStatement` to avoid class collision with other
 
 ### Agent Model Used
 
-claude-sonnet-4-6
+claude-opus-4-6
 
 ### Debug Log References
 
+None
+
 ### Completion Notes List
 
+- Implemented CoachScheduleService with getTeamSchedule() returning all games regardless of status (FR-COACHSCHEDULE-5)
+- 7 unit tests passing: no teams → empty, home games, away games, all statuses, field coverage, null scores, populated scores
+- Schedule page with env-loader bootstrap, PermissionGuard team_owner, coaches_nav
+- Vanilla JS sort (asc/desc with ▲/▼ indicators, aria-sort), text filters (AND logic), date-range filter, Clear Filters
+- All ACs verified in browser: sort, filter, clear, table rendering, score display
+
 ### File List
+
+- `includes/CoachScheduleService.php` — NEW
+- `tests/unit/CoachScheduleServiceTest.php` — NEW
+- `public/coaches/schedule.php` — NEW
+- `public/assets/js/coaches-schedule.js` — NEW
+
+### Change Log
+
+- 2026-05-09: Story 7.3 implemented — CoachScheduleService, tests, schedule page with sort/filter JS

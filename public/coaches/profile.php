@@ -226,7 +226,7 @@ unset($coachNavWebRoot);
                         <div class="mb-3">
                             <label for="team_name" class="form-label">Team Name (managed by admin)</label>
                             <input type="text" class="form-control-plaintext" id="team_name" readonly
-                                   value="<?php echo $teamName; ?>">
+                                   value="<?php echo strtoupper($teamName); ?>">
                         </div>
                         <?php endif; ?>
 
@@ -235,7 +235,7 @@ unset($coachNavWebRoot);
                                 <label for="primary_phone" class="form-label">Primary Phone</label>
                                 <div class="row">
                                     <div class="col-7">
-                                        <input type="tel" class="form-control" id="primary_phone" name="primary_phone"
+                                        <input type="tel" class="form-control phone-format" id="primary_phone" name="primary_phone"
                                                value="<?php echo htmlspecialchars($primaryPhone); ?>">
                                     </div>
                                     <div class="col-5">
@@ -252,7 +252,7 @@ unset($coachNavWebRoot);
                                 <label for="secondary_phone" class="form-label">Secondary Phone</label>
                                 <div class="row">
                                     <div class="col-7">
-                                        <input type="tel" class="form-control" id="secondary_phone" name="secondary_phone"
+                                        <input type="tel" class="form-control phone-format" id="secondary_phone" name="secondary_phone"
                                                value="<?php echo htmlspecialchars($secondaryPhone); ?>">
                                     </div>
                                     <div class="col-5">
@@ -315,5 +315,6 @@ unset($coachNavWebRoot);
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../../assets/js/coaches-registration.js"></script>
 </body>
 </html>

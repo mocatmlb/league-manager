@@ -27,7 +27,7 @@ class PermissionGuard {
      * @param string $role  Required role (e.g. 'team_owner', 'user', 'admin')
      * @param string $loginUrl  Redirect target on failure (defaults to coaches login)
      */
-    public static function requireRole(string $role, string $loginUrl = '/public/coaches/login.php'): void {
+    public static function requireRole(string $role, string $loginUrl = '/public/login.php'): void {
         if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
             session_start();
         }

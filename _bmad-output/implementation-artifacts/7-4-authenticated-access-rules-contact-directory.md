@@ -1,6 +1,6 @@
 # Story 7.4: Authenticated Access to Rules & Contact Directory
 
-**Status:** ready-for-dev
+**Status:** done
 **Epic:** 7 — Coach Profile, Team Schedule & Authenticated Resources
 **Story Key:** 7-4-authenticated-access-rules-contact-directory
 
@@ -39,27 +39,27 @@ so that I can find the information I need without the shared password.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Create `public/coaches/rules.php`**
-  - [ ] Bootstrap (env-loader pattern — same as schedule-change.php):
+- [x] **Task 1: Create `public/coaches/rules.php`**
+  - [x] Bootstrap (env-loader pattern — same as schedule-change.php):
     ```php
     require_once __DIR__ . '/../../includes/env-loader.php';
     require_once EnvLoader::getPath('includes/coach_bootstrap.php');
     require_once EnvLoader::getPath('includes/PermissionGuard.php');
     ```
-  - [ ] Auth: `PermissionGuard::requireRole('user', '/coaches/login.php')`
-  - [ ] `$db = Database::getInstance(); $userId = (int) ($_SESSION['coach_user_id'] ?? 0);`
-  - [ ] Load nav vars:
+  - [x] Auth: `PermissionGuard::requireRole('user', '/coaches/login.php')`
+  - [x] `$db = Database::getInstance(); $userId = (int) ($_SESSION['coach_user_id'] ?? 0);`
+  - [x] Load nav vars:
     ```php
     $user = $db->fetchOne('SELECT first_name, last_name FROM users WHERE id = :id', ['id' => $userId]);
     $teamRow = $db->fetchOne('SELECT t.team_name FROM teams t JOIN team_owners o ON t.team_id = o.team_id WHERE o.user_id = :id LIMIT 1', ['id' => $userId]);
     $coachName = htmlspecialchars(trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')));
     $teamName  = htmlspecialchars((string) ($teamRow['team_name'] ?? ''));
     ```
-  - [ ] Load documents: `$documents = $db->fetchAll('SELECT document_id, title, description, filename, original_filename, file_size, file_type, upload_date FROM documents WHERE is_public = 1 ORDER BY upload_date DESC', []);`
-  - [ ] `$pageTitle = 'Rules & Regulations — District 8 Travel League'`
-  - [ ] HTML: Bootstrap 5.1.3 + FA 6.0.0 CDNs (same as other coach pages); include `coaches_nav.php`
-  - [ ] If `empty($documents)`: render `<div class="alert alert-info">No documents have been uploaded yet. Check back soon.</div>`
-  - [ ] Else: render each document as a Bootstrap card in a `row row-cols-1 row-cols-md-3 g-3` grid:
+  - [x] Load documents: `$documents = $db->fetchAll('SELECT document_id, title, description, filename, original_filename, file_size, file_type, upload_date FROM documents WHERE is_public = 1 ORDER BY upload_date DESC', []);`
+  - [x] `$pageTitle = 'Rules & Regulations — District 8 Travel League'`
+  - [x] HTML: Bootstrap 5.1.3 + FA 6.0.0 CDNs (same as other coach pages); include `coaches_nav.php`
+  - [x] If `empty($documents)`: render `<div class="alert alert-info">No documents have been uploaded yet. Check back soon.</div>`
+  - [x] Else: render each document as a Bootstrap card in a `row row-cols-1 row-cols-md-3 g-3` grid:
     ```
     card body:
       h5.card-title = doc['title']
@@ -67,27 +67,27 @@ so that I can find the information I need without the shared password.
       small.text-muted = "Uploaded {upload_date formatted}"
       a.btn.btn-primary.btn-sm target="_blank" href="../../uploads/documents/{filename}" = "Download"
     ```
-  - [ ] Filename in href: `htmlspecialchars($doc['filename'])` — do NOT use `rawurlencode` (filenames in the DB are already safe; match the pattern from `index.php`)
-  - [ ] Inline footer + Bootstrap JS CDN at bottom
+  - [x] Filename in href: `htmlspecialchars($doc['filename'])` — do NOT use `rawurlencode` (filenames in the DB are already safe; match the pattern from `index.php`)
+  - [x] Inline footer + Bootstrap JS CDN at bottom
 
-- [ ] **Task 2: Update `public/coaches/contacts.php`**
-  - [ ] Replace the old try/catch bootstrap block with env-loader pattern:
+- [x] **Task 2: Update `public/coaches/contacts.php`**
+  - [x] Replace the old try/catch bootstrap block with env-loader pattern:
     ```php
     require_once __DIR__ . '/../../includes/env-loader.php';
     require_once EnvLoader::getPath('includes/coach_bootstrap.php');
     require_once EnvLoader::getPath('includes/PermissionGuard.php');
     ```
-  - [ ] Replace `Auth::requireCoach()` with `PermissionGuard::requireRole('user', '/coaches/login.php')`
-  - [ ] Replace the public nav include (`include '../../includes/nav.php'`) with `coaches_nav.php`:
+  - [x] Replace `Auth::requireCoach()` with `PermissionGuard::requireRole('user', '/coaches/login.php')`
+  - [x] Replace the public nav include (`include '../../includes/nav.php'`) with `coaches_nav.php`:
     - Add nav var setup before include: `$coachName`, `$teamName` (same pattern as rules.php)
     - `include __DIR__ . '/../../includes/coaches_nav.php'`
-  - [ ] All other content — the filter form, team contacts table, league officials section, guidelines card — **unchanged**
+  - [x] All other content — the filter form, team contacts table, league officials section, guidelines card — **unchanged**
 
-- [ ] **Task 3: Verify**
-  - [ ] `php tests/unit/run-unit-tests.php` — full suite passes (no unit tests for these pages, just regression check)
-  - [ ] Manual: visit rules.php unauthenticated → redirects to login; login → lands on rules.php (intended_url working)
-  - [ ] Manual: visit contacts.php authenticated → same content as before, coaches nav now shown
-  - [ ] Manual: rules.php with at least one document in DB → card renders with working Download link
+- [x] **Task 3: Verify**
+  - [x] `php tests/unit/run-unit-tests.php` — full suite passes (no unit tests for these pages, just regression check)
+  - [x] Manual: visit rules.php unauthenticated → redirects to login; login → lands on rules.php (intended_url working)
+  - [x] Manual: visit contacts.php authenticated → same content as before, coaches nav now shown
+  - [x] Manual: rules.php with at least one document in DB → card renders with working Download link
 
 ---
 
@@ -161,10 +161,24 @@ Do not add a category or type filter — the admin document management system do
 
 ### Agent Model Used
 
-claude-sonnet-4-6
+claude-opus-4-6
 
 ### Debug Log References
 
+None
+
 ### Completion Notes List
 
+- Created rules.php with PermissionGuard('user'), documents query (is_public=1), card grid layout, empty state
+- Updated contacts.php: env-loader bootstrap, PermissionGuard('user'), coaches_nav.php — all content unchanged
+- Both pages verified in browser: auth enforcement, coaches nav with team badge, document card with Download link
+- No new unit tests needed (UI-only pages with no service layer); regression suite passes
+
 ### File List
+
+- `public/coaches/rules.php` — NEW
+- `public/coaches/contacts.php` — UPDATED (bootstrap swap + PermissionGuard + nav swap)
+
+### Change Log
+
+- 2026-05-09: Story 7.4 implemented — rules.php created, contacts.php updated with auth/nav changes

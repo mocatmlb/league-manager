@@ -201,8 +201,8 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                                         <?php if ($preservedGameId === (int) $g['game_id']): ?>selected<?php endif; ?>>
                                     Game #<?php echo htmlspecialchars((string) ($g['game_number'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
                                     &mdash; <?php echo htmlspecialchars(formatDate($g['game_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
-                                    &mdash; <?php echo htmlspecialchars($g['away_team_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?>
-                                    @ <?php echo htmlspecialchars($g['home_team_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?>
+                                    &mdash; <?php echo htmlspecialchars(strtoupper($g['away_team_name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
+                                    @ <?php echo htmlspecialchars(strtoupper($g['home_team_name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
                                 </option>
                                 <?php endforeach; ?>
                             </select>
