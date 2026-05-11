@@ -252,13 +252,8 @@ $rootPath = getPathToRoot();
                     </li>
                 <?php else: ?>
                     <li class="nav-item">
-                        <a class="nav-link" href="<?php echo $rootPath; ?>coaches/login.php">
-                            <i class="fas fa-chalkboard-teacher"></i> Coach Login
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo $rootPath; ?>admin/login.php">
-                            <i class="fas fa-user-shield"></i> Admin Login
+                        <a class="nav-link" href="<?php echo $rootPath; ?>login.php">
+                            <i class="fas fa-sign-in-alt"></i> Login
                         </a>
                     </li>
                 <?php endif; ?>

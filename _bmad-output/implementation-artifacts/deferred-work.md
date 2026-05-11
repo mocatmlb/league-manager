@@ -62,3 +62,8 @@ These are race conditions, missing transactions, and performance issues. See [10
 - `$stmt->rowCount()` crash if `query()` returns a non-object (DB failure): `forceVerify()` does not guard against a non-object return from `$this->db->query()` before calling `rowCount()`. Pre-existing pattern in `disable()`, `enable()`, `resetPassword()` across the service.
 ## Deferred from: code review of 12-1-unified-login-page.md (2026-05-10)
 - Legacy redirect cleanup: Old login paths still exist as 301 stubs. These should eventually be removed once all bookmarks/links are updated.
+
+## Deferred from: nav unified-login-link (2026-05-10)
+
+- **Admin `intended_url` whitelist too narrow** — `unified_login_safe_redirect_target()` only allows `coaches/*` paths; admins who time out and are redirected to `/login.php` with an `intended_url` of `admin/*` land on the admin dashboard instead of their original destination. Expand the whitelist regex in `public/login.php` to also allow `admin/*` paths.
+- **301 redirect stubs for old login pages** — `coaches/login.php` and `admin/login.php` use HTTP 301 (permanent); browsers cache these indefinitely, making a transition to a different URL non-trivial. Pre-existing decision from Story 12.1.
