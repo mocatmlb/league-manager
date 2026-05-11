@@ -206,8 +206,12 @@ class RescheduleService {
             return [];
         }
 
-        $teamIds      = array_map('intval', array_column($teams, 'team_id'));
-        $placeholders = implode(',', array_fill(0, count($teamIds), '?'));
+        $teamIds    = array_map('intval', array_column($teams, 'team_id'));
+        $teamParams = [];
+        foreach ($teamIds as $i => $id) {
+            $teamParams['tid' . $i] = $id;
+        }
+        $placeholders = implode(',', array_map(fn($k) => ':' . $k, array_keys($teamParams)));
 
         $games = $this->db->fetchAll(
             "SELECT g.*, s.game_date, s.game_time, s.location,
@@ -224,11 +228,7 @@ class RescheduleService {
                    AND scr.submitted_by_user_id = :uid
                    AND scr.request_status = 'Pending'
                )",
-            array_merge(
-                ['uid' => $userId],
-                array_values($teamIds),
-                array_values($teamIds)
-            )
+            array_merge(['uid' => $userId], $teamParams)
         );
 
         // Exclude rows where the schedules JOIN returned no game_date (NULL).
