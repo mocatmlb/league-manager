@@ -188,7 +188,7 @@ unset($_coachNavPath, $coachNavWebRoot);
 
         <?php elseif ($heroState === 'pending'): ?>
             <div class="coach-name-line"><?php echo sanitize($coachName); ?></div>
-            <h1 class="coach-hero-team"><?php echo sanitize($teamName ?: 'Team Registration'); ?></h1>
+            <h1 class="coach-hero-team">Team Registration Pending</h1>
             <span class="badge status-team-pending mt-1">Pending Team Approval</span>
             <p class="mt-2 mb-0" style="font-size:0.9rem;opacity:0.9;">
                 Your team registration is pending admin review. You'll receive an email when approved.
@@ -196,9 +196,9 @@ unset($_coachNavPath, $coachNavWebRoot);
 
         <?php else: /* unassigned */ ?>
             <div class="coach-name-line"><?php echo sanitize($coachName); ?></div>
-            <h1 class="coach-hero-team">No team assigned</h1>
+            <h1 class="coach-hero-team">No Teams Registered</h1>
             <p class="mt-1 mb-0" style="font-size:0.9rem;opacity:0.85;">
-                No team assigned — contact your admin
+                Register your team to get started.
             </p>
         <?php endif; ?>
     </div>
@@ -227,7 +227,7 @@ $cards = [
                 </div>
                 <div>
                     <div class="fw-semibold"><?php echo htmlspecialchars($label); ?></div>
-                    <div class="text-muted" style="font-size:0.8rem;"><?php echo htmlspecialchars($sub); ?></div>
+                    <div class="text-muted" style="font-size:0.875rem;"><?php echo htmlspecialchars($sub); ?></div>
                 </div>
             </a>
         <?php endforeach; ?>

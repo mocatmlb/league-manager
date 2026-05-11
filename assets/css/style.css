@@ -334,19 +334,19 @@ body {
 .coach-action-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1rem;
+    gap: 1.25rem;
     margin-top: -1.5rem; /* overlap hero bottom edge (UX-DR3) */
     padding-bottom: 2rem;
 }
 
 .coach-action-card {
     background: #fff;
-    border-radius: 0.5rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-    padding: 1rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 1.25rem 1.5rem;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 1rem;
     text-decoration: none;
     color: inherit;
     transition: box-shadow 0.15s ease, transform 0.15s ease;
@@ -360,13 +360,13 @@ body {
 }
 
 .coach-action-card .card-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 0.375rem;
+    width: 56px;
+    height: 56px;
+    border-radius: 0.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.25rem;
+    font-size: 1.5rem;
     color: #fff;
     flex-shrink: 0;
 }

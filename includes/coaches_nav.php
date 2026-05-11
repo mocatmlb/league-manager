@@ -47,7 +47,7 @@ if (!isset($coachName) || !isset($teamName)) {
 }
 
 // Determine whether to show "Register Team" link:
-// shown only when user is active and has no row in team_owners
+// shown only when user is active, has no row in team_owners, and has no pending registration
 $_navUserId = (int) ($_SESSION['coach_user_id'] ?? 0);
 $_navShowRegisterTeam = false;
 if ($_navUserId > 0 && class_exists('Database')) {
@@ -62,9 +62,13 @@ if ($_navUserId > 0 && class_exists('Database')) {
                 'SELECT 1 FROM team_owners WHERE user_id = :uid LIMIT 1',
                 ['uid' => $_navUserId]
             ) !== false;
-            $_navShowRegisterTeam = !$_navHasTeam;
+            $_navHasPending = $_navDb->fetchOne(
+                "SELECT 1 FROM teams WHERE submitted_by_user_id = :uid AND status = 'pending' LIMIT 1",
+                ['uid' => $_navUserId]
+            ) !== false;
+            $_navShowRegisterTeam = !$_navHasTeam && !$_navHasPending;
         }
-        unset($_navDb, $_navUser, $_navHasTeam);
+        unset($_navDb, $_navUser, $_navHasTeam, $_navHasPending);
     } catch (Throwable $_navE) {
         // Degrades gracefully — link simply won't appear
         unset($_navE);
