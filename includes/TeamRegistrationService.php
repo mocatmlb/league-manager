@@ -410,6 +410,43 @@ class TeamRegistrationService {
         ]);
     }
 
+    /**
+     * Returns existing location rows that are likely duplicates of $locationData.
+     * Checks: name similarity >= 70% via similar_text(), OR exact case-insensitive address match.
+     */
+    public function findDuplicateCandidates(array $locationData): array {
+        $submittedName    = strtolower(trim((string) ($locationData['name'] ?? '')));
+        $submittedAddress = strtolower(trim((string) ($locationData['address'] ?? '')));
+
+        if ($submittedName === '') {
+            return [];
+        }
+
+        $rows = $this->db->fetchAll(
+            "SELECT location_id, location_name, address, city, state
+             FROM locations
+             WHERE active_status = 'Active' OR status = 'pending'"
+        );
+
+        $candidates = [];
+        foreach ($rows as $row) {
+            $rowName    = strtolower(trim((string) ($row['location_name'] ?? '')));
+            $rowAddress = trim((string) ($row['address'] ?? ''));
+
+            similar_text($submittedName, $rowName, $pct);
+            $nameSimilar = $pct >= 70.0;
+
+            $addressMatch = ($submittedAddress !== '' && $rowAddress !== '')
+                && strcasecmp(trim((string) ($locationData['address'] ?? '')), $rowAddress) === 0;
+
+            if ($nameSimilar || $addressMatch) {
+                $candidates[] = $row;
+            }
+        }
+
+        return $candidates;
+    }
+
     public function getPendingRegistrations(): array {
         return $this->db->fetchAll(
             "SELECT t.team_id, t.team_name, t.league_name, t.season_id,

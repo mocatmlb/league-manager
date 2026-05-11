@@ -145,6 +145,25 @@
         });
     }
 
+    function initMapPreviewButtons() {
+        var container = document.getElementById('location-repeater');
+        if (!container) return;
+
+        container.addEventListener('click', function (e) {
+            var btn = e.target.closest('.preview-map-btn');
+            if (!btn) return;
+            e.preventDefault();
+            var block   = btn.closest('.location-block');
+            var nameEl  = block ? block.querySelector('.location-name-input') : null;
+            var addrEl  = block ? block.querySelector('.location-address-input') : null;
+            var name    = nameEl ? nameEl.value.trim() : '';
+            var address = addrEl ? addrEl.value.trim() : '';
+            var query   = name + (address ? ' ' + address : '');
+            if (!query) return;
+            window.open('https://maps.google.com/?q=' + encodeURIComponent(query), '_blank', 'noopener');
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         initLeagueOtherToggle();
         initLoginCaptchaReveal();
@@ -152,5 +171,6 @@
         initTeamNamePreview();
         initHomeFieldRepeater();
         initPhoneFormatting();
+        initMapPreviewButtons();
     });
 })();

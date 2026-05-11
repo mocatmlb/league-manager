@@ -15,6 +15,9 @@ backup_*.dump
 .env.*
 !.env.example
 
+# Server-managed config — contains live DB credentials, never deploy via git
+.htaccess
+
 # Configuration files with real credentials
 mvp-app/includes/config.local.php
 mvp-app/includes/config.production.php
