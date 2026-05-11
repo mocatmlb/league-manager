@@ -226,8 +226,8 @@ $cards = [
                     <i class="<?php echo $icon; ?>"></i>
                 </div>
                 <div>
-                    <div class="fw-semibold"><?php echo htmlspecialchars($label); ?></div>
-                    <div class="text-muted" style="font-size:0.875rem;"><?php echo htmlspecialchars($sub); ?></div>
+                    <div class="fw-semibold card-label"><?php echo htmlspecialchars($label); ?></div>
+                    <div class="text-muted card-sub"><?php echo htmlspecialchars($sub); ?></div>
                 </div>
             </a>
         <?php endforeach; ?>
