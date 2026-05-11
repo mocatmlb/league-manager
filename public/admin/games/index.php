@@ -434,6 +434,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 break;
                 
+            case 'delete_game':
+                try {
+                    $gameId = (int)$_POST['game_id'];
+
+                    $db->beginTransaction();
+
+                    $gameInfo = $db->fetchOne("
+                        SELECT g.game_number,
+                               CASE WHEN ht.team_name IS NOT NULL AND ht.team_name != '' THEN ht.team_name
+                                    ELSE CONCAT(ht.league_name, '-', ht.manager_last_name) END as home_team_name,
+                               CASE WHEN at.team_name IS NOT NULL AND at.team_name != '' THEN at.team_name
+                                    ELSE CONCAT(at.league_name, '-', at.manager_last_name) END as away_team_name
+                        FROM games g
+                        JOIN teams ht ON g.home_team_id = ht.team_id
+                        JOIN teams at ON g.away_team_id = at.team_id
+                        WHERE g.game_id = ?
+                    ", [$gameId]);
+
+                    if (!$gameInfo) {
+                        throw new Exception('Game not found.');
+                    }
+
+                    $db->query("DELETE FROM games WHERE game_id = ?", [$gameId]);
+
+                    $db->commit();
+
+                    logActivity('game_deleted', "Game {$gameInfo['game_number']} deleted: {$gameInfo['away_team_name']} vs {$gameInfo['home_team_name']} (ID: $gameId)");
+                    $message = 'Game deleted successfully!';
+
+                } catch (Exception $e) {
+                    $db->rollback();
+                    $error = 'Error deleting game: ' . $e->getMessage();
+                }
+                break;
+
             case 'postpone_game':
                 try {
                     $gameId = (int)$_POST['game_id'];
@@ -749,6 +784,10 @@ $pageTitle = "Games Management - " . APP_NAME;
                                                                 <i class="fas fa-times"></i> Cancel Game
                                                             </a></li>
                                                         <?php endif; ?>
+                                                        <li><hr class="dropdown-divider"></li>
+                                                        <li><a class="dropdown-item text-danger" href="#" onclick="deleteGame(<?php echo (int)$game['game_id']; ?>, '<?php echo addslashes($game['game_number']); ?>', '<?php echo addslashes($game['away_team_name']); ?>', '<?php echo addslashes($game['home_team_name']); ?>'); return false;">
+                                                            <i class="fas fa-trash-alt"></i> Delete Game
+                                                        </a></li>
                                                     </ul>
                                                 </div>
                                             </div>
@@ -1143,6 +1182,39 @@ $pageTitle = "Games Management - " . APP_NAME;
         </div>
     </div>
 
+    <!-- Delete Game Modal -->
+    <div class="modal fade" id="deleteGameModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Delete Game</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="action" value="delete_game">
+                        <input type="hidden" name="csrf_token" value="<?php echo Auth::generateCSRFToken(); ?>">
+                        <input type="hidden" name="game_id" id="deleteGameId">
+
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>Warning:</strong> You are about to permanently delete game <strong id="deleteGameNumber"></strong>.
+                        </div>
+
+                        <p><strong>Away:</strong> <span id="deleteGameAwayTeam"></span></p>
+                        <p><strong>Home:</strong> <span id="deleteGameHomeTeam"></span></p>
+
+                        <p class="text-danger"><strong>This action cannot be undone.</strong> The game record, any recorded scores, and all related schedule history and change requests will be permanently deleted.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-danger"><i class="fas fa-trash-alt"></i> Delete Game</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
@@ -1365,9 +1437,19 @@ $pageTitle = "Games Management - " . APP_NAME;
             document.getElementById('deleteScoreGameId').value = gameId;
             document.getElementById('deleteScoreGameNumber').textContent = gameNumber;
             document.getElementById('deleteScoreCurrentScore').textContent = awayScore + ' - ' + homeScore;
-            
+
             var deleteScoreModal = new bootstrap.Modal(document.getElementById('deleteScoreModal'));
             deleteScoreModal.show();
+        }
+
+        function deleteGame(gameId, gameNumber, awayTeam, homeTeam) {
+            document.getElementById('deleteGameId').value = gameId;
+            document.getElementById('deleteGameNumber').textContent = gameNumber;
+            document.getElementById('deleteGameAwayTeam').textContent = awayTeam;
+            document.getElementById('deleteGameHomeTeam').textContent = homeTeam;
+
+            var deleteGameModal = new bootstrap.Modal(document.getElementById('deleteGameModal'));
+            deleteGameModal.show();
         }
     </script>
 </body>
