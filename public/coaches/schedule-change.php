@@ -34,6 +34,7 @@ require_once EnvLoader::getPath('includes/PermissionGuard.php');
 require_once EnvLoader::getPath('includes/ActivityLogger.php');
 require_once EnvLoader::getPath('includes/TeamScope.php');
 require_once EnvLoader::getPath('includes/RescheduleService.php');
+require_once EnvLoader::getPath('includes/TeamRegistrationService.php');
 
 PermissionGuard::requireRole('team_owner', '/coaches/login.php');
 
@@ -50,8 +51,9 @@ $coachContact = $db->fetchOne(
 // ---------------------------------------------------------------------------
 // POST handler — PRG pattern
 // ---------------------------------------------------------------------------
-$error = '';
-$postValues = [];
+$error        = '';
+$postValues   = [];
+$dupCandidates = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
@@ -61,39 +63,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Invalid form submission. Please try again.';
         } else {
             $postValues = [
-                'game_id'            => $_POST['game_id'] ?? '',
-                'requested_date'     => $_POST['requested_date'] ?? '',
-                'requested_time'     => $_POST['requested_time'] ?? '',
+                'game_id'            => $_POST['game_id']            ?? '',
+                'requested_date'     => $_POST['requested_date']     ?? '',
+                'requested_time'     => $_POST['requested_time']     ?? '',
                 'requested_location' => $_POST['requested_location'] ?? '',
-                'reason'             => $_POST['reason'] ?? '',
+                'location_name_new'  => trim($_POST['location_name_new'] ?? ''),
+                'reason'             => $_POST['reason']             ?? '',
             ];
-            $requestData = [
-                'requested_date'     => $postValues['requested_date'],
-                'requested_time'     => $postValues['requested_time'],
-                'requested_location' => $postValues['requested_location'],
-                'reason'             => $postValues['reason'],
-            ];
-            try {
-                $gameId = (int) ($postValues['game_id'] ?? 0);
-                if ($gameId <= 0) {
-                    $error = 'Please select a game to reschedule.';
+
+            // Resolve requested_location: handle "not-listed" inline entry
+            $resolvedLocation = $postValues['requested_location'];
+            if ($resolvedLocation === 'not-listed') {
+                if ($postValues['location_name_new'] === '') {
+                    $error = 'Please enter a location name.';
                 } else {
-                    $service->submit($userId, $gameId, $requestData);
-                    $_SESSION['flash_success'] =
-                        'Request submitted. You will receive an email when your request is reviewed.';
-                    header('Location: schedule-change.php');
-                    exit;
+                    // Duplicate check against existing locations (skip if already confirmed)
+                    if (($_POST['dup_confirmed'] ?? '') === '') {
+                        $svc = new TeamRegistrationService($db);
+                        $dupCandidates = $svc->findDuplicateCandidates([
+                            'name'    => $postValues['location_name_new'],
+                            'address' => '',
+                        ]);
+                    }
+                    if (empty($dupCandidates)) {
+                        $resolvedLocation = $postValues['location_name_new'];
+                    }
                 }
-            } catch (TeamScopeViolationException $e) {
-                http_response_code(403);
-                $error = 'Not authorized — you are not permitted to reschedule this game.';
-                // Halt execution to ensure 403 response is clean
-                include EnvLoader::getPath('includes/coaches_nav.php');
-                echo '<div class="container mt-4"><div class="alert alert-danger">' . htmlspecialchars($error) . '</div></div>';
-                include EnvLoader::getPath('includes/footer.php');
-                exit;
-            } catch (Throwable $e) {
-                $error = 'Request not submitted — please check your connection and try again.';
+            }
+
+            if (empty($error) && empty($dupCandidates)) {
+                $requestData = [
+                    'requested_date'     => $postValues['requested_date'],
+                    'requested_time'     => $postValues['requested_time'],
+                    'requested_location' => $resolvedLocation,
+                    'reason'             => $postValues['reason'],
+                ];
+                try {
+                    $gameId = (int) ($postValues['game_id'] ?? 0);
+                    if ($gameId <= 0) {
+                        $error = 'Please select a game to reschedule.';
+                    } else {
+                        $service->submit($userId, $gameId, $requestData);
+                        $_SESSION['flash_success'] =
+                            'Request submitted. You will receive an email when your request is reviewed.';
+                        header('Location: schedule-change.php');
+                        exit;
+                    }
+                } catch (TeamScopeViolationException $e) {
+                    http_response_code(403);
+                    $error = 'Not authorized — you are not permitted to reschedule this game.';
+                    include EnvLoader::getPath('includes/coaches_nav.php');
+                    echo '<div class="container mt-4"><div class="alert alert-danger">' . htmlspecialchars($error) . '</div></div>';
+                    include EnvLoader::getPath('includes/footer.php');
+                    exit;
+                } catch (Throwable $e) {
+                    $error = 'Request not submitted — please check your connection and try again.';
+                }
             }
         }
     } elseif ($action === 'cancel') {
@@ -123,7 +148,7 @@ if (isset($_SESSION['flash_success'])) {
 
 $eligibleGames  = $service->getEligibleGames($userId);
 $coachRequests  = $service->getCoachRequests($userId);
-$locations      = $db->fetchAll('SELECT location_name FROM locations ORDER BY location_name');
+$locations      = $db->fetchAll('SELECT location_name, city, state FROM locations WHERE active_status = \'Active\' ORDER BY location_name');
 
 $pageTitle = 'Schedule Change Request — ' . (defined('APP_NAME') ? APP_NAME : 'District 8 Travel League');
 
@@ -167,6 +192,41 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                     <i class="fas fa-exclamation-triangle"></i>
                     <?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?>
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <?php endif; ?>
+
+                <?php if (!empty($dupCandidates)): ?>
+                <div class="alert alert-warning" role="alert">
+                    <h5 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Similar Location Already Exists</h5>
+                    <p class="mb-2">
+                        "<strong><?php echo htmlspecialchars($postValues['location_name_new'], ENT_QUOTES, 'UTF-8'); ?></strong>"
+                        looks similar to an existing location. Did you mean to select one of these from the list?
+                    </p>
+                    <ul class="mb-3">
+                        <?php foreach ($dupCandidates as $c): ?>
+                        <li>
+                            <strong><?php echo htmlspecialchars($c['location_name'], ENT_QUOTES, 'UTF-8'); ?></strong>
+                            <?php if (!empty($c['city'])): ?>
+                                &mdash; <?php echo htmlspecialchars($c['city'], ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars($c['state'], ENT_QUOTES, 'UTF-8'); ?>
+                            <?php endif; ?>
+                        </li>
+                        <?php endforeach; ?>
+                    </ul>
+                    <form method="POST" class="d-inline">
+                        <input type="hidden" name="action"            value="submit">
+                        <input type="hidden" name="csrf_token"        value="<?php echo htmlspecialchars(Auth::generateCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>">
+                        <input type="hidden" name="dup_confirmed"     value="yes">
+                        <input type="hidden" name="game_id"           value="<?php echo htmlspecialchars($postValues['game_id'],            ENT_QUOTES, 'UTF-8'); ?>">
+                        <input type="hidden" name="requested_date"    value="<?php echo htmlspecialchars($postValues['requested_date'],     ENT_QUOTES, 'UTF-8'); ?>">
+                        <input type="hidden" name="requested_time"    value="<?php echo htmlspecialchars($postValues['requested_time'],     ENT_QUOTES, 'UTF-8'); ?>">
+                        <input type="hidden" name="requested_location" value="not-listed">
+                        <input type="hidden" name="location_name_new" value="<?php echo htmlspecialchars($postValues['location_name_new'], ENT_QUOTES, 'UTF-8'); ?>">
+                        <input type="hidden" name="reason"            value="<?php echo htmlspecialchars($postValues['reason'],            ENT_QUOTES, 'UTF-8'); ?>">
+                        <button type="submit" class="btn btn-warning btn-sm">
+                            <i class="fas fa-check"></i> It's Different — Submit Anyway
+                        </button>
+                    </form>
+                    <span class="ms-2 text-muted small">or scroll down to pick the correct location from the list.</span>
                 </div>
                 <?php endif; ?>
 
@@ -249,7 +309,7 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">New Location *</label>
-                                    <select name="requested_location" class="form-select" required>
+                                    <select name="requested_location" id="requestedLocationSelect" class="form-select" required>
                                         <option value="">Select Location</option>
                                         <?php foreach ($locations as $loc): ?>
                                         <option value="<?php echo htmlspecialchars($loc['location_name'], ENT_QUOTES, 'UTF-8'); ?>"
@@ -257,7 +317,17 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                                             <?php echo htmlspecialchars($loc['location_name'], ENT_QUOTES, 'UTF-8'); ?>
                                         </option>
                                         <?php endforeach; ?>
+                                        <option value="not-listed"
+                                            <?php if (($postValues['requested_location'] ?? '') === 'not-listed'): ?>selected<?php endif; ?>>
+                                            (Not Listed)
+                                        </option>
                                     </select>
+                                    <div id="notListedFields" style="display:none; margin-top: 8px;">
+                                        <input type="text" name="location_name_new" id="locationNameNew"
+                                               class="form-control form-control-sm"
+                                               placeholder="Enter location name"
+                                               value="<?php echo htmlspecialchars($postValues['location_name_new'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                                    </div>
                                 </div>
                             </div>
 
@@ -403,6 +473,28 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
 
     document.getElementById('game-select').addEventListener('change', function () {
         onGameSelected(this);
+    });
+
+    // Not Listed toggle
+    function toggleNotListed() {
+        var sel    = document.getElementById('requestedLocationSelect');
+        var fields = document.getElementById('notListedFields');
+        var input  = document.getElementById('locationNameNew');
+        if (!sel || !fields) return;
+        if (sel.value === 'not-listed') {
+            fields.style.display = 'block';
+            if (input) input.required = true;
+        } else {
+            fields.style.display = 'none';
+            if (input) { input.required = false; input.value = ''; }
+        }
+    }
+    document.addEventListener('DOMContentLoaded', function () {
+        var sel = document.getElementById('requestedLocationSelect');
+        if (sel) {
+            sel.addEventListener('change', toggleNotListed);
+            toggleNotListed(); // show inline field if re-rendering after dup warning
+        }
     });
 
     <?php if ($preservedGameId): ?>

@@ -29,6 +29,7 @@ if (!$__found) {
 unset($__dir, $__found, $__i, $__candidate);
 
 @include_once EnvLoader::getPath('includes/admin_bootstrap.php');
+require_once EnvLoader::getPath('includes/TeamRegistrationService.php');
 
 // Require admin authentication
 Auth::requireAdmin();
@@ -39,6 +40,8 @@ $currentUser = Auth::getCurrentUser();
 // Handle form submissions
 $message = '';
 $error = '';
+$dupCandidates = [];
+$dupFormData   = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
@@ -50,17 +53,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'add_location':
                 try {
                     $locationData = [
-                        'location_name' => sanitize($_POST['location_name']),
-                        'address' => sanitize($_POST['address']),
-                        'city' => sanitize($_POST['city']),
-                        'state' => sanitize($_POST['state']),
-                        'zip_code' => sanitize($_POST['zip_code']),
-                        'gps_coordinates' => sanitize($_POST['gps_coordinates']),
-                        'notes' => sanitize($_POST['notes']),
-                        'active_status' => sanitize($_POST['active_status']),
-                        'created_date' => date('Y-m-d H:i:s')
+                        'location_name'   => sanitize($_POST['location_name']    ?? ''),
+                        'address'         => sanitize($_POST['location_address'] ?? ''),
+                        'city'            => sanitize($_POST['location_city']    ?? ''),
+                        'state'           => sanitize($_POST['location_state']   ?? ''),
+                        'zip_code'        => sanitize($_POST['location_zip']     ?? ''),
+                        'gps_coordinates' => sanitize($_POST['gps_coordinates']  ?? ''),
+                        'notes'           => sanitize($_POST['notes']            ?? ''),
+                        'active_status'   => sanitize($_POST['active_status']    ?? 'Active'),
+                        'created_date'    => date('Y-m-d H:i:s'),
                     ];
-                    
+
+                    if (($_POST['dup_confirmed'] ?? '') === '') {
+                        $svc = new TeamRegistrationService($db);
+                        $candidates = $svc->findDuplicateCandidates([
+                            'name'    => $locationData['location_name'],
+                            'address' => $locationData['address'],
+                        ]);
+                        if (!empty($candidates)) {
+                            $dupCandidates = $candidates;
+                            // Use original POST field names so the "Add Anyway" form resubmits correctly
+                            $dupFormData = [
+                                'location_name'    => $locationData['location_name'],
+                                'location_address' => $locationData['address'],
+                                'location_city'    => $locationData['city'],
+                                'location_state'   => $locationData['state'],
+                                'location_zip'     => $locationData['zip_code'],
+                                'gps_coordinates'  => $locationData['gps_coordinates'],
+                                'notes'            => $locationData['notes'],
+                                'active_status'    => $locationData['active_status'],
+                            ];
+                            break;
+                        }
+                    }
+
                     $locationId = $db->insert('locations', $locationData);
                     logActivity('location_created', "Location '{$locationData['location_name']}' created", $currentUser['id']);
                     $message = 'Location created successfully!';
@@ -73,15 +99,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 try {
                     $locationId = (int)$_POST['location_id'];
                     $locationData = [
-                        'location_name' => sanitize($_POST['location_name']),
-                        'address' => sanitize($_POST['address']),
-                        'city' => sanitize($_POST['city']),
-                        'state' => sanitize($_POST['state']),
-                        'zip_code' => sanitize($_POST['zip_code']),
-                        'gps_coordinates' => sanitize($_POST['gps_coordinates']),
-                        'notes' => sanitize($_POST['notes']),
-                        'active_status' => sanitize($_POST['active_status']),
-                        'modified_date' => date('Y-m-d H:i:s')
+                        'location_name'   => sanitize($_POST['location_name']    ?? ''),
+                        'address'         => sanitize($_POST['location_address'] ?? ''),
+                        'city'            => sanitize($_POST['location_city']    ?? ''),
+                        'state'           => sanitize($_POST['location_state']   ?? ''),
+                        'zip_code'        => sanitize($_POST['location_zip']     ?? ''),
+                        'gps_coordinates' => sanitize($_POST['gps_coordinates']  ?? ''),
+                        'notes'           => sanitize($_POST['notes']            ?? ''),
+                        'active_status'   => sanitize($_POST['active_status']    ?? 'Active'),
+                        'modified_date'   => date('Y-m-d H:i:s'),
                     ];
                     
                     $db->update('locations', $locationData, 'location_id = :location_id', ['location_id' => $locationId]);
@@ -150,6 +176,40 @@ $pageTitle = "Locations Management - " . APP_NAME;
                     <div class="alert alert-danger alert-dismissible fade show">
                         <i class="fas fa-exclamation-triangle"></i> <?php echo $error; ?>
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <?php endif; ?>
+
+                <?php if (!empty($dupCandidates)): ?>
+                    <div class="alert alert-warning">
+                        <h5 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Possible Duplicate Location</h5>
+                        <p class="mb-2">
+                            "<strong><?php echo sanitize($dupFormData['location_name']); ?></strong>"
+                            is similar to the following existing location(s):
+                        </p>
+                        <ul class="mb-3">
+                            <?php foreach ($dupCandidates as $c): ?>
+                            <li>
+                                <strong><?php echo sanitize($c['location_name']); ?></strong>
+                                <?php if ($c['city']): ?>
+                                    &mdash; <?php echo sanitize($c['city']); ?>, <?php echo sanitize($c['state']); ?>
+                                <?php endif; ?>
+                            </li>
+                            <?php endforeach; ?>
+                        </ul>
+                        <form method="POST" class="d-inline">
+                            <input type="hidden" name="action"        value="add_location">
+                            <input type="hidden" name="csrf_token"    value="<?php echo Auth::generateCSRFToken(); ?>">
+                            <input type="hidden" name="dup_confirmed" value="yes">
+                            <?php foreach ($dupFormData as $k => $v): ?>
+                            <input type="hidden"
+                                   name="<?php echo htmlspecialchars($k, ENT_QUOTES); ?>"
+                                   value="<?php echo htmlspecialchars($v, ENT_QUOTES); ?>">
+                            <?php endforeach; ?>
+                            <button type="submit" class="btn btn-warning btn-sm">
+                                <i class="fas fa-plus"></i> Add Anyway
+                            </button>
+                        </form>
+                        <span class="ms-2 text-muted small">or dismiss this alert to cancel.</span>
                     </div>
                 <?php endif; ?>
 
