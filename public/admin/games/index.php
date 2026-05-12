@@ -146,14 +146,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Resolve location
                     $locationIdRaw = $_POST['location_id'] ?? '';
                     if (trim($locationIdRaw) === 'not-listed') {
-                        $newName = sanitize(trim($_POST['location_name_new'] ?? ''));
+                        $newName = sanitize(trim((string)($_POST['location_name_new'] ?? '')));
                         if ($newName === '') {
                             throw new Exception('Location name is required when selecting "Not Listed".');
                         }
-                        $newAddress = sanitize(trim($_POST['location_address_new'] ?? ''));
-                        $newCity = sanitize(trim($_POST['location_city_new'] ?? ''));
-                        $newState = sanitize(trim($_POST['location_state_new'] ?? ''));
-                        $newZip = sanitize(trim($_POST['location_zip_new'] ?? ''));
+                        $newCity = sanitize(trim((string)($_POST['location_city_new'] ?? '')));
+                        if ($newCity === '') {
+                            throw new Exception('City is required when adding a new location.');
+                        }
+                        $newState = sanitize(trim((string)($_POST['location_state_new'] ?? '')));
+                        if ($newState === '') {
+                            throw new Exception('State is required when adding a new location.');
+                        }
+                        $newAddress = sanitize(trim((string)($_POST['location_address_new'] ?? '')));
+                        $newZip = sanitize(trim((string)($_POST['location_zip_new'] ?? '')));
                         $locData = [
                             'location_name' => $newName,
                             'address' => $newAddress,
@@ -366,14 +372,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Resolve location
                     $locationIdRaw = $_POST['location_id'] ?? '';
                     if (trim($locationIdRaw) === 'not-listed') {
-                        $newName = sanitize(trim($_POST['location_name_new'] ?? ''));
+                        $newName = sanitize(trim((string)($_POST['location_name_new'] ?? '')));
                         if ($newName === '') {
                             throw new Exception('Location name is required when selecting "Not Listed".');
                         }
-                        $newAddress = sanitize(trim($_POST['location_address_new'] ?? ''));
-                        $newCity = sanitize(trim($_POST['location_city_new'] ?? ''));
-                        $newState = sanitize(trim($_POST['location_state_new'] ?? ''));
-                        $newZip = sanitize(trim($_POST['location_zip_new'] ?? ''));
+                        $newCity = sanitize(trim((string)($_POST['location_city_new'] ?? '')));
+                        if ($newCity === '') {
+                            throw new Exception('City is required when adding a new location.');
+                        }
+                        $newState = sanitize(trim((string)($_POST['location_state_new'] ?? '')));
+                        if ($newState === '') {
+                            throw new Exception('State is required when adding a new location.');
+                        }
+                        $newAddress = sanitize(trim((string)($_POST['location_address_new'] ?? '')));
+                        $newZip = sanitize(trim((string)($_POST['location_zip_new'] ?? '')));
                         $locData = [
                             'location_name' => $newName,
                             'address' => $newAddress,
@@ -993,11 +1005,11 @@ $pageTitle = "Games Management - " . APP_NAME;
                                 <div class="row">
                                     <div class="col-md-4 mb-2">
                                         <label class="form-label">City</label>
-                                        <input type="text" name="location_city_new" class="form-control form-control-sm">
+                                        <input type="text" name="location_city_new" id="addLocationCityNew" class="form-control form-control-sm" required>
                                     </div>
                                     <div class="col-md-4 mb-2">
                                         <label class="form-label">State</label>
-                                        <input type="text" name="location_state_new" class="form-control form-control-sm">
+                                        <input type="text" name="location_state_new" id="addLocationStateNew" class="form-control form-control-sm" required>
                                     </div>
                                     <div class="col-md-4 mb-2">
                                         <label class="form-label">Zip</label>
@@ -1143,11 +1155,11 @@ $pageTitle = "Games Management - " . APP_NAME;
                                 <div class="row">
                                     <div class="col-md-4 mb-2">
                                         <label class="form-label">City</label>
-                                        <input type="text" name="location_city_new" class="form-control form-control-sm">
+                                        <input type="text" name="location_city_new" id="editLocationCityNew" class="form-control form-control-sm" required>
                                     </div>
                                     <div class="col-md-4 mb-2">
                                         <label class="form-label">State</label>
-                                        <input type="text" name="location_state_new" class="form-control form-control-sm">
+                                        <input type="text" name="location_state_new" id="editLocationStateNew" class="form-control form-control-sm" required>
                                     </div>
                                     <div class="col-md-4 mb-2">
                                         <label class="form-label">Zip</label>
@@ -1401,26 +1413,33 @@ $pageTitle = "Games Management - " . APP_NAME;
             });
 
             // Location dropdown "Not Listed" toggle
-            function toggleLocationFields(selectId, fieldsId, nameInputId) {
-                var sel = document.getElementById(selectId);
+            function toggleLocationFields(selectId, fieldsId, nameInputId, cityInputId, stateInputId) {
+                const sel = document.getElementById(selectId);
                 if (!sel) return;
-                var fields = document.getElementById(fieldsId);
-                var nameInput = document.getElementById(nameInputId);
+                const fields = document.getElementById(fieldsId);
+                const nameInput = document.getElementById(nameInputId);
+                const cityInput = cityInputId ? document.getElementById(cityInputId) : null;
+                const stateInput = stateInputId ? document.getElementById(stateInputId) : null;
+                
                 if (sel.value === 'not-listed') {
                     if (fields) fields.style.display = 'block';
                     if (nameInput) nameInput.required = true;
+                    if (cityInput) cityInput.required = true;
+                    if (stateInput) stateInput.required = true;
                 } else {
                     if (fields) fields.style.display = 'none';
                     if (nameInput) nameInput.required = false;
+                    if (cityInput) cityInput.required = false;
+                    if (stateInput) stateInput.required = false;
                 }
             }
 
             $('#addLocationSelect').on('change', function() {
-                toggleLocationFields('addLocationSelect', 'addLocationFields', 'addLocationNameNew');
+                toggleLocationFields('addLocationSelect', 'addLocationFields', 'addLocationNameNew', 'addLocationCityNew', 'addLocationStateNew');
             });
 
             $('#editLocationSelect').on('change', function() {
-                toggleLocationFields('editLocationSelect', 'editLocationFields', 'editLocationNameNew');
+                toggleLocationFields('editLocationSelect', 'editLocationFields', 'editLocationNameNew', 'editLocationCityNew', 'editLocationStateNew');
             });
         });
         
