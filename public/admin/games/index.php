@@ -1392,6 +1392,26 @@ $pageTitle = "Games Management - " . APP_NAME;
     </script>
     
     <script>
+        function toggleLocationFields(selectId, fieldsId, nameInputId, cityInputId, stateInputId) {
+            var sel = document.getElementById(selectId);
+            if (!sel) return;
+            var fields = document.getElementById(fieldsId);
+            var nameInput = document.getElementById(nameInputId);
+            var cityInput = cityInputId ? document.getElementById(cityInputId) : null;
+            var stateInput = stateInputId ? document.getElementById(stateInputId) : null;
+            if (sel.value === 'not-listed') {
+                if (fields) fields.style.display = 'block';
+                if (nameInput) nameInput.required = true;
+                if (cityInput) cityInput.required = true;
+                if (stateInput) stateInput.required = true;
+            } else {
+                if (fields) fields.style.display = 'none';
+                if (nameInput) nameInput.required = false;
+                if (cityInput) cityInput.required = false;
+                if (stateInput) stateInput.required = false;
+            }
+        }
+
         $(document).ready(function() {
             // Debug timezone functions
             console.log('formatDateTZ available:', typeof formatDateTZ);
@@ -1412,28 +1432,6 @@ $pageTitle = "Games Management - " . APP_NAME;
                 stateDuration: 0 // Session storage (cleared when browser closes)
             });
 
-            // Location dropdown "Not Listed" toggle
-            function toggleLocationFields(selectId, fieldsId, nameInputId, cityInputId, stateInputId) {
-                const sel = document.getElementById(selectId);
-                if (!sel) return;
-                const fields = document.getElementById(fieldsId);
-                const nameInput = document.getElementById(nameInputId);
-                const cityInput = cityInputId ? document.getElementById(cityInputId) : null;
-                const stateInput = stateInputId ? document.getElementById(stateInputId) : null;
-                
-                if (sel.value === 'not-listed') {
-                    if (fields) fields.style.display = 'block';
-                    if (nameInput) nameInput.required = true;
-                    if (cityInput) cityInput.required = true;
-                    if (stateInput) stateInput.required = true;
-                } else {
-                    if (fields) fields.style.display = 'none';
-                    if (nameInput) nameInput.required = false;
-                    if (cityInput) cityInput.required = false;
-                    if (stateInput) stateInput.required = false;
-                }
-            }
-
             $('#addLocationSelect').on('change', function() {
                 toggleLocationFields('addLocationSelect', 'addLocationFields', 'addLocationNameNew', 'addLocationCityNew', 'addLocationStateNew');
             });
@@ -1441,6 +1439,22 @@ $pageTitle = "Games Management - " . APP_NAME;
             $('#editLocationSelect').on('change', function() {
                 toggleLocationFields('editLocationSelect', 'editLocationFields', 'editLocationNameNew', 'editLocationCityNew', 'editLocationStateNew');
             });
+        });
+
+        // Native fallback: bind location toggle independently of jQuery/DataTable init
+        document.addEventListener('DOMContentLoaded', function() {
+            var addSel = document.getElementById('addLocationSelect');
+            if (addSel) {
+                addSel.addEventListener('change', function() {
+                    toggleLocationFields('addLocationSelect', 'addLocationFields', 'addLocationNameNew', 'addLocationCityNew', 'addLocationStateNew');
+                });
+            }
+            var editSel = document.getElementById('editLocationSelect');
+            if (editSel) {
+                editSel.addEventListener('change', function() {
+                    toggleLocationFields('editLocationSelect', 'editLocationFields', 'editLocationNameNew', 'editLocationCityNew', 'editLocationStateNew');
+                });
+            }
         });
         
         function toggleGameDetails(gameId) {
