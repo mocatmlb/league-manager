@@ -271,10 +271,9 @@ $pageTitle = "Locations Management - " . APP_NAME;
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">Status</label>
-                                    <select name="location_status" class="form-select">
+                                    <select name="active_status" class="form-select">
                                         <option value="Active">Active</option>
                                         <option value="Inactive">Inactive</option>
-                                        <option value="Maintenance">Under Maintenance</option>
                                     </select>
                                 </div>
                             </div>
@@ -372,10 +371,9 @@ $pageTitle = "Locations Management - " . APP_NAME;
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">Status</label>
-                                    <select name="location_status" id="editLocationStatus" class="form-select">
+                                    <select name="active_status" id="editLocationStatus" class="form-select">
                                         <option value="Active">Active</option>
                                         <option value="Inactive">Inactive</option>
-                                        <option value="Maintenance">Under Maintenance</option>
                                     </select>
                                 </div>
                             </div>
@@ -437,7 +435,7 @@ $pageTitle = "Locations Management - " . APP_NAME;
             document.getElementById('editLocationState').value = location.location_state || '';
             document.getElementById('editLocationZip').value = location.location_zip || '';
             document.getElementById('editFieldCount').value = location.field_count || 1;
-            document.getElementById('editLocationStatus').value = location.location_status;
+            document.getElementById('editLocationStatus').value = location.active_status;
             document.getElementById('editParkingInfo').value = location.parking_info || '';
             document.getElementById('editFacilityNotes').value = location.facility_notes || '';
             document.getElementById('editContactName').value = location.contact_name || '';
