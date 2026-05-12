@@ -143,17 +143,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     $gameId = $db->insert('games', $gameData);
                     
+                    // Resolve location
+                    $locationIdRaw = $_POST['location_id'] ?? '';
+                    if (trim($locationIdRaw) === 'not-listed') {
+                        $newName = sanitize(trim($_POST['location_name_new'] ?? ''));
+                        if ($newName === '') {
+                            throw new Exception('Location name is required when selecting "Not Listed".');
+                        }
+                        $newAddress = sanitize(trim($_POST['location_address_new'] ?? ''));
+                        $newCity = sanitize(trim($_POST['location_city_new'] ?? ''));
+                        $newState = sanitize(trim($_POST['location_state_new'] ?? ''));
+                        $newZip = sanitize(trim($_POST['location_zip_new'] ?? ''));
+                        $locData = [
+                            'location_name' => $newName,
+                            'address' => $newAddress,
+                            'city' => $newCity,
+                            'state' => $newState,
+                            'zip_code' => $newZip,
+                            'active_status' => 'Active'
+                        ];
+                        $resolvedLocationId = $db->insert('locations', $locData);
+                        $resolvedLocationText = $newName;
+                        logActivity('location_created', "Location added from game form: {$newName}");
+                    } else {
+                        $resolvedLocationId = (int)$locationIdRaw;
+                        $locRow = $db->fetchOne("SELECT location_name FROM locations WHERE location_id = ?", [$resolvedLocationId]);
+                        $resolvedLocationText = ($locRow && isset($locRow['location_name'])) ? $locRow['location_name'] : '';
+                    }
+
                     // Create schedule record
                     $scheduleData = [
                         'game_id' => $gameId,
                         'game_date' => sanitize($_POST['game_date']),
                         'game_time' => sanitize($_POST['game_time']),
-                        'location' => sanitize($_POST['location']),
+                        'location' => $resolvedLocationText,
+                        'location_id' => $resolvedLocationId,
                         'created_date' => date('Y-m-d H:i:s')
                     ];
-                    
+
                     $db->insert('schedules', $scheduleData);
-                    
+
                     // Create initial schedule history entry
                     $historyData = [
                         'game_id' => $gameId,
@@ -161,7 +190,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'schedule_type' => 'Original',
                         'game_date' => sanitize($_POST['game_date']),
                         'game_time' => sanitize($_POST['game_time']),
-                        'location' => sanitize($_POST['location']),
+                        'location' => $resolvedLocationText,
+                        'location_id' => $resolvedLocationId,
                         'is_current' => 1,
                         'created_at' => date('Y-m-d H:i:s'),
                         'notes' => 'Initial game schedule'
@@ -332,30 +362,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Check if schedule changed
                     $newDate = sanitize($_POST['game_date']);
                     $newTime = sanitize($_POST['game_time']);
-                    $newLocation = sanitize($_POST['location']);
                     
+                    // Resolve location
+                    $locationIdRaw = $_POST['location_id'] ?? '';
+                    if (trim($locationIdRaw) === 'not-listed') {
+                        $newName = sanitize(trim($_POST['location_name_new'] ?? ''));
+                        if ($newName === '') {
+                            throw new Exception('Location name is required when selecting "Not Listed".');
+                        }
+                        $newAddress = sanitize(trim($_POST['location_address_new'] ?? ''));
+                        $newCity = sanitize(trim($_POST['location_city_new'] ?? ''));
+                        $newState = sanitize(trim($_POST['location_state_new'] ?? ''));
+                        $newZip = sanitize(trim($_POST['location_zip_new'] ?? ''));
+                        $locData = [
+                            'location_name' => $newName,
+                            'address' => $newAddress,
+                            'city' => $newCity,
+                            'state' => $newState,
+                            'zip_code' => $newZip,
+                            'active_status' => 'Active'
+                        ];
+                        $resolvedLocationId = $db->insert('locations', $locData);
+                        $resolvedLocationText = $newName;
+                        logActivity('location_created', "Location added from game edit form: {$newName}");
+                    } else {
+                        $resolvedLocationId = (int)$locationIdRaw;
+                        $locRow = $db->fetchOne("SELECT location_name FROM locations WHERE location_id = ?", [$resolvedLocationId]);
+                        $resolvedLocationText = ($locRow && isset($locRow['location_name'])) ? $locRow['location_name'] : '';
+                    }
+
                     $scheduleChanged = ($currentSchedule['game_date'] !== $newDate || 
                                      $currentSchedule['game_time'] !== $newTime || 
-                                     $currentSchedule['location'] !== $newLocation);
-                    
+                                     $currentSchedule['location'] !== $resolvedLocationText ||
+                                     (int)$currentSchedule['location_id'] !== $resolvedLocationId);
+
                     if ($scheduleChanged) {
                         // Update schedule record
                         $scheduleData = [
                             'game_date' => $newDate,
                             'game_time' => $newTime,
-                            'location' => $newLocation,
+                            'location' => $resolvedLocationText,
+                            'location_id' => $resolvedLocationId,
                             'modified_date' => date('Y-m-d H:i:s')
                         ];
-                        
+
                         $db->update('schedules', $scheduleData, 'game_id = ?', [$gameId]);
-                        
+
                         // Mark current history as not current
                         $db->query("UPDATE schedule_history SET is_current = 0 WHERE game_id = ?", [$gameId]);
-                        
+
                         // Get next version number
                         $maxVersion = $db->fetchOne("SELECT MAX(version_number) as max_version FROM schedule_history WHERE game_id = ?", [$gameId]);
                         $nextVersion = ($maxVersion['max_version'] ?? 0) + 1;
-                        
+
                         // Create new schedule history entry
                         $historyData = [
                             'game_id' => $gameId,
@@ -363,7 +422,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             'schedule_type' => 'Changed',
                             'game_date' => $newDate,
                             'game_time' => $newTime,
-                            'location' => $newLocation,
+                            'location' => $resolvedLocationText,
+                            'location_id' => $resolvedLocationId,
                             'is_current' => 1,
                             'created_at' => date('Y-m-d H:i:s'),
                             'notes' => 'Schedule updated via admin'
@@ -578,7 +638,7 @@ $teams = $db->fetchAll("
     WHERE active_status = 'Active' 
     ORDER BY display_name
 ");
-$locations = $db->fetchAll("SELECT DISTINCT location FROM schedules WHERE location IS NOT NULL AND location != '' ORDER BY location");
+$locations = $db->fetchAll("SELECT location_id, location_name, address, city, state, zip_code FROM locations WHERE active_status = 'Active' ORDER BY location_name");
 
 $pageTitle = "Games Management - " . APP_NAME;
 ?>
@@ -914,12 +974,37 @@ $pageTitle = "Games Management - " . APP_NAME;
                         
                         <div class="mb-3">
                             <label class="form-label">Location</label>
-                            <input type="text" name="location" class="form-control" list="locationsList" required>
-                            <datalist id="locationsList">
+                            <select name="location_id" id="addLocationSelect" class="form-select" required>
+                                <option value="">-- Select Location --</option>
                                 <?php foreach ($locations as $location): ?>
-                                    <option value="<?php echo sanitize($location['location']); ?>">
+                                    <option value="<?php echo (int)$location['location_id']; ?>"><?php echo sanitize($location['location_name']); ?></option>
                                 <?php endforeach; ?>
-                            </datalist>
+                                <option value="not-listed">(Not Listed)</option>
+                            </select>
+                            <div id="addLocationFields" style="display:none; margin-top: 8px;" class="p-3 border rounded bg-light">
+                                <div class="mb-2">
+                                    <label class="form-label">Location Name</label>
+                                    <input type="text" name="location_name_new" id="addLocationNameNew" class="form-control form-control-sm">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">Address</label>
+                                    <input type="text" name="location_address_new" class="form-control form-control-sm">
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4 mb-2">
+                                        <label class="form-label">City</label>
+                                        <input type="text" name="location_city_new" class="form-control form-control-sm">
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <label class="form-label">State</label>
+                                        <input type="text" name="location_state_new" class="form-control form-control-sm">
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <label class="form-label">Zip</label>
+                                        <input type="text" name="location_zip_new" class="form-control form-control-sm">
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -1039,7 +1124,37 @@ $pageTitle = "Games Management - " . APP_NAME;
                         
                         <div class="mb-3">
                             <label class="form-label">Location</label>
-                            <input type="text" name="location" id="editLocation" class="form-control" list="locationsList" required>
+                            <select name="location_id" id="editLocationSelect" class="form-select" required>
+                                <option value="">-- Select Location --</option>
+                                <?php foreach ($locations as $location): ?>
+                                    <option value="<?php echo (int)$location['location_id']; ?>"><?php echo sanitize($location['location_name']); ?></option>
+                                <?php endforeach; ?>
+                                <option value="not-listed">(Not Listed)</option>
+                            </select>
+                            <div id="editLocationFields" style="display:none; margin-top: 8px;" class="p-3 border rounded bg-light">
+                                <div class="mb-2">
+                                    <label class="form-label">Location Name</label>
+                                    <input type="text" name="location_name_new" id="editLocationNameNew" class="form-control form-control-sm">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">Address</label>
+                                    <input type="text" name="location_address_new" class="form-control form-control-sm">
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4 mb-2">
+                                        <label class="form-label">City</label>
+                                        <input type="text" name="location_city_new" class="form-control form-control-sm">
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <label class="form-label">State</label>
+                                        <input type="text" name="location_state_new" class="form-control form-control-sm">
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <label class="form-label">Zip</label>
+                                        <input type="text" name="location_zip_new" class="form-control form-control-sm">
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -1284,6 +1399,29 @@ $pageTitle = "Games Management - " . APP_NAME;
                 stateSave: true, // Remember user's sorting preferences
                 stateDuration: 0 // Session storage (cleared when browser closes)
             });
+
+            // Location dropdown "Not Listed" toggle
+            function toggleLocationFields(selectId, fieldsId, nameInputId) {
+                var sel = document.getElementById(selectId);
+                if (!sel) return;
+                var fields = document.getElementById(fieldsId);
+                var nameInput = document.getElementById(nameInputId);
+                if (sel.value === 'not-listed') {
+                    if (fields) fields.style.display = 'block';
+                    if (nameInput) nameInput.required = true;
+                } else {
+                    if (fields) fields.style.display = 'none';
+                    if (nameInput) nameInput.required = false;
+                }
+            }
+
+            $('#addLocationSelect').on('change', function() {
+                toggleLocationFields('addLocationSelect', 'addLocationFields', 'addLocationNameNew');
+            });
+
+            $('#editLocationSelect').on('change', function() {
+                toggleLocationFields('editLocationSelect', 'editLocationFields', 'editLocationNameNew');
+            });
         });
         
         function toggleGameDetails(gameId) {
@@ -1389,7 +1527,22 @@ $pageTitle = "Games Management - " . APP_NAME;
             document.getElementById('editHomeTeamId').value = game.home_team_id;
             document.getElementById('editGameDate').value = game.game_date;
             document.getElementById('editGameTime').value = game.game_time;
-            document.getElementById('editLocation').value = game.location;
+            
+            // Set location select by matching game.location against option text
+            var sel = document.getElementById('editLocationSelect');
+            var matched = false;
+            for (var i = 0; i < sel.options.length; i++) {
+                if (sel.options[i].text === game.location) {
+                    sel.selectedIndex = i;
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                sel.value = 'not-listed';
+                document.getElementById('editLocationNameNew').value = game.location || '';
+            }
+            sel.dispatchEvent(new Event('change'));
             
             var editModal = new bootstrap.Modal(document.getElementById('editGameModal'));
             editModal.show();

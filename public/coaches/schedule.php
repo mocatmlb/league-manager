@@ -42,6 +42,22 @@ $service = new CoachScheduleService($db);
 
 $games = $service->getTeamSchedule($userId);
 
+function buildMapsUrl($game) {
+    $parts = [];
+    if (!empty($game['address'])) {
+        $parts[] = $game['address'];
+        if (!empty($game['city'])) $parts[] = $game['city'];
+        if (!empty($game['state'])) $parts[] = $game['state'];
+        if (!empty($game['zip_code'])) $parts[] = $game['zip_code'];
+    } elseif (!empty($game['loc_name'])) {
+        $parts[] = $game['loc_name'];
+    } elseif (!empty($game['location'])) {
+        $parts[] = $game['location'];
+    }
+    if (empty($parts)) return '';
+    return 'https://maps.google.com/?q=' . urlencode(implode(', ', $parts));
+}
+
 $user = $db->fetchOne('SELECT first_name, last_name FROM users WHERE id = :id', ['id' => $userId]);
 $teamRow = $db->fetchOne('SELECT t.team_name FROM teams t JOIN team_owners o ON t.team_id = o.team_id WHERE o.user_id = :id LIMIT 1', ['id' => $userId]);
 $coachName = htmlspecialchars(trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')));
@@ -104,7 +120,18 @@ $pageTitle = 'Team Schedule — District 8 Travel League';
                                 <td><?php echo htmlspecialchars($game['game_time'] ?? ''); ?></td>
                                 <td><?php echo htmlspecialchars(strtoupper($game['away_team_name'] ?? '')); ?></td>
                                 <td><?php echo htmlspecialchars(strtoupper($game['home_team_name'] ?? '')); ?></td>
-                                <td><?php echo htmlspecialchars($game['location'] ?? ''); ?></td>
+                                <td><?php
+                                    $mapsUrl = buildMapsUrl($game);
+                                    $displayText = $game['loc_name'] ?: ($game['location'] ?? '');
+                                    if ($mapsUrl && !empty($displayText)):
+                                    ?>
+                                        <a href="<?php echo $mapsUrl; ?>" target="_blank" rel="noopener noreferrer"><?php echo htmlspecialchars($displayText); ?></a>
+                                    <?php elseif (!empty($displayText)): ?>
+                                        <?php echo htmlspecialchars($displayText); ?>
+                                    <?php else: ?>
+                                        -
+                                    <?php endif; ?>
+                                </td>
                                 <td><?php
                                     if ($game['game_status'] === 'Completed' && $game['away_score'] !== null) {
                                         echo htmlspecialchars($game['away_score']) . ' – ' . htmlspecialchars($game['home_score']);

@@ -40,11 +40,13 @@ $filterSql = FilterHelpers::buildFilterConditions($filters);
 // Get all games with schedule information
 $sql = "SELECT g.game_number, g.game_status, g.home_score, g.away_score,
                s.game_date, s.game_time, s.location,
+               loc.location_name as loc_name, loc.address, loc.city, loc.state, loc.zip_code,
                ht.team_name as home_team, ht.league_name as home_league,
                at.team_name as away_team, at.league_name as away_league,
                d.division_name, p.program_name, se.season_name
         FROM games g
         JOIN schedules s ON g.game_id = s.game_id
+        LEFT JOIN locations loc ON s.location_id = loc.location_id
         JOIN teams ht ON g.home_team_id = ht.team_id
         JOIN teams at ON g.away_team_id = at.team_id
         JOIN divisions d ON g.division_id = d.division_id
@@ -55,6 +57,22 @@ $sql = "SELECT g.game_number, g.game_status, g.home_score, g.away_score,
         ORDER BY s.game_date DESC, s.game_time DESC";
 
 $games = $db->fetchAll($sql, $filterSql['params']);
+
+function buildMapsUrl($game) {
+    $parts = [];
+    if (!empty($game['address'])) {
+        $parts[] = $game['address'];
+        if (!empty($game['city'])) $parts[] = $game['city'];
+        if (!empty($game['state'])) $parts[] = $game['state'];
+        if (!empty($game['zip_code'])) $parts[] = $game['zip_code'];
+    } elseif (!empty($game['loc_name'])) {
+        $parts[] = $game['loc_name'];
+    } elseif (!empty($game['location'])) {
+        $parts[] = $game['location'];
+    }
+    if (empty($parts)) return '';
+    return 'https://maps.google.com/?q=' . urlencode(implode(', ', $parts));
+}
 
 $pageTitle = "Schedule - " . APP_NAME;
 ?>
@@ -185,7 +203,18 @@ $pageTitle = "Schedule - " . APP_NAME;
                                         <td>
                                             <?php echo sanitize(strtoupper($game['home_team'] ?: $game['home_league'])); ?>
                                         </td>
-                                        <td><?php echo sanitize($game['location']); ?></td>
+                                        <td><?php
+                                            $mapsUrl = buildMapsUrl($game);
+                                            $displayText = $game['loc_name'] ?: $game['location'];
+                                            if ($mapsUrl && !empty($displayText)):
+                                            ?>
+                                                <a href="<?php echo $mapsUrl; ?>" target="_blank" rel="noopener noreferrer"><?php echo sanitize($displayText); ?></a>
+                                            <?php elseif (!empty($displayText)): ?>
+                                                <?php echo sanitize($displayText); ?>
+                                            <?php else: ?>
+                                                -
+                                            <?php endif; ?>
+                                        </td>
                                         <td>
                                             <?php if ($game['game_status'] === 'Completed' && $game['away_score'] !== null): ?>
                                                 <?php echo $game['away_score']; ?> - <?php echo $game['home_score']; ?>
