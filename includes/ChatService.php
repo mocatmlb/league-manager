@@ -272,7 +272,7 @@ PROMPT;
 
     private function callGemini(string $systemPrompt, array $history, string $userMessage): array
     {
-        $url = "https://generativelanguage.googleapis.com/v1/models/{$this->model}:generateContent?key={$this->apiKey}";
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$this->model}:generateContent?key={$this->apiKey}";
 
         $contents = [];
 
