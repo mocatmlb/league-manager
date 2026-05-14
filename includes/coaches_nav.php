@@ -136,6 +136,18 @@ function _coachNavActive(string $page): string {
                         <i class="fas fa-book"></i> Rules
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link"
+                       href="<?php echo $_rootPath; ?>schedule.php">
+                        <i class="fas fa-calendar-alt"></i> Full Schedule
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link"
+                       href="<?php echo $_rootPath; ?>standings.php">
+                        <i class="fas fa-table"></i> Standings
+                    </a>
+                </li>
                 <?php if ($_navShowRegisterTeam): ?>
                 <li class="nav-item">
                     <a class="nav-link <?php echo _coachNavActive('team-register'); ?>"
@@ -171,4 +183,12 @@ function _coachNavActive(string $page): string {
         </div>
     </div>
 </nav>
-<?php unset($_rootPath, $_currentScript, $_navShowRegisterTeam); ?>
+<?php
+// AI Chatbot Widget (Skipper)
+$_skipperWidget = __DIR__ . '/ai-chat-widget.php';
+if (file_exists($_skipperWidget)) {
+    include $_skipperWidget;
+}
+unset($_skipperWidget);
+
+unset($_rootPath, $_currentScript, $_navShowRegisterTeam); ?>

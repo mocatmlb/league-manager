@@ -227,9 +227,21 @@ class Auth {
                 'user_type_enum' => UserType::ADMIN
             ];
         } elseif (self::isCoach()) {
+            $coachId = isset($_SESSION['coach_user_id']) ? (int) $_SESSION['coach_user_id'] : 0;
+            $coachName = 'Coach';
+            if ($coachId > 0 && class_exists('Database')) {
+                try {
+                    $db = Database::getInstance();
+                    $user = $db->fetchOne("SELECT username, first_name, last_name FROM users WHERE id = ?", [$coachId]);
+                    if ($user) {
+                        $coachName = $user['username'] ?: trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''));
+                    }
+                } catch (Exception $e) {}
+            }
             return [
                 'type' => UserType::COACH,
-                'username' => 'Coach', // Generic username for coaches
+                'id' => $coachId,
+                'username' => $coachName ?: 'Coach',
                 'user_type_enum' => UserType::COACH
             ];
         }
