@@ -265,11 +265,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     $teamId = $db->insert('teams', $teamData);
 
-                    // Create team_owners record
+                    // Create team_owners record (assigned_by is NULL — admin IDs come from admin_users, not users)
                     $db->insert('team_owners', [
                         'team_id' => $teamId,
                         'user_id' => $userId,
-                        'assigned_by' => $currentUser['id'],
+                        'assigned_by' => null,
                         'created_at' => date('Y-m-d H:i:s')
                     ]);
 
