@@ -193,9 +193,86 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $error = 'Error denying change: ' . $e->getMessage();
                 }
                 break;
+
+            case 'admin_direct_change':
+                try {
+                    $gameId = (int) ($_POST['game_id'] ?? 0);
+                    $newDate = sanitize($_POST['new_date'] ?? '');
+                    $newTime = sanitize($_POST['new_time'] ?? '');
+                    $newLocation = sanitize($_POST['new_location'] ?? '');
+                    $changeReason = sanitize($_POST['change_reason'] ?? '');
+
+                    if ($gameId <= 0 || empty($newDate) || empty($newTime) || empty($newLocation)) {
+                        throw new Exception('All fields are required.');
+                    }
+
+                    $db->beginTransaction();
+
+                    $db->update('schedule_history', [
+                        'is_current' => 0
+                    ], 'game_id = :game_id AND is_current = 1', ['game_id' => $gameId]);
+
+                    $maxVersion = $db->fetchOne("SELECT MAX(version_number) as max_ver FROM schedule_history WHERE game_id = ?", [$gameId]);
+                    $nextVersion = ($maxVersion['max_ver'] ?? 0) + 1;
+
+                    $db->insert('schedule_history', [
+                        'game_id' => $gameId,
+                        'version_number' => $nextVersion,
+                        'schedule_type' => 'Admin Change',
+                        'game_date' => $newDate,
+                        'game_time' => $newTime,
+                        'location' => $newLocation,
+                        'created_by_type' => 'Admin',
+                        'created_by_id' => $currentUser['id'],
+                        'is_current' => 1,
+                        'notes' => 'Admin direct change' . ($changeReason ? '. Reason: ' . $changeReason : '')
+                    ]);
+
+                    $db->update('schedules', [
+                        'game_date' => $newDate,
+                        'game_time' => $newTime,
+                        'location' => $newLocation,
+                        'modified_date' => date('Y-m-d H:i:s')
+                    ], 'game_id = :game_id', ['game_id' => $gameId]);
+
+                    $gameStatus = $db->fetchOne("SELECT game_status FROM games WHERE game_id = ?", [$gameId]);
+                    if ($gameStatus && $gameStatus['game_status'] === 'Pending Change') {
+                        $db->update('games', [
+                            'game_status' => 'Scheduled',
+                            'modified_date' => date('Y-m-d H:i:s')
+                        ], 'game_id = ?', [$gameId]);
+                    }
+
+                    $db->commit();
+
+                    logActivity('schedule_direct_change', "Admin direct schedule change for game #$gameId - Version $nextVersion created", $currentUser['id']);
+
+                    $message = 'Schedule changed successfully! New version created.';
+                } catch (Exception $e) {
+                    $db->rollback();
+                    $error = 'Error processing schedule change: ' . $e->getMessage();
+                }
+                break;
         }
     }
 }
+
+// Get all games for admin direct change
+$allGames = $db->fetchAll("
+    SELECT g.game_id, g.game_number,
+           ht.team_name as home_team_name,
+           at.team_name as away_team_name,
+           s.game_date, s.game_time, s.location
+    FROM games g
+    JOIN teams ht ON g.home_team_id = ht.team_id
+    JOIN teams at ON g.away_team_id = at.team_id
+    LEFT JOIN schedules s ON g.game_id = s.game_id
+    WHERE g.game_status NOT IN ('Cancelled', 'Completed')
+    ORDER BY g.game_number ASC
+");
+
+// Get locations for admin direct change
+$locations = $db->fetchAll("SELECT location_name FROM locations WHERE active_status = 'Active' ORDER BY location_name");
 
 // Get pending schedule change requests
 $pendingRequests = $db->fetchAll("
@@ -252,7 +329,12 @@ $pageTitle = "Schedule Management - " . APP_NAME;
     <div class="container-fluid mt-4">
         <div class="row">
             <div class="col-12">
-                <h1>Schedule Management</h1>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h1 class="mb-0">Schedule Management</h1>
+                    <button class="btn btn-primary" onclick="showDirectChangeModal()">
+                        <i class="fas fa-calendar-alt"></i> Process Schedule Change
+                    </button>
+                </div>
 
                 <?php if ($message): ?>
                     <div class="alert alert-success alert-dismissible fade show">
@@ -498,6 +580,87 @@ $pageTitle = "Schedule Management - " . APP_NAME;
         </div>
     </div>
 
+    <!-- Direct Schedule Change Modal -->
+    <div class="modal fade" id="directChangeModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <form method="POST">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title"><i class="fas fa-calendar-alt"></i> Process Schedule Change</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="action" value="admin_direct_change">
+                        <input type="hidden" name="csrf_token" value="<?php echo Auth::generateCSRFToken(); ?>">
+
+                        <div class="mb-3">
+                            <label class="form-label">Select Game *</label>
+                            <select name="game_id" id="directChangeGameId" class="form-select" required>
+                                <option value="">— choose a game —</option>
+                                <?php foreach ($allGames as $g): ?>
+                                <option value="<?php echo (int) $g['game_id']; ?>"
+                                    data-date="<?php echo htmlspecialchars($g['game_date'] ?? ''); ?>"
+                                    data-time="<?php echo htmlspecialchars($g['game_time'] ?? ''); ?>"
+                                    data-location="<?php echo htmlspecialchars($g['location'] ?? ''); ?>">
+                                    Game #<?php echo htmlspecialchars($g['game_number']); ?> &mdash;
+                                    <?php echo htmlspecialchars(strtoupper($g['away_team_name'])); ?> @
+                                    <?php echo htmlspecialchars(strtoupper($g['home_team_name'])); ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <div class="card bg-light mb-3" id="directChangeCurrentInfo" style="display:none">
+                            <div class="card-body">
+                                <h6 class="card-title">Current Schedule</h6>
+                                <div class="row">
+                                    <div class="col-md-4"><strong>Date:</strong> <span id="directCurrentDate"></span></div>
+                                    <div class="col-md-4"><strong>Time:</strong> <span id="directCurrentTime"></span></div>
+                                    <div class="col-md-4"><strong>Location:</strong> <span id="directCurrentLocation"></span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">New Date *</label>
+                                <input type="date" name="new_date" class="form-control" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">New Time *</label>
+                                <input type="time" name="new_time" class="form-control" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">New Location *</label>
+                                <select name="new_location" class="form-select" required>
+                                    <option value="">Select Location</option>
+                                    <?php foreach ($locations as $loc): ?>
+                                    <option value="<?php echo htmlspecialchars($loc['location_name']); ?>">
+                                        <?php echo htmlspecialchars($loc['location_name']); ?>
+                                    </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Reason for Change</label>
+                            <textarea name="change_reason" class="form-control" rows="3" placeholder="Optional reason for this schedule change..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Apply Change
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Deny Modal -->
     <div class="modal fade" id="denyModal" tabindex="-1">
         <div class="modal-dialog">
@@ -590,6 +753,26 @@ $pageTitle = "Schedule Management - " . APP_NAME;
             var editModal = new bootstrap.Modal(document.getElementById('editRequestModal'));
             editModal.show();
         }
+
+        function showDirectChangeModal() {
+            var modal = new bootstrap.Modal(document.getElementById('directChangeModal'));
+            modal.show();
+        }
+
+        document.addEventListener('change', function(e) {
+            if (e.target.id === 'directChangeGameId') {
+                var opt = e.target.options[e.target.selectedIndex];
+                var panel = document.getElementById('directChangeCurrentInfo');
+                if (opt && opt.value) {
+                    document.getElementById('directCurrentDate').textContent = opt.dataset.date || '';
+                    document.getElementById('directCurrentTime').textContent = opt.dataset.time || '';
+                    document.getElementById('directCurrentLocation').textContent = opt.dataset.location || '';
+                    panel.style.display = '';
+                } else {
+                    panel.style.display = 'none';
+                }
+            }
+        });
     </script>
 </body>
 </html>

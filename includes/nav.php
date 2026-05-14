@@ -163,7 +163,7 @@ $rootPath = getPathToRoot();
                         </li>
                     <?php endif; ?>
 
-                    <?php if ($isCoach): ?>
+                    <?php if ($isCoach && !$isAdmin): ?>
                         <!-- Coach Links -->
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle <?php echo $currentDir === 'coaches' ? 'active' : ''; ?>" 

@@ -103,6 +103,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 break;
 
+            case 'upload_document':
+                try {
+                    if (!isset($_FILES['document_file']) || $_FILES['document_file']['error'] !== UPLOAD_ERR_OK) {
+                        throw new Exception('File upload failed. Please try again.');
+                    }
+
+                    $file = $_FILES['document_file'];
+                    $title = sanitize($_POST['title'] ?? '');
+                    $description = sanitize($_POST['description'] ?? '');
+                    $isPublic = isset($_POST['is_public']) ? 1 : 0;
+
+                    if (empty($title)) {
+                        throw new Exception('Title is required.');
+                    }
+
+                    $maxSize = 10 * 1024 * 1024;
+                    if ($file['size'] > $maxSize) {
+                        throw new Exception('File size exceeds the 10MB limit.');
+                    }
+
+                    $allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/plain'];
+                    if (!in_array($file['type'], $allowedTypes)) {
+                        throw new Exception('Invalid file type. Allowed: PDF, DOC, DOCX, XLS, XLSX, TXT.');
+                    }
+
+                    $uploadDir = __DIR__ . '/../../../../uploads/documents/';
+                    if (!is_dir($uploadDir)) {
+                        mkdir($uploadDir, 0755, true);
+                    }
+
+                    $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+                    $filename = uniqid('doc_') . '.' . $ext;
+
+                    if (!move_uploaded_file($file['tmp_name'], $uploadDir . $filename)) {
+                        throw new Exception('Failed to save file.');
+                    }
+
+                    $db->insert('documents', [
+                        'title' => $title,
+                        'description' => $description,
+                        'filename' => $filename,
+                        'original_filename' => $file['name'],
+                        'file_size' => $file['size'],
+                        'file_type' => $file['type'],
+                        'upload_date' => date('Y-m-d H:i:s'),
+                        'is_public' => $isPublic
+                    ]);
+
+                    logActivity('document_uploaded', "Document uploaded: $title");
+                    $message = 'Document uploaded successfully!';
+                } catch (Exception $e) {
+                    $error = 'Error uploading document: ' . $e->getMessage();
+                }
+                break;
+
+            case 'delete_document':
+                try {
+                    $documentId = (int) ($_POST['document_id'] ?? 0);
+                    if ($documentId <= 0) {
+                        throw new Exception('Invalid document ID.');
+                    }
+
+                    $doc = $db->fetchOne("SELECT filename FROM documents WHERE document_id = ?", [$documentId]);
+                    if ($doc) {
+                        $filePath = __DIR__ . '/../../../../uploads/documents/' . $doc['filename'];
+                        if (file_exists($filePath)) {
+                            unlink($filePath);
+                        }
+                        $db->delete('documents', 'document_id = ?', [$documentId]);
+                        logActivity('document_deleted', "Document #$documentId deleted");
+                        $message = 'Document deleted successfully!';
+                    } else {
+                        throw new Exception('Document not found.');
+                    }
+                } catch (Exception $e) {
+                    $error = 'Error deleting document: ' . $e->getMessage();
+                }
+                break;
+
             case 'disable_shared_credential':
                 try {
                     $adminId = (int) ($currentUser['id'] ?? 0);
@@ -145,6 +224,7 @@ $sectionTitles = [
     'users-coach' => 'Coach Access',
     'system-timezone' => 'Timezone Settings',
     'system-backup' => 'Backup & Restore',
+    'documents' => 'Documents',
     'cutover' => 'Migration Cutover',
 ];
 
@@ -244,6 +324,9 @@ $pageTitle = ($sectionTitles[$currentSection] ?? 'Settings') . " - " . APP_NAME;
                             break;
                         case 'system-backup':
                             include 'sections/system-backup.php';
+                            break;
+                        case 'documents':
+                            include 'sections/documents.php';
                             break;
                         case 'cutover':
                             include 'sections/cutover.php';

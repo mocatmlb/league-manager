@@ -89,6 +89,21 @@ function isSettingsActive($section) {
             </a>
         </div>
 
+        <!-- Documents -->
+        <div class="list-group-item list-group-item-action <?php echo strpos($currentSection, 'document') === 0 ? 'active' : ''; ?>"
+             data-bs-toggle="collapse" href="#documentSubmenu" role="button">
+            <div class="d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-file-alt"></i> Documents</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+        </div>
+        <div class="collapse <?php echo strpos($currentSection, 'document') === 0 ? 'show' : ''; ?>" id="documentSubmenu">
+            <a href="?section=documents"
+               class="list-group-item list-group-item-action sub-item <?php echo isSettingsActive('documents'); ?>">
+                <i class="fas fa-upload"></i> Upload Documents
+            </a>
+        </div>
+
         <!-- Migration Cutover -->
         <a href="?section=cutover"
            class="list-group-item list-group-item-action <?php echo isSettingsActive('cutover'); ?>">
