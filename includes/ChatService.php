@@ -152,8 +152,9 @@ class ChatService
             return ['reply' => $reply];
 
         } catch (Exception $e) {
-            error_log("ChatService: Gemini API error: " . $e->getMessage());
-            return ['error' => 'Sorry, the AI service is temporarily unavailable. Please try again later.'];
+            $errMsg = $e->getMessage();
+            error_log("ChatService: Gemini API error: " . $errMsg);
+            return ['error' => "Skipper error: {$errMsg}"];
         }
     }
 
@@ -299,6 +300,9 @@ PROMPT;
             ],
         ]);
 
+        if (!function_exists('curl_init')) {
+            throw new Exception("cURL is not available on this server. Ask your hosting provider to enable it.");
+        }
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
@@ -306,22 +310,26 @@ PROMPT;
             CURLOPT_POSTFIELDS => $body,
             CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
             CURLOPT_TIMEOUT => 30,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
         ]);
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
+        $curlInfo = curl_getinfo($ch);
         curl_close($ch);
 
         if ($error) {
-            throw new Exception("cURL error: {$error}");
+            throw new Exception("cURL error ({$curlInfo['http_code']}): {$error}");
         }
 
         $data = json_decode($response, true);
 
         if ($httpCode !== 200) {
-            $errMsg = $data['error']['message'] ?? "HTTP {$httpCode}";
-            throw new Exception("Gemini API error: {$errMsg}");
+            $errMsg = $data['error']['message'] ?? ($data[0]['error']['message'] ?? "HTTP {$httpCode}");
+            $errCode = $data['error']['code'] ?? ($data[0]['error']['code'] ?? $httpCode);
+            throw new Exception("Gemini API error ({$errCode}): {$errMsg}");
         }
 
         $text = '';
