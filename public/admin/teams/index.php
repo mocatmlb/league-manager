@@ -232,31 +232,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'add_team':
                 try {
                     $leagueName = sanitize($_POST['league_name']);
-                    $managerLastName = sanitize($_POST['manager_last_name']);
-                    
+                    $userId = (int) ($_POST['user_id'] ?? 0);
+
+                    if ($userId <= 0) {
+                        throw new Exception('Please select an owner/manager.');
+                    }
+
+                    $user = $db->fetchOne("SELECT id, first_name, last_name, email, phone FROM users WHERE id = ?", [$userId]);
+                    if (!$user) {
+                        throw new Exception('Selected user not found.');
+                    }
+
+                    $managerLastName = $user['last_name'];
+
                     // If team name is not provided, generate it from league name and manager last name
                     $teamName = sanitize($_POST['team_name']);
                     if (empty($teamName)) {
                         $teamName = $leagueName . '-' . $managerLastName;
                     }
-                    
+
                     $teamData = [
                         'team_name' => $teamName,
                         'league_name' => $leagueName,
                         'division_id' => (int)$_POST['division_id'],
                         'season_id' => (int)$_POST['season_id'],
-                        'manager_first_name' => sanitize($_POST['manager_first_name']),
+                        'manager_first_name' => $user['first_name'],
                         'manager_last_name' => $managerLastName,
-                        'manager_phone' => sanitize($_POST['manager_phone']),
-                        'manager_email' => sanitize($_POST['manager_email']),
+                        'manager_phone' => $user['phone'] ?? '',
+                        'manager_email' => $user['email'] ?? '',
                         'active_status' => 'Active'
                     ];
-                    
+
                     $teamId = $db->insert('teams', $teamData);
+
+                    // Create team_owners record
+                    $db->insert('team_owners', [
+                        'team_id' => $teamId,
+                        'user_id' => $userId,
+                        'assigned_by' => $currentUser['id'],
+                        'created_at' => date('Y-m-d H:i:s')
+                    ]);
+
                     Logger::info("Team created successfully", [
                         'team_id' => $teamId,
                         'team_name' => $teamData['team_name'],
                         'league_name' => $teamData['league_name'],
+                        'owner_user_id' => $userId,
                         'admin_user' => $_SESSION['admin_username'] ?? 'unknown'
                     ]);
                     $message = 'Team created successfully!';
@@ -462,9 +483,9 @@ $adminFormLeagues = LeagueListManager::getActiveList();
 /** @var array<int, array<int, array<string, mixed>>> Divisions keyed by team season_id (code review: scoped picker) */
 $approveDivisionsBySeason = [];
 
-// Active users who are NOT already assigned as team owners (for assign dropdown)
+// Active users who are NOT already assigned as team owners (for assign dropdown + add team)
 $unassignedUsers = $db->fetchAll(
-    "SELECT u.id, u.first_name, u.last_name, u.email
+    "SELECT u.id, u.first_name, u.last_name, u.email, u.phone
      FROM users u
      WHERE u.status = 'active'
        AND u.id NOT IN (SELECT user_id FROM team_owners)
@@ -919,57 +940,9 @@ $pageTitle = "Teams Management - " . APP_NAME;
                         <input type="hidden" name="action" value="add_team">
                         <input type="hidden" name="csrf_token" value="<?php echo Auth::generateCSRFToken(); ?>">
                         
-                        <!-- League Name (Required) -->
-                        <div class="mb-3">
-                            <label class="form-label">League Name *</label>
-                            <input type="text" name="league_name" class="form-control" required>
-                        </div>
-
-                        <!-- Team Name (Optional) -->
-                        <div class="mb-3">
-                            <label class="form-label">Team Name</label>
-                            <input type="text" name="team_name" class="form-control" id="addTeamName">
-                            <div class="form-text">
-                                Optional. If not provided, team will be identified as "League Name-Manager Last Name"
-                            </div>
-                        </div>
-                        
-                        <!-- Manager Contact Info (Required) -->
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Manager First Name *</label>
-                                    <input type="text" name="manager_first_name" class="form-control" required>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Manager Last Name *</label>
-                                    <input type="text" name="manager_last_name" class="form-control" required 
-                                           onchange="updateDefaultTeamName()">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Manager Phone *</label>
-                                    <input type="tel" name="manager_phone" class="form-control phone-format" required>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Manager Email *</label>
-                                    <input type="email" name="manager_email" class="form-control" required>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <hr>
                         <h6>Program Assignment</h6>
                         
-                        <!-- Program Selection (Always visible, required) -->
+                        <!-- Program Selection -->
                         <div class="mb-3">
                             <label class="form-label">Program *</label>
                             <div class="d-flex">
@@ -991,7 +964,7 @@ $pageTitle = "Teams Management - " . APP_NAME;
                             </div>
                         </div>
                         
-                        <!-- Season Selection (Becomes available after program selection) -->
+                        <!-- Season Selection -->
                         <div class="mb-3">
                             <label class="form-label">Season *</label>
                             <div class="d-flex">
@@ -1007,7 +980,7 @@ $pageTitle = "Teams Management - " . APP_NAME;
                             </div>
                         </div>
                         
-                        <!-- Division Selection (Becomes available after season selection) -->
+                        <!-- Division Selection -->
                         <div class="mb-3">
                             <label class="form-label">Division *</label>
                             <div class="d-flex">
@@ -1020,6 +993,49 @@ $pageTitle = "Teams Management - " . APP_NAME;
                             </div>
                             <div id="noDivisionsError" class="alert alert-warning mt-2" style="display: none;">
                                 No divisions available for this season. Please create a division first.
+                            </div>
+                        </div>
+
+                        <hr>
+                        <h6>Team Details</h6>
+
+                        <!-- League Selection -->
+                        <div class="mb-3">
+                            <label class="form-label">League *</label>
+                            <select name="league_name" id="addLeagueSelect" class="form-select" required>
+                                <option value="">Select League</option>
+                                <?php foreach ($adminFormLeagues as $lg): ?>
+                                    <option value="<?php echo htmlspecialchars($lg['display_name'], ENT_QUOTES); ?>">
+                                        <?php echo sanitize($lg['display_name']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <!-- Owner/Manager Selection -->
+                        <div class="mb-3">
+                            <label class="form-label">Owner / Manager *</label>
+                            <select name="user_id" id="addManagerSelect" class="form-select" required>
+                                <option value="">Select Owner/Manager</option>
+                                <?php foreach ($unassignedUsers as $u): ?>
+                                    <option value="<?php echo (int) $u['id']; ?>"
+                                            data-first-name="<?php echo htmlspecialchars($u['first_name'], ENT_QUOTES); ?>"
+                                            data-last-name="<?php echo htmlspecialchars($u['last_name'], ENT_QUOTES); ?>">
+                                        <?php echo sanitize($u['last_name'] . ', ' . $u['first_name'] . ' (' . $u['email'] . ')'); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text">
+                                Only users not currently assigned as a team owner are shown.
+                            </div>
+                        </div>
+
+                        <!-- Team Name -->
+                        <div class="mb-3">
+                            <label class="form-label">Team Name</label>
+                            <input type="text" name="team_name" class="form-control" id="addTeamName">
+                            <div class="form-text">
+                                Auto-populates as <code>{league}-{last_name}</code>; edit to override.
                             </div>
                         </div>
 
@@ -1326,20 +1342,25 @@ $pageTitle = "Teams Management - " . APP_NAME;
     <script>
         // Function to update team name based on league name and manager last name
         function updateDefaultTeamName() {
-            const leagueInput = document.getElementById('addLeagueName') || document.querySelector('input[name="league_name"]');
-            const lastNameInput = document.getElementById('addManagerLastName');
+            const leagueSelect = document.getElementById('addLeagueSelect');
+            const managerSelect = document.getElementById('addManagerSelect');
             const teamNameInput = document.getElementById('addTeamName');
-            if (!leagueInput || !lastNameInput || !teamNameInput) return;
-            if (teamNameInput.value.trim() === '' && leagueInput.value && lastNameInput.value) {
-                teamNameInput.value = leagueInput.value + '-' + lastNameInput.value;
+            if (!leagueSelect || !managerSelect || !teamNameInput) return;
+            const lastName = managerSelect.options[managerSelect.selectedIndex]?.dataset?.lastName || '';
+            if (teamNameInput.value.trim() === '' && leagueSelect.value && lastName) {
+                teamNameInput.value = leagueSelect.value + '-' + lastName;
             }
         }
 
         // Add event listeners for dynamic team name updates
         document.addEventListener('DOMContentLoaded', function() {
-            const addLeagueInput = document.querySelector('input[name="league_name"]');
-            if (addLeagueInput) {
-                addLeagueInput.addEventListener('change', () => updateDefaultTeamName());
+            const addLeagueSelect = document.getElementById('addLeagueSelect');
+            const addManagerSelect = document.getElementById('addManagerSelect');
+            if (addLeagueSelect) {
+                addLeagueSelect.addEventListener('change', () => updateDefaultTeamName());
+            }
+            if (addManagerSelect) {
+                addManagerSelect.addEventListener('change', () => updateDefaultTeamName());
             }
         });
 
