@@ -151,6 +151,12 @@ $rootPath = getPathToRoot();
                                         <i class="fas fa-clipboard-list"></i> Activity Logs
                                     </a>
                                 </li>
+                                <li>
+                                    <a class="dropdown-item <?php echo in_array($currentDir, ['ai']) ? 'active' : ''; ?>"
+                                       href="<?php echo $rootPath; ?>admin/ai/">
+                                        <i class="fas fa-robot"></i> AI Skipper
+                                    </a>
+                                </li>
                             </ul>
                         </li>
 
@@ -261,3 +267,12 @@ $rootPath = getPathToRoot();
         </div>
     </div>
 </nav>
+
+<?php
+// AI Chatbot Widget (Skipper) — only for logged-in users
+$__skipperWidget = __DIR__ . '/ai-chat-widget.php';
+if (file_exists($__skipperWidget)) {
+    include $__skipperWidget;
+}
+unset($__skipperWidget);
+?>
