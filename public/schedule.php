@@ -60,16 +60,12 @@ $games = $db->fetchAll($sql, $filterSql['params']);
 
 function buildMapsUrl($game) {
     $parts = [];
-    if (!empty($game['address'])) {
-        $parts[] = $game['address'];
-        if (!empty($game['city'])) $parts[] = $game['city'];
-        if (!empty($game['state'])) $parts[] = $game['state'];
-        if (!empty($game['zip_code'])) $parts[] = $game['zip_code'];
-    } elseif (!empty($game['loc_name'])) {
-        $parts[] = $game['loc_name'];
-    } elseif (!empty($game['location'])) {
-        $parts[] = $game['location'];
-    }
+    $name = $game['loc_name'] ?? $game['location'] ?? '';
+    if (!empty($name)) $parts[] = $name;
+    if (!empty($game['address'])) $parts[] = $game['address'];
+    if (!empty($game['city'])) $parts[] = $game['city'];
+    if (!empty($game['state'])) $parts[] = $game['state'];
+    if (!empty($game['zip_code'])) $parts[] = $game['zip_code'];
     if (empty($parts)) return '';
     return 'https://maps.google.com/?q=' . urlencode(implode(', ', $parts));
 }
