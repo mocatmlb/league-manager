@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $enabled = isset($_POST['ai_enabled']) ? '1' : '0';
             $dailyLimit = (int) ($_POST['ai_daily_limit_per_user'] ?? 50);
             $globalDailyLimit = (int) ($_POST['ai_global_daily_limit'] ?? 1400);
-            $model = trim($_POST['ai_model'] ?? 'gemini-2.5-flash');
+            $model = trim($_POST['ai_model'] ?? 'gemini-3.1-flash-lite');
 
             updateSetting('ai_api_key', $apiKey);
             updateSetting('ai_enabled', $enabled);
@@ -63,7 +63,7 @@ $stats = $chat->getUsageStats();
 $apiKey = getSetting('ai_api_key', '');
 $enabled = getSetting('ai_enabled', '0') === '1';
 $dailyLimit = (int) getSetting('ai_daily_limit_per_user', '50');
-$model = getSetting('ai_model', 'gemini-2.5-flash');
+$model = getSetting('ai_model', 'gemini-3.1-flash-lite');
 
 $pageTitle = "AI Skipper - " . APP_NAME;
 ?>
@@ -147,11 +147,11 @@ $pageTitle = "AI Skipper - " . APP_NAME;
                     <div class="mb-3">
                         <label class="form-label">Model</label>
                             <select name="ai_model" class="form-select">
-                                <option value="gemini-2.5-flash" <?php echo $model === 'gemini-2.5-flash' ? 'selected' : ''; ?>>Gemini 2.5 Flash (Free Tier - Recommended)</option>
-                                <option value="gemini-2.5-flash-lite" <?php echo $model === 'gemini-2.5-flash-lite' ? 'selected' : ''; ?>>Gemini 2.5 Flash Lite (Faster, Free Tier)</option>
-                                <option value="gemini-2.0-flash" <?php echo $model === 'gemini-2.0-flash' ? 'selected' : ''; ?>>Gemini 2.0 Flash (Legacy)</option>
+                                <option value="gemini-3.1-flash-lite" <?php echo $model === 'gemini-3.1-flash-lite' ? 'selected' : ''; ?>>Gemini 3.1 Flash Lite (500 req/day - Recommended)</option>
+                                <option value="gemini-2.5-flash" <?php echo $model === 'gemini-2.5-flash' ? 'selected' : ''; ?>>Gemini 2.5 Flash (20 req/day)</option>
+                                <option value="gemini-2.5-flash-lite" <?php echo $model === 'gemini-2.5-flash-lite' ? 'selected' : ''; ?>>Gemini 2.5 Flash Lite (20 req/day)</option>
                             </select>
-                            <div class="form-text">All Flash models have generous free tiers (1500 req/day). 2.0 Flash is recommended.</div>
+                            <div class="form-text">3.1 Flash Lite has the highest free tier limit (500 req/day).</div>
                     </div>
 
                     <div class="mb-3">
@@ -170,7 +170,7 @@ $pageTitle = "AI Skipper - " . APP_NAME;
                         <div class="col">
                             <label class="form-label">Global daily limit (all users)</label>
                             <input type="number" name="ai_global_daily_limit" class="form-control" value="<?php echo (int)getSetting('ai_global_daily_limit', '1400'); ?>" min="1" max="5000" style="width: 140px;">
-                            <div class="form-text">Gemini free tier maxes at 1,500/day. Keep it under that.</div>
+                            <div class="form-text">Set below your model's free tier limit (3.1 Flash Lite = 500/day).</div>
                         </div>
                     </div>
 

@@ -16,7 +16,7 @@ class ChatService
     {
         $this->db = Database::getInstance();
         $this->apiKey = getSetting('ai_api_key', '');
-        $this->model = getSetting('ai_model', 'gemini-2.5-flash');
+        $this->model = getSetting('ai_model', 'gemini-3.1-flash-lite');
         $this->enabled = getSetting('ai_enabled', '0') === '1';
         $this->dailyLimitPerUser = (int) getSetting('ai_daily_limit_per_user', '50');
         $this->globalDailyLimit = (int) getSetting('ai_global_daily_limit', '1400');
