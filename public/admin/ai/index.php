@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $enabled = isset($_POST['ai_enabled']) ? '1' : '0';
             $dailyLimit = (int) ($_POST['ai_daily_limit_per_user'] ?? 50);
             $globalDailyLimit = (int) ($_POST['ai_global_daily_limit'] ?? 1400);
-            $model = trim($_POST['ai_model'] ?? 'gemini-2.0-flash');
+            $model = trim($_POST['ai_model'] ?? 'gemini-2.5-flash');
 
             updateSetting('ai_api_key', $apiKey);
             updateSetting('ai_enabled', $enabled);
@@ -63,7 +63,7 @@ $stats = $chat->getUsageStats();
 $apiKey = getSetting('ai_api_key', '');
 $enabled = getSetting('ai_enabled', '0') === '1';
 $dailyLimit = (int) getSetting('ai_daily_limit_per_user', '50');
-$model = getSetting('ai_model', 'gemini-2.0-flash');
+$model = getSetting('ai_model', 'gemini-2.5-flash');
 
 $pageTitle = "AI Skipper - " . APP_NAME;
 ?>
@@ -147,9 +147,9 @@ $pageTitle = "AI Skipper - " . APP_NAME;
                     <div class="mb-3">
                         <label class="form-label">Model</label>
                             <select name="ai_model" class="form-select">
-                                <option value="gemini-2.0-flash" <?php echo $model === 'gemini-2.0-flash' ? 'selected' : ''; ?>>Gemini 2.0 Flash (Fast, Free Tier - Recommended)</option>
-                                <option value="gemini-2.0-flash-lite" <?php echo $model === 'gemini-2.0-flash-lite' ? 'selected' : ''; ?>>Gemini 2.0 Flash Lite (Faster, Free Tier)</option>
-                                <option value="gemini-1.5-flash" <?php echo $model === 'gemini-1.5-flash' ? 'selected' : ''; ?>>Gemini 1.5 Flash (Legacy)</option>
+                                <option value="gemini-2.5-flash" <?php echo $model === 'gemini-2.5-flash' ? 'selected' : ''; ?>>Gemini 2.5 Flash (Free Tier - Recommended)</option>
+                                <option value="gemini-2.5-flash-lite" <?php echo $model === 'gemini-2.5-flash-lite' ? 'selected' : ''; ?>>Gemini 2.5 Flash Lite (Faster, Free Tier)</option>
+                                <option value="gemini-2.0-flash" <?php echo $model === 'gemini-2.0-flash' ? 'selected' : ''; ?>>Gemini 2.0 Flash (Legacy)</option>
                             </select>
                             <div class="form-text">All Flash models have generous free tiers (1500 req/day). 2.0 Flash is recommended.</div>
                     </div>
