@@ -326,23 +326,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         WHERE g.game_id = ?
                     ", [$gameId]);
 
-                    // Determine new status
-                    $newStatus = sanitize($_POST['game_status']);
-                    
-                    // Only allow manual change to Completed or Cancelled
-                    if ($newStatus && $newStatus !== 'Completed' && $newStatus !== 'Cancelled') {
-                        throw new Exception('Invalid game status selected.');
-                    }
-                    
-                    // If no status selected, determine automatically
-                    if (!$newStatus) {
-                        if ($currentGame['pending_changes'] > 0) {
-                            $newStatus = 'Pending Change';
-                        } else if ($currentGame['has_schedule'] > 0) {
-                            $newStatus = 'Scheduled';
-                        } else {
-                            $newStatus = 'Created';
-                        }
+                    // Determine new status automatically (not user-selectable)
+                    if ($currentGame['pending_changes'] > 0) {
+                        $newStatus = 'Pending Change';
+                    } else if ($currentGame['has_schedule'] > 0) {
+                        $newStatus = 'Scheduled';
+                    } else {
+                        $newStatus = 'Created';
                     }
                     
                     // Update game record using positional parameters
@@ -1063,33 +1053,16 @@ $pageTitle = "Games Management - " . APP_NAME;
                             </div>
                         </div>
                         
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Division</label>
-                                    <select name="division_id" id="editDivisionId" class="form-select">
-                                        <option value="">Select Division (Optional)</option>
-                                        <?php foreach ($divisions as $division): ?>
-                                            <option value="<?php echo $division['division_id']; ?>">
-                                                <?php echo sanitize($division['division_name']); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Game Status</label>
-                                    <select name="game_status" id="editGameStatus" class="form-select" required>
-                                        <option value="">Select Status...</option>
-                                        <option value="Completed">Completed</option>
-                                        <option value="Cancelled">Cancelled</option>
-                                    </select>
-                                    <div class="form-text">
-                                        Note: Other game statuses are automatically managed by the system based on game data and schedule changes.
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="mb-3">
+                            <label class="form-label">Division</label>
+                            <select name="division_id" id="editDivisionId" class="form-select">
+                                <option value="">Select Division (Optional)</option>
+                                <?php foreach ($divisions as $division): ?>
+                                    <option value="<?php echo $division['division_id']; ?>">
+                                        <?php echo sanitize($division['division_name']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
                         
                         <div class="row">
@@ -1548,13 +1521,6 @@ $pageTitle = "Games Management - " . APP_NAME;
             document.getElementById('editSeasonId').value = game.season_id;
             document.getElementById('editDivisionId').value = game.division_id || '';
             
-            // Only set status if it's Completed or Cancelled, otherwise leave blank
-            const statusSelect = document.getElementById('editGameStatus');
-            if (game.game_status === 'Completed' || game.game_status === 'Cancelled') {
-                statusSelect.value = game.game_status;
-            } else {
-                statusSelect.value = '';
-            }
             
             document.getElementById('editAwayTeamId').value = game.away_team_id;
             document.getElementById('editHomeTeamId').value = game.home_team_id;
