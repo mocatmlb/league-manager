@@ -1058,39 +1058,23 @@ $pageTitle = "Teams Management - " . APP_NAME;
                             <label class="form-label">Team Name</label>
                             <input type="text" name="team_name" id="editTeamName" class="form-control">
                             <div class="form-text">
-                                Leave blank to use "League Name-Manager Last Name" format
+                                Leave blank to auto-generate from league name.
                             </div>
                         </div>
                         
-                        <!-- Manager Contact Info (Required) -->
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Manager First Name *</label>
-                                    <input type="text" name="manager_first_name" id="editManagerFirstName" class="form-control" required>
+                        <!-- Owner / Manager Info (read-only) -->
+                        <div class="mb-3" id="editOwnerInfo">
+                            <label class="form-label">Owner</label>
+                            <div id="editOwnerInfoBody" class="border rounded p-3 bg-light">
+                                <div id="editOwnerDetails" style="display:none">
+                                    <strong id="editOwnerName"></strong><br>
+                                    <small class="text-muted"><i class="fas fa-envelope"></i> <span id="editOwnerEmail"></span></small><br>
+                                    <small class="text-muted"><i class="fas fa-phone"></i> <span id="editOwnerPhone"></span></small>
                                 </div>
+                                <div id="editOwnerNone" class="text-muted">Not assigned</div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Manager Last Name *</label>
-                                    <input type="text" name="manager_last_name" id="editManagerLastName" class="form-control" required
-                                           onchange="updateDefaultTeamName('edit')">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Manager Phone *</label>
-                                    <input type="tel" name="manager_phone" id="editManagerPhone" class="form-control phone-format" required>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Manager Email *</label>
-                                    <input type="email" name="manager_email" id="editManagerEmail" class="form-control" required>
-                                </div>
+                            <div class="form-text">
+                                Owner info is managed via <a href="users/index.php">Manage Users</a>.
                             </div>
                         </div>
                         
@@ -1341,13 +1325,11 @@ $pageTitle = "Teams Management - " . APP_NAME;
     
     <script>
         // Function to update team name based on league name and manager last name
-        function updateDefaultTeamName(mode = 'add') {
-            const prefix = mode === 'edit' ? 'edit' : '';
-            const leagueInput = document.getElementById(prefix + 'LeagueName');
-            const lastNameInput = document.getElementById(prefix + 'ManagerLastName');
-            const teamNameInput = document.getElementById(prefix + 'TeamName');
-            
-            // Only update if team name is empty
+        function updateDefaultTeamName() {
+            const leagueInput = document.getElementById('addLeagueName') || document.querySelector('input[name="league_name"]');
+            const lastNameInput = document.getElementById('addManagerLastName');
+            const teamNameInput = document.getElementById('addTeamName');
+            if (!leagueInput || !lastNameInput || !teamNameInput) return;
             if (teamNameInput.value.trim() === '' && leagueInput.value && lastNameInput.value) {
                 teamNameInput.value = leagueInput.value + '-' + lastNameInput.value;
             }
@@ -1355,16 +1337,9 @@ $pageTitle = "Teams Management - " . APP_NAME;
 
         // Add event listeners for dynamic team name updates
         document.addEventListener('DOMContentLoaded', function() {
-            // Add Team form
             const addLeagueInput = document.querySelector('input[name="league_name"]');
             if (addLeagueInput) {
                 addLeagueInput.addEventListener('change', () => updateDefaultTeamName());
-            }
-
-            // Edit Team form
-            const editLeagueInput = document.getElementById('editLeagueName');
-            if (editLeagueInput) {
-                editLeagueInput.addEventListener('change', () => updateDefaultTeamName('edit'));
             }
         });
 
@@ -1601,11 +1576,24 @@ $pageTitle = "Teams Management - " . APP_NAME;
             document.getElementById('editTeamName').value = team.team_name;
             document.getElementById('editLeagueName').value = team.league_name;
             document.getElementById('editActiveStatus').value = team.active_status;
-            document.getElementById('editManagerFirstName').value = team.manager_first_name || '';
-            document.getElementById('editManagerLastName').value = team.manager_last_name || '';
-            document.getElementById('editManagerPhone').value = team.manager_phone || '';
-            document.getElementById('editManagerEmail').value = team.manager_email || '';
-            
+
+            // Populate owner info from the unified data source (users via team_owners)
+            const ownerName   = document.getElementById('editOwnerName');
+            const ownerEmail  = document.getElementById('editOwnerEmail');
+            const ownerPhone  = document.getElementById('editOwnerPhone');
+            const ownerDetail = document.getElementById('editOwnerDetails');
+            const ownerNone   = document.getElementById('editOwnerNone');
+            if (team.owner_user_id) {
+                ownerName.textContent  = team.owner_first_name + ' ' + team.owner_last_name;
+                ownerEmail.textContent = team.owner_email || '';
+                ownerPhone.textContent = team.owner_phone || '';
+                ownerDetail.style.display = 'block';
+                ownerNone.style.display   = 'none';
+            } else {
+                ownerDetail.style.display = 'none';
+                ownerNone.style.display   = 'block';
+            }
+
             // Find the team's current division, season, and program
             const currentDivision = divisionsData.find(d => d.division_id == team.division_id);
             if (currentDivision) {
@@ -1716,15 +1704,7 @@ $pageTitle = "Teams Management - " . APP_NAME;
                 });
                 if (inp.value) inp.value = formatPhone(inp.value);
             });
-            // Re-format edit modal phone after it is populated by editTeam()
-            var origEditTeam = window.editTeam;
-            if (typeof origEditTeam === 'function') {
-                window.editTeam = function (team) {
-                    origEditTeam(team);
-                    var ph = document.getElementById('editManagerPhone');
-                    if (ph) ph.value = formatPhone(ph.value);
-                };
-            }
+
         })();
     </script>
 </body>
