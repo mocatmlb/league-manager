@@ -3,19 +3,27 @@ $__dir = __DIR__;
 $__found = false;
 for ($__i = 0; $__i < 6; $__i++) {
     $__candidate = $__dir . '/includes/env-loader.php';
-    if (file_exists($__candidate)) { require_once $__candidate; $__found = true; break; }
+    if (file_exists($__candidate)) {
+        require_once $__candidate;
+        $__found = true;
+        break;
+    }
     $__dir = dirname($__dir);
 }
 if (!$__found) {
     if (!empty($_SERVER['DOCUMENT_ROOT']) && file_exists($_SERVER['DOCUMENT_ROOT'] . '/includes/env-loader.php')) {
         require_once $_SERVER['DOCUMENT_ROOT'] . '/includes/env-loader.php';
+        $__found = true;
     }
+}
+if (!$__found) {
+    error_log('D8TL ERROR: Unable to locate includes/env-loader.php from ' . __FILE__);
+    http_response_code(500);
+    exit('Configuration error: env-loader not found');
 }
 unset($__dir, $__found, $__i, $__candidate);
 
-@include_once EnvLoader::getPath('includes/admin_bootstrap.php');
-
-Auth::requireAdmin();
+require_once EnvLoader::getPath('includes/admin_bootstrap.php');
 
 $db = Database::getInstance();
 $currentUser = Auth::getCurrentUser();

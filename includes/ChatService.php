@@ -29,33 +29,45 @@ class ChatService
 
     public function getUsageStats(): array
     {
-        return [
-            'today_count' => $this->db->fetchOne(
-                "SELECT COUNT(*) as cnt FROM chat_messages WHERE role = 'user' AND DATE(created_date) = CURDATE()"
-            )['cnt'] ?? 0,
-            'total_count' => $this->db->fetchOne(
-                "SELECT COUNT(*) as cnt FROM chat_messages WHERE role = 'user'"
-            )['cnt'] ?? 0,
-            'unique_users_today' => $this->db->fetchOne(
-                "SELECT COUNT(DISTINCT COALESCE(user_id, session_id)) as cnt FROM chat_messages WHERE role = 'user' AND DATE(created_date) = CURDATE()"
-            )['cnt'] ?? 0,
-        ];
+        try {
+            return [
+                'today_count' => (int) ($this->db->fetchOne(
+                    "SELECT COUNT(*) as cnt FROM chat_messages WHERE role = 'user' AND DATE(created_date) = CURDATE()"
+                )['cnt'] ?? 0),
+                'total_count' => (int) ($this->db->fetchOne(
+                    "SELECT COUNT(*) as cnt FROM chat_messages WHERE role = 'user'"
+                )['cnt'] ?? 0),
+                'unique_users_today' => (int) ($this->db->fetchOne(
+                    "SELECT COUNT(DISTINCT COALESCE(user_id, session_id)) as cnt FROM chat_messages WHERE role = 'user' AND DATE(created_date) = CURDATE()"
+                )['cnt'] ?? 0),
+            ];
+        } catch (Exception $e) {
+            return ['today_count' => 0, 'total_count' => 0, 'unique_users_today' => 0];
+        }
     }
 
     public function getUserDailyCount(int $userId): int
     {
-        return (int) ($this->db->fetchOne(
-            "SELECT COUNT(*) as cnt FROM chat_messages WHERE role = 'user' AND user_id = ? AND DATE(created_date) = CURDATE()",
-            [$userId]
-        )['cnt'] ?? 0);
+        try {
+            return (int) ($this->db->fetchOne(
+                "SELECT COUNT(*) as cnt FROM chat_messages WHERE role = 'user' AND user_id = ? AND DATE(created_date) = CURDATE()",
+                [$userId]
+            )['cnt'] ?? 0);
+        } catch (Exception $e) {
+            return 0;
+        }
     }
 
     public function getSessionMessages(string $sessionId): array
     {
-        return $this->db->fetchAll(
-            "SELECT role, content, created_date FROM chat_messages WHERE session_id = ? ORDER BY id ASC",
-            [$sessionId]
-        );
+        try {
+            return $this->db->fetchAll(
+                "SELECT role, content, created_date FROM chat_messages WHERE session_id = ? ORDER BY id ASC",
+                [$sessionId]
+            );
+        } catch (Exception $e) {
+            return [];
+        }
     }
 
     public function answer(
@@ -70,9 +82,13 @@ class ChatService
             return ['error' => 'AI chat is not enabled. Ask an admin to configure it in Settings > AI Chatbot.'];
         }
 
-        $globalToday = (int) ($this->db->fetchOne(
-            "SELECT COUNT(*) as cnt FROM chat_messages WHERE role = 'user' AND DATE(created_date) = CURDATE()"
-        )['cnt'] ?? 0);
+        try {
+            $globalToday = (int) ($this->db->fetchOne(
+                "SELECT COUNT(*) as cnt FROM chat_messages WHERE role = 'user' AND DATE(created_date) = CURDATE()"
+            )['cnt'] ?? 0);
+        } catch (Exception $e) {
+            $globalToday = 0;
+        }
         if ($globalToday >= $this->globalDailyLimit) {
             return ['error' => 'Skipper has reached the daily message limit for the league. Try again tomorrow!'];
         }
@@ -107,27 +123,31 @@ class ChatService
             $tokensIn = $response['tokens_in'] ?? 0;
             $tokensOut = $response['tokens_out'] ?? 0;
 
-            $this->db->insert('chat_messages', [
-                'user_id' => $userId,
-                'user_type' => $userType,
-                'session_id' => $sessionId,
-                'role' => 'user',
-                'content' => $message,
-                'model' => $this->model,
-                'tokens_in' => $tokensIn,
-                'tokens_out' => 0,
-            ]);
+            try {
+                $this->db->insert('chat_messages', [
+                    'user_id' => $userId,
+                    'user_type' => $userType,
+                    'session_id' => $sessionId,
+                    'role' => 'user',
+                    'content' => $message,
+                    'model' => $this->model,
+                    'tokens_in' => $tokensIn,
+                    'tokens_out' => 0,
+                ]);
 
-            $this->db->insert('chat_messages', [
-                'user_id' => $userId,
-                'user_type' => $userType,
-                'session_id' => $sessionId,
-                'role' => 'assistant',
-                'content' => $reply,
-                'model' => $this->model,
-                'tokens_in' => 0,
-                'tokens_out' => $tokensOut,
-            ]);
+                $this->db->insert('chat_messages', [
+                    'user_id' => $userId,
+                    'user_type' => $userType,
+                    'session_id' => $sessionId,
+                    'role' => 'assistant',
+                    'content' => $reply,
+                    'model' => $this->model,
+                    'tokens_in' => 0,
+                    'tokens_out' => $tokensOut,
+                ]);
+            } catch (Exception $e) {
+                error_log("ChatService: failed to log messages: " . $e->getMessage());
+            }
 
             return ['reply' => $reply];
 
@@ -214,28 +234,32 @@ PROMPT;
 
     private function getRelevantKnowledge(string $message): array
     {
-        $keywords = explode(' ', strtolower(preg_replace('/[^a-z0-9 ]/i', '', $message)));
-        $keywords = array_unique(array_filter($keywords, fn($w) => strlen($w) > 2));
+        try {
+            $keywords = explode(' ', strtolower(preg_replace('/[^a-z0-9 ]/i', '', $message)));
+            $keywords = array_unique(array_filter($keywords, fn($w) => strlen($w) > 2));
 
-        if (empty($keywords)) {
+            if (empty($keywords)) {
+                return $this->db->fetchAll(
+                    "SELECT category, title, content FROM knowledge_base WHERE is_active = 1 ORDER BY sort_order ASC LIMIT 5"
+                );
+            }
+
+            $likeClauses = [];
+            $params = [];
+            foreach ($keywords as $kw) {
+                $likeClauses[] = "content LIKE ? OR title LIKE ?";
+                $params[] = "%{$kw}%";
+                $params[] = "%{$kw}%";
+            }
+
+            $where = '(' . implode(' OR ', $likeClauses) . ') AND is_active = 1';
             return $this->db->fetchAll(
-                "SELECT category, title, content FROM knowledge_base WHERE is_active = 1 ORDER BY sort_order ASC LIMIT 5"
+                "SELECT category, title, content FROM knowledge_base WHERE {$where} ORDER BY sort_order ASC LIMIT 10",
+                $params
             );
+        } catch (Exception $e) {
+            return [];
         }
-
-        $likeClauses = [];
-        $params = [];
-        foreach ($keywords as $kw) {
-            $likeClauses[] = "content LIKE ? OR title LIKE ?";
-            $params[] = "%{$kw}%";
-            $params[] = "%{$kw}%";
-        }
-
-        $where = '(' . implode(' OR ', $likeClauses) . ') AND is_active = 1';
-        return $this->db->fetchAll(
-            "SELECT category, title, content FROM knowledge_base WHERE {$where} ORDER BY sort_order ASC LIMIT 10",
-            $params
-        );
     }
 
     private function callGemini(string $systemPrompt, array $history, string $userMessage): array

@@ -5,17 +5,27 @@ $__dir = __DIR__;
 $__found = false;
 for ($__i = 0; $__i < 6; $__i++) {
     $__candidate = $__dir . '/includes/env-loader.php';
-    if (file_exists($__candidate)) { require_once $__candidate; $__found = true; break; }
+    if (file_exists($__candidate)) {
+        require_once $__candidate;
+        $__found = true;
+        break;
+    }
     $__dir = dirname($__dir);
 }
 if (!$__found) {
     if (!empty($_SERVER['DOCUMENT_ROOT']) && file_exists($_SERVER['DOCUMENT_ROOT'] . '/includes/env-loader.php')) {
         require_once $_SERVER['DOCUMENT_ROOT'] . '/includes/env-loader.php';
+        $__found = true;
     }
+}
+if (!$__found) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Configuration error: env-loader not found']);
+    exit;
 }
 unset($__dir, $__found, $__i, $__candidate);
 
-@include_once EnvLoader::getPath('includes/bootstrap.php');
+require_once EnvLoader::getPath('includes/bootstrap.php');
 
 header('Content-Type: application/json');
 
