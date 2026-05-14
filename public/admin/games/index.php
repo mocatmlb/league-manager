@@ -1318,41 +1318,24 @@ $pageTitle = "Games Management - " . APP_NAME;
     <?php outputTimezoneJS(); ?>
     
     <script>
-        // Prevent selecting the same team for home and away
-        function validateTeamSelection(selectElement) {
-            const homeSelect = document.getElementById('editHomeTeamId');
-            const awaySelect = document.getElementById('editAwayTeamId');
-            const addHomeSelect = document.getElementById('homeTeamId');
-            const addAwaySelect = document.getElementById('awayTeamId');
-            
-            // Function to check and update selects
-            function checkSelects(select1, select2) {
-                if (select1 && select2 && select1.value === select2.value && select1.value !== '') {
-                    // Reset the select that just changed
-                    if (select1 === selectElement) {
-                        select1.value = '';
-                    } else {
-                        select2.value = '';
-                    }
-                    alert('Home team and away team cannot be the same.');
-                }
-            }
-            
-            // Check both edit and add game forms
-            if (homeSelect && awaySelect) {
-                checkSelects(homeSelect, awaySelect);
-            }
-            if (addHomeSelect && addAwaySelect) {
-                checkSelects(addHomeSelect, addAwaySelect);
-            }
-        }
-
-        // Add event listeners to all team select elements
+        // Validate teams on form submission (not on individual change events)
         document.addEventListener('DOMContentLoaded', function() {
-            const teamSelects = document.querySelectorAll('select[name="home_team_id"], select[name="away_team_id"]');
-            teamSelects.forEach(select => {
-                select.addEventListener('change', function() {
-                    validateTeamSelection(this);
+            document.querySelectorAll('#addGameModal form, #editGameModal form').forEach(function(form) {
+                form.addEventListener('submit', function(e) {
+                    var homeSelect = this.querySelector('select[name="home_team_id"]');
+                    var awaySelect = this.querySelector('select[name="away_team_id"]');
+                    if (!homeSelect || !awaySelect) return;
+
+                    if (!homeSelect.value || !awaySelect.value) {
+                        e.preventDefault();
+                        alert('Please select both a home team and an away team.');
+                        return;
+                    }
+
+                    if (homeSelect.value === awaySelect.value) {
+                        e.preventDefault();
+                        alert('Home team and away team cannot be the same.');
+                    }
                 });
             });
         });
