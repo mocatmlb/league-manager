@@ -53,7 +53,7 @@ $uploadDir = file_exists(__DIR__ . '/includes/env-loader.php')
 $filePath = $uploadDir . $doc['filename'];
 
 if (!file_exists($filePath)) {
-    $legacyDir = __DIR__ . '/../../../uploads/documents/';
+    $legacyDir = __DIR__ . '/../../uploads/documents/';
     $filePath = $legacyDir . $doc['filename'];
 }
 
