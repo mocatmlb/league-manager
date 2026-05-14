@@ -248,17 +248,23 @@ class EmailService {
     private function getTeamManagerEmail($gameId, $teamType) {
         $teamField = $teamType === 'home' ? 'home_team_id' : 'away_team_id';
         
-        // Build the query safely with the field name
+        // Use canonical email from users where available, fall back to
+        // teams.manager_email for legacy teams without a team_owners record.
         $sql = "
-            SELECT t.manager_email 
-            FROM games g 
-            JOIN teams t ON g.{$teamField} = t.team_id 
-            WHERE g.game_id = ? AND t.manager_email IS NOT NULL AND t.manager_email != ''
+            SELECT COALESCE(u.email, t.manager_email) AS email
+            FROM games g
+            JOIN teams t ON g.{$teamField} = t.team_id
+            LEFT JOIN team_owners tow ON tow.team_id = t.team_id
+            LEFT JOIN users u ON u.id = tow.user_id
+            WHERE g.game_id = ?
+              AND (u.email IS NOT NULL AND u.email != ''
+                   OR t.manager_email IS NOT NULL AND t.manager_email != '')
+            LIMIT 1
         ";
         
         $result = $this->db->fetchOne($sql, [$gameId]);
         
-        return $result ? $result['manager_email'] : null;
+        return $result ? $result['email'] : null;
     }
     
     /**

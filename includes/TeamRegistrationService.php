@@ -124,7 +124,8 @@ class TeamRegistrationService {
     public function approve(int $teamId, int $adminUserId, int $divisionId): void {
         // 1. Load pending team and resolve coach before mutating rows
         $team = $this->db->fetchOne(
-            'SELECT team_id, team_name, manager_email, status, season_id FROM teams WHERE team_id = :id LIMIT 1',
+            'SELECT team_id, team_name, manager_email, submitted_by_user_id, status, season_id
+               FROM teams WHERE team_id = :id LIMIT 1',
             ['id' => $teamId]
         );
         if ($team === false) {
@@ -143,10 +144,22 @@ class TeamRegistrationService {
             throw new RuntimeException('Selected division is not valid for this team\'s season.');
         }
 
-        $coachUser = $this->db->fetchOne(
-            'SELECT id, first_name, email FROM users WHERE email = :email LIMIT 1',
-            ['email' => $team['manager_email']]
-        );
+        // Resolve the coach by submitted_by_user_id first, then fall back to
+        // manager_email for legacy registrations that may not have the FK set.
+        $coachUser = null;
+        $submittedBy = (int) ($team['submitted_by_user_id'] ?? 0);
+        if ($submittedBy > 0) {
+            $coachUser = $this->db->fetchOne(
+                'SELECT id, first_name, email FROM users WHERE id = :id LIMIT 1',
+                ['id' => $submittedBy]
+            );
+        }
+        if ($coachUser === false || $coachUser === null) {
+            $coachUser = $this->db->fetchOne(
+                'SELECT id, first_name, email FROM users WHERE email = :email LIMIT 1',
+                ['email' => $team['manager_email']]
+            );
+        }
         if ($coachUser === false) {
             throw new RuntimeException('Coach account not found for team.');
         }
@@ -211,8 +224,12 @@ class TeamRegistrationService {
 
     public function reject(int $teamId, int $adminUserId, string $reason = ''): void {
         $team = $this->db->fetchOne(
-            'SELECT team_id, team_name, manager_first_name, manager_email, status
-             FROM teams WHERE team_id = :id LIMIT 1',
+            'SELECT t.team_id, t.team_name, t.status,
+                    COALESCE(u.email, t.manager_email)  AS contact_email,
+                    COALESCE(u.first_name, t.manager_first_name) AS contact_first_name
+             FROM teams t
+             LEFT JOIN users u ON u.id = t.submitted_by_user_id
+             WHERE t.team_id = :id LIMIT 1',
             ['id' => $teamId]
         );
         if ($team === false) {
@@ -244,9 +261,9 @@ class TeamRegistrationService {
         try {
             $this->emailService->triggerNotificationToAddress(
                 'team_registration_rejected',
-                $team['manager_email'],
+                $team['contact_email'],
                 [
-                    'first_name' => $team['manager_first_name'],
+                    'first_name' => $team['contact_first_name'],
                     'team_name'  => $team['team_name'],
                     'reason'     => $reason !== '' ? $reason : 'No reason provided.',
                 ]

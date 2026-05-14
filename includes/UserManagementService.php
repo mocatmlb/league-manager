@@ -279,38 +279,61 @@ class UserManagementService {
             );
         }
 
-        // Insert team_owners row (assigned_by is NOT NULL)
-        $this->db->query(
-            'INSERT INTO team_owners (user_id, team_id, assigned_by, created_at)
-             VALUES (:user_id, :team_id, :assigned_by, NOW())',
-            ['user_id' => $userId, 'team_id' => $teamId, 'assigned_by' => $adminUserId]
-        );
-
-        // Elevate role to team_owner whenever not already team_owner (Story 4.3 review: option 1)
+        // Fetch user data before mutating
         $user = $this->db->fetchOne(
-            'SELECT id, first_name, email, role_id FROM users WHERE id = :id LIMIT 1',
+            'SELECT id, first_name, last_name, email, phone, role_id FROM users WHERE id = :id LIMIT 1',
             ['id' => $userId]
         );
-        if ($user !== false) {
-            $currentRoleName = $this->resolveRoleName((int) ($user['role_id'] ?? 0));
-            if ($currentRoleName !== 'team_owner') {
-                $this->setUserRole($userId, 'team_owner');
-            }
+        if ($user === false) {
+            throw new RuntimeException('User not found.');
+        }
 
-            // Operational email — failure logged, never surfaced to caller (AR-12)
-            try {
-                $this->emailService->triggerNotificationToAddress(
-                    'team_assignment_notification',
-                    (string) $user['email'],
-                    [
-                        'user_id'    => $userId,
-                        'team_id'    => $teamId,
-                        'first_name' => $user['first_name'],
-                    ]
-                );
-            } catch (Throwable $e) {
-                error_log('[UserManagementService] assignTeam email failed: ' . $e->getMessage());
-            }
+        // Insert team_owners row.
+        // assigned_by is NULL because admin IDs come from admin_users, not users,
+        // and cannot satisfy the team_owners.assigned_by FK -> users(id).
+        $this->db->query(
+            'INSERT INTO team_owners (user_id, team_id, assigned_by, created_at)
+             VALUES (:user_id, :team_id, NULL, NOW())',
+            ['user_id' => $userId, 'team_id' => $teamId]
+        );
+
+        // Backfill teams.manager_* so the denormalised columns stay consistent
+        // with the canonical user data.
+        $this->db->query(
+            'UPDATE teams
+                SET manager_first_name = :first_name,
+                    manager_last_name  = :last_name,
+                    manager_email      = :email,
+                    manager_phone      = :phone
+              WHERE team_id = :team_id',
+            [
+                'first_name' => $user['first_name'],
+                'last_name'  => $user['last_name'] ?? '',
+                'email'      => $user['email'],
+                'phone'      => $user['phone'] ?? null,
+                'team_id'    => $teamId,
+            ]
+        );
+
+        // Elevate role to team_owner whenever not already team_owner
+        $currentRoleName = $this->resolveRoleName((int) ($user['role_id'] ?? 0));
+        if ($currentRoleName !== 'team_owner') {
+            $this->setUserRole($userId, 'team_owner');
+        }
+
+        // Operational email — failure logged, never surfaced to caller (AR-12)
+        try {
+            $this->emailService->triggerNotificationToAddress(
+                'team_assignment_notification',
+                (string) $user['email'],
+                [
+                    'user_id'    => $userId,
+                    'team_id'    => $teamId,
+                    'first_name' => $user['first_name'],
+                ]
+            );
+        } catch (Throwable $e) {
+            error_log('[UserManagementService] assignTeam email failed: ' . $e->getMessage());
         }
 
         ActivityLogger::log('team.owner_assigned', [

@@ -157,9 +157,14 @@ class UMSMockDatabase extends Database {
             $this->teamOwners[] = [
                 'user_id'     => $params['user_id'],
                 'team_id'     => $params['team_id'],
-                'assigned_by' => $params['assigned_by'],
+                'assigned_by' => $params['assigned_by'] ?? null,
             ];
             $this->lastInsertId = 1;
+        }
+
+        // Simulate UPDATE teams SET manager_* (backfill from assignTeam)
+        if (stripos($sql, 'UPDATE teams') !== false && stripos($sql, 'manager_first_name') !== false) {
+            // No-op for mock — teams aren't tracked in UMS tests
         }
 
         // Simulate DELETE team_owners — rowCount reflects rows removed
@@ -291,11 +296,11 @@ register_test('assignTeam: inserts team_owners row', function () {
 
     $found = false;
     foreach ($db->teamOwners as $to) {
-        if ($to['user_id'] === 1 && $to['team_id'] === 10 && $to['assigned_by'] === 99) {
+        if ($to['user_id'] === 1 && $to['team_id'] === 10 && $to['assigned_by'] === null) {
             $found = true;
         }
     }
-    assert_true($found, 'team_owners row should be inserted with correct user/team/admin IDs');
+    assert_true($found, 'team_owners row should be inserted with correct user/team IDs and assigned_by=NULL');
 });
 
 register_test('assignTeam: elevates role from user to team_owner', function () {

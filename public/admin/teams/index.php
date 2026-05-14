@@ -357,6 +357,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $error = 'Error deleting team: ' . $e->getMessage();
                 }
                 break;
+
+            case 'assign_owner':
+                try {
+                    $userId     = (int) ($_POST['user_id'] ?? 0);
+                    $teamId     = (int) ($_POST['team_id'] ?? 0);
+                    $adminUserId = (int) ($_SESSION['admin_id'] ?? 0);
+
+                    if ($adminUserId < 1 || $userId < 1 || $teamId < 1) {
+                        $error = 'Invalid request.';
+                        break;
+                    }
+
+                    if (!class_exists('UserManagementService')) {
+                        require_once EnvLoader::getPath('includes/UserManagementService.php');
+                    }
+                    (new UserManagementService())->assignTeam($userId, $teamId, $adminUserId);
+
+                    $_SESSION['flash_message'] = 'Team owner assigned successfully.';
+                    header('Location: index.php');
+                    exit;
+                } catch (TeamAlreadyClaimedException $e) {
+                    $error = 'This user already has a team assigned.';
+                } catch (Throwable $e) {
+                    Logger::error('Team owner assignment failed', ['error' => $e->getMessage()]);
+                    $error = 'Assignment could not be completed. Please try again or contact support.';
+                }
+                break;
+
+            case 'remove_owner':
+                try {
+                    $teamId      = (int) ($_POST['team_id'] ?? 0);
+                    $adminUserId = (int) ($_SESSION['admin_id'] ?? 0);
+
+                    if ($adminUserId < 1 || $teamId < 1) {
+                        $error = 'Invalid request.';
+                        break;
+                    }
+
+                    // Look up current owner for this team
+                    $owner = $db->fetchOne(
+                        'SELECT user_id FROM team_owners WHERE team_id = :tid LIMIT 1',
+                        ['tid' => $teamId]
+                    );
+                    if ($owner === false) {
+                        $error = 'This team does not have an owner assigned.';
+                        break;
+                    }
+
+                    if (!class_exists('UserManagementService')) {
+                        require_once EnvLoader::getPath('includes/UserManagementService.php');
+                    }
+                    (new UserManagementService())->removeTeam(
+                        (int) $owner['user_id'],
+                        $teamId,
+                        $adminUserId
+                    );
+
+                    $_SESSION['flash_message'] = 'Team owner removed successfully.';
+                    header('Location: index.php');
+                    exit;
+                } catch (Throwable $e) {
+                    Logger::error('Team owner removal failed', ['error' => $e->getMessage()]);
+                    $error = 'Removal could not be completed. Please try again or contact support.';
+                }
+                break;
         }
     }
 }
@@ -397,13 +462,29 @@ $adminFormLeagues = LeagueListManager::getActiveList();
 /** @var array<int, array<int, array<string, mixed>>> Divisions keyed by team season_id (code review: scoped picker) */
 $approveDivisionsBySeason = [];
 
-// Get teams with division and season info
+// Active users who are NOT already assigned as team owners (for assign dropdown)
+$unassignedUsers = $db->fetchAll(
+    "SELECT u.id, u.first_name, u.last_name, u.email
+     FROM users u
+     WHERE u.status = 'active'
+       AND u.id NOT IN (SELECT user_id FROM team_owners)
+     ORDER BY u.last_name, u.first_name"
+);
+
+// Get teams with division and season info, plus owner details from users
+// via team_owners.  Falls back to teams.manager_* for legacy teams without
+// an owner record.
 $teams = $db->fetchAll("
     SELECT t.*, d.division_name, s.season_name,
-           CONCAT(t.manager_first_name, ' ', t.manager_last_name) as manager_name
+           tow.user_id AS owner_user_id,
+           u.first_name AS owner_first_name, u.last_name AS owner_last_name,
+           u.email AS owner_email, u.phone AS owner_phone,
+           CONCAT(COALESCE(u.first_name, t.manager_first_name), ' ', COALESCE(u.last_name, t.manager_last_name)) AS owner_name
     FROM teams t
     JOIN divisions d ON t.division_id = d.division_id
     JOIN seasons s ON t.season_id = s.season_id
+    LEFT JOIN team_owners tow ON tow.team_id = t.team_id
+    LEFT JOIN users u ON u.id = tow.user_id
     ORDER BY s.season_name DESC, d.division_name, t.team_name
 ");
 
@@ -763,8 +844,7 @@ $pageTitle = "Teams Management - " . APP_NAME;
                                     <th>League</th>
                                     <th>Division</th>
                                     <th>Season</th>
-                                    <th>Manager</th>
-                                    <th>Contact</th>
+                                    <th>Owner</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
@@ -777,22 +857,16 @@ $pageTitle = "Teams Management - " . APP_NAME;
                                     <td><?php echo sanitize($team['division_name']); ?></td>
                                     <td><?php echo sanitize($team['season_name']); ?></td>
                                     <td>
-                                        <?php if ($team['manager_name']): ?>
-                                            <?php echo sanitize($team['manager_name']); ?>
+                                        <?php if ($team['owner_user_id']): ?>
+                                            <div><strong><?php echo sanitize($team['owner_name']); ?></strong></div>
+                                            <?php if ($team['owner_phone']): ?>
+                                                <small class="text-muted"><i class="fas fa-phone"></i> <?php echo sanitize($team['owner_phone']); ?></small><br>
+                                            <?php endif; ?>
+                                            <?php if ($team['owner_email']): ?>
+                                                <small class="text-muted"><i class="fas fa-envelope"></i> <?php echo sanitize($team['owner_email']); ?></small>
+                                            <?php endif; ?>
                                         <?php else: ?>
                                             <span class="text-muted">Not assigned</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <?php if ($team['manager_phone'] || $team['manager_email']): ?>
-                                            <?php if ($team['manager_phone']): ?>
-                                                <i class="fas fa-phone"></i> <?php echo sanitize($team['manager_phone']); ?><br>
-                                            <?php endif; ?>
-                                            <?php if ($team['manager_email']): ?>
-                                                <i class="fas fa-envelope"></i> <?php echo sanitize($team['manager_email']); ?>
-                                            <?php endif; ?>
-                                        <?php else: ?>
-                                            <span class="text-muted">No contact info</span>
                                         <?php endif; ?>
                                     </td>
                                     <td>
@@ -804,9 +878,23 @@ $pageTitle = "Teams Management - " . APP_NAME;
                                         <button class="btn btn-sm btn-outline-primary me-1" onclick="editTeam(<?php echo htmlspecialchars(json_encode($team)); ?>)">
                                             <i class="fas fa-edit"></i> Edit
                                         </button>
-                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteTeam(<?php echo $team['team_id']; ?>, '<?php echo htmlspecialchars(strtoupper($team['team_name'])); ?>', '<?php echo htmlspecialchars($team['league_name']); ?>')">
+                                        <button class="btn btn-sm btn-outline-danger me-1" onclick="deleteTeam(<?php echo $team['team_id']; ?>, '<?php echo htmlspecialchars(strtoupper($team['team_name'])); ?>', '<?php echo htmlspecialchars($team['league_name']); ?>')">
                                             <i class="fas fa-trash"></i> Delete
                                         </button>
+                                        <?php if ($team['owner_user_id']): ?>
+                                            <form method="POST" style="display:inline" onsubmit="return confirm('Remove this team owner? The user\'s role will revert if they have no other teams.')">
+                                                <input type="hidden" name="csrf_token" value="<?php echo $csrfToken; ?>">
+                                                <input type="hidden" name="action"   value="remove_owner">
+                                                <input type="hidden" name="team_id" value="<?php echo (int) $team['team_id']; ?>">
+                                                <button type="submit" class="btn btn-sm btn-outline-warning">
+                                                    <i class="fas fa-user-minus"></i> Remove
+                                                </button>
+                                            </form>
+                                        <?php else: ?>
+                                            <button class="btn btn-sm btn-outline-success" onclick="openAssignOwner(<?php echo (int) $team['team_id']; ?>, '<?php echo sanitize(strtoupper($team['team_name'])); ?>')">
+                                                <i class="fas fa-user-plus"></i> Assign
+                                            </button>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>
@@ -1100,6 +1188,48 @@ $pageTitle = "Teams Management - " . APP_NAME;
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-danger">
                             <i class="fas fa-trash"></i> Delete Team
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assign Team Owner Modal -->
+    <div class="modal fade" id="assignOwnerModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Assign Team Owner</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="csrf_token" value="<?php echo $csrfToken; ?>">
+                        <input type="hidden" name="action"   value="assign_owner">
+                        <input type="hidden" name="team_id"  id="assignOwnerTeamId">
+
+                        <p>Assign an owner to <strong id="assignOwnerTeamName"></strong>:</p>
+
+                        <div class="mb-3">
+                            <label class="form-label">User *</label>
+                            <select name="user_id" class="form-select" required>
+                                <option value="">— Select User —</option>
+                                <?php foreach ($unassignedUsers as $u): ?>
+                                    <option value="<?php echo (int) $u['id']; ?>">
+                                        <?php echo sanitize($u['last_name'] . ', ' . $u['first_name'] . ' (' . $u['email'] . ')'); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text">
+                                Only users who are not already assigned as a team owner are shown.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-user-plus"></i> Assign Owner
                         </button>
                     </div>
                 </form>
@@ -1516,6 +1646,13 @@ $pageTitle = "Teams Management - " . APP_NAME;
             // Show the delete confirmation modal
             var deleteModal = new bootstrap.Modal(document.getElementById('deleteTeamModal'));
             deleteModal.show();
+        }
+
+        // ----- Assign/Remove owner -----
+        function openAssignOwner(teamId, teamName) {
+            document.getElementById('assignOwnerTeamId').value = teamId;
+            document.getElementById('assignOwnerTeamName').textContent = teamName;
+            new bootstrap.Modal(document.getElementById('assignOwnerModal')).show();
         }
 
         // ----- Story 11.4: Reject modal -----

@@ -343,12 +343,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Active-season teams for the assign dropdown
+// Active-season teams without an owner for the assign dropdown
 $activeTeams = $db->fetchAll(
     "SELECT t.team_id, t.team_name, t.league_name, s.season_name, s.season_year
      FROM teams t
      INNER JOIN seasons s ON s.season_id = t.season_id
-     WHERE t.status = 'active' AND s.season_status = 'Active'
+     WHERE t.status = 'active'
+       AND s.season_status = 'Active'
+       AND t.team_id NOT IN (SELECT team_id FROM team_owners)
      ORDER BY t.team_name"
 );
 

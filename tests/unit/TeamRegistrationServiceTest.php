@@ -77,10 +77,18 @@ class TRSMockDatabase extends Database {
             return false;
         }
 
-        // Team lookup by team_id (used in approve())
-        if (stripos($sql, 'FROM teams WHERE team_id = :id') !== false) {
+        // Team lookup by team_id (used in approve() and reject())
+        if (stripos($sql, 'FROM teams') !== false
+            && preg_match('/\bteam_id\s*=\s*:id\b/i', $sql)
+            && stripos($sql, 'team_owners') === false) {
             foreach ($this->teams as $team) {
                 if ((int) $team['team_id'] === (int) ($params['id'] ?? -1)) {
+                    // When the query uses COALESCE aliases (reject), map the
+                    // underlying manager_* fields to the expected alias keys.
+                    if (stripos($sql, 'contact_email') !== false) {
+                        $team['contact_email'] = $team['manager_email'] ?? null;
+                        $team['contact_first_name'] = $team['manager_first_name'] ?? null;
+                    }
                     return $team;
                 }
             }
@@ -318,7 +326,7 @@ class TRSMockDatabase extends Database {
             $this->teamOwners[] = [
                 'user_id'     => $params['user_id'],
                 'team_id'     => $params['team_id'],
-                'assigned_by' => $params['assigned_by'],
+                'assigned_by' => $params['assigned_by'] ?? null,
             ];
             return new TRSMockStatement(1);
         }
@@ -472,7 +480,7 @@ register_test('AC3: approve sets team active, assigns team owner, and logs audit
     assert_equals(count($db->teamOwners), 1, 'approve must insert one team_owners row');
     assert_equals($db->teamOwners[0]['user_id'], 10, 'team_owner user_id must be the coach');
     assert_equals($db->teamOwners[0]['team_id'], 200, 'team_owner team_id must match the approved team');
-    assert_equals($db->teamOwners[0]['assigned_by'], 99, 'team_owner assigned_by must be the admin user');
+    assert_equals($db->teamOwners[0]['assigned_by'], null, 'team_owner assigned_by is NULL (admin IDs come from admin_users, not users)');
 
     // Audit events
     $events = array_column($db->activityEvents, 'event');

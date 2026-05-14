@@ -41,14 +41,22 @@ $divisionId = isset($_GET['division_id']) ? (int)$_GET['division_id'] : null;
 
 try {
     // Build the SQL query with filters
+    // Manager info comes from users (via team_owners) where available,
+    // falling back to teams.manager_* for legacy teams without owners.
     $sql = "
-        SELECT t.team_name, t.league_name, t.manager_first_name, t.manager_last_name, 
-               t.manager_phone, t.manager_email, d.division_name, p.program_name,
+        SELECT t.team_name, t.league_name,
+               COALESCE(u.first_name, t.manager_first_name) AS manager_first_name,
+               COALESCE(u.last_name,  t.manager_last_name)  AS manager_last_name,
+               COALESCE(u.phone,      t.manager_phone)      AS manager_phone,
+               COALESCE(u.email,      t.manager_email)      AS manager_email,
+               d.division_name, p.program_name,
                s.season_name, s.season_year
         FROM teams t
         LEFT JOIN divisions d ON t.division_id = d.division_id
         LEFT JOIN seasons s ON d.season_id = s.season_id
         LEFT JOIN programs p ON s.program_id = p.program_id
+        LEFT JOIN team_owners tow ON tow.team_id = t.team_id
+        LEFT JOIN users u ON u.id = tow.user_id
         WHERE t.active_status = 'Active'
         AND s.season_status IN ('Active', 'Registration')
     ";
