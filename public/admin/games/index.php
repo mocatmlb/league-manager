@@ -104,11 +104,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 try {
                     $homeTeamId = (int)$_POST['home_team_id'];
                     $awayTeamId = (int)$_POST['away_team_id'];
-                    
-                    // Validate that teams are not the same
+
+                    if ($homeTeamId <= 0 || $awayTeamId <= 0) {
+                        throw new Exception('Please select both a home team and an away team.');
+                    }
+
                     if ($homeTeamId === $awayTeamId) {
                         throw new Exception('Home team and away team cannot be the same.');
                     }
+
+                    $db->beginTransaction();
 
                     // Validate that both teams are active
                     $homeTeam = $db->fetchOne("SELECT team_name, active_status FROM teams WHERE team_id = ?", [$homeTeamId]);
@@ -127,8 +132,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'away_team' => $awayTeam['team_name'],
                         'admin_user' => $_SESSION['admin_username'] ?? 'unknown'
                     ]);
-                    
-                    $db->beginTransaction();
                     
                     // Create game record
                     $gameData = [
@@ -216,7 +219,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message = 'Game created successfully!';
                     
                 } catch (Exception $e) {
-                    $db->rollback();
+                    try { $db->rollback(); } catch (Exception $ignored) {}
                     $error = 'Error creating game: ' . $e->getMessage();
                 }
                 break;
@@ -293,24 +296,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $gameId = (int)$_POST['game_id'];
                     $homeTeamId = (int)$_POST['home_team_id'];
                     $awayTeamId = (int)$_POST['away_team_id'];
-                    
-                    // Validate that teams are not the same
+
+                    if ($homeTeamId <= 0 || $awayTeamId <= 0) {
+                        throw new Exception('Please select both a home team and an away team.');
+                    }
+
                     if ($homeTeamId === $awayTeamId) {
                         throw new Exception('Home team and away team cannot be the same.');
                     }
 
-                    // Validate that both teams are active
-                    $homeTeam = $db->fetchOne("SELECT team_name, active_status FROM teams WHERE team_id = ?", [$homeTeamId]);
-                    $awayTeam = $db->fetchOne("SELECT team_name, active_status FROM teams WHERE team_id = ?", [$awayTeamId]);
-                    
-                    if (!$homeTeam || $homeTeam['active_status'] !== 'Active') {
-                        throw new Exception('Home team is not active and cannot be assigned to games.');
-                    }
-                    
-                    if (!$awayTeam || $awayTeam['active_status'] !== 'Active') {
-                        throw new Exception('Away team is not active and cannot be assigned to games.');
-                    }
-                    
                     $db->beginTransaction();
                     
                     // Get current schedule for comparison
@@ -440,7 +434,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message = 'Game updated successfully!';
                     
                 } catch (Exception $e) {
-                    $db->rollback();
+                    try { $db->rollback(); } catch (Exception $ignored) {}
                     $error = 'Error updating game: ' . $e->getMessage();
                 }
                 break;
@@ -491,7 +485,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message = 'Game cancelled successfully!';
                     
                 } catch (Exception $e) {
-                    $db->rollback();
+                    try { $db->rollback(); } catch (Exception $ignored) {}
                     $error = 'Error cancelling game: ' . $e->getMessage();
                 }
                 break;
@@ -526,7 +520,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message = 'Game deleted successfully!';
 
                 } catch (Exception $e) {
-                    $db->rollback();
+                    try { $db->rollback(); } catch (Exception $ignored) {}
                     $error = 'Error deleting game: ' . $e->getMessage();
                 }
                 break;
@@ -577,7 +571,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message = 'Game postponed successfully!';
                     
                 } catch (Exception $e) {
-                    $db->rollback();
+                    try { $db->rollback(); } catch (Exception $ignored) {}
                     $error = 'Error postponing game: ' . $e->getMessage();
                 }
                 break;
@@ -934,7 +928,7 @@ $pageTitle = "Games Management - " . APP_NAME;
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">Away Team</label>
-                                    <select name="away_team_id" class="form-select" required>
+                                    <select name="away_team_id" id="awayTeamId" class="form-select" required>
                                         <option value="">Select Away Team</option>
                                         <?php foreach ($teams as $team): ?>
                                             <option value="<?php echo $team['team_id']; ?>">
@@ -947,7 +941,7 @@ $pageTitle = "Games Management - " . APP_NAME;
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">Home Team</label>
-                                    <select name="home_team_id" class="form-select" required>
+                                    <select name="home_team_id" id="homeTeamId" class="form-select" required>
                                         <option value="">Select Home Team</option>
                                         <?php foreach ($teams as $team): ?>
                                             <option value="<?php echo $team['team_id']; ?>">
