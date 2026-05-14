@@ -3,7 +3,9 @@ $db = Database::getInstance();
 
 $documents = $db->fetchAll("SELECT * FROM documents ORDER BY upload_date DESC");
 
-$uploadDir = __DIR__ . '/../../../../uploads/documents/';
+$uploadDir = file_exists(__DIR__ . '/../../includes/env-loader.php')
+    ? __DIR__ . '/../../uploads/documents/'
+    : __DIR__ . '/../../../uploads/documents/';
 if (!is_dir($uploadDir)) {
     mkdir($uploadDir, 0755, true);
 }
@@ -75,7 +77,7 @@ if (!is_dir($uploadDir)) {
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <a href="../../uploads/documents/<?php echo sanitize($doc['filename']); ?>" target="_blank">
+                                <a href="../../download-document.php?id=<?php echo (int) $doc['document_id']; ?>" target="_blank">
                                     <?php echo sanitize($doc['original_filename']); ?>
                                 </a>
                             </td>

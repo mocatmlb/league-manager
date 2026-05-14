@@ -78,7 +78,7 @@ $pageTitle = 'Rules & Regulations — District 8 Travel League';
 <?php endif; ?>
                                 <small class="text-muted">Uploaded <?php echo htmlspecialchars(formatDate($doc['upload_date'] ?? '')); ?></small>
                                 <div class="mt-2">
-                                    <a href="../../uploads/documents/<?php echo htmlspecialchars($doc['filename']); ?>" class="btn btn-primary btn-sm" target="_blank">Download</a>
+                                    <a href="../download-document.php?id=<?php echo (int) $doc['document_id']; ?>" class="btn btn-primary btn-sm" target="_blank">Download</a>
                                 </div>
                             </div>
                         </div>

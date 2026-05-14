@@ -135,7 +135,7 @@ $pageTitle = "Home - " . APP_NAME;
                                     <div class="card-body">
                                         <h5 class="card-title"><?php echo sanitize($doc['title']); ?></h5>
                                         <p class="card-text text-muted"><?php echo sanitize($doc['description']); ?></p>
-                                        <a href="<?php echo dirname($_SERVER['SCRIPT_NAME']); ?>/uploads/documents/<?php echo sanitize($doc['filename']); ?>" 
+                                        <a href="download-document.php?id=<?php echo (int) $doc['document_id']; ?>" 
                                            class="btn btn-primary btn-sm" target="_blank">Download</a>
                                     </div>
                                 </div>

@@ -128,7 +128,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         throw new Exception('Invalid file type. Allowed: PDF, DOC, DOCX, XLS, XLSX, TXT.');
                     }
 
-                    $uploadDir = __DIR__ . '/../../../../uploads/documents/';
+                    $uploadDir = file_exists(__DIR__ . '/../../includes/env-loader.php')
+                        ? __DIR__ . '/../../uploads/documents/'
+                        : __DIR__ . '/../../../uploads/documents/';
                     if (!is_dir($uploadDir)) {
                         mkdir($uploadDir, 0755, true);
                     }
@@ -167,7 +169,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     $doc = $db->fetchOne("SELECT filename FROM documents WHERE document_id = ?", [$documentId]);
                     if ($doc) {
-                        $filePath = __DIR__ . '/../../../../uploads/documents/' . $doc['filename'];
+                        $filePath = (file_exists(__DIR__ . '/../../includes/env-loader.php')
+                            ? __DIR__ . '/../../uploads/documents/'
+                            : __DIR__ . '/../../../uploads/documents/') . $doc['filename'];
                         if (file_exists($filePath)) {
                             unlink($filePath);
                         }
