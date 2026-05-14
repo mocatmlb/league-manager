@@ -218,7 +218,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $db->insert('schedule_history', [
                         'game_id' => $gameId,
                         'version_number' => $nextVersion,
-                        'schedule_type' => 'Admin Change',
+                        'schedule_type' => 'Changed',
                         'game_date' => $newDate,
                         'game_time' => $newTime,
                         'location' => $newLocation,
