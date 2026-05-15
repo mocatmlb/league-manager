@@ -99,6 +99,7 @@ class ChatService
 
         $systemPrompt = $this->buildSystemPrompt($userName, $userType, $userTeam);
         $knowledgeEntries = $this->getRelevantKnowledge($message);
+        $scheduleContext  = $this->getScheduleContext($message);
 
         $contextBlock = '';
         if (!empty($knowledgeEntries)) {
@@ -117,8 +118,11 @@ class ChatService
         }
 
         $fullPrompt = $systemPrompt;
+        if ($scheduleContext) {
+            $fullPrompt .= "\n\n## Live Schedule Data\n\n{$scheduleContext}";
+        }
         if ($contextBlock) {
-            $fullPrompt .= "\n\n## Context Information\n\n{$contextBlock}";
+            $fullPrompt .= "\n\n## Knowledge Base\n\n{$contextBlock}";
         }
 
         $history = $this->getSessionMessages($sessionId);
@@ -264,10 +268,16 @@ If a user asks anything unrelated to District 8 Travel League baseball — inclu
 
 Do not answer the off-topic question even partially. Do not apologize excessively — one brief, friendly sentence is enough before redirecting.
 
+## Schedule Questions
+
+When a user asks about games on a specific date ("what games are today", "do we have a game Friday", "what's on the schedule this week"), the live schedule data will be injected above under **Live Schedule Data**. Use that data to answer directly — list each game with date, time, teams, location, and status. If the Live Schedule Data block is absent or empty for the requested date, tell the user no games were found for that date and suggest checking district8travelleague.com for the full schedule.
+
+Today's date is always available in the Season Context block below.
+
 ## General Behavior
 
 - Be concise, friendly, and professional.
-- For real-time data (scores, standings, specific game times), direct users to the Schedule or Standings pages on district8travelleague.com.
+- For standings or results beyond the current query, direct users to district8travelleague.com.
 - Never share API keys, passwords, or sensitive configuration details.
 
 ## Season Context
@@ -276,6 +286,166 @@ Do not answer the off-topic question even partially. Do not apologize excessivel
 ## Current User
 {$userContext}
 PROMPT;
+    }
+
+    /**
+     * Detect schedule intent in the message, resolve the requested date(s),
+     * and return a formatted block of live game data — or empty string if the
+     * message isn't asking about the schedule.
+     */
+    private function getScheduleContext(string $message): string
+    {
+        $lower = strtolower($message);
+
+        // Quick reject: if message has no schedule-related signal, skip the DB query
+        $scheduleSignals = [
+            'game', 'games', 'schedule', 'play', 'playing', 'matchup',
+            'today', 'tonight', 'tomorrow', 'yesterday',
+            'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+            'this week', 'next week', 'weekend', 'weekday',
+            'when', 'what time', 'where',
+        ];
+        $hasSignal = false;
+        foreach ($scheduleSignals as $signal) {
+            if (str_contains($lower, $signal)) { $hasSignal = true; break; }
+        }
+        if (!$hasSignal) return '';
+
+        // Resolve which date(s) to query
+        $today = new DateTime('today');
+        $dates = $this->parseDateRange($lower, $today);
+        if (empty($dates)) return '';
+
+        try {
+            // Build a date IN clause
+            $placeholders = implode(',', array_fill(0, count($dates), '?'));
+            $games = $this->db->fetchAll(
+                "SELECT
+                    s.game_date,
+                    s.game_time,
+                    s.location,
+                    g.game_status,
+                    g.home_score,
+                    g.away_score,
+                    ht.league_name  AS home_league,
+                    ht.team_name    AS home_team,
+                    at_.league_name AS away_league,
+                    at_.team_name   AS away_team,
+                    d.division_name
+                 FROM schedules s
+                 JOIN games g          ON g.game_id      = s.game_id
+                 JOIN teams  ht        ON ht.team_id     = g.home_team_id
+                 JOIN teams  at_       ON at_.team_id    = g.away_team_id
+                 LEFT JOIN divisions d ON d.division_id  = g.division_id
+                 WHERE s.game_date IN ({$placeholders})
+                   AND g.game_status NOT IN ('Cancelled')
+                 ORDER BY s.game_date ASC, s.game_time ASC",
+                $dates
+            );
+
+            if (empty($games)) {
+                $dateStr = implode(', ', array_map(fn($d) => (new DateTime($d))->format('D M j'), $dates));
+                return "No scheduled games found for: {$dateStr}.";
+            }
+
+            $lines = [];
+            $currentDate = null;
+            foreach ($games as $g) {
+                $date = (new DateTime($g['game_date']))->format('l, F j, Y');
+                if ($date !== $currentDate) {
+                    $lines[] = "### {$date}";
+                    $currentDate = $date;
+                }
+                $home = trim(($g['home_team'] ?: '') . ' (' . $g['home_league'] . ')');
+                $away = trim(($g['away_team'] ?: '') . ' (' . $g['away_league'] . ')');
+                $time = $g['game_time'] ? (new DateTime($g['game_time']))->format('g:i A') : 'TBD';
+                $loc  = $g['location'] ?: 'TBD';
+                $div  = $g['division_name'] ? "[{$g['division_name']}] " : '';
+                $status = $g['game_status'];
+
+                $score = '';
+                if ($status === 'Completed' && $g['home_score'] !== null) {
+                    $score = " | Final: {$home} {$g['home_score']}, {$away} {$g['away_score']}";
+                }
+
+                $lines[] = "- {$div}{$away} @ {$home} | {$time} | {$loc} | Status: {$status}{$score}";
+            }
+
+            return implode("\n", $lines);
+
+        } catch (Exception $e) {
+            error_log("ChatService::getScheduleContext error: " . $e->getMessage());
+            return '';
+        }
+    }
+
+    /**
+     * Parse natural-language date references and return an array of Y-m-d strings.
+     */
+    private function parseDateRange(string $lower, DateTime $today): array
+    {
+        // "today" / "tonight"
+        if (str_contains($lower, 'today') || str_contains($lower, 'tonight')) {
+            return [$today->format('Y-m-d')];
+        }
+
+        // "tomorrow"
+        if (str_contains($lower, 'tomorrow')) {
+            return [(clone $today)->modify('+1 day')->format('Y-m-d')];
+        }
+
+        // "yesterday"
+        if (str_contains($lower, 'yesterday')) {
+            return [(clone $today)->modify('-1 day')->format('Y-m-d')];
+        }
+
+        // "this week" / "next week" — return all days in that Mon–Sun span
+        if (str_contains($lower, 'this week') || str_contains($lower, 'next week')) {
+            $offset = str_contains($lower, 'next week') ? '+1 week' : '';
+            $base   = clone $today;
+            if ($offset) $base->modify($offset);
+            // find Monday of that week
+            $dow = (int) $base->format('N'); // 1=Mon … 7=Sun
+            $mon = (clone $base)->modify('-' . ($dow - 1) . ' days');
+            $dates = [];
+            for ($i = 0; $i < 7; $i++) {
+                $dates[] = (clone $mon)->modify("+{$i} days")->format('Y-m-d');
+            }
+            return $dates;
+        }
+
+        // "weekend" — Sat + Sun of the current week
+        if (str_contains($lower, 'weekend')) {
+            $dow = (int) $today->format('N');
+            $sat = (clone $today)->modify('+' . (6 - $dow) . ' days');
+            $sun = (clone $sat)->modify('+1 day');
+            return [$sat->format('Y-m-d'), $sun->format('Y-m-d')];
+        }
+
+        // Named day of week: "monday", "tuesday" … "sunday"
+        $days = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+        foreach ($days as $day) {
+            if (str_contains($lower, $day)) {
+                // Use PHP's strtotime to get the upcoming occurrence
+                $ts   = strtotime("next {$day}", $today->getTimestamp());
+                $same = strtolower($today->format('l')) === $day;
+                if ($same) $ts = $today->getTimestamp();
+                return [date('Y-m-d', $ts)];
+            }
+        }
+
+        // Explicit date patterns: "May 20", "5/20", "5-20"
+        if (preg_match('/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})\b/i', $lower, $m)) {
+            $parsed = date_create($m[1] . ' ' . $m[2] . ' ' . $today->format('Y'));
+            if ($parsed) return [$parsed->format('Y-m-d')];
+        }
+        if (preg_match('/\b(\d{1,2})[\/\-](\d{1,2})\b/', $lower, $m)) {
+            $parsed = date_create($today->format('Y') . '-' . str_pad($m[1],2,'0',STR_PAD_LEFT) . '-' . str_pad($m[2],2,'0',STR_PAD_LEFT));
+            if ($parsed) return [$parsed->format('Y-m-d')];
+        }
+
+        // No recognisable date — return empty so the KB path handles it
+        return [];
     }
 
     private function getRelevantKnowledge(string $message): array
