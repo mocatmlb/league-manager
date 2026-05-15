@@ -90,7 +90,7 @@ class ChatService
             $globalToday = 0;
         }
         if ($globalToday >= $this->globalDailyLimit) {
-            return ['error' => 'Skipper has reached the daily message limit for the league. Try again tomorrow!'];
+            return ['error' => 'Blue has reached the daily message limit for the league. Try again tomorrow!'];
         }
 
         if ($userId && $this->getUserDailyCount($userId) >= $this->dailyLimitPerUser) {
@@ -154,7 +154,7 @@ class ChatService
         } catch (Exception $e) {
             $errMsg = $e->getMessage();
             error_log("ChatService: Gemini API error: " . $errMsg);
-            return ['error' => "Skipper error: {$errMsg}"];
+            return ['error' => "Blue error: {$errMsg}"];
         }
     }
 

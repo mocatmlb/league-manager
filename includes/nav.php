@@ -45,8 +45,30 @@ function getPathToRoot() {
 $rootPath = getPathToRoot();
 ?>
 
+<!-- Theme loader: runs sync before first paint, swaps CSS href from localStorage -->
+<script>
+(function () {
+    var themes = {
+        default:  'style.css',
+        diamond:  'style-diamond.css',
+        sundown:  'style-sundown.css',
+        clean:    'style-clean.css'
+    };
+    var active = localStorage.getItem('d8theme') || 'default';
+    var cssFile = themes[active] || themes.default;
+    var links = document.querySelectorAll('link[rel="stylesheet"]');
+    for (var i = 0; i < links.length; i++) {
+        if (/assets\/css\/style/.test(links[i].href)) {
+            links[i].href = '/assets/css/' + cssFile;
+            break;
+        }
+    }
+    document.documentElement.setAttribute('data-d8theme', active);
+})();
+</script>
+
 <!-- Navigation -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary" id="main-navbar">
     <div class="container-fluid">
         <a class="navbar-brand" href="<?php echo $rootPath; ?>index.php"><?php echo APP_NAME; ?></a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -154,7 +176,7 @@ $rootPath = getPathToRoot();
                                 <li>
                                     <a class="dropdown-item <?php echo in_array($currentDir, ['ai']) ? 'active' : ''; ?>"
                                        href="<?php echo $rootPath; ?>admin/ai/">
-                                        <i class="fas fa-robot"></i> AI Skipper
+                                        <i class="fas fa-robot"></i> AI Blue
                                     </a>
                                 </li>
                             </ul>
@@ -219,6 +241,43 @@ $rootPath = getPathToRoot();
                 <?php endif; ?>
             </ul>
 
+            <!-- Theme Picker -->
+            <ul class="navbar-nav me-2">
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="themePickerDropdown" role="button"
+                       data-bs-toggle="dropdown" aria-expanded="false" title="Switch theme">
+                        <i class="fas fa-palette"></i>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="themePickerDropdown" style="min-width:190px">
+                        <li><h6 class="dropdown-header" style="font-size:0.7rem">UI THEME</h6></li>
+                        <li>
+                            <a class="dropdown-item d8-theme-pick" href="#" data-theme="default">
+                                <span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#007bff;margin-right:6px;vertical-align:middle"></span>
+                                Original Blue
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item d8-theme-pick" href="#" data-theme="diamond">
+                                <span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#0f2744;margin-right:6px;vertical-align:middle"></span>
+                                Diamond &amp; Turf
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item d8-theme-pick" href="#" data-theme="sundown">
+                                <span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#d97706;margin-right:6px;vertical-align:middle"></span>
+                                Sundown Classic
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item d8-theme-pick" href="#" data-theme="clean">
+                                <span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:#4f46e5;margin-right:6px;vertical-align:middle"></span>
+                                Clean Slate
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+
             <!-- User Menu -->
             <ul class="navbar-nav">
                 <?php if ($isLoggedIn): ?>
@@ -268,11 +327,81 @@ $rootPath = getPathToRoot();
     </div>
 </nav>
 
+<script>
+(function () {
+    var themes = {
+        default:  'style.css',
+        diamond:  'style-diamond.css',
+        sundown:  'style-sundown.css',
+        clean:    'style-clean.css'
+    };
+
+    // Navbar variant: clean theme uses light nav, all others use dark
+    var navDarkThemes  = ['default', 'diamond', 'sundown'];
+    var navLightThemes = ['clean'];
+
+    function applyNavbarVariant(theme) {
+        var nav = document.getElementById('main-navbar');
+        if (!nav) return;
+        if (navLightThemes.indexOf(theme) !== -1) {
+            nav.classList.remove('navbar-dark', 'bg-primary');
+            nav.classList.add('navbar-light', 'bg-white');
+        } else {
+            nav.classList.remove('navbar-light', 'bg-white');
+            nav.classList.add('navbar-dark', 'bg-primary');
+        }
+    }
+
+    function applyTheme(theme) {
+        var cssFile = themes[theme] || themes.default;
+        var links = document.querySelectorAll('link[rel="stylesheet"]');
+        for (var i = 0; i < links.length; i++) {
+            if (/assets\/css\/style/.test(links[i].href)) {
+                links[i].href = '/assets/css/' + cssFile;
+                break;
+            }
+        }
+        document.documentElement.setAttribute('data-d8theme', theme);
+        applyNavbarVariant(theme);
+
+        // Highlight active item
+        document.querySelectorAll('.d8-theme-pick').forEach(function (el) {
+            var icon = el.querySelector('.d8-check');
+            if (el.dataset.theme === theme) {
+                if (!icon) {
+                    icon = document.createElement('i');
+                    icon.className = 'fas fa-check d8-check ms-auto float-end';
+                    icon.style.fontSize = '0.75rem';
+                    el.appendChild(icon);
+                }
+            } else {
+                if (icon) icon.remove();
+            }
+        });
+    }
+
+    // Apply active checkmark on load
+    var current = localStorage.getItem('d8theme') || 'default';
+    // Defer until DOM ready for the checkmark (nav is already in DOM here)
+    applyTheme(current);
+
+    // Wire up picker links
+    document.querySelectorAll('.d8-theme-pick').forEach(function (el) {
+        el.addEventListener('click', function (e) {
+            e.preventDefault();
+            var theme = this.dataset.theme;
+            localStorage.setItem('d8theme', theme);
+            applyTheme(theme);
+        });
+    });
+})();
+</script>
+
 <?php
-// AI Chatbot Widget (Skipper) — only for logged-in users
-$__skipperWidget = __DIR__ . '/ai-chat-widget.php';
-if (file_exists($__skipperWidget)) {
-    include $__skipperWidget;
+// AI Chatbot Widget (Blue) — only for logged-in users
+$__blueWidget = __DIR__ . '/ai-chat-widget.php';
+if (file_exists($__blueWidget)) {
+    include $__blueWidget;
 }
-unset($__skipperWidget);
+unset($__blueWidget);
 ?>

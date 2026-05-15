@@ -130,11 +130,11 @@ $pageTitle = "Knowledge Base - " . APP_NAME;
 
     <div class="container-fluid mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1><i class="fas fa-book"></i> Skipper's Knowledge Base</h1>
+            <h1><i class="fas fa-book"></i> Blue's Knowledge Base</h1>
             <a href="index.php" class="btn btn-outline-secondary"><i class="fas fa-arrow-left"></i> Back to Settings</a>
         </div>
 
-        <p class="text-muted">This is what Skipper knows. Add Little League rules, local policies, website guides, and FAQs here.</p>
+        <p class="text-muted">This is what Blue knows. Add Little League rules, local policies, website guides, and FAQs here.</p>
 
         <?php if ($message): ?>
             <div class="alert alert-success alert-dismissible fade show"><?php echo sanitize($message); ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
@@ -178,7 +178,7 @@ $pageTitle = "Knowledge Base - " . APP_NAME;
                             <div class="mb-3">
                                 <label class="form-label">Content</label>
                                 <textarea name="content" class="form-control" rows="10" required><?php echo sanitize($editEntry['content'] ?? ''); ?></textarea>
-                                <div class="form-text">Write in plain text. The more detail you include, the better Skipper can answer.</div>
+                                <div class="form-text">Write in plain text. The more detail you include, the better Blue can answer.</div>
                             </div>
 
                             <div class="row mb-3">

@@ -184,11 +184,11 @@ function _coachNavActive(string $page): string {
     </div>
 </nav>
 <?php
-// AI Chatbot Widget (Skipper)
-$_skipperWidget = __DIR__ . '/ai-chat-widget.php';
-if (file_exists($_skipperWidget)) {
-    include $_skipperWidget;
+// AI Chatbot Widget (Blue)
+$_blueWidget = __DIR__ . '/ai-chat-widget.php';
+if (file_exists($_blueWidget)) {
+    include $_blueWidget;
 }
-unset($_skipperWidget);
+unset($_blueWidget);
 
 unset($_rootPath, $_currentScript, $_navShowRegisterTeam); ?>

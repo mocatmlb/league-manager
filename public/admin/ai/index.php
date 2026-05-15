@@ -51,8 +51,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             updateSetting('ai_global_daily_limit', (string) $globalDailyLimit);
             updateSetting('ai_model', $model);
 
-            logActivity('ai_settings_updated', 'AI Skipper settings updated');
-            $message = 'AI Skipper settings saved successfully!';
+            logActivity('ai_settings_updated', 'AI Blue settings updated');
+            $message = 'AI Blue settings saved successfully!';
         }
     }
 }
@@ -65,7 +65,7 @@ $enabled = getSetting('ai_enabled', '0') === '1';
 $dailyLimit = (int) getSetting('ai_daily_limit_per_user', '50');
 $model = getSetting('ai_model', 'gemini-3.1-flash-lite');
 
-$pageTitle = "AI Skipper - " . APP_NAME;
+$pageTitle = "AI Blue - " . APP_NAME;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -87,7 +87,7 @@ $pageTitle = "AI Skipper - " . APP_NAME;
 
     <div class="container-fluid mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1><i class="fas fa-robot"></i> AI Skipper</h1>
+            <h1><i class="fas fa-robot"></i> AI Blue</h1>
             <div>
                 <span class="badge <?php echo $enabled ? 'bg-success' : 'bg-secondary'; ?> fs-6">
                     <?php echo $enabled ? 'Enabled' : 'Disabled'; ?>
@@ -157,7 +157,7 @@ $pageTitle = "AI Skipper - " . APP_NAME;
                     <div class="mb-3">
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" name="ai_enabled" id="ai_enabled" value="1" <?php echo $enabled ? 'checked' : ''; ?>>
-                            <label class="form-check-label" for="ai_enabled">Enable AI Skipper for coaches and admins</label>
+                            <label class="form-check-label" for="ai_enabled">Enable AI Blue for coaches and admins</label>
                         </div>
                     </div>
 
@@ -186,7 +186,7 @@ $pageTitle = "AI Skipper - " . APP_NAME;
                 <a href="knowledge-base.php" class="btn btn-outline-primary">
                     <i class="fas fa-book"></i> Manage Knowledge Base
                 </a>
-                <p class="text-muted mt-2 mb-0">Add Little League rules, local policies, and FAQs that Skipper will use to answer questions.</p>
+                <p class="text-muted mt-2 mb-0">Add Little League rules, local policies, and FAQs that Blue will use to answer questions.</p>
             </div>
         </div>
     </div>

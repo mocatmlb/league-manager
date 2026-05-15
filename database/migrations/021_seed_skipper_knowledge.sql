@@ -1,4 +1,4 @@
--- Seed initial Skipper knowledge base entries
+-- Seed initial Blue knowledge base entries
 -- Run this after migration 020 to give the chatbot a starting knowledge base
 
 INSERT INTO knowledge_base (category, title, content, is_active, sort_order) VALUES
