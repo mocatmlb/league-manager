@@ -145,14 +145,14 @@ if (!$aiEnabled || empty($apiKey)) return;
 </style>
 
 <button id="blue-fab" onclick="toggleBlue()" title="Ask Blue">
-    <img src="/assets/images/blue-umpire.webp" alt="Blue" class="blue-avatar">
+    <img src="/assets/images/blue-umpire.svg" alt="Blue" class="blue-avatar">
 </button>
 
 <div class="modal fade" id="blue-modal" tabindex="-1">
     <div class="modal-dialog modal-dialog-end">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><img src="/assets/images/blue-umpire.webp" alt="Blue" class="blue-avatar"> Blue</h5>
+                <h5 class="modal-title"><img src="/assets/images/blue-umpire.svg" alt="Blue" class="blue-avatar"> Blue</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div id="blue-messages">
