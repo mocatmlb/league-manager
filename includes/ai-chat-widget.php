@@ -157,7 +157,11 @@ if (!$aiEnabled || empty($apiKey)) return;
             </div>
             <div id="blue-messages">
                 <div class="message assistant">
-                    <div class="bubble">Ahoy! I'm Blue, your District 8 Travel League assistant. Ask me about rules, schedules, teams, or how to use the site!</div>
+                    <div class="bubble">Ahoy! I'm Blue, your District 8 Travel League assistant.
+
+⚠️ I'm experimental — I am NOT an official rules interpreter and my answers may contain errors. Always verify any rules question against the official District 8 Local Rules and the Little League Rulebook before acting on my response.
+
+Ask me about rules, schedules, teams, or how to use the site!</div>
                 </div>
             </div>
             <div id="blue-input-area">
