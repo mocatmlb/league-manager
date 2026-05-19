@@ -14,6 +14,7 @@ $totalGames = $db->fetchOne("SELECT COUNT(*) as count FROM games")['count'] ?? 0
 $completedGames = $db->fetchOne("SELECT COUNT(*) as count FROM games WHERE game_status = 'Completed'")['count'] ?? 0;
 $pendingChanges = $db->fetchOne("SELECT COUNT(*) as count FROM schedule_change_requests WHERE request_status = 'Pending'")['count'] ?? 0;
 $activeTeams = $db->fetchOne("SELECT COUNT(*) as count FROM teams WHERE active_status = 'Active'")['count'] ?? 0;
+$gamesMissingScore = $db->fetchOne("SELECT COUNT(*) as count FROM games WHERE game_status = 'Completed' AND (home_score IS NULL OR away_score IS NULL)")['count'] ?? 0;
 
 // Get current season info
 $currentSeason = $db->fetchOne("SELECT s.*, p.program_name FROM seasons s JOIN programs p ON s.program_id = p.program_id WHERE s.season_status = 'Active' LIMIT 1");
@@ -67,7 +68,7 @@ $pageTitle = "Admin Dashboard - " . APP_NAME;
 
         <!-- Metrics Cards -->
         <div class="row mb-4">
-            <div class="col-md-3">
+            <div class="col-md">
                 <div class="card dashboard-card metric-card">
                     <div class="card-body text-center">
                         <i class="fas fa-baseball-ball fa-2x mb-2"></i>
@@ -76,7 +77,7 @@ $pageTitle = "Admin Dashboard - " . APP_NAME;
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md">
                 <div class="card dashboard-card metric-card">
                     <div class="card-body text-center">
                         <i class="fas fa-check-circle fa-2x mb-2"></i>
@@ -85,20 +86,34 @@ $pageTitle = "Admin Dashboard - " . APP_NAME;
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md">
+                <?php $pendingColor = $pendingChanges > 0 ? 'warning' : 'success'; ?>
                 <div class="card dashboard-card">
                     <div class="card-body text-center">
-                        <i class="fas fa-clock fa-2x mb-2 text-warning"></i>
-                        <div class="metric-number text-warning"><?php echo $pendingChanges; ?></div>
+                        <i class="fas fa-clock fa-2x mb-2 text-<?php echo $pendingColor; ?>"></i>
+                        <div class="metric-number text-<?php echo $pendingColor; ?>"><?php echo $pendingChanges; ?></div>
                         <div>Pending Changes</div>
                         <?php if ($pendingChanges > 0): ?>
-                            <a href="schedules/" class="btn btn-sm btn-warning mt-2" 
+                            <a href="schedules/" class="btn btn-sm btn-warning mt-2"
                                onclick="return confirm('Are you sure you want to review pending changes?')">Review</a>
                         <?php endif; ?>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md">
+                <?php $missingScoreColor = $gamesMissingScore > 0 ? 'warning' : 'success'; ?>
+                <div class="card dashboard-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-clipboard-list fa-2x mb-2 text-<?php echo $missingScoreColor; ?>"></i>
+                        <div class="metric-number text-<?php echo $missingScoreColor; ?>"><?php echo $gamesMissingScore; ?></div>
+                        <div>Missing Scores</div>
+                        <?php if ($gamesMissingScore > 0): ?>
+                            <a href="games/" class="btn btn-sm btn-warning mt-2">Review</a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md">
                 <div class="card dashboard-card metric-card">
                     <div class="card-body text-center">
                         <i class="fas fa-users fa-2x mb-2"></i>
