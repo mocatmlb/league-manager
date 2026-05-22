@@ -26,7 +26,7 @@ $pageTitle = "Home - " . APP_NAME;
 
 // Weather: Syracuse, NY via Open-Meteo (free, no key). Cache 30 min in /tmp.
 $weather = null;
-$_wCache = sys_get_temp_dir() . '/d8tl_weather.json';
+$_wCache = sys_get_temp_dir() . '/d8tl_weather_v2.json';
 if (file_exists($_wCache) && (time() - filemtime($_wCache)) < 1800) {
     $weather = json_decode(file_get_contents($_wCache), true);
 } else {
@@ -195,7 +195,7 @@ function _cToF(float $c): int { return (int) round($c * 9 / 5 + 32); }
                         <span><i class="fas fa-map-marker-alt me-1 text-danger"></i> Syracuse, NY Weather</span>
                         <?php if ($weather): ?>
                         <small class="text-muted" style="font-size:0.7rem">
-                            Updated <?php echo date('g:i a', filemtime(sys_get_temp_dir() . '/d8tl_weather.json')); ?>
+                            Updated <?php echo date('g:i a', filemtime(sys_get_temp_dir() . '/d8tl_weather_v2.json')); ?>
                         </small>
                         <?php endif; ?>
                     </div>
