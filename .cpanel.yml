@@ -1,48 +1,38 @@
 ---
 deployment:
   tasks:
-    # Create necessary directories
-    - mkdir -p $HOME/public_html/district8travelleague.com/includes
-    - mkdir -p $HOME/public_html/district8travelleague.com/logs
-    - mkdir -p $HOME/public_html/district8travelleague.com/uploads
-    - mkdir -p $HOME/public_html/district8travelleague.com/backups
-    
-    # Copy vendor (Composer dependencies — PHPMailer etc.)
-    - mkdir -p $HOME/public_html/district8travelleague.com/vendor
-    - cp -R vendor/* $HOME/public_html/district8travelleague.com/vendor/
+    - echo "Starting staging deployment"
 
-    # Copy includes directory to site root
-    - cp -R includes/* $HOME/public_html/district8travelleague.com/includes/
-    
-    # Copy public files
-    - cp -R public/* $HOME/public_html/district8travelleague.com/
-    
-    # Copy configuration files
-    - cp -f includes/config.prod.php $HOME/public_html/district8travelleague.com/includes/config.php
-    
-    # Set proper permissions
-    - chmod 644 $HOME/public_html/district8travelleague.com/includes/*.php
-    - chmod 755 $HOME/public_html/district8travelleague.com/includes
-    - chmod 755 $HOME/public_html/district8travelleague.com/logs
-    - chmod 755 $HOME/public_html/district8travelleague.com/uploads
-    - chmod 755 $HOME/public_html/district8travelleague.com/backups
-    
-    # Make directories writable by web server
-    - chown -R $USER:nobody $HOME/public_html/district8travelleague.com/logs
-    - chown -R $USER:nobody $HOME/public_html/district8travelleague.com/uploads
-    - chown -R $USER:nobody $HOME/public_html/district8travelleague.com/backups
-    
-    # Clear any existing caches
-    - rm -rf $HOME/public_html/district8travelleague.com/logs/*
-    - rm -rf $HOME/tmp/*
-    
-    # Create .htaccess to protect includes and vendor directories
-    - echo "Order deny,allow" > $HOME/public_html/district8travelleague.com/includes/.htaccess
-    - echo "Deny from all" >> $HOME/public_html/district8travelleague.com/includes/.htaccess
-    - echo "Order deny,allow" > $HOME/public_html/district8travelleague.com/vendor/.htaccess
-    - echo "Deny from all" >> $HOME/public_html/district8travelleague.com/vendor/.htaccess
-    
-    # Create empty log file with correct permissions
-    - touch $HOME/public_html/district8travelleague.com/logs/app.log
-    - chmod 664 $HOME/public_html/district8travelleague.com/logs/app.log
-    - chown $USER:nobody $HOME/public_html/district8travelleague.com/logs/app.log
+    # Create directories
+    - mkdir -p /home/moc835/public_html/staging.district8travelleague.com/includes
+    - mkdir -p /home/moc835/public_html/staging.district8travelleague.com/logs
+    - mkdir -p /home/moc835/public_html/staging.district8travelleague.com/uploads
+    - mkdir -p /home/moc835/public_html/staging.district8travelleague.com/backups
+    - mkdir -p /home/moc835/public_html/staging.district8travelleague.com/scripts
+    - mkdir -p /home/moc835/public_html/staging.district8travelleague.com/vendor
+    - mkdir -p /home/moc835/public_html/staging.district8travelleague.com/database/migrations
+
+    # Copy application files
+    - cp -R includes/* /home/moc835/public_html/staging.district8travelleague.com/includes/
+    - cp -R public/* /home/moc835/public_html/staging.district8travelleague.com/
+    - cp -R scripts/* /home/moc835/public_html/staging.district8travelleague.com/scripts/
+    - cp -R vendor/* /home/moc835/public_html/staging.district8travelleague.com/vendor/
+    - cp -R database/migrations/* /home/moc835/public_html/staging.district8travelleague.com/database/migrations/
+
+    # Use staging config (not prod)
+    - cp includes/config.staging.php /home/moc835/public_html/staging.district8travelleague.com/includes/config.php
+
+    # Protect sensitive directories from web access
+    - printf "Order deny,allow\nDeny from all" > /home/moc835/public_html/staging.district8travelleague.com/vendor/.htaccess
+    - printf "Order deny,allow\nDeny from all" > /home/moc835/public_html/staging.district8travelleague.com/includes/.htaccess
+
+    # Set permissions
+    - chmod 755 /home/moc835/public_html/staging.district8travelleague.com/logs
+    - chmod 755 /home/moc835/public_html/staging.district8travelleague.com/uploads
+    - chmod 755 /home/moc835/public_html/staging.district8travelleague.com/backups
+    - chmod 755 /home/moc835/public_html/staging.district8travelleague.com/scripts
+    - chmod 644 /home/moc835/public_html/staging.district8travelleague.com/includes/*.php
+
+    # Log the deployment
+    - echo "$(date) Staging deployment complete" >> /home/moc835/public_html/staging.district8travelleague.com/logs/deployment.log
+    - echo "Done"
