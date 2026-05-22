@@ -15,9 +15,8 @@ backup_*.dump
 .env.*
 !.env.example
 
-# Server-managed config — environment-specific, never deploy via git
+# Server-managed config — contains live DB credentials, never deploy via git
 .htaccess
-.cpanel.yml
 
 # Configuration files with real credentials
 mvp-app/includes/config.local.php

@@ -1,0 +1,46 @@
+---
+deployment:
+  tasks:
+    - |
+      BRANCH=$(git rev-parse --abbrev-ref HEAD)
+      if [ "$BRANCH" = "staging" ]; then
+        TARGETDIR="$HOME/public_html/staging.district8travelleague.com"
+        CONFIG="config.staging.php"
+      else
+        TARGETDIR="$HOME/public_html/district8travelleague.com"
+        CONFIG="config.prod.php"
+      fi
+
+      echo "Deploying branch '$BRANCH' to $TARGETDIR"
+
+      mkdir -p $TARGETDIR/includes
+      mkdir -p $TARGETDIR/logs
+      mkdir -p $TARGETDIR/uploads
+      mkdir -p $TARGETDIR/backups
+      mkdir -p $TARGETDIR/vendor
+
+      cp -R vendor/* $TARGETDIR/vendor/
+      cp -R includes/* $TARGETDIR/includes/
+      cp -R public/* $TARGETDIR/
+      cp -f includes/$CONFIG $TARGETDIR/includes/config.php
+
+      chmod 644 $TARGETDIR/includes/*.php
+      chmod 755 $TARGETDIR/includes
+      chmod 755 $TARGETDIR/logs
+      chmod 755 $TARGETDIR/uploads
+      chmod 755 $TARGETDIR/backups
+
+      chown -R $USER:nobody $TARGETDIR/logs
+      chown -R $USER:nobody $TARGETDIR/uploads
+      chown -R $USER:nobody $TARGETDIR/backups
+
+      echo "Order deny,allow" > $TARGETDIR/includes/.htaccess
+      echo "Deny from all" >> $TARGETDIR/includes/.htaccess
+      echo "Order deny,allow" > $TARGETDIR/vendor/.htaccess
+      echo "Deny from all" >> $TARGETDIR/vendor/.htaccess
+
+      touch $TARGETDIR/logs/app.log
+      chmod 664 $TARGETDIR/logs/app.log
+      chown $USER:nobody $TARGETDIR/logs/app.log
+
+      echo "$(date) -- $BRANCH deployment complete"
