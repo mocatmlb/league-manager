@@ -29,14 +29,13 @@ if (!$__found) {
 unset($__dir, $__found, $__i, $__candidate);
 
 @include_once EnvLoader::getPath('includes/admin_bootstrap.php');
+require_once EnvLoader::getPath('includes/GameImportService.php');
 
 // Require admin authentication
 Auth::requireAdmin();
 
 $db          = Database::getInstance();
 $currentUser = Auth::getCurrentUser();
-
-use D8TL\GameImportService;
 
 // ── Sample CSV download ─────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'download_sample') {
@@ -70,6 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'upload') {
 
         // ── Step 1: upload & validate ──────────────────────────────────────
+        unset($_SESSION['import_preview']);
         $file = $_FILES['import_file'] ?? null;
 
         if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
@@ -101,17 +101,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if ($headerRow === false || $headerRow === null) {
                             $pageError = 'The file appears to be empty or unreadable.';
                         } else {
-                            // Trim headers
-                            $headers = array_map('trim', $headerRow);
+                            // Normalize headers (trim + BOM-safe first column handling)
+                            $headers = array_map(
+                                static fn($value) => trim((string)$value),
+                                $headerRow
+                            );
+                            if (isset($headers[0])) {
+                                $headers[0] = preg_replace('/^\xEF\xBB\xBF/', '', $headers[0]);
+                            }
 
                             $requiredHeaders = [
                                 'season_year', 'season_name', 'division_name',
                                 'home_team', 'away_team', 'game_date', 'game_time', 'location_name',
                             ];
                             $missingHeaders = array_diff($requiredHeaders, $headers);
-                            if (!empty($missingHeaders)) {
-                                $pageError = 'CSV is missing required column(s): ' . implode(', ', $missingHeaders)
-                                    . '. Please check the format guide and re-upload.';
+                            $unexpectedHeaders = array_diff($headers, $requiredHeaders);
+                            if (!empty($missingHeaders) || !empty($unexpectedHeaders)) {
+                                $details = [];
+                                if (!empty($missingHeaders)) {
+                                    $details[] = 'Missing required column(s): ' . implode(', ', $missingHeaders);
+                                }
+                                if (!empty($unexpectedHeaders)) {
+                                    $details[] = 'Unexpected column(s): ' . implode(', ', $unexpectedHeaders);
+                                }
+                                $pageError = implode('. ', $details) . '. Please check the format guide and re-upload.';
+                            } elseif ($headers !== $requiredHeaders) {
+                                $pageError = 'CSV headers must exactly match the required columns in this order: '
+                                    . implode(',', $requiredHeaders) . '.';
                             } else {
                                 // Read data rows
                                 $dataRows = [];
@@ -133,7 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     $pageError = 'Import file exceeds the 500-row limit. Split the file and re-import.';
                                 } else {
                                     // Validate
-                                    $service = new GameImportService($db);
+                                    $service = new \D8TL\GameImportService($db);
                                     $result  = $service->validateRows($dataRows);
 
                                     if (!empty($result['errors'])) {
@@ -163,7 +179,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pageError = 'No import data found. Please re-upload your CSV file.';
         } else {
             try {
-                $service = new GameImportService($db);
+                $service = new \D8TL\GameImportService($db);
                 $count   = $service->importRows($validatedRows);
                 unset($_SESSION['import_preview']);
                 $_SESSION['flash_success'] = "Successfully imported {$count} game" . ($count !== 1 ? 's' : '') . '.';
@@ -172,7 +188,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } catch (\Throwable $e) {
                 unset($_SESSION['import_preview']);
                 error_log('GameImport error: ' . $e->getMessage());
-                $pageError = 'Import failed: ' . htmlspecialchars($e->getMessage()) . '. No games were inserted. Please try again.';
+                $pageError = 'Import failed due to a server error. No games were inserted. Please try again.';
             }
         }
 

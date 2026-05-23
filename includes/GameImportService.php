@@ -38,6 +38,11 @@ class GameImportService
         $divisions = $this->db->fetchAll("SELECT division_id, division_name, season_id FROM divisions");
         $teams     = $this->db->fetchAll("SELECT team_id, team_name, season_id FROM teams WHERE active_status = 'Active'");
         $locations = $this->db->fetchAll("SELECT location_id, location_name FROM locations WHERE active_status = 'Active'");
+        $existingFixtures = $this->db->fetchAll(
+            "SELECT g.season_id, g.division_id, g.home_team_id, g.away_team_id, s.game_date, s.game_time, s.location_id
+             FROM games g
+             INNER JOIN schedules s ON s.game_id = g.game_id"
+        );
 
         // Build indexed lookup maps
         // Seasons: "year|name" => season_id
@@ -64,17 +69,29 @@ class GameImportService
                 $teamMap[$key] = (int)$t['team_id'];
             }
         }
-        // Keep a name map for duplicate error messages: team_id => team_name
-        $teamNameById = [];
-        foreach ($teams as $t) {
-            $teamNameById[(int)$t['team_id']] = $t['team_name'];
-        }
-
         // Locations: location_name (lowercase) => location_id
         $locationMap = [];
         foreach ($locations as $l) {
             $locationMap[mb_strtolower(trim($l['location_name']))] = (int)$l['location_id'];
         }
+
+        // Existing fixtures: signature => true
+        $existingFixtureMap = [];
+        foreach ($existingFixtures as $fixture) {
+            $signature = $this->buildFixtureSignature(
+                (int)$fixture['season_id'],
+                isset($fixture['division_id']) ? (int)$fixture['division_id'] : null,
+                (int)$fixture['home_team_id'],
+                (int)$fixture['away_team_id'],
+                (string)$fixture['game_date'],
+                (string)$fixture['game_time'],
+                isset($fixture['location_id']) ? (int)$fixture['location_id'] : null
+            );
+            $existingFixtureMap[$signature] = true;
+        }
+
+        // Track duplicates within the uploaded CSV: signature => first row number
+        $importFixtureMap = [];
 
         $errors    = [];
         $validated = [];
@@ -110,28 +127,22 @@ class GameImportService
             }
 
             // game_date: YYYY-MM-DD
-            $parsedDate = false;
             if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $gameDate)) {
                 $rowErrors[] = "game_date '{$gameDate}' must be in YYYY-MM-DD format.";
             } else {
                 [$y, $m, $d] = explode('-', $gameDate);
                 if (!checkdate((int)$m, (int)$d, (int)$y)) {
                     $rowErrors[] = "game_date '{$gameDate}' is not a valid calendar date.";
-                } else {
-                    $parsedDate = true;
                 }
             }
 
             // game_time: HH:MM (00:00–23:59)
-            $parsedTime = false;
             if (!preg_match('/^\d{2}:\d{2}$/', $gameTime)) {
                 $rowErrors[] = "game_time '{$gameTime}' must be in HH:MM (24-hour) format.";
             } else {
                 [$h, $min] = explode(':', $gameTime);
                 if ((int)$h > 23 || (int)$min > 59) {
                     $rowErrors[] = "game_time '{$gameTime}' is out of range (00:00–23:59).";
-                } else {
-                    $parsedTime = true;
                 }
             }
 
@@ -189,6 +200,28 @@ class GameImportService
                 $rowErrors[] = "Location '{$locationName}' not found in active locations.";
             }
 
+            // Enforce strict duplicate prevention (same teams, date/time, location, season/division)
+            if (empty($rowErrors)) {
+                $fixtureSignature = $this->buildFixtureSignature(
+                    $seasonId,
+                    $divisionId,
+                    $homeTeamId,
+                    $awayTeamId,
+                    $gameDate,
+                    $gameTime,
+                    $locationId
+                );
+
+                if (isset($importFixtureMap[$fixtureSignature])) {
+                    $firstRowNum = $importFixtureMap[$fixtureSignature];
+                    $rowErrors[] = "Duplicate fixture in CSV — this row matches row {$firstRowNum}.";
+                } elseif (isset($existingFixtureMap[$fixtureSignature])) {
+                    $rowErrors[] = 'Duplicate fixture already exists in the schedule.';
+                } else {
+                    $importFixtureMap[$fixtureSignature] = $rowNum;
+                }
+            }
+
             if (!empty($rowErrors)) {
                 $errors[] = ['row' => $rowNum, 'errors' => $rowErrors];
                 continue;
@@ -212,6 +245,28 @@ class GameImportService
         }
 
         return ['errors' => $errors, 'validated' => $validated];
+    }
+
+    private function buildFixtureSignature(
+        int $seasonId,
+        ?int $divisionId,
+        int $homeTeamId,
+        int $awayTeamId,
+        string $gameDate,
+        string $gameTime,
+        ?int $locationId
+    ): string {
+        $normalizedTime = substr(trim($gameTime), 0, 5);
+
+        return implode('|', [
+            $seasonId,
+            $divisionId ?? 'null',
+            $homeTeamId,
+            $awayTeamId,
+            trim($gameDate),
+            $normalizedTime,
+            $locationId ?? 'null',
+        ]);
     }
 
     /**
