@@ -5,7 +5,7 @@
 --              Seeds from existing game_number values so no collision with historic data.
 --
 -- Affected tables: game_number_sequences (CREATE)
--- Idempotent: Yes (CREATE TABLE IF NOT EXISTS, INSERT IGNORE for seeding)
+-- Idempotent: Yes (CREATE TABLE IF NOT EXISTS, UPSERT/GREATEST seeding)
 -- Compatibility: MySQL 8.0 / InnoDB
 
 CREATE TABLE IF NOT EXISTS game_number_sequences (
@@ -17,12 +17,14 @@ CREATE TABLE IF NOT EXISTS game_number_sequences (
 -- Seed from existing game_number values matching YYYY#### format so that
 -- the first auto-generated number for any given year never collides with
 -- manually-entered historic data.
-INSERT IGNORE INTO game_number_sequences (seq_year, last_seq)
+INSERT INTO game_number_sequences (seq_year, last_seq)
 SELECT
     CAST(LEFT(game_number, 4) AS UNSIGNED)                    AS seq_year,
     MAX(CAST(RIGHT(game_number, 4) AS UNSIGNED))              AS last_seq
 FROM games
 WHERE game_number REGEXP '^[0-9]{8}$'
-GROUP BY LEFT(game_number, 4);
+GROUP BY LEFT(game_number, 4)
+ON DUPLICATE KEY UPDATE
+    last_seq = GREATEST(last_seq, VALUES(last_seq));
 
 INSERT IGNORE INTO schema_migrations (version) VALUES ('027');

@@ -105,7 +105,11 @@ function generateGameNumber(Database $db): string {
         "SELECT last_seq FROM game_number_sequences WHERE seq_year = ?",
         [$year]
     );
-    return sprintf('%04d%04d', $year, (int)$row['last_seq']);
+    $lastSeq = (int)($row['last_seq'] ?? 0);
+    if ($lastSeq < 1 || $lastSeq > 9999) {
+        throw new RuntimeException("Unable to generate game number for {$year}: yearly sequence exceeded YYYYNNNN limits.");
+    }
+    return sprintf('%04d%04d', $year, $lastSeq);
 }
 
 // Handle form submissions
