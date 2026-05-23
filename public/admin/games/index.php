@@ -160,7 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $gameData = [
                         'game_number' => autoGenerateGameNumber($db),
                         'season_id' => (int)$_POST['season_id'],
-                        'division_id' => (int)$_POST['division_id'],
+                        'division_id' => !empty($_POST['division_id']) ? (int)$_POST['division_id'] : null,
                         'home_team_id' => $homeTeamId,
                         'away_team_id' => $awayTeamId,
                         'game_status' => 'Created',
