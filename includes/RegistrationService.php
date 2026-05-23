@@ -17,12 +17,24 @@ if (!class_exists('Logger')) {
     require_once __DIR__ . '/Logger.php';
 }
 
-class DuplicateUsernameException extends RuntimeException {}
-class DuplicateEmailException extends RuntimeException {}
-class ExpiredTokenException extends RuntimeException {}
-class AlreadyVerifiedException extends RuntimeException {}
-class InvalidPasswordException extends RuntimeException {}
-class WeakPasswordException extends RuntimeException {}
+if (!class_exists('DuplicateUsernameException')) {
+    class DuplicateUsernameException extends RuntimeException {}
+}
+if (!class_exists('DuplicateEmailException')) {
+    class DuplicateEmailException extends RuntimeException {}
+}
+if (!class_exists('ExpiredTokenException')) {
+    class ExpiredTokenException extends RuntimeException {}
+}
+if (!class_exists('AlreadyVerifiedException')) {
+    class AlreadyVerifiedException extends RuntimeException {}
+}
+if (!class_exists('InvalidPasswordException')) {
+    class InvalidPasswordException extends RuntimeException {}
+}
+if (!class_exists('WeakPasswordException')) {
+    class WeakPasswordException extends RuntimeException {}
+}
 
 class RegistrationService {
     private Database $db;
