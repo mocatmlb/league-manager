@@ -58,9 +58,11 @@ class MigrationRunner {
     }
 
     private function isApplied($version) {
+        // Support both full filenames ("016_add_foo") and legacy 3-digit prefixes ("016")
+        $prefix = substr($version, 0, 3);
         $row = $this->db->fetchOne(
-            "SELECT version FROM schema_migrations WHERE version = ?",
-            [$version]
+            "SELECT version FROM schema_migrations WHERE version = ? OR version = ?",
+            [$version, $prefix]
         );
         return (bool) $row;
     }
