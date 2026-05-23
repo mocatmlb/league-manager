@@ -145,7 +145,7 @@ development_status:
 
   # Epic 15: Admin Game Management Enhancements
   epic-15: in-progress
-  15-1-game-number-auto-generation: ready-for-dev
+  15-1-game-number-auto-generation: review
   15-2-enhanced-location-management: ready-for-dev
   15-3-bulk-game-import: ready-for-dev
   epic-15-retrospective: optional
