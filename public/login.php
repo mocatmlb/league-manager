@@ -97,6 +97,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         session_regenerate_id(true);
                     }
 
+                    // Users-table users with administrator role get a full admin session
+                    try {
+                        $db = Database::getInstance();
+                        $roleRow = $db->fetchOne(
+                            'SELECT r.name AS role_name
+                             FROM users u
+                             JOIN roles r ON r.id = u.role_id
+                             WHERE u.id = :id LIMIT 1',
+                            ['id' => $_SESSION['coach_user_id']]
+                        );
+                        if (($roleRow['role_name'] ?? '') === 'administrator') {
+                            $_SESSION['user_type']       = 'admin';
+                            $_SESSION['admin_id']        = $_SESSION['coach_user_id'];
+                            $_SESSION['admin_username']  = $_SESSION['coach_identifier'];
+                            $_SESSION['role']            = 'administrator';
+                            $_SESSION['expires']         = time() + ADMIN_SESSION_TIMEOUT;
+                            $adminUrl = EnvLoader::isProduction() ? '/admin/index.php' : '/public/admin/index.php';
+                            header('Location: ' . $adminUrl);
+                            exit;
+                        }
+                    } catch (Throwable $e) {
+                        error_log('[login] Role check failed, defaulting to coach redirect: ' . $e->getMessage());
+                    }
+
                     // Honor intended_url set by auth guard (AC2)
                     $raw = isset($_SESSION['intended_url']) ? (string) $_SESSION['intended_url'] : '';
                     unset($_SESSION['intended_url']);

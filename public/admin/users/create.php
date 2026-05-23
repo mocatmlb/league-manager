@@ -48,7 +48,6 @@ $formData = [
     'first_name'    => '',
     'last_name'     => '',
     'email'         => '',
-    'username'      => '',
     'phone'         => '',
     'preferred_name' => '',
     'role'          => 'user',
@@ -69,7 +68,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'first_name'    => trim($_POST['first_name']    ?? ''),
             'last_name'     => trim($_POST['last_name']     ?? ''),
             'email'         => trim($_POST['email']         ?? ''),
-            'username'      => trim($_POST['username']      ?? ''),
             'phone'         => trim($_POST['phone']         ?? ''),
             'preferred_name' => trim($_POST['preferred_name'] ?? ''),
             'role'          => trim($_POST['role']          ?? 'user'),
@@ -78,6 +76,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'send_welcome'  => $_POST['send_welcome'] ?? '',
         ];
 
+        // Username is always the normalized email — same convention as self-registration
+        $derivedUsername = strtolower(trim($formData['email']));
+
         $service = new UserManagementService();
 
         try {
@@ -85,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'first_name'    => $formData['first_name'],
                 'last_name'     => $formData['last_name'],
                 'email'         => $formData['email'],
-                'username'      => $formData['username'],
+                'username'      => $derivedUsername,
                 'phone'         => $formData['phone'],
                 'preferred_name' => $formData['preferred_name'],
                 'role'          => $formData['role'],
@@ -95,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $newUserId    = $result['user_id'];
             $tempPassword = $result['temp_password'];
-            $username     = $formData['username'];
+            $loginEmail   = $formData['email'];
 
             // Optional welcome email
             if (($formData['send_welcome'] ?? '') === '1') {
@@ -104,14 +105,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         require_once EnvLoader::getPath('includes/EmailService.php');
                     }
                     $emailSvc = new EmailService();
-                    $body = "Your account has been created.\n\nUsername: {$username}\n"
-                          . ($tempPassword
-                              ? "Temporary password: {$tempPassword}\n\nYou will be prompted to change your password on first login."
-                              : "Please log in with the password that was set for your account.");
+                    $plain = "Your District 8 Travel League account has been created.\n\n"
+                           . "Email / login: {$loginEmail}\n"
+                           . ($tempPassword
+                               ? "Temporary password: {$tempPassword}\n\nYou will be prompted to change your password on first login."
+                               : "Please log in with the password that was set for your account.");
+                    $htmlBody = '<p>' . nl2br(htmlspecialchars($plain, ENT_QUOTES, 'UTF-8')) . '</p>';
                     $emailSent = $emailSvc->sendTestEmail(
                         $formData['email'],
                         'Your District 8 Travel League account has been created',
-                        $body
+                        $htmlBody
                     );
                     if ($emailSent !== true) {
                         Logger::error('[createAccount] Welcome email send returned false', [
@@ -127,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            $flashMsg = "User account created. Username: {$username}";
+            $flashMsg = "User account created. Login: {$loginEmail}";
             if ($tempPassword) {
                 $flashMsg .= ", temporary password: {$tempPassword}";
             }
@@ -135,17 +138,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: detail.php?id=' . $newUserId);
             exit;
 
-        } catch (DuplicateUsernameException $e) {
-            $formErrors['username'] = 'That username is already taken. Please choose a different username.';
-        } catch (DuplicateEmailException $e) {
+        } catch (DuplicateUsernameException | DuplicateEmailException $e) {
+            if ($e instanceof DuplicateUsernameException) {
+                Logger::error('[createAccount] DuplicateUsername on email-derived username — possible legacy schema collision', ['email' => $formData['email']]);
+            }
             $formErrors['email'] = 'That email address is already registered. Please use a different email.';
         } catch (InvalidPasswordException $e) {
             $formErrors['password'] = $e->getMessage();
         } catch (InvalidArgumentException $e) {
             $message = $e->getMessage();
-            if (str_contains($message, 'Username')) {
-                $formErrors['username'] = $message;
-            } elseif (str_contains(strtolower($message), 'email')) {
+            if (str_contains(strtolower($message), 'email')) {
                 $formErrors['email'] = $message;
             } elseif (str_contains($message, 'Password')) {
                 $formErrors['password'] = $message;
@@ -222,14 +224,6 @@ $fieldClass = static function (string $field) use ($formErrors): string {
                                    value="<?php echo sanitize($formData['email']); ?>" required>
                             <?php if (isset($formErrors['email'])): ?>
                                 <div class="invalid-feedback d-block"><?php echo sanitize($formErrors['email']); ?></div>
-                            <?php endif; ?>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Username <span class="text-danger">*</span></label>
-                            <input type="text" name="username" class="form-control<?php echo $fieldClass('username'); ?>"
-                                   value="<?php echo sanitize($formData['username']); ?>" required>
-                            <?php if (isset($formErrors['username'])): ?>
-                                <div class="invalid-feedback d-block"><?php echo sanitize($formErrors['username']); ?></div>
                             <?php endif; ?>
                         </div>
                         <div class="col-md-6">
