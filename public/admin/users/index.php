@@ -127,6 +127,11 @@ $pageTitle = 'User Management — ' . APP_NAME;
                 <h1 class="mb-0">User Management</h1>
                 <p class="text-muted mb-0"><?php echo $totalCount; ?> user<?php echo $totalCount !== 1 ? 's' : ''; ?> found</p>
             </div>
+            <div>
+                <a href="create.php" class="btn btn-primary">
+                    <i class="fas fa-user-plus me-1"></i> Create User
+                </a>
+            </div>
         </div>
 
         <?php if ($flashMessage): ?>

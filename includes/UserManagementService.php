@@ -20,6 +20,16 @@ if (!class_exists('Logger')) {
     require_once __DIR__ . '/Logger.php';
 }
 
+if (!class_exists('DuplicateUsernameException')) {
+    class DuplicateUsernameException extends RuntimeException {}
+}
+if (!class_exists('DuplicateEmailException')) {
+    class DuplicateEmailException extends RuntimeException {}
+}
+if (!class_exists('InvalidPasswordException')) {
+    class InvalidPasswordException extends RuntimeException {}
+}
+
 class UserManagementService {
 
     private Database $db;
@@ -434,7 +444,7 @@ class UserManagementService {
     }
 
     /** Look up a role's integer ID by name.  Returns null when not found. */
-    private function getRoleId(string $roleName): ?int {
+    protected function getRoleId(string $roleName): ?int {
         $row = $this->db->fetchOne(
             'SELECT id FROM roles WHERE name = :name LIMIT 1',
             ['name' => $roleName]
@@ -461,7 +471,238 @@ class UserManagementService {
         ) !== false;
     }
 
-    private function generateTempPassword(int $length = 12): string {
+    // -----------------------------------------------------------------------
+    // Public API — Story 13.2: Admin Create User Account
+    // -----------------------------------------------------------------------
+
+    /**
+     * Create a fully active user account on behalf of an admin.
+     *
+     * @param array $data Keys: first_name, last_name, email, username, phone,
+     *                    role, password_mode ('generate'|'manual'), password (if manual),
+     *                    preferred_name (optional).
+     * @param int $adminUserId
+     * @return array ['user_id' => int, 'temp_password' => string|null]
+     * @throws InvalidArgumentException  on missing/invalid fields or unknown role
+     * @throws DuplicateUsernameException
+     * @throws DuplicateEmailException
+     * @throws InvalidPasswordException  on manual-mode complexity failure
+     */
+    public function createAccount(array $data, int $adminUserId): array {
+        $this->assertActiveAdminUser($adminUserId);
+
+        // 1.2 Validate required fields
+        $required = ['first_name', 'last_name', 'email', 'username', 'phone', 'role'];
+        foreach ($required as $field) {
+            if (!isset($data[$field]) || trim((string) $data[$field]) === '') {
+                $label = ucwords(str_replace('_', ' ', $field));
+                throw new InvalidArgumentException("{$label} is required.");
+            }
+        }
+
+        // 1.3 Normalize email
+        $email    = trim(strtolower((string) $data['email']));
+        $username = trim((string) $data['username']);
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new InvalidArgumentException('Invalid email address.');
+        }
+
+        // 1.4 Duplicate checks
+        $existingUsername = $this->db->fetchOne(
+            'SELECT id FROM users WHERE username = :u LIMIT 1',
+            ['u' => $username]
+        );
+        if ($existingUsername !== false) {
+            throw new DuplicateUsernameException('Username is already in use.');
+        }
+        $existingEmail = $this->db->fetchOne(
+            'SELECT id FROM users WHERE email = :e LIMIT 1',
+            ['e' => $email]
+        );
+        if ($existingEmail !== false) {
+            throw new DuplicateEmailException('Email address is already in use.');
+        }
+
+        // 1.5 Password
+        $passwordMode = trim((string) ($data['password_mode'] ?? 'generate'));
+        if (!in_array($passwordMode, ['generate', 'manual'], true)) {
+            throw new InvalidArgumentException('Invalid password mode.');
+        }
+        $tempPassword = null;
+        if ($passwordMode === 'generate') {
+            $tempPassword = $this->generateTempPassword();
+            $passwordHash = password_hash($tempPassword, PASSWORD_BCRYPT);
+            $forceChange  = 1;
+        } else {
+            $plainPassword = (string) ($data['password'] ?? '');
+            $this->validatePasswordComplexity($plainPassword);
+            $passwordHash = password_hash($plainPassword, PASSWORD_BCRYPT);
+            $forceChange  = 0;
+        }
+
+        // 1.6 Resolve role_id
+        $role   = trim((string) $data['role']);
+        $roleId = $this->getRoleId($role);
+        if ($roleId === null) {
+            throw new InvalidArgumentException("Invalid role: {$role}");
+        }
+
+        $firstName     = trim((string) $data['first_name']);
+        $lastName      = trim((string) $data['last_name']);
+        $preferredName = trim((string) ($data['preferred_name'] ?? '')) ?: null;
+        $phone         = trim((string) $data['phone']);
+
+        $newId = 0;
+        $inTransaction = false;
+        try {
+            $this->db->beginTransaction();
+            $inTransaction = true;
+
+            // 1.7 INSERT into users
+            $this->db->query(
+                "INSERT INTO users
+                    (username, email, password_hash, first_name, last_name, preferred_name,
+                     phone, role_id, status, verification_token, verification_expiry,
+                     force_password_change, created_at, updated_at)
+                 VALUES
+                    (:username, :email, :password_hash, :first_name, :last_name, :preferred_name,
+                     :phone, :role_id, 'active', NULL, NULL,
+                     :force_password_change, NOW(), NOW())",
+                [
+                    'username'              => $username,
+                    'email'                 => $email,
+                    'password_hash'         => $passwordHash,
+                    'first_name'            => $firstName,
+                    'last_name'             => $lastName,
+                    'preferred_name'        => $preferredName,
+                    'phone'                 => $phone,
+                    'role_id'               => $roleId,
+                    'force_password_change' => $forceChange,
+                ]
+            );
+
+            $newId = (int) $this->db->getConnection()->lastInsertId();
+
+            // 1.7a Dual-write phone to user_phones (detail.php reads exclusively from here)
+            $this->db->query(
+                "INSERT INTO user_phones (user_id, phone, type, role, created_at, updated_at)
+                 VALUES (:uid, :phone, 'Cell', 'primary', NOW(), NOW())",
+                ['uid' => $newId, 'phone' => $phone]
+            );
+
+            $this->db->commit();
+            $inTransaction = false;
+        } catch (Throwable $e) {
+            if ($inTransaction) {
+                try {
+                    $this->db->rollback();
+                } catch (Throwable $ignored) {
+                    // If rollback fails, surface original exception.
+                }
+            }
+            $this->throwDuplicateCreateAccountExceptionIfMatched($e, $username, $email);
+            throw $e;
+        }
+
+        // 1.8 Activity log (operational, should not block successful account creation)
+        try {
+            ActivityLogger::log('admin.user_created', [
+                'user_id'       => $newId,
+                'admin_user_id' => $adminUserId,
+                'username'      => $username,
+                'role'          => $role,
+            ]);
+        } catch (Throwable $e) {
+            Logger::error('[UserManagementService] createAccount activity log failed', [
+                'error'         => $e->getMessage(),
+                'user_id'       => $newId,
+                'admin_user_id' => $adminUserId,
+            ]);
+        }
+
+        // 1.9 Return
+        return ['user_id' => $newId, 'temp_password' => $tempPassword];
+    }
+
+    private function validatePasswordComplexity(string $password): void {
+        if (strlen($password) < 8) {
+            throw new InvalidPasswordException('Password must be at least 8 characters.');
+        }
+        if (!preg_match('/[A-Z]/', $password)) {
+            throw new InvalidPasswordException('Password must contain at least one uppercase letter.');
+        }
+        if (!preg_match('/\d/', $password)) {
+            throw new InvalidPasswordException('Password must contain at least one number.');
+        }
+        if (!preg_match('/[^a-zA-Z0-9]/', $password)) {
+            throw new InvalidPasswordException('Password must contain at least one special character.');
+        }
+    }
+
+    private function assertActiveAdminUser(int $adminUserId): void {
+        if ($adminUserId < 1) {
+            throw new InvalidArgumentException('Admin user is required.');
+        }
+        $admin = $this->db->fetchOne(
+            'SELECT id FROM admin_users WHERE id = :id AND is_active = 1 LIMIT 1',
+            ['id' => $adminUserId]
+        );
+        if ($admin === false) {
+            throw new RuntimeException('Admin user is not authorized to create accounts.');
+        }
+    }
+
+    private function throwDuplicateCreateAccountExceptionIfMatched(Throwable $e, string $username, string $email): void {
+        if (!$this->isUniqueConstraintViolation($e)) {
+            return;
+        }
+        $message = strtolower($e->getMessage());
+        $cursor = $e->getPrevious();
+        while ($cursor !== null) {
+            $message .= ' ' . strtolower($cursor->getMessage());
+            $cursor = $cursor->getPrevious();
+        }
+        if (str_contains($message, 'username') || str_contains($message, 'users.username')) {
+            throw new DuplicateUsernameException('Username is already in use.', 0, $e);
+        }
+        if (str_contains($message, 'email') || str_contains($message, 'users.email')) {
+            throw new DuplicateEmailException('Email address is already in use.', 0, $e);
+        }
+
+        if ($this->db->fetchOne('SELECT id FROM users WHERE username = :u LIMIT 1', ['u' => $username]) !== false) {
+            throw new DuplicateUsernameException('Username is already in use.', 0, $e);
+        }
+        if ($this->db->fetchOne('SELECT id FROM users WHERE email = :e LIMIT 1', ['e' => $email]) !== false) {
+            throw new DuplicateEmailException('Email address is already in use.', 0, $e);
+        }
+    }
+
+    private function isUniqueConstraintViolation(Throwable $e): bool {
+        $codes = [(string) $e->getCode()];
+        $messages = [strtolower($e->getMessage())];
+        $cursor = $e->getPrevious();
+        while ($cursor !== null) {
+            $codes[] = (string) $cursor->getCode();
+            $messages[] = strtolower($cursor->getMessage());
+            $cursor = $cursor->getPrevious();
+        }
+
+        if (in_array('23000', $codes, true)) {
+            return true;
+        }
+        foreach ($messages as $message) {
+            if (
+                str_contains($message, 'duplicate entry') ||
+                str_contains($message, 'unique constraint') ||
+                str_contains($message, 'integrity constraint violation')
+            ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    protected function generateTempPassword(int $length = 12): string {
         $lower = 'abcdefghijkmnopqrstuvwxyz';
         $upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
         $digits = '23456789';
