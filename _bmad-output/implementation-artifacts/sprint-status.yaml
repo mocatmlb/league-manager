@@ -147,5 +147,5 @@ development_status:
   epic-15: in-progress
   15-1-game-number-auto-generation: done
   15-2-enhanced-location-management: in-progress
-  15-3-bulk-game-import: ready-for-dev
+  15-3-bulk-game-import: review
   epic-15-retrospective: optional
