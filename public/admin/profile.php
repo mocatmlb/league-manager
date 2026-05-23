@@ -152,11 +152,7 @@ $pageTitle = 'My Profile';
 </head>
 <body>
     <?php
-    $__nav = file_exists(__DIR__ . '/../../includes/nav.php')
-        ? __DIR__ . '/../../includes/nav.php'
-        : __DIR__ . '/../../../includes/nav.php';
-    include $__nav;
-    unset($__nav);
+    include EnvLoader::getPath('includes/nav.php');
     ?>
 
 <!-- Main content area with proper spacing -->
