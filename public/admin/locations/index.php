@@ -119,27 +119,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 break;
 
             case 'delete_location':
+                $locationId = (int)$_POST['location_id'];
+                if ($locationId <= 0) {
+                    $error = 'Invalid location.';
+                    break;
+                }
+                $txnOpen = false;
                 try {
-                    $locationId = (int)$_POST['location_id'];
-                    $loc = $db->fetchOne("SELECT location_name FROM locations WHERE location_id = ?", [$locationId]);
+                    $db->beginTransaction();
+                    $txnOpen = true;
+                    $loc = $db->fetchOne("SELECT location_name FROM locations WHERE location_id = ? FOR UPDATE", [$locationId]);
                     if (!$loc) {
+                        $db->rollback();
+                        $txnOpen = false;
                         $error = 'Location not found.';
                         break;
                     }
                     $locationName = $loc['location_name'];
                     $usageCount = $db->fetchOne(
-                        "SELECT COUNT(*) as cnt FROM schedules WHERE location_id = ? OR location = ?",
+                        "SELECT COUNT(*) as cnt FROM schedules WHERE location_id = ? OR (location_id IS NULL AND location = ?)",
                         [$locationId, $locationName]
                     )['cnt'];
                     if ($usageCount > 0) {
+                        $db->rollback();
+                        $txnOpen = false;
                         $error = "This location cannot be deleted because it is assigned to {$usageCount} game(s). Set it to Inactive instead.";
                         break;
                     }
-                    $db->query("DELETE FROM locations WHERE location_id = ?", [$locationId]);
+                    $stmt = $db->query("DELETE FROM locations WHERE location_id = ?", [$locationId]);
+                    if ($stmt->rowCount() === 0) {
+                        throw new Exception('Delete did not affect any rows.');
+                    }
+                    $db->commit();
+                    $txnOpen = false;
                     logActivity('location_deleted', "Location '{$locationName}' (ID: {$locationId}) deleted", $currentUser['id']);
                     $message = "Location '{$locationName}' deleted.";
                 } catch (Exception $e) {
-                    $error = 'Error deleting location: ' . $e->getMessage();
+                    if ($txnOpen) {
+                        $db->rollback();
+                    }
+                    error_log('delete_location error: ' . $e->getMessage());
+                    $error = 'Could not delete location. Please try again.';
                 }
                 break;
         }
@@ -149,10 +169,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Get all locations with usage statistics
 $locations = $db->fetchAll("
     SELECT l.*,
-           COUNT(DISTINCT CASE WHEN s.location_id = l.location_id OR s.location = l.location_name THEN s.schedule_id END) as games_scheduled,
-           COUNT(DISTINCT CASE WHEN (s.location_id = l.location_id OR s.location = l.location_name) AND s.game_date >= CURDATE() THEN s.schedule_id END) as upcoming_games
+           COUNT(DISTINCT CASE WHEN s.location_id = l.location_id OR (s.location_id IS NULL AND s.location = l.location_name) THEN s.schedule_id END) as games_scheduled,
+           COUNT(DISTINCT CASE WHEN (s.location_id = l.location_id OR (s.location_id IS NULL AND s.location = l.location_name)) AND s.game_date >= CURDATE() THEN s.schedule_id END) as upcoming_games
     FROM locations l
-    LEFT JOIN schedules s ON s.location_id = l.location_id OR s.location = l.location_name
+    LEFT JOIN schedules s ON s.location_id = l.location_id OR (s.location_id IS NULL AND s.location = l.location_name)
     GROUP BY l.location_id
     ORDER BY l.active_status DESC, l.location_name
 ");
