@@ -22,9 +22,6 @@ require_once $includePath . '/bootstrap.php';
 $todaysGames = getTodaysGames();
 $upcomingGames = getUpcomingGames(7);
 
-// Get uploaded documents
-$documents = $db->fetchAll("SELECT * FROM documents WHERE is_public = 1 ORDER BY upload_date DESC");
-
 $pageTitle = "Home - " . APP_NAME;
 
 // Weather: Syracuse, NY via Open-Meteo (free, no key). Cache 30 min in /tmp.
@@ -189,35 +186,6 @@ function _cToF(float $c): int { return (int) round($c * 9 / 5 + 32); }
                 </div>
             </div>
         </div>
-
-        <!-- Documents Section -->
-        <?php if (!empty($documents)): ?>
-        <div class="row mt-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h3>League Documents</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <?php foreach ($documents as $doc): ?>
-                            <div class="col-md-4 mb-3">
-                                <div class="card">
-                                    <div class="card-body">
-                                        <h5 class="card-title"><?php echo sanitize($doc['title']); ?></h5>
-                                        <p class="card-text text-muted"><?php echo sanitize($doc['description']); ?></p>
-                                        <a href="download-document.php?id=<?php echo (int) $doc['document_id']; ?>"
-                                           class="btn btn-primary btn-sm" target="_blank">Download</a>
-                                    </div>
-                                </div>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <?php endif; ?>
 
         <!-- Weather Widget -->
         <div class="row mt-4">
