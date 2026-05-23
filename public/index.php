@@ -5,7 +5,7 @@ define('D8TL_APP', true);
  */
 
 // Detect environment and set include path
-$includePath = file_exists(__DIR__ . '/includes/env-loader.php') 
+$includePath = file_exists(__DIR__ . '/includes/env-loader.php')
     ? __DIR__ . '/includes'  // Production: includes is in web root
     : __DIR__ . '/../includes';  // Development: includes is one level up
 
@@ -26,6 +26,60 @@ $upcomingGames = getUpcomingGames(7);
 $documents = $db->fetchAll("SELECT * FROM documents WHERE is_public = 1 ORDER BY upload_date DESC");
 
 $pageTitle = "Home - " . APP_NAME;
+
+// Weather: Syracuse, NY via Open-Meteo (free, no key). Cache 30 min in /tmp.
+$weather = null;
+$_wCache = sys_get_temp_dir() . '/d8tl_weather_' . substr(md5('v3:lat=43.0481,lon=-76.1474,days=3,hourly=temperature_2m,weathercode'), 0, 8) . '.json';
+if (file_exists($_wCache) && (time() - filemtime($_wCache)) < 1800) {
+    $weather = json_decode(file_get_contents($_wCache), true);
+} else {
+    $_wCtx = stream_context_create(['http' => ['timeout' => 3, 'ignore_errors' => true]]);
+    $_wRaw = @file_get_contents(
+        'https://api.open-meteo.com/v1/forecast?latitude=43.0481&longitude=-76.1474' .
+        '&current_weather=true' .
+        '&hourly=temperature_2m,weathercode' .
+        '&daily=temperature_2m_max,temperature_2m_min,weathercode,precipitation_probability_max' .
+        '&timezone=America%2FNew_York&forecast_days=3',
+        false, $_wCtx
+    );
+    if ($_wRaw) {
+        $_wDecoded = json_decode($_wRaw, true);
+        if (!empty($_wDecoded['current_weather'])) {
+            file_put_contents($_wCache, $_wRaw);
+            $weather = $_wDecoded;
+        }
+    }
+}
+function _wmoInfo(int $code): array {
+    $map = [
+        0  => ['Clear Sky',        'fa-sun',                 'text-warning'],
+        1  => ['Mainly Clear',     'fa-sun',                 'text-warning'],
+        2  => ['Partly Cloudy',    'fa-cloud-sun',           'text-secondary'],
+        3  => ['Overcast',         'fa-cloud',               'text-secondary'],
+        45 => ['Fog',              'fa-smog',                'text-secondary'],
+        48 => ['Icy Fog',          'fa-smog',                'text-secondary'],
+        51 => ['Light Drizzle',    'fa-cloud-rain',          'text-info'],
+        53 => ['Drizzle',          'fa-cloud-rain',          'text-info'],
+        55 => ['Heavy Drizzle',    'fa-cloud-rain',          'text-info'],
+        61 => ['Light Rain',       'fa-cloud-rain',          'text-primary'],
+        63 => ['Rain',             'fa-cloud-rain',          'text-primary'],
+        65 => ['Heavy Rain',       'fa-cloud-showers-heavy', 'text-primary'],
+        71 => ['Light Snow',       'fa-snowflake',           'text-info'],
+        73 => ['Snow',             'fa-snowflake',           'text-info'],
+        75 => ['Heavy Snow',       'fa-snowflake',           'text-info'],
+        77 => ['Snow Grains',      'fa-snowflake',           'text-info'],
+        80 => ['Rain Showers',     'fa-cloud-showers-heavy', 'text-primary'],
+        81 => ['Rain Showers',     'fa-cloud-showers-heavy', 'text-primary'],
+        82 => ['Heavy Showers',    'fa-cloud-showers-heavy', 'text-primary'],
+        85 => ['Snow Showers',     'fa-snowflake',           'text-info'],
+        86 => ['Heavy Snow',       'fa-snowflake',           'text-info'],
+        95 => ['Thunderstorm',     'fa-bolt',                'text-warning'],
+        96 => ['Thunderstorm',     'fa-bolt',                'text-warning'],
+        99 => ['Thunderstorm',     'fa-bolt',                'text-warning'],
+    ];
+    return $map[$code] ?? ['Unknown', 'fa-question', 'text-muted'];
+}
+function _cToF(float $c): int { return (int) round($c * 9 / 5 + 32); }
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -38,12 +92,12 @@ $pageTitle = "Home - " . APP_NAME;
     <link href="<?php echo dirname($_SERVER['SCRIPT_NAME']); ?>/../assets/css/style.css" rel="stylesheet">
 </head>
 <body>
-    <?php 
+    <?php
     // Include navigation - handle both development and production paths
-    $navPath = file_exists(__DIR__ . '/includes/nav.php') 
+    $navPath = file_exists(__DIR__ . '/includes/nav.php')
         ? __DIR__ . '/includes/nav.php'  // Production: includes is in same directory
         : dirname(__DIR__) . '/includes/nav.php';  // Development: includes is one level up
-    include $navPath; 
+    include $navPath;
     ?>
 
     <!-- Main Content -->
@@ -152,7 +206,7 @@ $pageTitle = "Home - " . APP_NAME;
                                     <div class="card-body">
                                         <h5 class="card-title"><?php echo sanitize($doc['title']); ?></h5>
                                         <p class="card-text text-muted"><?php echo sanitize($doc['description']); ?></p>
-                                        <a href="download-document.php?id=<?php echo (int) $doc['document_id']; ?>" 
+                                        <a href="download-document.php?id=<?php echo (int) $doc['document_id']; ?>"
                                            class="btn btn-primary btn-sm" target="_blank">Download</a>
                                     </div>
                                 </div>
@@ -164,6 +218,115 @@ $pageTitle = "Home - " . APP_NAME;
             </div>
         </div>
         <?php endif; ?>
+
+        <!-- Weather Widget -->
+        <div class="row mt-4">
+            <div class="col-lg-6 col-md-8">
+                <div class="card">
+                    <div class="card-header d-flex align-items-center justify-content-between">
+                        <span><i class="fas fa-map-marker-alt me-1 text-danger"></i> Syracuse, NY Weather</span>
+                        <?php if ($weather): ?>
+                        <small class="text-muted" style="font-size:0.7rem">
+                            Updated <?php echo date('g:i a', filemtime(sys_get_temp_dir() . '/d8tl_weather_' . substr(md5('v3:lat=43.0481,lon=-76.1474,days=3,hourly=temperature_2m,weathercode'), 0, 8) . '.json')); ?>
+                        </small>
+                        <?php endif; ?>
+                    </div>
+                    <?php if ($weather && isset($weather['current_weather'])): ?>
+                    <?php
+                        $cw   = $weather['current_weather'];
+                        $wmo  = _wmoInfo((int)$cw['weathercode']);
+                        $temp = _cToF((float)$cw['temperature']);
+                        $wind = (int)round((float)$cw['windspeed'] * 0.621371);
+                        $hiF  = isset($weather['daily']['temperature_2m_max'][0])
+                                ? _cToF((float)$weather['daily']['temperature_2m_max'][0]) : null;
+                        $loF  = isset($weather['daily']['temperature_2m_min'][0])
+                                ? _cToF((float)$weather['daily']['temperature_2m_min'][0]) : null;
+                        $pop  = $weather['daily']['precipitation_probability_max'][0] ?? null;
+
+                        $nowHour   = substr($cw['time'], 0, 13) . ':00';
+                        $hourTimes = $weather['hourly']['time'] ?? [];
+                        $hourStart = array_search($nowHour, $hourTimes);
+                        if ($hourStart === false) $hourStart = 0;
+                        $hourSlice = array_slice($hourTimes, $hourStart, 8, true);
+                    ?>
+                    <!-- Current Conditions -->
+                    <div class="card-body pb-2">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="fas <?php echo $wmo[1]; ?> <?php echo $wmo[2]; ?> me-3" style="font-size:2.5rem"></i>
+                            <div>
+                                <div style="font-size:2rem;font-weight:600;line-height:1"><?php echo $temp; ?>°F</div>
+                                <div class="text-muted" style="font-size:0.85rem"><?php echo $wmo[0]; ?></div>
+                            </div>
+                            <div class="ms-auto text-end" style="font-size:0.82rem">
+                                <?php if ($hiF !== null): ?>
+                                <div><span class="text-muted">H</span> <strong><?php echo $hiF; ?>°</strong> &nbsp; <span class="text-muted">L</span> <strong><?php echo $loF; ?>°</strong></div>
+                                <?php endif; ?>
+                                <div><span class="text-muted">Wind</span> <strong><?php echo $wind; ?> mph</strong></div>
+                                <?php if ($pop !== null): ?>
+                                <div><span class="text-muted"><i class="fas fa-tint"></i></span> <strong><?php echo $pop; ?>%</strong></div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hourly Forecast -->
+                    <div class="border-top border-bottom px-3 py-2" style="background:#f8f9fa">
+                        <div class="text-muted mb-1" style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em">Hourly</div>
+                        <div class="d-flex gap-2 overflow-auto pb-1">
+                            <?php foreach ($hourSlice as $i => $hTime):
+                                $hTemp = isset($weather['hourly']['temperature_2m'][$i])
+                                         ? _cToF((float)$weather['hourly']['temperature_2m'][$i]) : '--';
+                                $hCode = (int)($weather['hourly']['weathercode'][$i] ?? 0);
+                                $hWmo  = _wmoInfo($hCode);
+                                $hLabel = ($i === $hourStart) ? 'Now' : date('g a', strtotime($hTime));
+                            ?>
+                            <div class="text-center flex-shrink-0" style="min-width:46px;font-size:0.78rem">
+                                <div class="text-muted"><?php echo $hLabel; ?></div>
+                                <i class="fas <?php echo $hWmo[1]; ?> <?php echo $hWmo[2]; ?> my-1" style="font-size:1rem"></i>
+                                <div class="fw-semibold"><?php echo $hTemp; ?>°</div>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+
+                    <!-- 3-Day Daily Forecast -->
+                    <div class="card-body pt-2">
+                        <div class="text-muted mb-2" style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em">3-Day Forecast</div>
+                        <?php
+                            $dayTimes = $weather['daily']['time'] ?? [];
+                            foreach ($dayTimes as $d => $dDate):
+                                $dWmo  = _wmoInfo((int)($weather['daily']['weathercode'][$d] ?? 0));
+                                $dHi   = isset($weather['daily']['temperature_2m_max'][$d])
+                                         ? _cToF((float)$weather['daily']['temperature_2m_max'][$d]) : '--';
+                                $dLo   = isset($weather['daily']['temperature_2m_min'][$d])
+                                         ? _cToF((float)$weather['daily']['temperature_2m_min'][$d]) : '--';
+                                $dPop  = $weather['daily']['precipitation_probability_max'][$d] ?? null;
+                                $dLabel = $d === 0 ? 'Today' : date('D', strtotime($dDate));
+                        ?>
+                        <div class="d-flex align-items-center justify-content-between py-1 <?php echo $d < count($dayTimes)-1 ? 'border-bottom' : ''; ?>" style="font-size:0.85rem">
+                            <div style="width:52px" class="fw-semibold"><?php echo $dLabel; ?></div>
+                            <i class="fas <?php echo $dWmo[1]; ?> <?php echo $dWmo[2]; ?>" style="font-size:1.1rem;width:22px;text-align:center"></i>
+                            <div class="text-muted flex-grow-1 ms-2" style="font-size:0.78rem"><?php echo $dWmo[0]; ?></div>
+                            <?php if ($dPop !== null): ?>
+                            <div class="text-info me-3" style="font-size:0.78rem;min-width:34px;text-align:right">
+                                <i class="fas fa-tint"></i> <?php echo $dPop; ?>%
+                            </div>
+                            <?php endif; ?>
+                            <div style="min-width:70px;text-align:right">
+                                <strong><?php echo $dHi; ?>°</strong>
+                                <span class="text-muted ms-1"><?php echo $dLo; ?>°</span>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php else: ?>
+                    <div class="card-body">
+                        <p class="text-muted mb-0"><i class="fas fa-exclamation-circle me-1"></i>Weather unavailable</p>
+                    </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Footer -->

@@ -57,7 +57,7 @@ ini_set('error_log', __DIR__ . '/../logs/php_errors_staging.log');
 
 // Session Configuration - Staging
 ini_set('session.cookie_httponly', 1);
-ini_set('session.cookie_secure', 1); // HTTPS required
+ini_set('session.cookie_secure', 0); // HTTP ok for staging (no SSL)
 ini_set('session.use_strict_mode', 1);
 ini_set('session.cookie_samesite', 'Strict');
 
