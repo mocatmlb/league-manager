@@ -94,7 +94,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_change_history' && isset(
  * game number in YYYYNNNN format. Must be called inside an open transaction so that
  * a failed game INSERT rolls back the sequence counter too.
  */
-function generateGameNumber(Database $db): string {
+function autoGenerateGameNumber(Database $db): string {
     $year = (int)date('Y');
     $db->query(
         "INSERT INTO game_number_sequences (seq_year, last_seq) VALUES (?, 1)
@@ -158,7 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     // Create game record — game_number is auto-generated inside the transaction
                     $gameData = [
-                        'game_number' => generateGameNumber($db),
+                        'game_number' => autoGenerateGameNumber($db),
                         'season_id' => (int)$_POST['season_id'],
                         'division_id' => (int)$_POST['division_id'],
                         'home_team_id' => $homeTeamId,
