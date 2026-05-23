@@ -109,12 +109,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'active_status'   => sanitize($_POST['active_status']    ?? 'Active'),
                         'modified_date'   => date('Y-m-d H:i:s'),
                     ];
-                    
+
                     $db->update('locations', $locationData, 'location_id = :location_id', ['location_id' => $locationId]);
                     logActivity('location_updated', "Location ID {$locationId} updated", $currentUser['id']);
                     $message = 'Location updated successfully!';
                 } catch (Exception $e) {
                     $error = 'Error updating location: ' . $e->getMessage();
+                }
+                break;
+
+            case 'delete_location':
+                try {
+                    $locationId = (int)$_POST['location_id'];
+                    $loc = $db->fetchOne("SELECT location_name FROM locations WHERE location_id = ?", [$locationId]);
+                    if (!$loc) {
+                        $error = 'Location not found.';
+                        break;
+                    }
+                    $locationName = $loc['location_name'];
+                    $usageCount = $db->fetchOne(
+                        "SELECT COUNT(*) as cnt FROM schedules WHERE location_id = ? OR location = ?",
+                        [$locationId, $locationName]
+                    )['cnt'];
+                    if ($usageCount > 0) {
+                        $error = "This location cannot be deleted because it is assigned to {$usageCount} game(s). Set it to Inactive instead.";
+                        break;
+                    }
+                    $db->query("DELETE FROM locations WHERE location_id = ?", [$locationId]);
+                    logActivity('location_deleted', "Location '{$locationName}' (ID: {$locationId}) deleted", $currentUser['id']);
+                    $message = "Location '{$locationName}' deleted.";
+                } catch (Exception $e) {
+                    $error = 'Error deleting location: ' . $e->getMessage();
                 }
                 break;
         }
@@ -124,10 +149,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Get all locations with usage statistics
 $locations = $db->fetchAll("
     SELECT l.*,
-           COUNT(s.schedule_id) as games_scheduled,
-           COUNT(CASE WHEN s.game_date >= CURDATE() THEN 1 END) as upcoming_games
+           COUNT(DISTINCT CASE WHEN s.location_id = l.location_id OR s.location = l.location_name THEN s.schedule_id END) as games_scheduled,
+           COUNT(DISTINCT CASE WHEN (s.location_id = l.location_id OR s.location = l.location_name) AND s.game_date >= CURDATE() THEN s.schedule_id END) as upcoming_games
     FROM locations l
-    LEFT JOIN schedules s ON l.location_name = s.location
+    LEFT JOIN schedules s ON s.location_id = l.location_id OR s.location = l.location_name
     GROUP BY l.location_id
     ORDER BY l.active_status DESC, l.location_name
 ");
@@ -266,6 +291,12 @@ $pageTitle = "Locations Management - " . APP_NAME;
                                         <button class="btn btn-sm btn-outline-primary" onclick="editLocation(<?php echo htmlspecialchars(json_encode($location)); ?>)">
                                             <i class="fas fa-edit"></i> Edit
                                         </button>
+                                        <?php if ($location['games_scheduled'] == 0): ?>
+                                        <button class="btn btn-sm btn-outline-danger ms-1"
+                                                onclick="confirmDeleteLocation(<?php echo (int)$location['location_id']; ?>, <?php echo htmlspecialchars(json_encode($location['location_name'])); ?>)">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </button>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>
@@ -474,6 +505,30 @@ $pageTitle = "Locations Management - " . APP_NAME;
         </div>
     </div>
 
+    <!-- Delete Location Confirmation Modal -->
+    <div class="modal fade" id="deleteLocationModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" id="deleteLocationForm">
+                    <input type="hidden" name="action" value="delete_location">
+                    <input type="hidden" name="csrf_token" value="<?php echo Auth::generateCSRFToken(); ?>">
+                    <input type="hidden" name="location_id" id="deleteLocationId">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Delete Location</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Delete <strong id="deleteLocationName"></strong>? This cannot be undone.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
@@ -503,6 +558,13 @@ $pageTitle = "Locations Management - " . APP_NAME;
             
             var editModal = new bootstrap.Modal(document.getElementById('editLocationModal'));
             editModal.show();
+        }
+
+        function confirmDeleteLocation(locationId, locationName) {
+            document.getElementById('deleteLocationId').value = locationId;
+            document.getElementById('deleteLocationName').textContent = locationName;
+            var deleteModal = new bootstrap.Modal(document.getElementById('deleteLocationModal'));
+            deleteModal.show();
         }
     </script>
 </body>
