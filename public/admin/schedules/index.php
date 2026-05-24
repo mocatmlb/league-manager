@@ -288,7 +288,7 @@ $allGames = $db->fetchAll("
     JOIN teams at ON g.away_team_id = at.team_id
     LEFT JOIN schedules s ON g.game_id = s.game_id
     WHERE g.game_status NOT IN ('Cancelled', 'Completed')
-    ORDER BY g.game_number ASC
+    ORDER BY s.game_date ASC, s.game_time ASC, s.location ASC
 ");
 
 // Get locations for admin direct change
