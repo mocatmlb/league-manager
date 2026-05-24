@@ -13,6 +13,7 @@ if (!defined('D8TL_APP')) {
 require_once __DIR__ . '/test-helpers.php';
 require_once __DIR__ . '/../../includes/database.php';
 require_once __DIR__ . '/../../includes/ActivityLogger.php';
+require_once __DIR__ . '/../../includes/Logger.php';
 require_once __DIR__ . '/../../includes/ImpersonationService.php';
 
 // ---------------------------------------------------------------------------
@@ -105,6 +106,8 @@ register_test('AC3: startImpersonation sets correct coach session keys', functio
     assert_true(!empty($_SESSION['impersonating']),             'impersonating flag set');
     assert_equals($_SESSION['impersonated_user_id'], 42,        'impersonated_user_id correct');
     assert_true(strpos($_SESSION['impersonated_user_name'], 'Jane Doe') !== false, 'display name includes full name');
+    assert_true(empty($_SESSION['admin_id']),                   'admin_id removed from active impersonated session');
+    assert_true(empty($_SESSION['admin_username']),             'admin_username removed from active impersonated session');
 
     Database::setInstance(null);
 });
@@ -322,6 +325,37 @@ register_test('AC10: startImpersonation throws for non-existent user', function 
     }
 
     assert_true($threw, 'non-existent user must throw InvalidArgumentException');
+
+    Database::setInstance(null);
+});
+
+// ---------------------------------------------------------------------------
+// Test: administrator targets cannot be impersonated (AC 1)
+// ---------------------------------------------------------------------------
+
+register_test('AC1: startImpersonation throws for administrator role target', function () {
+    _setAdminSession();
+
+    $mock = new ImpersonationMockDatabase();
+    $mock->users[] = [
+        'id'                  => 88,
+        'first_name'          => 'Admin',
+        'last_name'           => 'User',
+        'username'            => 'auser',
+        'status'              => 'active',
+        'password_changed_at' => null,
+        'role_name'           => 'administrator',
+    ];
+    Database::setInstance($mock);
+
+    $threw = false;
+    try {
+        ImpersonationService::startImpersonation(88, '127.0.0.1');
+    } catch (InvalidArgumentException $e) {
+        $threw = true;
+    }
+
+    assert_true($threw, 'administrator role target must throw InvalidArgumentException');
 
     Database::setInstance(null);
 });
