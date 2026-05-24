@@ -182,6 +182,10 @@ body {
     color: #ffffff !important;
 }
 
+.badge.bg-warning {
+    color: #212529 !important;
+}
+
 /* Form styles */
 .form-label {
     font-weight: 600;

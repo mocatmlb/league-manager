@@ -651,7 +651,7 @@ $sql = "SELECT g.*, sch.game_date, sch.game_time, sch.location,
     JOIN programs p ON s.program_id = p.program_id
     LEFT JOIN divisions d ON g.division_id = d.division_id
     WHERE 1=1" . $conditions . "
-    ORDER BY sch.game_date DESC, sch.game_time DESC";
+    ORDER BY sch.game_date ASC, sch.game_time ASC, sch.location ASC";
 
 $games = $db->fetchAll($sql, $params);
 

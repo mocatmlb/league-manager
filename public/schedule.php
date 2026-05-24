@@ -54,7 +54,7 @@ $sql = "SELECT g.game_number, g.game_status, g.home_score, g.away_score,
         JOIN programs p ON se.program_id = p.program_id
         WHERE ht.active_status = 'Active' AND at.active_status = 'Active'
         " . $filterSql['conditions'] . "
-        ORDER BY s.game_date DESC, s.game_time DESC";
+        ORDER BY s.game_date ASC, s.game_time ASC, s.location ASC";
 
 $games = $db->fetchAll($sql, $filterSql['params']);
 
@@ -79,7 +79,7 @@ $pageTitle = "Schedule - " . APP_NAME;
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $pageTitle; ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="<?php echo dirname($_SERVER['SCRIPT_NAME']); ?>/../assets/css/style.css" rel="stylesheet">
+    <link href="assets/css/style.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
