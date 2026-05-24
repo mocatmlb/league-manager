@@ -463,7 +463,7 @@ $pageTitle = "Schedule Management - " . APP_NAME;
                                         <?php endif; ?>
                                     </td>
                                     <td><?php echo sanitize($request['away_team_name']) . ' @ ' . sanitize($request['home_team_name']); ?></td>
-                                    <td>
+                                    <td data-order="<?php echo htmlspecialchars($request['game_date'] ?? '9999-12-31', ENT_QUOTES, 'UTF-8'); ?>">
                                         <?php if ($request['game_date'] && $request['game_time']): ?>
                                             <strong><?php echo date('n/j/Y', strtotime($request['game_date'])); ?> @ <?php echo date('g:i A', strtotime($request['game_time'])); ?></strong><br>
                                             <small class="text-muted"><?php echo sanitize($request['location']); ?></small>
@@ -733,7 +733,7 @@ $pageTitle = "Schedule Management - " . APP_NAME;
     <script>
         $(document).ready(function() {
             $('#requestsTable').DataTable({
-                order: [[2, 'desc']],
+                order: [[3, 'asc']], // Sort by game date ascending
                 pageLength: 25
             });
         });

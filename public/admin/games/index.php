@@ -1414,7 +1414,7 @@ $pageTitle = "Games Management - " . APP_NAME;
             console.log('appTimezone:', typeof appTimezone !== 'undefined' ? appTimezone : 'undefined');
             
             $('#gamesTable').DataTable({
-                order: [[4, 'desc'], [5, 'desc']], // Sort by Date, then Time
+                order: [[4, 'asc'], [5, 'asc'], [8, 'asc']], // Sort by Date, Time, Location ascending
                 pageLength: 25,
                 columnDefs: [
                     { orderable: false, targets: [0, 11] }, // Expand icon and Actions columns
@@ -1423,7 +1423,7 @@ $pageTitle = "Games Management - " . APP_NAME;
                     { width: "150px", targets: [3] }, // Season column
                     { width: "100px", targets: [4, 5] } // Date and Time columns
                 ],
-                stateSave: true, // Remember user's sorting preferences
+                stateSave: false,
                 stateDuration: 0 // Session storage (cleared when browser closes)
             });
 

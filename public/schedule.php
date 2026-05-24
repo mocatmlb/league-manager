@@ -298,7 +298,7 @@ $pageTitle = "Schedule - " . APP_NAME;
         $(document).ready(function() {
             // Initialize DataTable
             $('#scheduleTable').DataTable({
-                order: [[1, 'desc']], // Sort by date descending
+                order: [[1, 'asc'], [2, 'asc'], [5, 'asc']], // Sort by date, time, location ascending
                 pageLength: 25,
                 responsive: true,
                 language: {
