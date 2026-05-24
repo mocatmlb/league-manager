@@ -89,9 +89,33 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_change_history' && isset(
     exit;
 }
 
+/**
+ * Atomically increment the sequence for the current year and return the generated
+ * game number in YYYYNNNN format. Must be called inside an open transaction so that
+ * a failed game INSERT rolls back the sequence counter too.
+ */
+function autoGenerateGameNumber(Database $db): string {
+    $year = (int)date('Y');
+    $db->query(
+        "INSERT INTO game_number_sequences (seq_year, last_seq) VALUES (?, 1)
+         ON DUPLICATE KEY UPDATE last_seq = last_seq + 1",
+        [$year]
+    );
+    $row = $db->fetchOne(
+        "SELECT last_seq FROM game_number_sequences WHERE seq_year = ?",
+        [$year]
+    );
+    $lastSeq = (int)($row['last_seq'] ?? 0);
+    if ($lastSeq < 1 || $lastSeq > 9999) {
+        throw new RuntimeException("Unable to generate game number for {$year}: yearly sequence exceeded YYYYNNNN limits.");
+    }
+    return sprintf('%04d%04d', $year, $lastSeq);
+}
+
 // Handle form submissions
-$message = '';
-$error = '';
+$message = $_SESSION['flash_success'] ?? '';
+$error   = $_SESSION['flash_error']   ?? '';
+unset($_SESSION['flash_success'], $_SESSION['flash_error']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
@@ -133,11 +157,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'admin_user' => $_SESSION['admin_username'] ?? 'unknown'
                     ]);
                     
-                    // Create game record
+                    // Create game record — game_number is auto-generated inside the transaction
                     $gameData = [
-                        'game_number' => sanitize($_POST['game_number']),
+                        'game_number' => autoGenerateGameNumber($db),
                         'season_id' => (int)$_POST['season_id'],
-                        'division_id' => (int)$_POST['division_id'],
+                        'division_id' => !empty($_POST['division_id']) ? (int)$_POST['division_id'] : null,
                         'home_team_id' => $homeTeamId,
                         'away_team_id' => $awayTeamId,
                         'game_status' => 'Created',
@@ -216,7 +240,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $db->commit();
                     
                     logActivity('game_created', "Game {$gameData['game_number']} created: {$awayTeam['team_name']} vs {$homeTeam['team_name']}");
-                    $message = 'Game created successfully!';
+                    $message = "Game {$gameData['game_number']} created successfully!";
                     
                 } catch (Exception $e) {
                     try { $db->rollback(); } catch (Exception $ignored) {}
@@ -712,9 +736,14 @@ $pageTitle = "Games Management - " . APP_NAME;
             <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h1>Games Management</h1>
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addGameModal">
-                        <i class="fas fa-plus"></i> Add New Game
-                    </button>
+                    <div class="d-flex gap-2">
+                        <a href="import.php" class="btn btn-outline-secondary">
+                            <i class="fas fa-file-import"></i> Import Games
+                        </a>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addGameModal">
+                            <i class="fas fa-plus"></i> Add New Game
+                        </button>
+                    </div>
                 </div>
 
                 <?php if ($message): ?>
@@ -887,12 +916,6 @@ $pageTitle = "Games Management - " . APP_NAME;
                         <input type="hidden" name="csrf_token" value="<?php echo Auth::generateCSRFToken(); ?>">
                         
                         <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Game Number</label>
-                                    <input type="text" name="game_number" class="form-control" required>
-                                </div>
-                            </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">Season</label>

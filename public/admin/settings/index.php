@@ -89,6 +89,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 break;
 
+            case 'update_weather_locations':
+                try {
+                    $names = $_POST['loc_name'] ?? [];
+                    $lats  = $_POST['loc_lat']  ?? [];
+                    $lons  = $_POST['loc_lon']  ?? [];
+                    $locs  = [];
+                    for ($i = 0; $i < 4; $i++) {
+                        $name = trim($names[$i] ?? '');
+                        $lat  = trim($lats[$i]  ?? '');
+                        $lon  = trim($lons[$i]  ?? '');
+                        if ($name === '') continue;
+                        if (!is_numeric($lat) || !is_numeric($lon)) {
+                            throw new Exception("Slot " . ($i+1) . ": latitude and longitude must be numbers.");
+                        }
+                        $latF = (float)$lat;
+                        $lonF = (float)$lon;
+                        if ($latF < -90 || $latF > 90 || $lonF < -180 || $lonF > 180) {
+                            throw new Exception("Slot " . ($i+1) . ": coordinates out of range.");
+                        }
+                        $locs[] = ['name' => $name, 'lat' => $latF, 'lon' => $lonF];
+                    }
+                    if (empty($locs)) {
+                        throw new Exception('At least one location is required.');
+                    }
+                    updateSetting('weather_locations', json_encode($locs));
+                    logActivity('weather_locations_updated', 'Weather widget locations updated (' . count($locs) . ' locations)');
+                    $message = 'Weather locations saved successfully!';
+                } catch (Exception $e) {
+                    $error = 'Error saving weather locations: ' . $e->getMessage();
+                }
+                break;
+
             case 'update_open_registration':
                 try {
                     require_once EnvLoader::getPath('includes/RegistrationSettingsService.php');

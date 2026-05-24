@@ -33,8 +33,13 @@ class UMSMockEmail {
 class UMSMockDatabase extends Database {
     public array $users      = [];
     public array $roles      = [];
+    public array $adminUsers = [
+        ['id' => 42, 'is_active' => 1],
+        ['id' => 99, 'is_active' => 1],
+    ];
     public array $teamOwners = [];
     public array $teams      = [];
+    public array $userPhones = [];
     public array $queries    = [];
 
     /**
@@ -44,16 +49,54 @@ class UMSMockDatabase extends Database {
      */
     public ?array $getListUsers = null;
     public int $getListTotal = 0;
+    public bool $failNextUserInsertWithDuplicate = false;
+    public bool $failNextUserPhonesInsert = false;
+    public bool $transactionStarted = false;
+    public bool $transactionCommitted = false;
+    public bool $transactionRolledBack = false;
 
     private int $lastInsertId = 0;
+    private array $snapshotUsers = [];
+    private array $snapshotUserPhones = [];
+    private int $snapshotLastInsertId = 0;
 
     public function __construct() {
         // Bypass real connection
     }
 
-    public function beginTransaction(): bool { return true; }
-    public function commit(): bool { return true; }
-    public function rollback(): bool { return true; }
+    public function getConnection() {
+        $self = $this;
+        return new class($self) {
+            private UMSMockDatabase $db;
+            public function __construct(UMSMockDatabase $db) { $this->db = $db; }
+            public function lastInsertId(): string { return (string) $this->db->getLastInsertId(); }
+        };
+    }
+
+    public function getLastInsertId(): int { return $this->lastInsertId; }
+
+    public function beginTransaction(): bool {
+        $this->transactionStarted = true;
+        $this->transactionCommitted = false;
+        $this->transactionRolledBack = false;
+        $this->snapshotUsers = $this->users;
+        $this->snapshotUserPhones = $this->userPhones;
+        $this->snapshotLastInsertId = $this->lastInsertId;
+        return true;
+    }
+    public function commit(): bool {
+        $this->transactionCommitted = true;
+        $this->snapshotUsers = [];
+        $this->snapshotUserPhones = [];
+        return true;
+    }
+    public function rollback(): bool {
+        $this->transactionRolledBack = true;
+        $this->users = $this->snapshotUsers;
+        $this->userPhones = $this->snapshotUserPhones;
+        $this->lastInsertId = $this->snapshotLastInsertId;
+        return true;
+    }
 
     public function fetchOne($sql, $params = []) {
         $sql = trim($sql);
@@ -88,6 +131,16 @@ class UMSMockDatabase extends Database {
             foreach ($this->roles as $r) {
                 if ($r['name'] === ($params['name'] ?? '')) {
                     return $r;
+                }
+            }
+            return false;
+        }
+
+        // Active admin check (createAccount authorization guard)
+        if (stripos($sql, 'FROM admin_users WHERE id = :id AND is_active = 1 LIMIT 1') !== false) {
+            foreach ($this->adminUsers as $a) {
+                if ((int) ($a['id'] ?? -1) === (int) ($params['id'] ?? -1) && (int) ($a['is_active'] ?? 0) === 1) {
+                    return ['id' => (int) $a['id']];
                 }
             }
             return false;
@@ -135,6 +188,28 @@ class UMSMockDatabase extends Database {
             return false;
         }
 
+        // Duplicate username check (createAccount)
+        if (stripos($sql, 'FROM users WHERE username = :u LIMIT 1') !== false) {
+            $needle = strtolower(trim((string) ($params['u'] ?? '')));
+            foreach ($this->users as $u) {
+                if (strtolower(trim((string) ($u['username'] ?? ''))) === $needle) {
+                    return $u;
+                }
+            }
+            return false;
+        }
+
+        // Duplicate email check (createAccount)
+        if (stripos($sql, 'FROM users WHERE email = :e LIMIT 1') !== false) {
+            $needle = strtolower(trim((string) ($params['e'] ?? '')));
+            foreach ($this->users as $u) {
+                if (strtolower(trim((string) ($u['email'] ?? ''))) === $needle) {
+                    return $u;
+                }
+            }
+            return false;
+        }
+
         return false;
     }
 
@@ -150,6 +225,36 @@ class UMSMockDatabase extends Database {
                 public function fetchAll() { return $this->rows; }
                 public function rowCount(): int { return count($this->rows); }
             };
+        }
+
+        // Simulate INSERT INTO users (createAccount)
+        if (stripos($sql, 'INSERT INTO users') !== false) {
+            if ($this->failNextUserInsertWithDuplicate) {
+                $this->failNextUserInsertWithDuplicate = false;
+                $this->users[] = [
+                    'id'       => 999,
+                    'username' => $params['username'] ?? '',
+                    'email'    => $params['email'] ?? '',
+                ];
+                $pdo = new PDOException(
+                    "SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'race' for key 'username'"
+                );
+                throw new Exception('Database query failed: ' . $pdo->getMessage(), 23000, $pdo);
+            }
+            $newId = count($this->users) + 100;
+            $this->users[] = array_merge(['id' => $newId], $params);
+            $this->lastInsertId = $newId;
+            return new class { public function rowCount(): int { return 1; } };
+        }
+
+        // Simulate INSERT INTO user_phones (createAccount dual-write)
+        if (stripos($sql, 'INSERT INTO user_phones') !== false) {
+            if ($this->failNextUserPhonesInsert) {
+                $this->failNextUserPhonesInsert = false;
+                throw new Exception('Database query failed: simulated user_phones insert failure');
+            }
+            $this->userPhones[] = $params;
+            return new class { public function rowCount(): int { return 1; } };
         }
 
         // Simulate INSERT team_owners
@@ -1059,4 +1164,316 @@ register_test('Story 8.1 resetPassword: returns 12-char temp password and sets f
     // Mock state assertion
     assert_equals((int) $db->users[0]['force_password_change'], 1,
         'force_password_change flag must be set in stored user row');
+});
+
+// ---------------------------------------------------------------------------
+// Story 13.2 — createAccount() tests
+// ---------------------------------------------------------------------------
+
+function makeCreateAccountData(array $overrides = []): array {
+    return array_merge([
+        'first_name'    => 'Alice',
+        'last_name'     => 'Smith',
+        'email'         => 'alice@example.com',
+        'username'      => 'alice.smith',
+        'phone'         => '315-555-0100',
+        'role'          => 'user',
+        'password_mode' => 'generate',
+        'preferred_name' => '',
+    ], $overrides);
+}
+
+register_test('Story 13.2 createAccount: auto-generate mode returns user_id and temp_password', function () {
+    $db    = new UMSMockDatabase();
+    $email = new UMSMockEmail();
+    $db->roles = [['id' => 2, 'name' => 'user']];
+
+    $svc    = makeUMS($db, $email);
+    $result = $svc->createAccount(makeCreateAccountData(), 99);
+
+    assert_true(isset($result['user_id']), 'result must contain user_id');
+    assert_true((int) $result['user_id'] > 0, 'user_id must be positive');
+    assert_true(isset($result['temp_password']), 'result must contain temp_password');
+    assert_true(is_string($result['temp_password']), 'temp_password must be a string');
+    assert_equals(strlen($result['temp_password']), 12, 'auto-generated password must be 12 chars');
+});
+
+register_test('Story 13.2 createAccount: account is inserted as active with no verification token', function () {
+    $db    = new UMSMockDatabase();
+    $email = new UMSMockEmail();
+    $db->roles = [['id' => 2, 'name' => 'user']];
+
+    $svc = makeUMS($db, $email);
+    $svc->createAccount(makeCreateAccountData(), 99);
+
+    $insertQuery = null;
+    foreach ($db->queries as $q) {
+        if (stripos($q['sql'], 'INSERT INTO users') !== false) {
+            $insertQuery = $q;
+        }
+    }
+    assert_not_null($insertQuery, 'INSERT INTO users query must be issued');
+    assert_true(stripos($insertQuery['sql'], "'active'") !== false, 'status must be active in INSERT');
+    assert_true(stripos($insertQuery['sql'], 'NULL') !== false, 'verification_token and _expiry must be NULL');
+});
+
+register_test('Story 13.2 createAccount: auto-generate sets force_password_change = 1', function () {
+    $db    = new UMSMockDatabase();
+    $email = new UMSMockEmail();
+    $db->roles = [['id' => 2, 'name' => 'user']];
+
+    $svc = makeUMS($db, $email);
+    $svc->createAccount(makeCreateAccountData(['password_mode' => 'generate']), 99);
+
+    $insertQuery = null;
+    foreach ($db->queries as $q) {
+        if (stripos($q['sql'], 'INSERT INTO users') !== false) {
+            $insertQuery = $q;
+        }
+    }
+    assert_not_null($insertQuery, 'INSERT INTO users must be issued');
+    assert_equals((int) ($insertQuery['params']['force_password_change'] ?? -1), 1,
+        'force_password_change must be 1 in auto-generate mode');
+});
+
+register_test('Story 13.2 createAccount: manual password mode — valid password, force_change = 0, no temp', function () {
+    $db    = new UMSMockDatabase();
+    $email = new UMSMockEmail();
+    $db->roles = [['id' => 2, 'name' => 'user']];
+
+    $svc    = makeUMS($db, $email);
+    $result = $svc->createAccount(makeCreateAccountData([
+        'password_mode' => 'manual',
+        'password'      => 'ValidPass1!',
+    ]), 99);
+
+    assert_null($result['temp_password'], 'temp_password must be null in manual mode');
+
+    $insertQuery = null;
+    foreach ($db->queries as $q) {
+        if (stripos($q['sql'], 'INSERT INTO users') !== false) {
+            $insertQuery = $q;
+        }
+    }
+    assert_not_null($insertQuery, 'INSERT INTO users must be issued');
+    assert_equals((int) ($insertQuery['params']['force_password_change'] ?? -1), 0,
+        'force_password_change must be 0 in manual mode');
+    assert_true(password_verify('ValidPass1!', $insertQuery['params']['password_hash'] ?? ''),
+        'stored hash must verify against plaintext password');
+});
+
+register_test('Story 13.2 createAccount: manual password complexity enforced', function () {
+    $db    = new UMSMockDatabase();
+    $email = new UMSMockEmail();
+    $db->roles = [['id' => 2, 'name' => 'user']];
+
+    $svc  = makeUMS($db, $email);
+    $threw = false;
+    try {
+        $svc->createAccount(makeCreateAccountData([
+            'password_mode' => 'manual',
+            'password'      => 'weakpass',
+        ]), 99);
+    } catch (InvalidPasswordException $e) {
+        $threw = true;
+    }
+    assert_true($threw, 'InvalidPasswordException must be thrown for weak password');
+});
+
+register_test('Story 13.2 createAccount: duplicate username throws DuplicateUsernameException', function () {
+    $db    = new UMSMockDatabase();
+    $email = new UMSMockEmail();
+    $db->users = [['id' => 1, 'username' => 'alice.smith', 'email' => 'other@example.com']];
+    $db->roles = [['id' => 2, 'name' => 'user']];
+
+    $svc   = makeUMS($db, $email);
+    $threw = false;
+    try {
+        $svc->createAccount(makeCreateAccountData(), 99);
+    } catch (DuplicateUsernameException $e) {
+        $threw = true;
+    }
+    assert_true($threw, 'DuplicateUsernameException must be thrown when username already exists');
+});
+
+register_test('Story 13.2 createAccount: duplicate email throws DuplicateEmailException', function () {
+    $db    = new UMSMockDatabase();
+    $email = new UMSMockEmail();
+    $db->users = [['id' => 1, 'username' => 'other.user', 'email' => 'alice@example.com']];
+    $db->roles = [['id' => 2, 'name' => 'user']];
+
+    $svc   = makeUMS($db, $email);
+    $threw = false;
+    try {
+        $svc->createAccount(makeCreateAccountData(), 99);
+    } catch (DuplicateEmailException $e) {
+        $threw = true;
+    }
+    assert_true($threw, 'DuplicateEmailException must be thrown when email already exists');
+});
+
+register_test('Story 13.2 createAccount: invalid role throws InvalidArgumentException', function () {
+    $db    = new UMSMockDatabase();
+    $email = new UMSMockEmail();
+    $db->roles = [['id' => 2, 'name' => 'user']];
+
+    $svc   = makeUMS($db, $email);
+    $threw = false;
+    try {
+        $svc->createAccount(makeCreateAccountData(['role' => 'superadmin']), 99);
+    } catch (InvalidArgumentException $e) {
+        $threw = true;
+    }
+    assert_true($threw, 'InvalidArgumentException must be thrown for unknown role');
+});
+
+register_test('Story 13.2 createAccount: missing required field throws InvalidArgumentException', function () {
+    $db    = new UMSMockDatabase();
+    $email = new UMSMockEmail();
+    $db->roles = [['id' => 2, 'name' => 'user']];
+
+    $svc   = makeUMS($db, $email);
+    $threw = false;
+    try {
+        $svc->createAccount(makeCreateAccountData(['first_name' => '']), 99);
+    } catch (InvalidArgumentException $e) {
+        $threw = true;
+    }
+    assert_true($threw, 'InvalidArgumentException must be thrown when first_name is empty');
+});
+
+register_test('Story 13.2 createAccount: invalid email format throws InvalidArgumentException', function () {
+    $db    = new UMSMockDatabase();
+    $email = new UMSMockEmail();
+    $db->roles = [['id' => 2, 'name' => 'user']];
+
+    $svc   = makeUMS($db, $email);
+    $threw = false;
+    try {
+        $svc->createAccount(makeCreateAccountData(['email' => 'not-an-email']), 99);
+    } catch (InvalidArgumentException $e) {
+        $threw = true;
+    }
+    assert_true($threw, 'InvalidArgumentException must be thrown for invalid email format');
+});
+
+register_test('Story 13.2 createAccount: inserts companion user_phones row', function () {
+    $db    = new UMSMockDatabase();
+    $email = new UMSMockEmail();
+    $db->roles = [['id' => 2, 'name' => 'user']];
+
+    $svc = makeUMS($db, $email);
+    $svc->createAccount(makeCreateAccountData(['phone' => '315-555-0199']), 99);
+
+    $phoneQuery = null;
+    foreach ($db->queries as $q) {
+        if (stripos($q['sql'], 'INSERT INTO user_phones') !== false) {
+            $phoneQuery = $q;
+        }
+    }
+    assert_not_null($phoneQuery, 'INSERT INTO user_phones must be issued');
+    assert_equals($phoneQuery['params']['phone'] ?? '', '315-555-0199', 'phone must match');
+});
+
+register_test('Story 13.2 createAccount: completes successfully and returns expected shape', function () {
+    $db    = new UMSMockDatabase();
+    $email = new UMSMockEmail();
+    $db->roles = [['id' => 2, 'name' => 'user']];
+
+    $svc    = makeUMS($db, $email);
+    $result = $svc->createAccount(makeCreateAccountData(['username' => 'testuser', 'role' => 'user']), 42);
+
+    assert_true(array_key_exists('user_id', $result), 'result must have user_id key');
+    assert_true(array_key_exists('temp_password', $result), 'result must have temp_password key');
+    assert_true((int) $result['user_id'] > 0, 'user_id must be a positive int');
+});
+
+register_test('Story 13.2 createAccount: preferred_name stored as null when empty', function () {
+    $db    = new UMSMockDatabase();
+    $email = new UMSMockEmail();
+    $db->roles = [['id' => 2, 'name' => 'user']];
+
+    $svc = makeUMS($db, $email);
+    $svc->createAccount(makeCreateAccountData(['preferred_name' => '']), 99);
+
+    $insertQuery = null;
+    foreach ($db->queries as $q) {
+        if (stripos($q['sql'], 'INSERT INTO users') !== false) {
+            $insertQuery = $q;
+        }
+    }
+    assert_not_null($insertQuery, 'INSERT INTO users must be issued');
+    assert_true(array_key_exists('preferred_name', $insertQuery['params']), 'preferred_name param must exist');
+    assert_null($insertQuery['params']['preferred_name'],
+        'preferred_name must be NULL when empty string provided');
+});
+
+register_test('Story 13.2 createAccount: invalid password_mode throws InvalidArgumentException', function () {
+    $db    = new UMSMockDatabase();
+    $email = new UMSMockEmail();
+    $db->roles = [['id' => 2, 'name' => 'user']];
+
+    $svc   = makeUMS($db, $email);
+    $threw = false;
+    try {
+        $svc->createAccount(makeCreateAccountData(['password_mode' => 'tampered']), 99);
+    } catch (InvalidArgumentException $e) {
+        $threw = true;
+    }
+    assert_true($threw, 'InvalidArgumentException must be thrown for unsupported password_mode');
+});
+
+register_test('Story 13.2 createAccount: rolls back user insert when user_phones insert fails', function () {
+    $db    = new UMSMockDatabase();
+    $email = new UMSMockEmail();
+    $db->roles = [['id' => 2, 'name' => 'user']];
+    $db->failNextUserPhonesInsert = true;
+
+    $svc   = makeUMS($db, $email);
+    $threw = false;
+    try {
+        $svc->createAccount(makeCreateAccountData(), 99);
+    } catch (Throwable $e) {
+        $threw = true;
+    }
+
+    assert_true($threw, 'createAccount must throw when user_phones insert fails');
+    assert_true($db->transactionStarted, 'createAccount must start a transaction');
+    assert_true($db->transactionRolledBack, 'createAccount must roll back on failure');
+    assert_equals(count($db->users), 0, 'users insert must be rolled back on failure');
+    assert_equals(count($db->userPhones), 0, 'user_phones insert must not persist on failure');
+});
+
+register_test('Story 13.2 createAccount: insert-time race is mapped to DuplicateUsernameException', function () {
+    $db    = new UMSMockDatabase();
+    $email = new UMSMockEmail();
+    $db->roles = [['id' => 2, 'name' => 'user']];
+    $db->failNextUserInsertWithDuplicate = true;
+
+    $svc   = makeUMS($db, $email);
+    $threw = false;
+    try {
+        $svc->createAccount(makeCreateAccountData(), 99);
+    } catch (DuplicateUsernameException $e) {
+        $threw = true;
+    }
+
+    assert_true($threw, 'createAccount must map unique collision to DuplicateUsernameException');
+});
+
+register_test('Story 13.2 createAccount: requires an active admin user', function () {
+    $db    = new UMSMockDatabase();
+    $email = new UMSMockEmail();
+    $db->roles = [['id' => 2, 'name' => 'user']];
+    $db->adminUsers = [];
+
+    $svc   = makeUMS($db, $email);
+    $threw = false;
+    try {
+        $svc->createAccount(makeCreateAccountData(), 99);
+    } catch (RuntimeException $e) {
+        $threw = true;
+    }
+
+    assert_true($threw, 'createAccount must reject inactive/unknown admin users');
 });

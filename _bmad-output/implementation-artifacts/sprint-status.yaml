@@ -35,8 +35,9 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: '2026-05-04'
-last_updated: '2026-05-11'
-# Updated: Story 14.2 completed and reviewed
+last_updated: '2026-05-23'
+# Updated: Epic 15 added — game number auto-generation, location management, bulk import
+# Updated: Epic 13 story 13-2 added — admin create user account
 project: league-manager
 project_key: NOKEY
 tracking_system: file-system
@@ -132,6 +133,7 @@ development_status:
   # Epic 13: Admin Operational Tools
   epic-13: in-progress
   13-1-admin-user-impersonation: ready-for-dev
+  13-2-admin-create-user-account: done
   epic-13-retrospective: optional
 
   # Epic 14: Location Management & Google Maps Integration
@@ -140,3 +142,10 @@ development_status:
   14-2-game-location-dropdown-not-listed-flow: done
   14-3-schedule-location-google-maps-links: review
   epic-14-retrospective: optional
+
+  # Epic 15: Admin Game Management Enhancements
+  epic-15: in-progress
+  15-1-game-number-auto-generation: done
+  15-2-enhanced-location-management: in-progress
+  15-3-bulk-game-import: done
+  epic-15-retrospective: optional
