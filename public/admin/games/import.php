@@ -42,8 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'downloa
     header('Content-Type: text/csv');
     header('Content-Disposition: attachment; filename="game_import_sample.csv"');
     header('Cache-Control: no-cache, no-store, must-revalidate');
-    echo "season_year,season_name,division_name,home_team,away_team,game_date,game_time,location_name\r\n";
-    echo "2026,Spring 2026,Majors,Springfield Marlins,Eastside Tigers,2026-06-15,10:00,Thornden Park\r\n";
+    echo "season_year,season_name,division_name,home_team,away_team,game_date,game_time,location_name,notes\r\n";
+    echo "2026,Spring 2026,Majors,Springfield Marlins,Eastside Tigers,2026-06-15,10:00,Thornden Park,\r\n";
     exit;
 }
 
@@ -97,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($handle === false) {
                         $pageError = 'Unable to read the uploaded file. Please try again.';
                     } else {
-                        $headerRow = fgetcsv($handle);
+                        $headerRow = fgetcsv($handle, 0, ',', '"', '\\');
                         if ($headerRow === false || $headerRow === null) {
                             $pageError = 'The file appears to be empty or unreadable.';
                         } else {
@@ -114,8 +114,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 'season_year', 'season_name', 'division_name',
                                 'home_team', 'away_team', 'game_date', 'game_time', 'location_name',
                             ];
-                            $missingHeaders = array_diff($requiredHeaders, $headers);
-                            $unexpectedHeaders = array_diff($headers, $requiredHeaders);
+                            $optionalHeaders  = ['notes'];
+                            $allowedHeaders   = array_merge($requiredHeaders, $optionalHeaders);
+                            $missingHeaders   = array_diff($requiredHeaders, $headers);
+                            $unexpectedHeaders = array_diff($headers, $allowedHeaders);
                             if (!empty($missingHeaders) || !empty($unexpectedHeaders)) {
                                 $details = [];
                                 if (!empty($missingHeaders)) {
@@ -125,13 +127,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     $details[] = 'Unexpected column(s): ' . implode(', ', $unexpectedHeaders);
                                 }
                                 $pageError = implode('. ', $details) . '. Please check the format guide and re-upload.';
-                            } elseif ($headers !== $requiredHeaders) {
-                                $pageError = 'CSV headers must exactly match the required columns in this order: '
-                                    . implode(',', $requiredHeaders) . '.';
+                            } elseif (array_slice($headers, 0, count($requiredHeaders)) !== $requiredHeaders) {
+                                $pageError = 'CSV headers must begin with the required columns in this order: '
+                                    . implode(',', $requiredHeaders) . '. Optional columns (e.g. notes) may follow.';
                             } else {
                                 // Read data rows
                                 $dataRows = [];
-                                while (($csvRow = fgetcsv($handle)) !== false) {
+                                while (($csvRow = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
                                     if ($csvRow === [null]) {
                                         continue; // skip blank lines
                                     }
@@ -293,6 +295,7 @@ $pageTitle = 'Import Games - ' . APP_NAME;
                                             <th>Date</th>
                                             <th>Time</th>
                                             <th>Location</th>
+                                            <th>Notes</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -306,6 +309,7 @@ $pageTitle = 'Import Games - ' . APP_NAME;
                                                 <td><?php echo htmlspecialchars($pr['game_date']); ?></td>
                                                 <td><?php echo htmlspecialchars($pr['game_time']); ?></td>
                                                 <td><?php echo htmlspecialchars($pr['location_name']); ?></td>
+                                                <td><?php echo htmlspecialchars($pr['user_notes'] ?? ''); ?></td>
                                             </tr>
                                         <?php endforeach; ?>
                                     </tbody>
@@ -353,6 +357,7 @@ $pageTitle = 'Import Games - ' . APP_NAME;
                                                 <tr><td><code>game_date</code></td><td>YYYY-MM-DD (e.g., <code>2026-06-15</code>)</td></tr>
                                                 <tr><td><code>game_time</code></td><td>HH:MM 24-hour (e.g., <code>10:00</code>, <code>18:30</code>)</td></tr>
                                                 <tr><td><code>location_name</code></td><td>Exact location name from active locations list</td></tr>
+                                                <tr><td><code>notes</code> <span class="badge bg-secondary">optional</span></td><td>Admin-visible game note — free text, may be blank or omitted entirely</td></tr>
                                             </tbody>
                                         </table>
                                     </div>

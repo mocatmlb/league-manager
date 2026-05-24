@@ -201,12 +201,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $newTime = sanitize($_POST['new_time'] ?? '');
                     $newLocation = sanitize($_POST['new_location'] ?? '');
                     $changeReason = sanitize($_POST['change_reason'] ?? '');
+                    $gameNotes = trim($_POST['game_notes'] ?? '') ?: null;
 
                     if ($gameId <= 0 || empty($newDate) || empty($newTime) || empty($newLocation)) {
                         throw new Exception('All fields are required.');
                     }
 
                     $db->beginTransaction();
+
+                    $originalSchedule = $db->fetchOne("SELECT game_date, game_time, location FROM schedules WHERE game_id = ?", [$gameId]);
 
                     $db->update('schedule_history', [
                         'is_current' => 0
@@ -225,7 +228,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'created_by_type' => 'Admin',
                         'created_by_id' => $currentUser['id'],
                         'is_current' => 1,
-                        'notes' => 'Admin direct change' . ($changeReason ? '. Reason: ' . $changeReason : '')
+                        'notes' => 'Admin direct change' . ($changeReason ? '. Reason: ' . $changeReason : ''),
+                        'user_notes' => $gameNotes,
+                    ]);
+
+                    $db->insert('schedule_change_requests', [
+                        'game_id'            => $gameId,
+                        'requested_by'       => $currentUser['username'] ?? 'Admin',
+                        'request_type'       => 'Reschedule',
+                        'original_date'      => $originalSchedule['game_date'] ?? null,
+                        'original_time'      => $originalSchedule['game_time'] ?? null,
+                        'original_location'  => $originalSchedule['location'] ?? null,
+                        'requested_date'     => $newDate,
+                        'requested_time'     => $newTime,
+                        'requested_location' => $newLocation,
+                        'reason'             => $changeReason ?: null,
+                        'request_status'     => 'Approved',
+                        'reviewed_by'        => $currentUser['id'],
+                        'reviewed_at'        => date('Y-m-d H:i:s'),
                     ]);
 
                     $db->update('schedules', [
@@ -278,7 +298,8 @@ $locations = $db->fetchAll("SELECT location_name FROM locations WHERE active_sta
 $pendingRequests = $db->fetchAll("
     SELECT scr.*, g.game_number, s.schedule_id, s.game_date, s.game_time, s.location,
            ht.team_name as home_team_name,
-           at.team_name as away_team_name
+           at.team_name as away_team_name,
+           (SELECT COUNT(*) FROM schedule_history sh WHERE sh.game_id = g.game_id AND sh.user_notes IS NOT NULL AND sh.user_notes != '') as has_notes
     FROM schedule_change_requests scr
     JOIN games g ON scr.game_id = g.game_id
     JOIN teams ht ON g.home_team_id = ht.team_id
@@ -293,7 +314,8 @@ $allRequests = $db->fetchAll("
     SELECT scr.*, g.game_number, s.schedule_id, s.game_date, s.game_time, s.location,
            ht.team_name as home_team_name,
            at.team_name as away_team_name,
-           au.username as reviewed_by_username
+           au.username as reviewed_by_username,
+           (SELECT COUNT(*) FROM schedule_history sh WHERE sh.game_id = g.game_id AND sh.user_notes IS NOT NULL AND sh.user_notes != '') as has_notes
     FROM schedule_change_requests scr
     JOIN games g ON scr.game_id = g.game_id
     JOIN teams ht ON g.home_team_id = ht.team_id
@@ -361,8 +383,11 @@ $pageTitle = "Schedule Management - " . APP_NAME;
                         <div class="border rounded p-3 mb-3">
                             <div class="row">
                                 <div class="col-md-8">
-                                    <h5>Game #<?php echo sanitize($request['game_number']); ?>: 
+                                    <h5>Game #<?php echo sanitize($request['game_number']); ?>:
                                         <?php echo sanitize($request['away_team_name']); ?> @ <?php echo sanitize($request['home_team_name']); ?>
+                                        <?php if (!empty($request['has_notes'])): ?>
+                                            <i class="fas fa-sticky-note text-warning ms-1" title="This game has notes — view in Games"></i>
+                                        <?php endif; ?>
                                     </h5>
                                     
                                     <div class="row">
@@ -431,7 +456,12 @@ $pageTitle = "Schedule Management - " . APP_NAME;
                                 <?php foreach ($allRequests as $request): ?>
                                 <tr>
                                     <td><strong>#<?php echo $request['schedule_id'] ?? 'N/A'; ?></strong></td>
-                                    <td><?php echo sanitize($request['game_number']); ?></td>
+                                    <td>
+                                        <?php echo sanitize($request['game_number']); ?>
+                                        <?php if (!empty($request['has_notes'])): ?>
+                                            <i class="fas fa-sticky-note text-warning ms-1" title="This game has notes — view in Games"></i>
+                                        <?php endif; ?>
+                                    </td>
                                     <td><?php echo sanitize($request['away_team_name']) . ' @ ' . sanitize($request['home_team_name']); ?></td>
                                     <td>
                                         <?php if ($request['game_date'] && $request['game_time']): ?>
@@ -648,6 +678,10 @@ $pageTitle = "Schedule Management - " . APP_NAME;
                         <div class="mb-3">
                             <label class="form-label">Reason for Change</label>
                             <textarea name="change_reason" class="form-control" rows="3" placeholder="Optional reason for this schedule change..."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Notes <small class="text-muted">(admin-visible only, optional)</small></label>
+                            <textarea name="game_notes" class="form-control" rows="3" placeholder="Enter any ancillary notes about this game..."></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">

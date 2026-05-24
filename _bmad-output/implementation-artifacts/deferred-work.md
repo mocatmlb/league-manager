@@ -77,3 +77,7 @@ These are race conditions, missing transactions, and performance issues. See [10
 
 - Legacy text-name matching can miss renamed/variant values in `schedules.location`, so some semantically linked games may not be counted by the current `location = ?` fallback check. This is pre-existing data-model drift risk and not introduced by this story's implementation pattern.
 - Renamed locations with legacy `schedules.location` text values can evade in-use detection when `location_id` is null and text no longer exactly matches current `location_name`; resolving this requires broader data backfill/normalization beyond this story.
+
+## Deferred from: code review of 15-3-bulk-game-import.md (2026-05-23)
+
+- Full-table existing fixture preload in `validateRows()` may degrade performance at scale as historical schedules grow; optimization should narrow duplicate lookups to relevant fixture candidates.

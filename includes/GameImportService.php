@@ -32,6 +32,7 @@ class GameImportService
             'season_year', 'season_name', 'division_name',
             'home_team', 'away_team', 'game_date', 'game_time', 'location_name',
         ];
+        // 'notes' is optional — present or absent, blank or filled, all are valid
 
         // Pre-fetch lookup tables once to avoid N+1 queries
         $seasons   = $this->db->fetchAll("SELECT season_id, season_name, season_year FROM seasons");
@@ -227,6 +228,8 @@ class GameImportService
                 continue;
             }
 
+            $userNotes = (isset($row['notes']) && trim($row['notes']) !== '') ? trim($row['notes']) : null;
+
             $validated[] = [
                 'season_id'       => $seasonId,
                 'division_id'     => $divisionId,
@@ -235,6 +238,7 @@ class GameImportService
                 'location_id'     => $locationId,
                 'game_date'       => $gameDate,
                 'game_time'       => $gameTime,
+                'user_notes'      => $userNotes,
                 // Display fields for preview
                 'season_display'  => $seasonName . ' ' . $seasonYear,
                 'division_name'   => $divisionName,
@@ -328,6 +332,7 @@ class GameImportService
                     'is_current'     => 1,
                     'created_at'     => date('Y-m-d H:i:s'),
                     'notes'          => 'Initial game schedule',
+                    'user_notes'     => $row['user_notes'] ?? null,
                 ]);
 
                 logActivity(

@@ -52,6 +52,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_change_history' && isset(
             sh.is_current,
             sh.created_at,
             sh.notes,
+            sh.user_notes,
             sh.change_request_id,
             scr.request_type,
             scr.requested_by,
@@ -231,12 +232,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ];
                     
                     $db->insert('schedule_history', $historyData);
-                    
+
+                    $addGameNotes = trim($_POST['game_notes'] ?? '');
+                    if ($addGameNotes !== '') {
+                        $db->update('schedule_history', ['user_notes' => $addGameNotes], 'game_id = ? AND is_current = 1', [$gameId]);
+                    }
+
                     // Update game status to Scheduled if schedule data is provided
                     if (!empty($_POST['game_date'])) {
                         $db->update('games', ['game_status' => 'Scheduled'], 'game_id = ?', [$gameId]);
                     }
-                    
+
                     $db->commit();
                     
                     logActivity('game_created', "Game {$gameData['game_number']} created: {$awayTeam['team_name']} vs {$homeTeam['team_name']}");
@@ -452,9 +458,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $db->insert('schedule_history', $historyData);
                     }
                     
+                    $updateGameNotes = trim($_POST['game_notes'] ?? '') ?: null;
+                    $db->update('schedule_history', ['user_notes' => $updateGameNotes], 'game_id = ? AND is_current = 1', [$gameId]);
+
                     $db->commit();
-                    
-                    logActivity('game_updated', "Game updated: {$awayTeam['team_name']} vs {$homeTeam['team_name']}");
+
+                    logActivity('game_updated', "Game ID $gameId updated");
                     $message = 'Game updated successfully!';
                     
                 } catch (Exception $e) {
@@ -631,7 +640,9 @@ $sql = "SELECT g.*, sch.game_date, sch.game_time, sch.location,
            s.season_name, s.season_year, s.season_status,
            d.division_name,
            p.program_name,
-           (SELECT COUNT(*) FROM schedule_change_requests scr WHERE scr.game_id = g.game_id) as change_count
+           (SELECT COUNT(*) FROM schedule_history sh WHERE sh.game_id = g.game_id AND sh.version_number > 1) as change_count,
+           (SELECT COUNT(*) FROM schedule_history sh WHERE sh.game_id = g.game_id AND sh.user_notes IS NOT NULL AND sh.user_notes != '') as has_notes,
+           (SELECT sh2.user_notes FROM schedule_history sh2 WHERE sh2.game_id = g.game_id AND sh2.is_current = 1 LIMIT 1) as current_user_notes
     FROM games g
     JOIN schedules sch ON g.game_id = sch.game_id
     JOIN teams ht ON g.home_team_id = ht.team_id
@@ -800,6 +811,9 @@ $pageTitle = "Games Management - " . APP_NAME;
                                             <?php echo sanitize($game['game_number']); ?>
                                             <?php if ($game['change_count'] > 0): ?>
                                                 <span class="change-count-badge"><?php echo $game['change_count']; ?></span>
+                                            <?php endif; ?>
+                                            <?php if (!empty($game['has_notes'])): ?>
+                                                <i class="fas fa-sticky-note text-warning ms-1" title="This game has notes — expand history to view"></i>
                                             <?php endif; ?>
                                             <br><small class="clickable-hint">Click to view history</small>
                                         </td>
@@ -1026,6 +1040,10 @@ $pageTitle = "Games Management - " . APP_NAME;
                             </div>
                         </div>
                     </div>
+                    <div class="mb-3 px-3">
+                        <label class="form-label">Notes <small class="text-muted">(admin-visible only, optional)</small></label>
+                        <textarea name="game_notes" class="form-control" rows="3" placeholder="Enter any ancillary notes about this game..."></textarea>
+                    </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-primary">Add Game</button>
@@ -1158,6 +1176,10 @@ $pageTitle = "Games Management - " . APP_NAME;
                                 </div>
                             </div>
                         </div>
+                    </div>
+                    <div class="mb-3 px-3">
+                        <label class="form-label">Notes <small class="text-muted">(admin-visible only, optional)</small></label>
+                        <textarea name="game_notes" id="editGameNotes" class="form-control" rows="3" placeholder="Enter any ancillary notes about this game..."></textarea>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -1502,7 +1524,12 @@ $pageTitle = "Games Management - " . APP_NAME;
                                               history.request_status === 'Denied' ? 'danger' : 'warning';
                             notes += (notes ? '<br>' : '') + '<span class="badge bg-' + statusClass + '">' + history.request_status + '</span>';
                         }
-                        html += `<td><small>${notes}</small></td>`;
+                        let notesCell = `<small>${notes}</small>`;
+                        if (history.user_notes) {
+                            const escapedNote = history.user_notes.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                            notesCell += ` <i class="fas fa-sticky-note text-warning" title="${escapedNote}" style="cursor:pointer;"></i>`;
+                        }
+                        html += `<td>${notesCell}</td>`;
                         html += `</tr>`;
                     });
                     
@@ -1543,6 +1570,8 @@ $pageTitle = "Games Management - " . APP_NAME;
             }
             sel.dispatchEvent(new Event('change'));
             
+            document.getElementById('editGameNotes').value = game.current_user_notes || '';
+
             var editModal = new bootstrap.Modal(document.getElementById('editGameModal'));
             editModal.show();
         }

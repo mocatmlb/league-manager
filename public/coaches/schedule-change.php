@@ -69,6 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'requested_location' => $_POST['requested_location'] ?? '',
                 'location_name_new'  => trim($_POST['location_name_new'] ?? ''),
                 'reason'             => $_POST['reason']             ?? '',
+                'game_notes'         => $_POST['game_notes']         ?? '',
             ];
 
             // Resolve requested_location: handle "not-listed" inline entry
@@ -104,6 +105,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $error = 'Please select a game to reschedule.';
                     } else {
                         $service->submit($userId, $gameId, $requestData);
+                        $coachNote = trim($postValues['game_notes'] ?? '');
+                        if ($coachNote !== '') {
+                            try {
+                                $db->update('schedule_history', ['user_notes' => $coachNote], 'game_id = ? AND is_current = 1', [$gameId]);
+                            } catch (Throwable $noteEx) {
+                                error_log('[schedule-change] Failed to save game note: ' . $noteEx->getMessage());
+                            }
+                        }
                         $_SESSION['flash_success'] =
                             'Request submitted. You will receive an email when your request is reviewed.';
                         header('Location: schedule-change.php');
@@ -335,6 +344,12 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                                 <label class="form-label fw-bold">Reason for Change *</label>
                                 <textarea name="reason" class="form-control" rows="4" required
                                           placeholder="Please provide a detailed reason for the schedule change request..."><?php echo htmlspecialchars($postValues['reason'] ?? '', ENT_QUOTES, 'UTF-8'); ?></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Game Notes <small class="text-muted fw-normal">(admin-visible only, optional)</small></label>
+                                <textarea name="game_notes" class="form-control" rows="3"
+                                          placeholder="Any additional context about this game for the admin..."><?php echo htmlspecialchars($postValues['game_notes'] ?? '', ENT_QUOTES, 'UTF-8'); ?></textarea>
                             </div>
 
                             <!-- Contact info (read-only, pre-populated, UX-DR8) -->

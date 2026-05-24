@@ -1,0 +1,1 @@
+ALTER TABLE schedule_history ADD COLUMN user_notes TEXT NULL DEFAULT NULL;
