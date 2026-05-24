@@ -83,6 +83,16 @@ function _coachNavActive(string $page): string {
     return $_currentScript === $page ? 'active" aria-current="page' : '';
 }
 ?>
+<?php if (!empty($_SESSION['impersonating'])): ?>
+<div class="alert alert-warning mb-0 rounded-0 text-center py-2" role="alert">
+    <i class="fas fa-user-secret me-1"></i>
+    <strong>Impersonating:</strong> <?php echo htmlspecialchars((string) ($_SESSION['impersonated_user_name'] ?? 'unknown'), ENT_QUOTES, 'UTF-8'); ?>
+    <form method="POST" action="<?php echo $_rootPath; ?>admin/impersonate-stop.php" class="d-inline ms-3">
+        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(Auth::generateCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>">
+        <button type="submit" class="btn btn-sm btn-danger">Stop Impersonating</button>
+    </form>
+</div>
+<?php endif; ?>
 <nav class="navbar navbar-expand-lg navbar-dark" style="background-color:#212529;">
     <div class="container-fluid">
         <a class="navbar-brand" href="<?php echo $_rootPath; ?>index.php">
