@@ -82,27 +82,8 @@ function _coachNavActive(string $page): string {
     global $_currentScript;
     return $_currentScript === $page ? 'active" aria-current="page' : '';
 }
-
-$_isImpersonating = !empty($_SESSION['impersonating']);
-$_impersonatedFullName = trim((string) ($_SESSION['impersonated_full_name'] ?? ''));
-if ($_impersonatedFullName === '') {
-    $_impersonatedFullName = (string) ($_SESSION['impersonated_user_name'] ?? 'Unknown User');
-}
-$_impersonatedUsername = trim((string) ($_SESSION['impersonated_username'] ?? ''));
 ?>
-<?php if ($_isImpersonating): ?>
-<div class="alert alert-warning fixed-top mb-0 rounded-0 text-center py-2 d-flex justify-content-center align-items-center gap-2 flex-wrap" role="alert" style="z-index: 1080;">
-    <span>
-        <strong>&#9888; Impersonating <?php echo htmlspecialchars($_impersonatedFullName, ENT_QUOTES, 'UTF-8'); ?></strong>
-        &mdash; you are viewing this session as <?php echo htmlspecialchars($_impersonatedUsername !== '' ? $_impersonatedUsername : 'unknown', ENT_QUOTES, 'UTF-8'); ?>
-    </span>
-    <form method="POST" action="<?php echo $_rootPath; ?>admin/impersonate-stop.php" class="d-inline ms-3">
-        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(Auth::generateCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>">
-        <button type="submit" class="btn btn-sm btn-danger">Stop Impersonating</button>
-    </form>
-</div>
-<?php endif; ?>
-<nav class="navbar navbar-expand-lg navbar-dark<?php echo $_isImpersonating ? ' mt-5' : ''; ?>" style="background-color:#212529;">
+<nav class="navbar navbar-expand-lg navbar-dark" style="background-color:#212529;">
     <div class="container-fluid">
         <a class="navbar-brand" href="<?php echo $_rootPath; ?>index.php">
             <?php echo defined('APP_NAME') ? htmlspecialchars(APP_NAME) : 'D8TL'; ?>

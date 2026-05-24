@@ -649,18 +649,6 @@ $pageTitle = 'User Detail — ' . sanitize($user['first_name'] . ' ' . $user['la
                         </form>
                     <?php endif; ?>
 
-                    <?php if ($userStatus === 'active' && !in_array($normalizedRoleName, ['administrator', 'admin'], true)): ?>
-                        <!-- Impersonate User (Story 13.1) -->
-                        <form method="POST" action="impersonate.php"
-                              onsubmit="return confirm('Impersonate <?php echo htmlspecialchars(addslashes($user['first_name'] . ' ' . $user['last_name']), ENT_QUOTES); ?>? You will be logged in as this user.');">
-                            <input type="hidden" name="csrf_token" value="<?php echo $csrfToken; ?>">
-                            <input type="hidden" name="user_id" value="<?php echo (int) $user['id']; ?>">
-                            <button type="submit" class="btn btn-warning btn-sm">
-                                <i class="fas fa-user-secret me-1"></i> Impersonate User
-                            </button>
-                        </form>
-                    <?php endif; ?>
-
                 </div>
             </div>
         </div>
