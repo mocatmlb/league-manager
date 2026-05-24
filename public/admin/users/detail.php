@@ -49,7 +49,7 @@ if ($userId === 0) {
 
 $user = $db->fetchOne(
     'SELECT u.id, u.first_name, u.last_name, u.preferred_name, u.email, u.username, u.status,
-            u.created_at, r.name AS role_name, u.role_id
+            u.created_at, r.name AS role_name, u.role_id, u.phone AS legacy_phone
      FROM users u
      LEFT JOIN roles r ON r.id = u.role_id
      WHERE u.id = :id LIMIT 1',
@@ -323,7 +323,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Re-fetch after a failed POST so the view is consistent
         $user = $db->fetchOne(
             'SELECT u.id, u.first_name, u.last_name, u.preferred_name, u.email, u.username, u.status,
-                    u.created_at, r.name AS role_name, u.role_id
+                    u.created_at, r.name AS role_name, u.role_id, u.phone AS legacy_phone
              FROM users u
              LEFT JOIN roles r ON r.id = u.role_id
              WHERE u.id = :id LIMIT 1',
@@ -455,11 +455,17 @@ $pageTitle = 'User Detail — ' . sanitize($user['first_name'] . ' ' . $user['la
                         </span>
                     </dd>
 
-                    <?php if ($primaryPhone !== false): ?>
+                    <?php
+                    $displayPhone = $primaryPhone['phone'] ?? $user['legacy_phone'] ?? '';
+                    $displayType  = $primaryPhone['type']  ?? '';
+                    if ($displayPhone !== ''):
+                    ?>
                         <dt class="col-sm-3">Primary Phone</dt>
                         <dd class="col-sm-9">
-                            <?php echo sanitize($primaryPhone['phone']); ?>
-                            <small class="text-muted">(<?php echo sanitize($primaryPhone['type']); ?>)</small>
+                            <?php echo sanitize($displayPhone); ?>
+                            <?php if ($displayType !== ''): ?>
+                                <small class="text-muted">(<?php echo sanitize($displayType); ?>)</small>
+                            <?php endif; ?>
                         </dd>
                     <?php endif; ?>
 
@@ -520,7 +526,7 @@ $pageTitle = 'User Detail — ' . sanitize($user['first_name'] . ' ' . $user['la
                         <div class="col-md-6">
                             <label class="form-label">Primary Phone</label>
                             <input type="text" name="phone" class="form-control"
-                                   value="<?php echo sanitize($primaryPhone['phone'] ?? ''); ?>"
+                                   value="<?php echo sanitize($primaryPhone['phone'] ?? $user['legacy_phone'] ?? ''); ?>"
                                    placeholder="e.g. 555-555-5555">
                         </div>
                         <div class="col-md-6">

@@ -565,10 +565,10 @@ $pageTitle = "Locations Management - " . APP_NAME;
         function editLocation(location) {
             document.getElementById('editLocationId').value = location.location_id;
             document.getElementById('editLocationName').value = location.location_name;
-            document.getElementById('editLocationAddress').value = location.location_address || '';
-            document.getElementById('editLocationCity').value = location.location_city || '';
-            document.getElementById('editLocationState').value = location.location_state || '';
-            document.getElementById('editLocationZip').value = location.location_zip || '';
+            document.getElementById('editLocationAddress').value = location.address || '';
+            document.getElementById('editLocationCity').value = location.city || '';
+            document.getElementById('editLocationState').value = location.state || '';
+            document.getElementById('editLocationZip').value = location.zip_code || '';
             document.getElementById('editFieldCount').value = location.field_count || 1;
             document.getElementById('editLocationStatus').value = location.active_status;
             document.getElementById('editParkingInfo').value = location.parking_info || '';
