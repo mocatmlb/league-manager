@@ -359,3 +359,20 @@ register_test('AC1: startImpersonation throws for administrator role target', fu
 
     Database::setInstance(null);
 });
+
+// ---------------------------------------------------------------------------
+// Test: stop requires active impersonation state (hardening)
+// ---------------------------------------------------------------------------
+
+register_test('Hardening: stopImpersonation throws when no impersonation session is active', function () {
+    _setAdminSession();
+
+    $threw = false;
+    try {
+        ImpersonationService::stopImpersonation('127.0.0.1');
+    } catch (RuntimeException $e) {
+        $threw = true;
+    }
+
+    assert_true($threw, 'stopImpersonation must throw RuntimeException when not impersonating');
+});

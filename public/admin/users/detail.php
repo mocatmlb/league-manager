@@ -366,6 +366,7 @@ $csrfToken = Auth::generateCSRFToken();
 
 $roleName   = $user['role_name'] ?? 'user';
 $userStatus = $user['status']    ?? 'unverified';
+$normalizedRoleName = strtolower(trim((string) $roleName));
 
 $pageTitle = 'User Detail — ' . sanitize($user['first_name'] . ' ' . $user['last_name']) . ' — ' . APP_NAME;
 ?>
@@ -648,7 +649,7 @@ $pageTitle = 'User Detail — ' . sanitize($user['first_name'] . ' ' . $user['la
                         </form>
                     <?php endif; ?>
 
-                    <?php if ($userStatus === 'active' && ($roleName ?? '') !== 'administrator'): ?>
+                    <?php if ($userStatus === 'active' && !in_array($normalizedRoleName, ['administrator', 'admin'], true)): ?>
                         <!-- Impersonate User (Story 13.1) -->
                         <form method="POST" action="impersonate.php"
                               onsubmit="return confirm('Impersonate <?php echo htmlspecialchars(addslashes($user['first_name'] . ' ' . $user['last_name']), ENT_QUOTES); ?>? You will be logged in as this user.');">

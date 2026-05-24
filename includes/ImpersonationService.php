@@ -131,6 +131,10 @@ class ImpersonationService {
             session_start();
         }
 
+        if (empty($_SESSION['impersonating']) || empty($_SESSION['impersonator_admin_id'])) {
+            throw new RuntimeException('No active impersonation session to stop.');
+        }
+
         $returnUrl      = (string) ($_SESSION['impersonation_return_url'] ?? self::buildPath('admin/users/index.php'));
         $adminId        = $_SESSION['impersonator_admin_id']      ?? null;
         $adminUsername  = $_SESSION['impersonator_admin_username'] ?? null;
