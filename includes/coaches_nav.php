@@ -191,4 +191,4 @@ if (file_exists($_blueWidget)) {
 }
 unset($_blueWidget);
 
-unset($_rootPath, $_currentScript, $_navShowRegisterTeam); ?>
+unset($_rootPath, $_currentScript, $_navShowRegisterTeam, $_isImpersonating, $_impersonatedFullName, $_impersonatedUsername); ?>

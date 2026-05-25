@@ -56,7 +56,7 @@ $pageTitle = 'Rules & Regulations — District 8 Travel League';
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-    <?php include __DIR__ . '/../../includes/coaches_nav.php'; ?>
+    <?php include EnvLoader::getPath('includes/coaches_nav.php'); ?>
 
     <div class="container mt-4">
         <div class="row">

@@ -366,6 +366,7 @@ $csrfToken = Auth::generateCSRFToken();
 
 $roleName   = $user['role_name'] ?? 'user';
 $userStatus = $user['status']    ?? 'unverified';
+$normalizedRoleName = strtolower(trim((string) $roleName));
 
 $pageTitle = 'User Detail — ' . sanitize($user['first_name'] . ' ' . $user['last_name']) . ' — ' . APP_NAME;
 ?>
