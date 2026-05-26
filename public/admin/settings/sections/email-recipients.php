@@ -117,14 +117,14 @@ $recipientSources = [
 ];
 ?>
 
-<?php if (isset($message)): ?>
+<?php if (!empty($message)): ?>
     <div class="alert alert-success alert-dismissible fade show" role="alert">
         <i class="fas fa-check-circle"></i> <?php echo $message; ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 <?php endif; ?>
 
-<?php if (isset($error)): ?>
+<?php if (!empty($error)): ?>
     <div class="alert alert-danger alert-dismissible fade show" role="alert">
         <i class="fas fa-exclamation-circle"></i> <?php echo $error; ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
@@ -281,7 +281,7 @@ $recipientSources = [
                         </select>
                     </div>
 
-                    <div class="mb-3" id="emailField" style="display: none;">
+                    <div class="mb-3" id="EmailField" style="display: none;">
                         <label class="form-label">Email Address *</label>
                         <input type="email" name="email_address" class="form-control"
                                placeholder="Enter email address">
