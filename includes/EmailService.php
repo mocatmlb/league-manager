@@ -270,7 +270,7 @@ class EmailService {
     /**
      * Process template with variable substitution
      */
-    private function processTemplate($template, $context) {
+    public function processTemplate($template, $context) {
         // Get schedule change data if schedule_change_id is provided
         if (isset($context['schedule_change_id'])) {
             $changeData = $this->getScheduleChangeData($context['schedule_change_id']);
