@@ -251,13 +251,11 @@ class RescheduleService {
             'SELECT scr.*,
                     g.game_number,
                     ht.team_name AS home_team_name,
-                    at.team_name AS away_team_name,
-                    s.game_date
+                    at.team_name AS away_team_name
              FROM schedule_change_requests scr
              JOIN games g ON scr.game_id = g.game_id
              JOIN teams ht ON g.home_team_id = ht.team_id
              JOIN teams at ON g.away_team_id = at.team_id
-             LEFT JOIN schedules s ON g.game_id = s.game_id
              WHERE scr.submitted_by_user_id = :uid
              ORDER BY scr.created_date DESC',
             ['uid' => $userId]

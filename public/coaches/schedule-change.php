@@ -404,7 +404,7 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                             <thead class="table-dark">
                                 <tr>
                                     <th>Game #</th>
-                                    <th>Current Date</th>
+                                    <th>Original Date</th>
                                     <th>Requested Date</th>
                                     <th>Reason</th>
                                     <th>Status</th>
@@ -415,7 +415,7 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                             <?php foreach ($coachRequests as $req): ?>
                             <tr>
                                 <td><?php echo htmlspecialchars((string) ($req['game_number'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
-                                <td><?php echo htmlspecialchars(formatDate($req['game_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td><?php echo htmlspecialchars(formatDate($req['original_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
                                 <td><?php echo htmlspecialchars(formatDate($req['requested_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
                                 <td><?php echo htmlspecialchars((string) ($req['reason'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
                                 <td>

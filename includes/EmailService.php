@@ -381,7 +381,10 @@ class EmailService {
             'approval_date' => $change['reviewed_at'] ? date('Y-m-d g:i A', strtotime($change['reviewed_at'])) : 'TBD',
             'reviewer_name' => 'Admin',
             'request_status' => $change['request_status'] ?? 'Pending',
-            'submission_date' => $change['created_date'] ? date('Y-m-d g:i A', strtotime($change['created_date'])) : 'TBD'
+            'submission_date' => $change['created_date'] ? date('Y-m-d g:i A', strtotime($change['created_date'])) : 'TBD',
+            'original_date' => $change['original_date'] ? date('m/d/Y', strtotime($change['original_date'])) : 'Unknown',
+            'original_time' => $change['original_time'] ? date('g:i A', strtotime($change['original_time'])) : 'Unknown',
+            'original_location' => $change['original_location'] ?? 'Unknown'
         ];
     }
     
