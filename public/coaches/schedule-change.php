@@ -476,7 +476,10 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
         if ($('#coachRequestsTable').length) {
             $('#coachRequestsTable').DataTable({
                 order: [[0, 'desc']],
-                columnDefs: [{ orderable: false, searchable: false, targets: 7 }],
+                columnDefs: [
+                    { type: 'num', targets: 0 },
+                    { orderable: false, searchable: false, targets: 7 }
+                ],
                 pageLength: 25,
                 language: { search: 'Filter requests:' }
             });
