@@ -746,7 +746,8 @@ $pageTitle = "Schedule Management - " . APP_NAME;
     <script>
         $(document).ready(function() {
             $('#requestsTable').DataTable({
-                order: [[3, 'asc']], // Sort by game date ascending
+                order: [[0, 'desc']],
+                columnDefs: [{ type: 'num', targets: 0 }],
                 pageLength: 25
             });
         });
