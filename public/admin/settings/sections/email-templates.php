@@ -147,28 +147,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Get available template variables
 $templateVariables = [
     'Game Information' => [
-        'game_number' => 'Game number/identifier',
-        'away_team' => 'Away team name',
-        'home_team' => 'Home team name',
-        'game_date' => 'Scheduled game date',
-        'game_time' => 'Scheduled game time',
-        'location' => 'Game location',
-        'away_score' => 'Away team score',
-        'home_score' => 'Home team score'
+        'game_number'   => 'Game number/identifier',
+        'away_team'     => 'Away team name',
+        'home_team'     => 'Home team name',
+        'game_date'     => 'Scheduled game date',
+        'game_time'     => 'Scheduled game time',
+        'location'      => 'Game location',
+        'away_score'    => 'Away team score',
+        'home_score'    => 'Home team score',
+        'season_name'   => 'Season name',
+        'division_name' => 'Division name',
     ],
     'Schedule Changes' => [
-        'requested_date' => 'Requested new date',
-        'requested_time' => 'Requested new time',
-        'new_location' => 'Requested new location',
-        'reason' => 'Change request reason',
-        'requested_by' => 'Name of requester',
-        'change_request_id' => 'Change request ID'
+        'new_date'          => 'New/approved date (formatted)',
+        'new_time'          => 'New/approved time (formatted)',
+        'new_location'      => 'New/approved location',
+        'original_date'     => 'Original date before the change',
+        'original_time'     => 'Original time before the change',
+        'original_location' => 'Original location before the change',
+        'reason'            => 'Reason for the change request',
+        'requested_by'      => 'Name of requester',
+        'change_request_id' => 'Change request ID',
     ],
     'Administrative' => [
-        'admin_comment' => 'Admin comment/notes',
-        'approval_date' => 'Date of approval/denial',
+        'admin_comment'   => 'Admin comment / denial reason',
+        'approval_date'   => 'Date of approval or denial',
         'submission_date' => 'Date request was submitted',
-        'current_date' => 'Current date/time'
+        'reviewer_name'   => 'Admin who reviewed the request',
+        'request_status'  => 'Current request status',
+        'current_date'    => 'Current date/time',
     ]
 ];
 ?>
@@ -319,61 +326,37 @@ $templateVariables = [
 
     <div class="col-lg-4">
         <!-- Template Variables -->
-        <div class="card">
-            <div class="card-header">
+        <div class="card sticky-top" style="top: 1rem;">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">Available Variables</h5>
+                <small class="text-muted">click to insert</small>
             </div>
-            <div class="card-body">
-                <div class="accordion" id="variablesAccordion">
-                    <?php foreach ($templateVariables as $category => $variables): ?>
-                        <div class="accordion-item">
-                            <h2 class="accordion-header">
-                                <button class="accordion-button collapsed" type="button" 
-                                        data-bs-toggle="collapse" 
-                                        data-bs-target="#vars<?php echo str_replace(' ', '', $category); ?>">
-                                    <?php echo $category; ?>
-                                </button>
-                            </h2>
-                            <div id="vars<?php echo str_replace(' ', '', $category); ?>" 
-                                 class="accordion-collapse collapse" 
-                                 data-bs-parent="#variablesAccordion">
-                                <div class="accordion-body">
-                                    <table class="table table-sm">
-                                        <tbody>
-                                            <?php foreach ($variables as $var => $desc): ?>
-                                                <tr>
-                                                    <td><code>{<?php echo $var; ?>}</code></td>
-                                                    <td><?php echo $desc; ?></td>
-                                                </tr>
-                                            <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
+            <div class="card-body p-2" style="max-height: 75vh; overflow-y: auto;">
+                <?php foreach ($templateVariables as $category => $variables): ?>
+                    <p class="text-uppercase text-muted small fw-semibold px-2 mb-1 mt-2"
+                       style="font-size: 0.7rem; letter-spacing: .05em;">
+                        <?php echo htmlspecialchars($category); ?>
+                    </p>
+                    <div class="px-1 mb-1">
+                        <?php foreach ($variables as $var => $desc): ?>
+                            <span class="badge bg-secondary mb-1 variable-tag"
+                                  role="button"
+                                  title="<?php echo htmlspecialchars($desc); ?>"
+                                  data-var="{<?php echo $var; ?>}">
+                                {<?php echo $var; ?>}
+                            </span>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endforeach; ?>
 
-                <div class="alert alert-info mt-3">
-                    <i class="fas fa-info-circle"></i>
-                    Use these variables in curly braces (e.g., <code>{game_number}</code>) in your templates.
+                <div class="alert alert-info mt-3 mb-0 py-2 small">
+                    <i class="fas fa-mouse-pointer"></i>
+                    <?php if ($editTemplate): ?>
+                        Click a variable to insert it at the cursor in the subject or body field.
+                    <?php else: ?>
+                        Click a variable to copy it to your clipboard.
+                    <?php endif; ?>
                 </div>
-            </div>
-        </div>
-
-        <!-- Template Tips -->
-        <div class="card mt-3">
-            <div class="card-header">
-                <h5 class="card-title mb-0">Template Tips</h5>
-            </div>
-            <div class="card-body">
-                <ul class="list-unstyled">
-                    <li><i class="fas fa-check text-success"></i> Use HTML for formatting</li>
-                    <li><i class="fas fa-check text-success"></i> Test templates before activating</li>
-                    <li><i class="fas fa-check text-success"></i> Keep subject lines concise</li>
-                    <li><i class="fas fa-check text-success"></i> Include all relevant information</li>
-                    <li><i class="fas fa-check text-success"></i> Use consistent styling</li>
-                </ul>
             </div>
         </div>
     </div>
@@ -421,4 +404,39 @@ function showTestTemplate(templateId, templateName) {
     document.getElementById('testTemplateName').textContent = templateName;
     new bootstrap.Modal(document.getElementById('testTemplateModal')).show();
 }
+
+document.querySelectorAll('.variable-tag').forEach(function(badge) {
+    badge.style.cursor = 'pointer';
+    badge.addEventListener('click', function() {
+        var variable = this.dataset.var;
+        var active = document.activeElement;
+        var inserted = false;
+
+        // Insert at cursor if a subject/body field is focused
+        if (active && (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT') &&
+            (active.name === 'subject_template' || active.name === 'body_template')) {
+            var start = active.selectionStart;
+            var end   = active.selectionEnd;
+            active.value = active.value.substring(0, start) + variable + active.value.substring(end);
+            active.selectionStart = active.selectionEnd = start + variable.length;
+            active.focus();
+            inserted = true;
+        }
+
+        if (!inserted) {
+            // Fallback: copy to clipboard
+            navigator.clipboard.writeText(variable).then(function() {
+                var orig = badge.textContent;
+                badge.classList.remove('bg-secondary');
+                badge.classList.add('bg-success');
+                badge.textContent = 'Copied!';
+                setTimeout(function() {
+                    badge.textContent = orig;
+                    badge.classList.remove('bg-success');
+                    badge.classList.add('bg-secondary');
+                }, 1200);
+            });
+        }
+    });
+});
 </script>
