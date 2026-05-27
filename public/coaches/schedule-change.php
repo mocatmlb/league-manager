@@ -173,6 +173,7 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="../../assets/css/style.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" rel="stylesheet">
 </head>
 <body>
     <?php include EnvLoader::getPath('includes/coaches_nav.php'); ?>
@@ -399,12 +400,14 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                     <div class="card-header">
                         <h5 class="mb-0"><i class="fas fa-list"></i> Your Reschedule Requests</h5>
                     </div>
-                    <div class="card-body p-0">
-                        <table class="table table-striped table-hover mb-0">
-                            <thead class="table-dark">
+                    <div class="card-body">
+                        <table id="coachRequestsTable" class="table table-striped table-hover">
+                            <thead>
                                 <tr>
+                                    <th>Req ID</th>
+                                    <th>Game ID</th>
                                     <th>Game #</th>
-                                    <th>Current Date</th>
+                                    <th>Original Date</th>
                                     <th>Requested Date</th>
                                     <th>Reason</th>
                                     <th>Status</th>
@@ -414,8 +417,10 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                             <tbody>
                             <?php foreach ($coachRequests as $req): ?>
                             <tr>
+                                <td><?php echo (int) $req['request_id']; ?></td>
+                                <td><?php echo (int) $req['game_id']; ?></td>
                                 <td><?php echo htmlspecialchars((string) ($req['game_number'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
-                                <td><?php echo htmlspecialchars(formatDate($req['game_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td><?php echo htmlspecialchars(formatDate($req['original_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
                                 <td><?php echo htmlspecialchars(formatDate($req['requested_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
                                 <td><?php echo htmlspecialchars((string) ($req['reason'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
                                 <td>
@@ -463,6 +468,24 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+    <script>
+    $(document).ready(function() {
+        if ($('#coachRequestsTable').length) {
+            $('#coachRequestsTable').DataTable({
+                order: [[0, 'desc']],
+                columnDefs: [
+                    { type: 'num', targets: 0 },
+                    { orderable: false, searchable: false, targets: 7 }
+                ],
+                pageLength: 25,
+                language: { search: 'Filter requests:' }
+            });
+        }
+    });
+    </script>
     <script>
     // Reveal game detail panel and request form on game selection (AC3, UX-DR5)
     function onGameSelected(select) {

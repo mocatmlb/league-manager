@@ -156,37 +156,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'deny_change':
                 try {
                     $requestId = (int)$_POST['request_id'];
-                    
-                    $db->update('schedule_change_requests', [
+
+                    // Load and validate current request state to avoid duplicate/incorrect deny notifications
+                    $request = $db->fetchOne("SELECT game_id, request_status FROM schedule_change_requests WHERE request_id = ?", [$requestId]);
+                    if (!$request) {
+                        throw new Exception('Schedule change request not found.');
+                    }
+                    if (($request['request_status'] ?? '') !== 'Pending') {
+                        throw new Exception('Only pending schedule change requests can be denied.');
+                    }
+
+                    $updateStmt = $db->update('schedule_change_requests', [
                         'request_status' => 'Denied',
                         'reviewed_by' => $currentUser['id'],
                         'reviewed_at' => date('Y-m-d H:i:s'),
                         'review_notes' => sanitize($_POST['admin_notes'] ?? '')
-                    ], 'request_id = :request_id', ['request_id' => $requestId]);
+                    ], 'request_id = :request_id AND request_status = :pending_status', [
+                        'request_id' => $requestId,
+                        'pending_status' => 'Pending'
+                    ]);
+                    if ($updateStmt->rowCount() === 0) {
+                        throw new Exception('Schedule change request is no longer pending.');
+                    }
+
+                    $pendingCount = $db->fetchOne("
+                        SELECT COUNT(*) as count 
+                        FROM schedule_change_requests 
+                        WHERE game_id = ? AND request_status = 'Pending' AND request_id != ?
+                    ", [$request['game_id'], $requestId]);
                     
-                    // Get the game ID from the request
-                    $request = $db->fetchOne("SELECT game_id FROM schedule_change_requests WHERE request_id = ?", [$requestId]);
-                    
-                    // Check if there are any other pending requests for this game
-                    if ($request) {
-                        $pendingCount = $db->fetchOne("
-                            SELECT COUNT(*) as count 
-                            FROM schedule_change_requests 
-                            WHERE game_id = ? AND request_status = 'Pending' AND request_id != ?
-                        ", [$request['game_id'], $requestId]);
-                        
-                        // If no other pending requests, update game status back to Scheduled
-                        if ($pendingCount && $pendingCount['count'] == 0) {
-                            $gameStatus = $db->fetchOne("SELECT game_status FROM games WHERE game_id = ?", [$request['game_id']]);
-                            if ($gameStatus && $gameStatus['game_status'] === 'Pending Change') {
-                                $db->update('games', [
-                                    'game_status' => 'Scheduled',
-                                    'modified_date' => date('Y-m-d H:i:s')
-                                ], 'game_id = ?', [$request['game_id']]);
-                            }
+                    // If no other pending requests, update game status back to Scheduled
+                    if ($pendingCount && $pendingCount['count'] == 0) {
+                        $gameStatus = $db->fetchOne("SELECT game_status FROM games WHERE game_id = ?", [$request['game_id']]);
+                        if ($gameStatus && $gameStatus['game_status'] === 'Pending Change') {
+                            $db->update('games', [
+                                'game_status' => 'Scheduled',
+                                'modified_date' => date('Y-m-d H:i:s')
+                            ], 'game_id = ?', [$request['game_id']]);
                         }
                     }
-                    
+
+                    sendNotification('onScheduleChangeDeny', $request['game_id'], $requestId);
+
                     logActivity('schedule_change_denied', "Schedule change request #{$requestId} denied", $currentUser['id']);
                     $message = 'Schedule change denied.';
                 } catch (Exception $e) {
@@ -232,7 +243,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'user_notes' => $gameNotes,
                     ]);
 
-                    $db->insert('schedule_change_requests', [
+                    $newRequestId = $db->insert('schedule_change_requests', [
                         'game_id'            => $gameId,
                         'requested_by'       => $currentUser['username'] ?? 'Admin',
                         'request_type'       => 'Reschedule',
@@ -267,6 +278,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     logActivity('schedule_direct_change', "Admin direct schedule change for game #$gameId - Version $nextVersion created", $currentUser['id']);
 
+                    sendNotification('onScheduleChangeApprove', $gameId, $newRequestId);
+
                     $message = 'Schedule changed successfully! New version created.';
                 } catch (Exception $e) {
                     $db->rollback();
@@ -296,7 +309,7 @@ $locations = $db->fetchAll("SELECT location_name FROM locations WHERE active_sta
 
 // Get pending schedule change requests
 $pendingRequests = $db->fetchAll("
-    SELECT scr.*, g.game_number, s.schedule_id, s.game_date, s.game_time, s.location,
+    SELECT scr.*, g.game_number, s.game_date, s.game_time, s.location,
            ht.team_name as home_team_name,
            at.team_name as away_team_name,
            (SELECT COUNT(*) FROM schedule_history sh WHERE sh.game_id = g.game_id AND sh.user_notes IS NOT NULL AND sh.user_notes != '') as has_notes
@@ -311,7 +324,7 @@ $pendingRequests = $db->fetchAll("
 
 // Get all schedule change requests (for history)
 $allRequests = $db->fetchAll("
-    SELECT scr.*, g.game_number, s.schedule_id, s.game_date, s.game_time, s.location,
+    SELECT scr.*, g.game_number, s.game_date, s.game_time, s.location,
            ht.team_name as home_team_name,
            at.team_name as away_team_name,
            au.username as reviewed_by_username,
@@ -443,7 +456,7 @@ $pageTitle = "Schedule Management - " . APP_NAME;
                         <table id="requestsTable" class="table table-striped">
                             <thead>
                                 <tr>
-                                    <th>Schedule ID</th>
+                                    <th>Request ID</th>
                                     <th>Game #</th>
                                     <th>Teams</th>
                                     <th>Current Schedule</th>
@@ -455,7 +468,7 @@ $pageTitle = "Schedule Management - " . APP_NAME;
                             <tbody>
                                 <?php foreach ($allRequests as $request): ?>
                                 <tr>
-                                    <td><strong>#<?php echo $request['schedule_id'] ?? 'N/A'; ?></strong></td>
+                                    <td><strong>#<?php echo $request['request_id'] ?? 'N/A'; ?></strong></td>
                                     <td>
                                         <?php echo sanitize($request['game_number']); ?>
                                         <?php if (!empty($request['has_notes'])): ?>
@@ -463,10 +476,10 @@ $pageTitle = "Schedule Management - " . APP_NAME;
                                         <?php endif; ?>
                                     </td>
                                     <td><?php echo sanitize($request['away_team_name']) . ' @ ' . sanitize($request['home_team_name']); ?></td>
-                                    <td data-order="<?php echo htmlspecialchars($request['game_date'] ?? '9999-12-31', ENT_QUOTES, 'UTF-8'); ?>">
-                                        <?php if ($request['game_date'] && $request['game_time']): ?>
-                                            <strong><?php echo date('n/j/Y', strtotime($request['game_date'])); ?> @ <?php echo date('g:i A', strtotime($request['game_time'])); ?></strong><br>
-                                            <small class="text-muted"><?php echo sanitize($request['location']); ?></small>
+                                    <td data-order="<?php echo htmlspecialchars($request['original_date'] ?? '9999-12-31', ENT_QUOTES, 'UTF-8'); ?>">
+                                        <?php if ($request['original_date'] && $request['original_time']): ?>
+                                            <strong><?php echo date('n/j/Y', strtotime($request['original_date'])); ?> @ <?php echo date('g:i A', strtotime($request['original_time'])); ?></strong><br>
+                                            <small class="text-muted"><?php echo sanitize($request['original_location']); ?></small>
                                         <?php else: ?>
                                             <em class="text-muted">Not scheduled</em>
                                         <?php endif; ?>
@@ -733,7 +746,8 @@ $pageTitle = "Schedule Management - " . APP_NAME;
     <script>
         $(document).ready(function() {
             $('#requestsTable').DataTable({
-                order: [[3, 'asc']], // Sort by game date ascending
+                order: [[0, 'desc']],
+                columnDefs: [{ type: 'num', targets: 0 }],
                 pageLength: 25
             });
         });
