@@ -402,7 +402,7 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                     </div>
                     <div class="card-body">
                         <table id="coachRequestsTable" class="table table-striped table-hover">
-                            <thead class="table-dark">
+                            <thead>
                                 <tr>
                                     <th>Req ID</th>
                                     <th>Game ID</th>
