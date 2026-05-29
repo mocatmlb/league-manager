@@ -46,7 +46,7 @@ if (!defined('D8TL_APP')) {
                             <i class="fas fa-user"></i> <?php echo htmlspecialchars($_SESSION['user']['username'] ?? 'User'); ?>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="<?php echo EnvLoader::getBaseUrl(); ?>/admin/profile.php">Profile</a></li>
+                            <li><a class="dropdown-item" href="<?php echo EnvLoader::getBaseUrl(); ?>/coaches/profile.php">Profile</a></li>
                             <li><a class="dropdown-item" href="<?php echo EnvLoader::getBaseUrl(); ?>/admin/settings/">Settings</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="<?php echo EnvLoader::getBaseUrl(); ?>/admin/logout.php">Logout</a></li>
