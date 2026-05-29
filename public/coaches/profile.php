@@ -139,9 +139,13 @@ $pageTitle = 'My Profile — District 8 Travel League';
 <body>
 
 <?php
-$coachNavWebRoot = '../../';
-include EnvLoader::getPath('includes/coaches_nav.php');
-unset($coachNavWebRoot);
+if (Auth::isAdmin()) {
+    include EnvLoader::getPath('includes/nav.php');
+} else {
+    $coachNavWebRoot = '../../';
+    include EnvLoader::getPath('includes/coaches_nav.php');
+    unset($coachNavWebRoot);
+}
 ?>
 
 <div class="container mt-4">
