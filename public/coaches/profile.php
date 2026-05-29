@@ -2,8 +2,7 @@
 /**
  * District 8 Travel League - Coach Profile Page
  *
- * Any authenticated coach (coach or team_owner role) can update their
- * name, phone numbers, and password.
+ * Any authenticated user can update their name, contact info, and password.
  */
 
 $__dir = __DIR__;
@@ -60,23 +59,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'last_name'      => trim($_POST['last_name'] ?? ''),
             'preferred_name' => trim($_POST['preferred_name'] ?? ''),
         ];
-        $primaryPhone   = trim($_POST['primary_phone'] ?? '');
-        $primaryType    = $_POST['primary_type'] ?? '';
-        $secondaryPhone = trim($_POST['secondary_phone'] ?? '');
-        $secondaryType  = $_POST['secondary_type'] ?? '';
+        $email     = trim($_POST['email'] ?? '');
+        $phone     = trim($_POST['phone'] ?? '');
+        $smsOptIn  = !empty($_POST['sms_opt_in']);
 
         try {
+            // Contact info first — if it fails (e.g. duplicate email), name stays unchanged.
+            $service->updateContactInfo($userId, $email, $phone, $smsOptIn);
             $service->updateName($userId, $nameData);
-
-            if ($primaryPhone !== '') {
-                $service->updatePhone($userId, $primaryPhone, $primaryType, 'primary');
-            }
-
-            if ($secondaryPhone !== '') {
-                $service->updatePhone($userId, $secondaryPhone, $secondaryType, 'secondary');
-            } elseif ($secondaryPhone === '' && isset($_POST['secondary_phone'])) {
-                $service->removeSecondaryPhone($userId);
-            }
 
             $_SESSION['flash_success'] = 'Profile updated.';
             header('Location: profile.php');
@@ -123,27 +113,9 @@ $flashError = $_SESSION['flash_error'] ?? '';
 unset($_SESSION['flash_error']);
 
 $user = $db->fetchOne(
-    'SELECT first_name, last_name, preferred_name, email FROM users WHERE id = :id',
+    'SELECT username, first_name, last_name, preferred_name, email, phone, sms_opt_in FROM users WHERE id = :id',
     ['id' => $userId]
 );
-
-$phones = $db->fetchAll(
-    "SELECT phone, type, role FROM user_phones WHERE user_id = :user_id ORDER BY FIELD(role,'primary','secondary')",
-    ['user_id' => $userId]
-);
-$primaryPhone = '';
-$primaryType  = '';
-$secondaryPhone = '';
-$secondaryType  = '';
-foreach ($phones as $p) {
-    if ($p['role'] === 'primary') {
-        $primaryPhone = $p['phone'];
-        $primaryType  = $p['type'];
-    } elseif ($p['role'] === 'secondary') {
-        $secondaryPhone = $p['phone'];
-        $secondaryType  = $p['type'];
-    }
-}
 
 $teamRow = $db->fetchOne(
     'SELECT t.team_name FROM teams t JOIN team_owners o ON t.team_id = o.team_id WHERE o.user_id = :id LIMIT 1',
@@ -197,6 +169,13 @@ unset($coachNavWebRoot);
                         <input type="hidden" name="csrf_token"
                                value="<?php echo htmlspecialchars(Auth::generateCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>">
 
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control form-control-lg" id="username"
+                                   value="<?php echo htmlspecialchars($user['username'] ?? ''); ?>"
+                                   disabled>
+                        </div>
+
                         <div class="row mb-3">
                             <div class="col-md-4">
                                 <label for="first_name" class="form-label">First Name *</label>
@@ -215,11 +194,18 @@ unset($coachNavWebRoot);
                             </div>
                         </div>
 
-                        <div class="mb-3">
-                            <label for="email" class="form-label">Email</label>
-                            <input type="email" class="form-control-plaintext" id="email" readonly
-                                   value="<?php echo htmlspecialchars($user['email'] ?? ''); ?>">
-                            <small class="text-muted">(contact admin to change email)</small>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="email" class="form-label">Email *</label>
+                                <input type="email" class="form-control form-control-lg" id="email" name="email"
+                                       value="<?php echo htmlspecialchars($user['email'] ?? ''); ?>" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="phone" class="form-label">Phone *</label>
+                                <input type="tel" class="form-control form-control-lg" id="phone" name="phone"
+                                       value="<?php echo htmlspecialchars($user['phone'] ?? ''); ?>"
+                                       placeholder="(###) ###-####" required>
+                            </div>
                         </div>
 
                         <?php if ($teamName !== ''): ?>
@@ -230,41 +216,14 @@ unset($coachNavWebRoot);
                         </div>
                         <?php endif; ?>
 
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label for="primary_phone" class="form-label">Primary Phone</label>
-                                <div class="row">
-                                    <div class="col-7">
-                                        <input type="tel" class="form-control phone-format" id="primary_phone" name="primary_phone"
-                                               value="<?php echo htmlspecialchars($primaryPhone); ?>">
-                                    </div>
-                                    <div class="col-5">
-                                        <select class="form-select" name="primary_type" id="primary_type">
-                                            <option value="">Type</option>
-                                            <option value="Home" <?php echo $primaryType === 'Home' ? 'selected' : ''; ?>>Home</option>
-                                            <option value="Work" <?php echo $primaryType === 'Work' ? 'selected' : ''; ?>>Work</option>
-                                            <option value="Cell" <?php echo $primaryType === 'Cell' ? 'selected' : ''; ?>>Cell</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="secondary_phone" class="form-label">Secondary Phone</label>
-                                <div class="row">
-                                    <div class="col-7">
-                                        <input type="tel" class="form-control phone-format" id="secondary_phone" name="secondary_phone"
-                                               value="<?php echo htmlspecialchars($secondaryPhone); ?>">
-                                    </div>
-                                    <div class="col-5">
-                                        <select class="form-select" name="secondary_type" id="secondary_type">
-                                            <option value="">Type</option>
-                                            <option value="Home" <?php echo $secondaryType === 'Home' ? 'selected' : ''; ?>>Home</option>
-                                            <option value="Work" <?php echo $secondaryType === 'Work' ? 'selected' : ''; ?>>Work</option>
-                                            <option value="Cell" <?php echo $secondaryType === 'Cell' ? 'selected' : ''; ?>>Cell</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <small class="text-muted">Clear to remove secondary phone</small>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="sms_opt_in" name="sms_opt_in"
+                                       value="1" <?php echo !empty($user['sms_opt_in']) ? 'checked' : ''; ?>>
+                                <label class="form-check-label" for="sms_opt_in">
+                                    Opt in to text message notifications
+                                </label>
+                                <div class="form-text">Text message features are coming soon. Check this box to receive notifications when available.</div>
                             </div>
                         </div>
 
@@ -316,5 +275,39 @@ unset($coachNavWebRoot);
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../../assets/js/coaches-registration.js"></script>
+<script>
+(function () {
+    function fmt(raw) {
+        var digits = raw.replace(/\D/g, '').substring(0, 10);
+        if (!digits) return '';
+        if (digits.length <= 3) return '(' + digits + ')';
+        if (digits.length <= 6) return '(' + digits.slice(0, 3) + ') ' + digits.slice(3);
+        return '(' + digits.slice(0, 3) + ') ' + digits.slice(3, 6) + '-' + digits.slice(6);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var ph = document.getElementById('phone');
+        if (!ph) return;
+
+        // Strip to raw digits while the user is actively typing
+        ph.addEventListener('input', function () {
+            this.value = this.value.replace(/\D/g, '').substring(0, 10);
+        });
+
+        // Apply (###) ###-#### format when focus leaves the field
+        ph.addEventListener('blur', function () {
+            this.value = fmt(this.value);
+        });
+
+        // Strip back to raw digits when the user re-enters the field for editing
+        ph.addEventListener('focus', function () {
+            this.value = this.value.replace(/\D/g, '').substring(0, 10);
+        });
+
+        // Format any pre-filled value on page load
+        if (ph.value) ph.value = fmt(ph.value);
+    });
+})();
+</script>
 </body>
 </html>

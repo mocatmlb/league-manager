@@ -101,6 +101,54 @@ class ProfileService {
         }
     }
 
+    public function updateContactInfo(int $userId, string $email, string $phone, bool $smsOptIn): void {
+        $email = trim($email);
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new InvalidArgumentException('Invalid email address.');
+        }
+
+        $digits = preg_replace('/[^0-9]/', '', $phone);
+        if (strlen($digits) !== 10) {
+            throw new InvalidArgumentException('Phone number must be 10 digits.');
+        }
+        $formattedPhone = '(' . substr($digits, 0, 3) . ') ' . substr($digits, 3, 3) . '-' . substr($digits, 6, 4);
+
+        try {
+            $this->db->beginTransaction();
+
+            // Check email uniqueness inside the transaction so a concurrent duplicate
+            // surfaces as our friendly message rather than a raw MySQL constraint error.
+            $existing = $this->db->fetchOne(
+                'SELECT id FROM users WHERE email = :email AND id != :user_id',
+                ['email' => $email, 'user_id' => $userId]
+            );
+            if ($existing) {
+                $this->db->rollBack();
+                throw new InvalidArgumentException('Email is already in use.');
+            }
+
+            $this->db->query(
+                'UPDATE users SET email = :email, phone = :phone, sms_opt_in = :sms_opt_in, updated_at = NOW() WHERE id = :user_id',
+                [
+                    'email'      => $email,
+                    'phone'      => $formattedPhone,
+                    'sms_opt_in' => $smsOptIn ? 1 : 0,
+                    'user_id'    => $userId,
+                ]
+            );
+
+            ActivityLogger::log('profile.contact_updated', [
+                'user_id' => $userId,
+                'fields_updated' => ['email', 'phone', 'sms_opt_in'],
+            ]);
+
+            $this->db->commit();
+        } catch (Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+    }
+
     public function removeSecondaryPhone(int $userId): void {
         try {
             $this->db->beginTransaction();
