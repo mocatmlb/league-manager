@@ -659,48 +659,89 @@ input, select, textarea {
     transform: rotate(-90deg);
 }
 
-/* Standings mobile rows */
-.standings-mobile-list {
-    padding: 0.25rem 0;
+/* Standings mobile expandable cards */
+.standings-card {
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    margin-bottom: 0.5rem;
+    overflow: hidden;
 }
 
-.standings-mobile-row {
+.standings-card-first {
+    border-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.standings-card-header {
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 0.7rem 0.9rem;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.55rem 0;
-    border-bottom: 1px solid #f0f0f0;
+    gap: 0.6rem;
+    text-align: left;
+    cursor: pointer;
 }
 
-.standings-mobile-row:last-child {
-    border-bottom: none;
-}
-
-.standings-mobile-first {
-    background: #fff9e6;
-    border-radius: 8px;
-    padding: 0.55rem 0.5rem;
-    margin: 0 -0.5rem;
-}
-
-.standings-mobile-place {
-    font-size: 1rem;
+.standings-card-place {
+    font-size: 0.75rem;
     font-weight: 700;
-    color: #2563eb;
-    width: 2.5rem;
-    text-align: center;
+    color: #6c757d;
     flex-shrink: 0;
+    min-width: 2rem;
 }
 
-.standings-mobile-name {
+.standings-card-first .standings-card-place {
+    color: #b45309;
+}
+
+.standings-card-record {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #212529;
+    flex-shrink: 0;
+    letter-spacing: 0.02em;
+}
+
+.standings-card-team {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: #6c757d;
     flex: 1;
-    font-weight: 600;
-    font-size: 0.88rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.standings-mobile-record {
-    font-size: 0.8rem;
-    color: #495057;
-    white-space: nowrap;
+.standings-chevron {
+    font-size: 0.7rem;
+    color: #adb5bd;
+    transition: transform 0.2s ease;
     flex-shrink: 0;
+}
+
+.standings-card-header[aria-expanded="true"] .standings-chevron {
+    transform: rotate(180deg);
+}
+
+.standings-card-detail {
+    padding: 0.5rem 0.9rem 0.75rem;
+    border-top: 1px solid #f0f0f0;
+}
+
+.standings-detail-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.82rem;
+    padding: 0.2rem 0;
+    color: #495057;
+}
+
+.standings-detail-row span:first-child {
+    color: #6c757d;
+}
+
+.standings-detail-row span:last-child {
+    font-weight: 600;
 }
