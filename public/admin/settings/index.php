@@ -77,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 try {
                     // Update general settings
                     updateSetting('league_name', sanitize($_POST['league_name']));
-                    updateSetting('league_tagline', sanitize($_POST['league_tagline'] ?? ''));
+                    updateSetting('league_tagline', trim($_POST['league_tagline'] ?? ''));
                     updateSetting('contact_email', sanitize($_POST['contact_email']));
                     updateSetting('weather_hotline', sanitize($_POST['weather_hotline']));
                     updateSetting('field_maintenance_phone', sanitize($_POST['field_maintenance_phone']));
