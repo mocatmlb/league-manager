@@ -49,7 +49,7 @@ $pageTitle = "Home - " . APP_NAME;
             <div class="col-12">
                 <div class="jumbotron bg-light p-4 rounded">
                     <h1 class="display-4">Welcome to <?php echo APP_NAME; ?></h1>
-                    <p class="lead"><?php echo sanitize(getSetting('league_tagline', 'Your source for schedules, standings, and league information.')); ?></p>
+                    <p class="lead"><?php echo htmlspecialchars(getSetting('league_tagline', 'Your source for schedules, standings, and league information.'), ENT_COMPAT, 'UTF-8'); ?></p>
                 </div>
             </div>
         </div>
