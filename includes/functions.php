@@ -221,21 +221,49 @@ function getDivisionStandings($divisionId) {
  * Log activity for audit trail
  */
 function logActivity($action, $details = '', $userId = null) {
-    $db = Database::getInstance();
-    
-    $user = Auth::getCurrentUser();
-    $userId = $userId ?: ($user['id'] ?? null);
-    $userType = $user['type'];
-    
-    $db->insert('activity_log', [
-        'user_id' => $userId,
-        'user_type' => $userType,
-        'action' => $action,
-        'details' => $details,
-        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
-        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
-        'created_at' => date('Y-m-d H:i:s')
-    ]);
+    static $hasEventColumn = null;
+
+    try {
+        $db = Database::getInstance();
+
+        $user = Auth::getCurrentUser();
+        $userId = $userId ?: ($user['id'] ?? null);
+        $userType = $user['type'] ?? 'admin';
+
+        $row = [
+            'user_id'    => $userId,
+            'user_type'  => $userType,
+            'action'     => $action,
+            'details'    => $details,
+            'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
+            'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
+            'created_at' => date('Y-m-d H:i:s'),
+        ];
+
+        // Include `event` only when the column exists, to handle databases where
+        // migration 007 added the column without a DEFAULT value (INSERT would fail
+        // without a value for a NOT NULL column with no default).
+        if ($hasEventColumn === null) {
+            try {
+                $hasEventColumn = (bool) $db->fetchOne(
+                    "SELECT 1 FROM information_schema.COLUMNS
+                     WHERE TABLE_SCHEMA = DATABASE()
+                       AND TABLE_NAME = 'activity_log'
+                       AND COLUMN_NAME = 'event'
+                     LIMIT 1"
+                );
+            } catch (Exception $e) {
+                $hasEventColumn = false;
+            }
+        }
+        if ($hasEventColumn) {
+            $row['event'] = '';
+        }
+
+        $db->insert('activity_log', $row);
+    } catch (Exception $e) {
+        error_log('logActivity failed: ' . $e->getMessage());
+    }
 }
 
 /**

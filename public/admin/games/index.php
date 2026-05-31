@@ -60,10 +60,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_change_history' && isset(
             scr.request_status,
             scr.reviewed_at,
             scr.review_notes,
-            au.username as reviewed_by_username
+            COALESCE(au.username, CONCAT(u.first_name, ' ', u.last_name)) as reviewed_by_username
         FROM schedule_history sh
         LEFT JOIN schedule_change_requests scr ON sh.change_request_id = scr.request_id
         LEFT JOIN admin_users au ON scr.reviewed_by = au.id
+        LEFT JOIN users u ON scr.reviewed_by = u.id AND au.id IS NULL
         WHERE sh.game_id = ?
         ORDER BY sh.version_number ASC
     ", [$gameId]);
