@@ -200,6 +200,14 @@ $pageTitle = "Standings - " . APP_NAME;
                                         $cardId = 'sc-' . $standingCardIdx++;
                                         $teamLabel = sanitize(strtoupper($team['team_name'] ?: $team['league_name']));
                                         $isFirst = ($place === 1);
+                                        $totalGames = (int)$team['wins'] + (int)$team['losses'] + (int)$team['ties'];
+                                        if ($totalGames === 0) {
+                                            $wpStr = '—';
+                                        } elseif ($team['win_percentage'] >= 1.0) {
+                                            $wpStr = '1.000';
+                                        } else {
+                                            $wpStr = substr(number_format((float)$team['win_percentage'], 3), 1);
+                                        }
                                     ?>
                                     <div class="standings-card<?php echo $isFirst ? ' standings-card-first' : ''; ?>">
                                         <button class="standings-card-header collapsed"
@@ -208,15 +216,23 @@ $pageTitle = "Standings - " . APP_NAME;
                                                 data-bs-target="#<?php echo $cardId; ?>"
                                                 aria-expanded="false">
                                             <span class="standings-card-place">#<?php echo $place; ?><?php if ($isFirst): ?>&nbsp;👑<?php endif; ?></span>
-                                            <span class="standings-card-record"><?php echo $team['wins']; ?>–<?php echo $team['losses']; ?>–<?php echo $team['ties']; ?></span>
                                             <span class="standings-card-team"><?php echo $teamLabel; ?></span>
-                                            <i class="fas fa-chevron-down standings-chevron ms-auto"></i>
+                                            <span class="standings-card-record"><?php echo $team['wins']; ?>–<?php echo $team['losses']; ?>–<?php echo $team['ties']; ?></span>
+                                            <i class="fas fa-chevron-down standings-chevron"></i>
                                         </button>
                                         <div class="collapse" id="<?php echo $cardId; ?>">
                                             <div class="standings-card-detail">
                                                 <div class="standings-detail-row">
+                                                    <span>Win %</span>
+                                                    <span><?php echo $wpStr; ?></span>
+                                                </div>
+                                                <div class="standings-detail-row">
                                                     <span>Games Back</span>
                                                     <span><?php echo $team['games_back'] == 0 ? '—' : number_format($team['games_back'], 1); ?></span>
+                                                </div>
+                                                <div class="standings-detail-row">
+                                                    <span>Games Remaining</span>
+                                                    <span><?php echo (int)$team['games_remaining']; ?></span>
                                                 </div>
                                                 <div class="standings-detail-row">
                                                     <span>Runs Scored</span>

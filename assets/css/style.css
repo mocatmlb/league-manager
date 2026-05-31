@@ -718,22 +718,22 @@ input, select, textarea {
     color: #b45309;
 }
 
-.standings-card-record {
-    font-size: 1.05rem;
+.standings-card-team {
+    font-size: 0.9rem;
     font-weight: 700;
     color: #212529;
-    flex-shrink: 0;
-    letter-spacing: 0.02em;
-}
-
-.standings-card-team {
-    font-size: 0.75rem;
-    font-weight: 400;
-    color: #6c757d;
     flex: 1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.standings-card-record {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #6c757d;
+    flex-shrink: 0;
+    letter-spacing: 0.02em;
 }
 
 .standings-chevron {
