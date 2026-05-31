@@ -43,7 +43,7 @@ $sql = "SELECT g.game_number, g.game_status, g.home_score, g.away_score,
                loc.location_name as loc_name, loc.address, loc.city, loc.state, loc.zip_code,
                ht.team_name as home_team, ht.league_name as home_league,
                at.team_name as away_team, at.league_name as away_league,
-               d.division_name, p.program_name, se.season_name
+               d.division_name, p.program_name, p.program_code, se.season_name
         FROM games g
         JOIN schedules s ON g.game_id = s.game_id
         LEFT JOIN locations loc ON s.location_id = loc.location_id
@@ -182,7 +182,6 @@ $pageTitle = "Schedule - " . APP_NAME;
                                         <th>Score</th>
                                         <th>Status</th>
                                         <th>Program</th>
-                                        <th>Division</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -252,8 +251,7 @@ $pageTitle = "Schedule - " . APP_NAME;
                                                 <?php echo sanitize($game['game_status']); ?>
                                             </span>
                                         </td>
-                                        <td><?php echo sanitize($game['program_name']); ?></td>
-                                        <td><?php echo sanitize($game['division_name']); ?></td>
+                                        <td><?php echo sanitize($game['program_code']); ?></td>
                                     </tr>
                                     <?php endforeach; ?>
                                 </tbody>

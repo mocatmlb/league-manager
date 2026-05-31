@@ -66,8 +66,8 @@ $pageTitle = "Home - " . APP_NAME;
                                         <?php foreach ($todaysGames as $game): ?>
                                         <tr>
                                             <td><?php echo formatTime($game['game_time']); ?></td>
-                                            <td><?php echo sanitize($game['away_team']); ?></td>
-                                            <td><?php echo sanitize($game['home_team']); ?></td>
+                                            <td><?php echo sanitize(strtoupper($game['away_team'])); ?></td>
+                                            <td><?php echo sanitize(strtoupper($game['home_team'])); ?></td>
                                             <td><?php echo sanitize($game['location']); ?></td>
                                         </tr>
                                         <?php endforeach; ?>
@@ -105,8 +105,8 @@ $pageTitle = "Home - " . APP_NAME;
                                         <tr>
                                             <td><?php echo formatDate($game['game_date'], 'M j'); ?></td>
                                             <td><?php echo formatTime($game['game_time']); ?></td>
-                                            <td><?php echo sanitize($game['away_team']); ?></td>
-                                            <td><?php echo sanitize($game['home_team']); ?></td>
+                                            <td><?php echo sanitize(strtoupper($game['away_team'])); ?></td>
+                                            <td><?php echo sanitize(strtoupper($game['home_team'])); ?></td>
                                             <td><?php echo sanitize($game['location']); ?></td>
                                         </tr>
                                         <?php endforeach; ?>

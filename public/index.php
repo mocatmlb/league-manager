@@ -130,9 +130,9 @@ foreach ($weatherLocations as $loc) {
             </div>
         </div>
 
+        <!-- Today's Games -->
         <div class="row mt-4">
-            <!-- Today's Games -->
-            <div class="col-lg-6">
+            <div class="col-12">
                 <div class="card">
                     <div class="card-header">
                         <h3>Today's Games</h3>
@@ -155,8 +155,8 @@ foreach ($weatherLocations as $loc) {
                                         <?php foreach ($todaysGames as $game): ?>
                                         <tr>
                                             <td><?php echo formatTime($game['game_time']); ?></td>
-                                            <td><?php echo sanitize($game['away_team']); ?></td>
-                                            <td><?php echo sanitize($game['home_team']); ?></td>
+                                            <td><?php echo sanitize(strtoupper($game['away_team'])); ?></td>
+                                            <td><?php echo sanitize(strtoupper($game['home_team'])); ?></td>
                                             <td><?php echo sanitize($game['location']); ?></td>
                                         </tr>
                                         <?php endforeach; ?>
@@ -167,9 +167,11 @@ foreach ($weatherLocations as $loc) {
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Upcoming Games (Next 7 Days) -->
-            <div class="col-lg-6">
+        <!-- Upcoming Games (Next 7 Days) -->
+        <div class="row mt-4">
+            <div class="col-12">
                 <div class="card">
                     <div class="card-header">
                         <h3>Upcoming Games (Next 7 Days)</h3>
@@ -194,8 +196,8 @@ foreach ($weatherLocations as $loc) {
                                         <tr>
                                             <td><?php echo formatDate($game['game_date'], 'M j'); ?></td>
                                             <td><?php echo formatTime($game['game_time']); ?></td>
-                                            <td><?php echo sanitize($game['away_team']); ?></td>
-                                            <td><?php echo sanitize($game['home_team']); ?></td>
+                                            <td><?php echo sanitize(strtoupper($game['away_team'])); ?></td>
+                                            <td><?php echo sanitize(strtoupper($game['home_team'])); ?></td>
                                             <td><?php echo sanitize($game['location']); ?></td>
                                         </tr>
                                         <?php endforeach; ?>
