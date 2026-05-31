@@ -81,3 +81,19 @@ These are race conditions, missing transactions, and performance issues. See [10
 ## Deferred from: code review of 15-3-bulk-game-import.md (2026-05-23)
 
 - Full-table existing fixture preload in `validateRows()` may degrade performance at scale as historical schedules grow; optimization should narrow duplicate lookups to relevant fixture candidates.
+
+## Deferred from: code review of 13-3-schedule-management-bugfixes.md (2026-05-26)
+
+- Legacy rows with missing `original_date` / `original_time` / `original_location` may now display as "Not scheduled" in history and "Unknown" in notifications; this is a pre-existing data-quality gap surfaced by the new display logic.
+- `deny_change` can still show a success message when `request_id` is invalid/nonexistent because the update path does not validate affected rows; this behavior predates story 13.3 changes.
+
+## Deferred from: code review of spec-user-profile-edit-personal-info.md (2026-05-28)
+
+- **ActivityLogger called inside transaction** — `updateContactInfo()` (and all existing service methods) call `ActivityLogger::log()` before `commit()`. If the logger writes to a secondary store outside the DB transaction, a rollback leaves a phantom audit record for a write that never landed. Pre-existing pattern across `updateName`, `updatePhone`, `changePassword`. A future hardening pass should ensure the logger only fires after a confirmed commit, or confirm it writes to the same connection/transaction.
+- **ActivityLogger fires on no-op saves** — `updateContactInfo()` always logs `profile.contact_updated` even when the submitted values are identical to the current DB values. Low-priority audit noise; a pre-submission diff check would skip the UPDATE and log entry entirely for unchanged saves.
+
+## Deferred from: code review of spec-reschedule-submission-windows.md (2026-05-30)
+
+- **`getSetting()` performance in `getEligibleGames()`** — `getSetting('reschedule_pre_game_hours')`, `getSetting('reschedule_post_game_hours')`, and `getSetting('timezone')` are called once per `getEligibleGames()` invocation (not per game), but `getSetting()` issues a DB query every call with no caching. Pre-existing pattern across the app; a settings cache would benefit multiple call sites.
+- **Invalid timezone string from admin settings could crash `DateTimeZone` constructor** — If an admin saves a nonsense timezone value, `new DateTimeZone(getSetting('timezone'))` throws, bubbling out as a generic error. Pre-existing risk throughout the app (timezone is used everywhere). Mitigation: validate the timezone on save in the system-timezone settings section.
+- **Malformed `game_date` string (non-NULL, non-ISO) crashes `DateTime` constructor in `enforceSubmissionWindows()`** — Pre-existing data quality risk; a corrupt schedule row would cause an unhandled exception (caught by generic `Throwable` handler in the controller, so no crash, but error message is misleading). Fix: wrap `DateTime` construction in a try/catch and throw a `TeamScopeViolationException` with a clear message.

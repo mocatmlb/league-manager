@@ -365,7 +365,25 @@ class EmailService {
         ", [$scheduleChangeId]);
         
         if (!$change) return [];
-        
+
+        $reviewerName = 'Admin';
+        if (!empty($change['reviewed_by'])) {
+            $rid = (int)$change['reviewed_by'];
+            $adminRow = $this->db->fetchOne(
+                "SELECT username FROM admin_users WHERE id = ? LIMIT 1", [$rid]
+            );
+            if ($adminRow) {
+                $reviewerName = $adminRow['username'];
+            } else {
+                $userRow = $this->db->fetchOne(
+                    "SELECT first_name, last_name FROM users WHERE id = ? LIMIT 1", [$rid]
+                );
+                if ($userRow) {
+                    $reviewerName = trim($userRow['first_name'] . ' ' . $userRow['last_name']);
+                }
+            }
+        }
+
         return [
             'game_id' => $change['game_id'],
             'change_request_id' => $change['request_id'],
@@ -379,7 +397,7 @@ class EmailService {
             'requested_by' => $change['requested_by'] ?? 'Unknown',
             'admin_comment' => $change['review_notes'] ?? 'No comment provided',
             'approval_date' => $change['reviewed_at'] ? date('Y-m-d g:i A', strtotime($change['reviewed_at'])) : 'TBD',
-            'reviewer_name' => 'Admin',
+            'reviewer_name' => $reviewerName,
             'request_status' => $change['request_status'] ?? 'Pending',
             'submission_date' => $change['created_date'] ? date('Y-m-d g:i A', strtotime($change['created_date'])) : 'TBD',
             'original_date' => $change['original_date'] ? date('m/d/Y', strtotime($change['original_date'])) : 'Unknown',

@@ -327,7 +327,7 @@ $allRequests = $db->fetchAll("
     SELECT scr.*, g.game_number, s.game_date, s.game_time, s.location,
            ht.team_name as home_team_name,
            at.team_name as away_team_name,
-           au.username as reviewed_by_username,
+           COALESCE(au.username, CONCAT(u.first_name, ' ', u.last_name)) as reviewed_by_username,
            (SELECT COUNT(*) FROM schedule_history sh WHERE sh.game_id = g.game_id AND sh.user_notes IS NOT NULL AND sh.user_notes != '') as has_notes
     FROM schedule_change_requests scr
     JOIN games g ON scr.game_id = g.game_id
@@ -335,6 +335,7 @@ $allRequests = $db->fetchAll("
     JOIN teams at ON g.away_team_id = at.team_id
     LEFT JOIN schedules s ON g.game_id = s.game_id
     LEFT JOIN admin_users au ON scr.reviewed_by = au.id
+    LEFT JOIN users u ON scr.reviewed_by = u.id AND au.id IS NULL
     ORDER BY scr.created_date DESC
     LIMIT 50
 ");

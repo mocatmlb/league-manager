@@ -236,15 +236,9 @@ $rootPath = getPathToRoot();
                                 <li><hr class="dropdown-divider"></li>
                             <?php endif; ?>
                             <li>
-                                <?php if ($isCoach && !$isAdmin): ?>
                                 <a class="dropdown-item" href="<?php echo $rootPath; ?>coaches/profile.php">
                                     <i class="fas fa-user-circle"></i> Profile
                                 </a>
-                                <?php else: ?>
-                                <a class="dropdown-item" href="<?php echo $rootPath; ?>admin/profile.php">
-                                    <i class="fas fa-user-circle"></i> Profile
-                                </a>
-                                <?php endif; ?>
                             </li>
                             <li>
                                 <?php $logoutUrl = $isCoach && !$isAdmin

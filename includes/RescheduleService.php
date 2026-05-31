@@ -21,6 +21,10 @@ if (!class_exists('TeamScopeViolationException')) {
     class TeamScopeViolationException extends RuntimeException {}
 }
 
+if (!class_exists('SubmissionWindowException')) {
+    class SubmissionWindowException extends RuntimeException {}
+}
+
 class RescheduleService {
 
     private Database $db;
@@ -35,7 +39,8 @@ class RescheduleService {
      * @param array $requestData  Required keys: requested_date, requested_time,
      *                            requested_location, reason
      * @return int  New request ID
-     * @throws TeamScopeViolationException  Game does not involve coach's team
+     * @throws TeamScopeViolationException   Game does not involve coach's team
+     * @throws SubmissionWindowException     Request falls outside an active submission window
      */
     public function submit(int $userId, int $gameId, array $requestData): int {
         if ($userId <= 0 || $gameId <= 0) {
@@ -45,9 +50,11 @@ class RescheduleService {
         $teamIds = array_map('intval', array_column($teams, 'team_id'));
 
         $game = $this->db->fetchOne(
-            'SELECT g.*, s.game_date, s.game_time, s.location
+            'SELECT g.*, s.game_date, s.game_time, s.location,
+                    sea.reschedule_cutoff_date
              FROM games g
              LEFT JOIN schedules s ON g.game_id = s.game_id
+             LEFT JOIN seasons sea ON g.season_id = sea.season_id
              WHERE g.game_id = :game_id',
             ['game_id' => $gameId]
         );
@@ -62,7 +69,8 @@ class RescheduleService {
             throw new TeamScopeViolationException('Game does not involve a team owned by user');
         }
 
-        if (in_array($game['game_status'], ['Completed', 'Cancelled'], true)) {
+        if (in_array($game['game_status'], ['Completed', 'Cancelled'], true)
+            || ($game['home_score'] !== null && $game['away_score'] !== null)) {
             throw new TeamScopeViolationException('Game is not eligible for reschedule');
         }
 
@@ -89,6 +97,8 @@ class RescheduleService {
         if ($requestedDate === '' || $requestedTime === '' || $requestedLocation === '' || $reason === '') {
             throw new InvalidArgumentException('All request fields (date, time, location, reason) are required');
         }
+
+        $this->enforceSubmissionWindows($game, $requestedDate, $requestedTime);
 
         $existing = $this->db->fetchOne(
             'SELECT 1 FROM schedule_change_requests
@@ -140,6 +150,58 @@ class RescheduleService {
         }
 
         return $requestId;
+    }
+
+    /**
+     * Enforce pre-game blackout, post-game blackout, season reschedule cutoff, and minimum
+     * lead-time windows for the requested new game date/time.
+     *
+     * @param array  $game          Row from games + schedules + seasons join
+     * @param string $requestedDate The coach's requested new game date (YYYY-MM-DD)
+     * @param string $requestedTime The coach's requested new game time (HH:MM or HH:MM:SS)
+     * @throws SubmissionWindowException
+     */
+    private function enforceSubmissionWindows(array $game, string $requestedDate, string $requestedTime = ''): void {
+        $tz        = new DateTimeZone(getSetting('timezone', 'America/New_York'));
+        $now       = new DateTime('now', $tz);
+        $gameTime  = $game['game_time'] ?? '00:00:00';
+        $gameAt    = new DateTime($game['game_date'] . ' ' . $gameTime, $tz);
+
+        $preHours  = (int) getSetting('reschedule_pre_game_hours', '0');
+        $postHours = (int) getSetting('reschedule_post_game_hours', '0');
+
+        // Block only when NOW is inside the blackout window: [gameAt - preHours, gameAt + postHours].
+        // Before the window opens or after it closes, submissions are allowed.
+        if ($preHours > 0 || $postHours > 0) {
+            $windowStart = ($preHours > 0)  ? (clone $gameAt)->modify("-{$preHours} hours")  : clone $gameAt;
+            $windowEnd   = ($postHours > 0) ? (clone $gameAt)->modify("+{$postHours} hours") : clone $gameAt;
+            if ($now >= $windowStart && $now <= $windowEnd) {
+                throw new SubmissionWindowException(
+                    "Schedule change requests are not accepted within {$preHours} hour(s) before or {$postHours} hour(s) after the game."
+                );
+            }
+        }
+
+        $seasonCutoff = $game['reschedule_cutoff_date'] ?? null;
+        if (!empty($seasonCutoff) && $requestedDate > $seasonCutoff) {
+            throw new SubmissionWindowException(
+                'The requested date exceeds the reschedule deadline for this season.'
+            );
+        }
+
+        $minNewHours = (int) getSetting('reschedule_min_new_game_hours', '0');
+        if ($minNewHours > 0 && $requestedDate !== '') {
+            $reqTime    = ($requestedTime !== '') ? $requestedTime : '00:00:00';
+            $requestedAt = new DateTime($requestedDate . ' ' . $reqTime, $tz);
+            $earliest    = (clone $now)->modify("+{$minNewHours} hours");
+            if ($requestedAt < $earliest) {
+                $earliestFormatted = $earliest->format('M j, Y \a\t g:i A');
+                throw new SubmissionWindowException(
+                    "The requested new game date/time must be at least {$minNewHours} hour(s) from now. "
+                    . "Please choose a date and time on or after {$earliestFormatted}."
+                );
+            }
+        }
     }
 
     /**
@@ -196,7 +258,8 @@ class RescheduleService {
 
     /**
      * Return games eligible for reschedule requests for the coach's assigned teams.
-     * Excludes Completed, Cancelled, games with no schedule row, and games with existing Pending requests.
+     * Excludes Completed, Cancelled, games with no schedule row, games with existing Pending
+     * requests, and games that fall outside an active submission window.
      *
      * @return array
      */
@@ -218,13 +281,16 @@ class RescheduleService {
 
         $games = $this->db->fetchAll(
             "SELECT g.*, s.game_date, s.game_time, s.location,
-                    ht.team_name AS home_team_name, at.team_name AS away_team_name
+                    ht.team_name AS home_team_name, at.team_name AS away_team_name,
+                    sea.reschedule_cutoff_date
              FROM games g
              LEFT JOIN schedules s ON g.game_id = s.game_id
+             LEFT JOIN seasons sea ON g.season_id = sea.season_id
              JOIN teams ht ON g.home_team_id = ht.team_id
              JOIN teams at ON g.away_team_id = at.team_id
              WHERE (g.home_team_id IN ({$homePlaceholders}) OR g.away_team_id IN ({$awayPlaceholders}))
                AND g.game_status NOT IN ('Completed', 'Cancelled')
+               AND g.home_score IS NULL AND g.away_score IS NULL
                AND NOT EXISTS (
                  SELECT 1 FROM schedule_change_requests scr
                  WHERE scr.game_id = g.game_id
@@ -234,11 +300,41 @@ class RescheduleService {
             array_merge(['uid' => $userId], $homeParams, $awayParams)
         );
 
-        // Exclude rows where the schedules JOIN returned no game_date (NULL).
-        return array_values(array_filter(
-            $games,
-            fn($g) => isset($g['game_date']) && $g['game_date'] !== null && $g['game_date'] !== ''
-        ));
+        // Exclude games with no scheduled date, then apply submission window filters.
+        $tz       = new DateTimeZone(getSetting('timezone', 'America/New_York'));
+        $now      = new DateTime('now', $tz);
+        $preHours = (int) getSetting('reschedule_pre_game_hours', '0');
+        $postHours = (int) getSetting('reschedule_post_game_hours', '0');
+
+        return array_values(array_filter($games, function ($g) use ($now, $tz, $preHours, $postHours) {
+            if (!isset($g['game_date']) || $g['game_date'] === null || $g['game_date'] === '') {
+                return false;
+            }
+
+            $gameTime = $g['game_time'] ?? '00:00:00';
+            $gameAt   = new DateTime($g['game_date'] . ' ' . $gameTime, $tz);
+
+            if ($preHours > 0 || $postHours > 0) {
+                $windowStart = ($preHours > 0)  ? (clone $gameAt)->modify("-{$preHours} hours")  : clone $gameAt;
+                $windowEnd   = ($postHours > 0) ? (clone $gameAt)->modify("+{$postHours} hours") : clone $gameAt;
+                if ($now >= $windowStart && $now <= $windowEnd) {
+                    return false;
+                }
+            }
+
+            // Season cutoff: exclude if game's cutoff date has passed (using today's date).
+            // Note: submit() checks requested_date > cutoff; here we check today > cutoff as a
+            // conservative pre-filter (if today is past cutoff, no valid requested date is possible).
+            $seasonCutoff = $g['reschedule_cutoff_date'] ?? null;
+            if (!empty($seasonCutoff)) {
+                $todayStr = $now->format('Y-m-d');
+                if ($todayStr > $seasonCutoff) {
+                    return false;
+                }
+            }
+
+            return true;
+        }));
     }
 
     /**

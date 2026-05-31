@@ -125,6 +125,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     echo '<div class="container mt-4"><div class="alert alert-danger">' . htmlspecialchars($error) . '</div></div>';
                     include EnvLoader::getPath('includes/footer.php');
                     exit;
+                } catch (SubmissionWindowException $e) {
+                    $error = $e->getMessage();
                 } catch (Throwable $e) {
                     $error = 'Request not submitted — please check your connection and try again.';
                 }
@@ -158,6 +160,7 @@ if (isset($_SESSION['flash_success'])) {
 $eligibleGames  = $service->getEligibleGames($userId);
 $coachRequests  = $service->getCoachRequests($userId);
 $locations      = $db->fetchAll('SELECT location_name, city, state FROM locations WHERE active_status = \'Active\' ORDER BY location_name');
+$minNewGameHours = (int) getSetting('reschedule_min_new_game_hours', '0');
 
 $pageTitle = 'Schedule Change Request — ' . (defined('APP_NAME') ? APP_NAME : 'District 8 Travel League');
 
@@ -258,6 +261,15 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                     </div>
                     <div class="card-body">
 
+                        <?php if ($minNewGameHours > 0): ?>
+                        <div class="alert alert-info py-2 mb-3">
+                            <i class="fas fa-clock"></i>
+                            The new game date and time you request must be at least
+                            <strong><?php echo $minNewGameHours; ?> hour<?php echo $minNewGameHours !== 1 ? 's' : ''; ?></strong>
+                            from the time you submit this form.
+                        </div>
+                        <?php endif; ?>
+
                         <!-- Game selection dropdown (AC3) -->
                         <div class="mb-4">
                             <label for="game-select" class="form-label fw-bold">Select a game *</label>
@@ -309,12 +321,15 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                             <div class="row mb-3">
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">New Date *</label>
-                                    <input type="date" name="requested_date" class="form-control" required
+                                    <input type="date" id="requested-date" name="requested_date" class="form-control" required
                                            value="<?php echo htmlspecialchars($postValues['requested_date'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                                    <?php if ($minNewGameHours > 0): ?>
+                                    <div class="form-text">Must be at least <?php echo $minNewGameHours; ?> hour(s) from now.</div>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">New Time *</label>
-                                    <input type="time" name="requested_time" class="form-control" required
+                                    <input type="time" id="requested-time" name="requested_time" class="form-control" required
                                            value="<?php echo htmlspecialchars($postValues['requested_time'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
                                 </div>
                                 <div class="col-md-4">
@@ -542,6 +557,73 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
         if (sel) {
             sel.value = <?php echo (int) $preservedGameId; ?>;
             onGameSelected(sel);
+        }
+    })();
+    <?php endif; ?>
+
+    <?php if ($minNewGameHours > 0): ?>
+    // Enforce minimum lead time on the requested new date/time inputs.
+    (function () {
+        var minHours = <?php echo (int) $minNewGameHours; ?>;
+        var dateInput = document.getElementById('requested-date');
+        var timeInput = document.getElementById('requested-time');
+        if (!dateInput || !timeInput) return;
+
+        function getEarliest() {
+            var d = new Date();
+            d.setTime(d.getTime() + minHours * 3600 * 1000);
+            return d;
+        }
+
+        function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+        function toDateStr(d) {
+            return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+        }
+
+        function toTimeStr(d) {
+            return pad(d.getHours()) + ':' + pad(d.getMinutes());
+        }
+
+        function enforceMin() {
+            var earliest = getEarliest();
+            dateInput.min = toDateStr(earliest);
+
+            var selectedDate = dateInput.value;
+            var earliestDate = toDateStr(earliest);
+            if (selectedDate === earliestDate) {
+                timeInput.min = toTimeStr(earliest);
+            } else {
+                timeInput.min = '';
+            }
+        }
+
+        dateInput.addEventListener('change', enforceMin);
+        timeInput.addEventListener('change', function () {
+            // Re-validate: if chosen datetime is before earliest, clear time
+            var earliest = getEarliest();
+            var selectedDate = dateInput.value;
+            var earliestDate = toDateStr(earliest);
+            if (selectedDate === earliestDate && timeInput.value < toTimeStr(earliest)) {
+                timeInput.value = '';
+            }
+        });
+
+        enforceMin();
+
+        var form = document.getElementById('reschedule-form');
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                var selDate = dateInput.value;
+                var selTime = timeInput.value || '00:00';
+                if (selDate && selTime) {
+                    var chosen = new Date(selDate + 'T' + selTime);
+                    if (chosen < getEarliest()) {
+                        e.preventDefault();
+                        alert('The requested new game date/time must be at least ' + minHours + ' hour(s) from now.');
+                    }
+                }
+            });
         }
     })();
     <?php endif; ?>
