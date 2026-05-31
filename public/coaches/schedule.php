@@ -69,6 +69,7 @@ $pageTitle = 'Team Schedule — District 8 Travel League';
     <title><?php echo $pageTitle; ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="../../assets/css/style.css" rel="stylesheet">
 </head>
 <body>
     <?php include EnvLoader::getPath('includes/coaches_nav.php'); ?>
@@ -81,21 +82,80 @@ $pageTitle = 'Team Schedule — District 8 Travel League';
 
 <?php if (empty($games)): ?>
                 <div class="alert alert-info">No games scheduled for your team yet. Check back after your team assignment is confirmed.</div>
-<?php else: ?>
-                <button id="clearFilters" class="btn btn-outline-secondary btn-sm mb-3">Clear Filters</button>
-                <div class="table-responsive">
+<?php else:
+    // Group games by date for mobile cards
+    $gamesByDate = [];
+    foreach ($games as $g) {
+        $gamesByDate[$g['game_date'] ?? ''][] = $g;
+    }
+?>
+
+                <!-- Mobile game cards (hidden on lg+) -->
+                <div class="d-lg-none">
+                    <?php foreach ($gamesByDate as $gameDate => $dateGames): ?>
+                        <div class="mobile-date-label"><?php echo htmlspecialchars(date('l, F j, Y', strtotime($gameDate)), ENT_QUOTES, 'UTF-8'); ?></div>
+                        <?php foreach ($dateGames as $mg):
+                            $mgAway = strtoupper($mg['away_team_name'] ?? 'Away');
+                            $mgHome = strtoupper($mg['home_team_name'] ?? 'Home');
+                            $mgTime = htmlspecialchars(formatTime($mg['game_time'] ?? ''), ENT_QUOTES, 'UTF-8');
+                            $mgMaps = buildMapsUrl($mg);
+                            $mgLoc  = htmlspecialchars($mg['loc_name'] ?: ($mg['location'] ?? ''), ENT_QUOTES, 'UTF-8');
+                            $mgLocLink = $mgMaps ? '<a href="' . $mgMaps . '" target="_blank" rel="noopener noreferrer">' . $mgLoc . '</a>' : $mgLoc;
+                            $mgStatus = $mg['game_status'] ?? '';
+                            $mgStatusClass = match($mgStatus) {
+                                'Active'         => 'status-active',
+                                'Completed'      => 'status-completed',
+                                'Cancelled'      => 'status-cancelled',
+                                'Scheduled'      => 'status-scheduled',
+                                'Created'        => 'status-created',
+                                'Pending Change' => 'status-pending-change',
+                                'Postponed'      => 'status-postponed',
+                                default          => 'status-default',
+                            };
+                        ?>
+                        <div class="mobile-game-card">
+                            <div class="team-row">
+                                <span><?php echo htmlspecialchars($mgAway, ENT_QUOTES, 'UTF-8'); ?></span>
+                                <span class="score-or-vs">
+                                    <?php if ($mgStatus === 'Completed' && ($mg['away_score'] ?? null) !== null): ?>
+                                        <?php echo (int)$mg['away_score']; ?>
+                                    <?php else: ?>&mdash;<?php endif; ?>
+                                </span>
+                            </div>
+                            <div class="team-row mt-1">
+                                <span><?php echo htmlspecialchars($mgHome, ENT_QUOTES, 'UTF-8'); ?></span>
+                                <span class="score-or-vs">
+                                    <?php if ($mgStatus === 'Completed' && ($mg['home_score'] ?? null) !== null): ?>
+                                        <?php echo (int)$mg['home_score']; ?>
+                                    <?php else: ?>vs<?php endif; ?>
+                                </span>
+                            </div>
+                            <div class="game-meta d-flex justify-content-between align-items-center mt-2">
+                                <span><?php echo $mgTime . ($mgLoc ? ' · ' . $mgLocLink : ''); ?></span>
+                                <?php if ($mgStatus): ?>
+                                    <span class="badge <?php echo $mgStatusClass; ?>"><?php echo htmlspecialchars($mgStatus, ENT_QUOTES, 'UTF-8'); ?></span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    <?php endforeach; ?>
+                </div>
+
+                <!-- Desktop table (hidden on mobile) -->
+                <button id="clearFilters" class="btn btn-outline-secondary btn-sm mb-3 d-none d-lg-inline-block">Clear Filters</button>
+                <div class="table-responsive d-none d-lg-block">
                     <table id="scheduleTable" class="table table-striped table-hover">
                         <thead>
                             <tr>
                                 <th data-col="0" style="cursor:pointer" aria-sort="none">Game # <span class="sort-indicator" aria-hidden="true"></span></th>
                                 <th data-col="1" style="cursor:pointer" aria-sort="none">Date <span class="sort-indicator" aria-hidden="true"></span></th>
-                                <th data-col="2" class="d-none d-md-table-cell" style="cursor:pointer" aria-sort="none">Time <span class="sort-indicator" aria-hidden="true"></span></th>
+                                <th data-col="2" style="cursor:pointer" aria-sort="none">Time <span class="sort-indicator" aria-hidden="true"></span></th>
                                 <th data-col="3" style="cursor:pointer" aria-sort="none">Away Team <span class="sort-indicator" aria-hidden="true"></span></th>
                                 <th data-col="4" style="cursor:pointer" aria-sort="none">Home Team <span class="sort-indicator" aria-hidden="true"></span></th>
-                                <th data-col="5" class="d-none d-md-table-cell" style="cursor:pointer" aria-sort="none">Location <span class="sort-indicator" aria-hidden="true"></span></th>
+                                <th data-col="5" style="cursor:pointer" aria-sort="none">Location <span class="sort-indicator" aria-hidden="true"></span></th>
                                 <th data-col="6" style="cursor:pointer" aria-sort="none">Score <span class="sort-indicator" aria-hidden="true"></span></th>
                             </tr>
-                            <tr class="d-none d-md-table-row">
+                            <tr>
                                 <th><input type="text" class="col-filter form-control form-control-sm" data-col="0" placeholder="Filter..."></th>
                                 <th>
                                     <input type="date" id="dateFrom" class="form-control form-control-sm mb-1" placeholder="From">
@@ -113,20 +173,17 @@ $pageTitle = 'Team Schedule — District 8 Travel League';
                             <tr>
                                 <td><?php echo htmlspecialchars($game['game_number'] ?? ''); ?></td>
                                 <td data-date="<?php echo htmlspecialchars($game['game_date'] ?? ''); ?>"><?php echo htmlspecialchars(formatDate($game['game_date'] ?? '')); ?></td>
-                                <td class="d-none d-md-table-cell"><?php echo htmlspecialchars($game['game_time'] ?? ''); ?></td>
+                                <td><?php echo htmlspecialchars($game['game_time'] ?? ''); ?></td>
                                 <td><?php echo htmlspecialchars(strtoupper($game['away_team_name'] ?? '')); ?></td>
                                 <td><?php echo htmlspecialchars(strtoupper($game['home_team_name'] ?? '')); ?></td>
-                                <td class="d-none d-md-table-cell"><?php
+                                <td><?php
                                     $mapsUrl = buildMapsUrl($game);
                                     $displayText = $game['loc_name'] ?: ($game['location'] ?? '');
-                                    if ($mapsUrl && !empty($displayText)):
-                                    ?>
+                                    if ($mapsUrl && !empty($displayText)): ?>
                                         <a href="<?php echo $mapsUrl; ?>" target="_blank" rel="noopener noreferrer"><?php echo htmlspecialchars($displayText); ?></a>
                                     <?php elseif (!empty($displayText)): ?>
                                         <?php echo htmlspecialchars($displayText); ?>
-                                    <?php else: ?>
-                                        -
-                                    <?php endif; ?>
+                                    <?php else: ?>-<?php endif; ?>
                                 </td>
                                 <td><?php
                                     if ($game['game_status'] === 'Completed' && $game['away_score'] !== null) {

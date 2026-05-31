@@ -191,7 +191,20 @@ $pageTitle = "Standings - " . APP_NAME;
                             <?php if (empty($standings)): ?>
                                 <p class="text-muted">No teams or games recorded for this division yet.</p>
                             <?php else: ?>
-                                <div class="table-responsive">
+                                <!-- Mobile standings list (hidden on lg+) -->
+                                <div class="d-lg-none standings-mobile-list">
+                                    <?php $place = 1; foreach ($standings as $team): ?>
+                                    <div class="standings-mobile-row<?php echo $place === 1 ? ' standings-mobile-first' : ''; ?>">
+                                        <span class="standings-mobile-place"><?php echo $place; ?><?php if ($place === 1): ?> 👑<?php endif; ?></span>
+                                        <span class="standings-mobile-name">
+                                            <?php echo sanitize(strtoupper($team['team_name'] ?: $team['league_name'])); ?>
+                                        </span>
+                                        <span class="standings-mobile-record"><?php echo $team['wins']; ?>W&nbsp;·&nbsp;<?php echo $team['losses']; ?>L&nbsp;·&nbsp;<?php echo $team['ties']; ?>T</span>
+                                    </div>
+                                    <?php $place++; endforeach; ?>
+                                </div>
+                                <!-- Desktop table (hidden on mobile) -->
+                                <div class="table-responsive d-none d-lg-block">
                                     <table class="table table-striped standings-table">
                                         <thead>
                                             <tr>
@@ -200,15 +213,15 @@ $pageTitle = "Standings - " . APP_NAME;
                                                 <th>Won</th>
                                                 <th>Lost</th>
                                                 <th>Tied</th>
-                                                <th class="d-none d-md-table-cell">Games Back</th>
-                                                <th class="d-none d-md-table-cell">RS</th>
-                                                <th class="d-none d-md-table-cell">RA</th>
+                                                <th>Games Back</th>
+                                                <th>RS</th>
+                                                <th>RA</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <?php 
+                                            <?php
                                             $place = 1;
-                                            foreach ($standings as $team): 
+                                            foreach ($standings as $team):
                                                 $placeClass = '';
                                                 if ($place === 1) {
                                                     $placeClass = 'place-1';
@@ -232,19 +245,19 @@ $pageTitle = "Standings - " . APP_NAME;
                                                 <td><strong><?php echo $team['wins']; ?></strong></td>
                                                 <td><?php echo $team['losses']; ?></td>
                                                 <td><?php echo $team['ties']; ?></td>
-                                                <td class="d-none d-md-table-cell">
+                                                <td>
                                                     <?php if ($team['games_back'] == 0): ?>
                                                         <span class="text-muted">-</span>
                                                     <?php else: ?>
                                                         <?php echo number_format($team['games_back'], 1); ?>
                                                     <?php endif; ?>
                                                 </td>
-                                                <td class="d-none d-md-table-cell"><?php echo $team['runs_scored']; ?></td>
-                                                <td class="d-none d-md-table-cell"><?php echo $team['runs_against']; ?></td>
+                                                <td><?php echo $team['runs_scored']; ?></td>
+                                                <td><?php echo $team['runs_against']; ?></td>
                                             </tr>
-                                            <?php 
+                                            <?php
                                             $place++;
-                                            endforeach; 
+                                            endforeach;
                                             ?>
                                         </tbody>
                                     </table>

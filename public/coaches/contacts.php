@@ -257,71 +257,89 @@ $pageTitle = "Contact Directory - " . APP_NAME;
                         <h3><i class="fas fa-address-book"></i> Team Manager Directory</h3>
                     </div>
                     <div class="card-body">
-                        <?php foreach ($contactsByGroup as $program => $seasons): ?>
-                            <div class="mb-5">
-                                <h3 class="text-primary mb-4">
+                        <?php
+                        $collapseIdx = 0;
+                        foreach ($contactsByGroup as $program => $seasons): ?>
+                            <div class="mb-4">
+                                <h3 class="text-primary mb-3">
                                     <i class="fas fa-project-diagram"></i> <?php echo sanitize($program); ?>
                                 </h3>
-                                
+
                                 <?php foreach ($seasons as $season => $divisions): ?>
+                                    <h4 class="text-info mb-3 fs-6 fw-semibold">
+                                        <i class="fas fa-calendar-alt"></i> <?php echo sanitize($season); ?>
+                                    </h4>
+
+                                    <?php foreach ($divisions as $division => $teams):
+                                        $collapseId = 'contact-div-' . $collapseIdx++;
+                                    ?>
                                     <div class="mb-4">
-                                        <h4 class="text-info mb-3">
-                                            <i class="fas fa-calendar-alt"></i> <?php echo sanitize($season); ?>
-                                        </h4>
-                                        
-                                        <?php foreach ($divisions as $division => $teams): ?>
-                                            <div class="mb-4">
-                                                <h5 class="text-success mb-3">
-                                                    <i class="fas fa-layer-group"></i> <?php echo sanitize($division); ?>
-                                                </h5>
-                                                <div class="table-responsive">
-                                                    <table class="table table-striped table-hover">
-                                                        <thead class="table-success">
-                                                            <tr>
-                                                                <th>Team</th>
-                                                                <th class="d-none d-md-table-cell">League</th>
-                                                                <th>Manager</th>
-                                                                <th>Contact Information</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            <?php foreach ($teams as $team): ?>
-                                                            <tr>
-                                                                <td>
-                                                                    <strong><?php echo sanitize(strtoupper($team['team_name'])); ?></strong>
-                                                                </td>
-                                                                <td class="d-none d-md-table-cell"><?php echo sanitize($team['league_name']); ?></td>
-                                                                <td>
-                                                                    <?php echo sanitize($team['manager_first_name'] . ' ' . $team['manager_last_name']); ?>
-                                                                </td>
-                                                                <td>
-                                                                    <?php if ($team['manager_phone']): ?>
-                                                                        <div class="mb-1">
-                                                                            <i class="fas fa-phone"></i> 
-                                                                            <a href="tel:<?php echo sanitize($team['manager_phone']); ?>">
-                                                                                <?php echo sanitize($team['manager_phone']); ?>
-                                                                            </a>
-                                                                        </div>
-                                                                    <?php endif; ?>
-                                                                    <?php if ($team['manager_email']): ?>
-                                                                        <div class="mb-0">
-                                                                            <i class="fas fa-envelope"></i> 
-                                                                            <a href="mailto:<?php echo sanitize($team['manager_email']); ?>">
-                                                                                <?php echo sanitize($team['manager_email']); ?>
-                                                                            </a>
-                                                                        </div>
-                                                                    <?php else: ?>
-                                                                        <span class="text-muted">Not provided</span>
-                                                                    <?php endif; ?>
-                                                                </td>
-                                                            </tr>
-                                                            <?php endforeach; ?>
-                                                        </tbody>
-                                                    </table>
+                                        <!-- Mobile: collapsible division header + contact cards -->
+                                        <div class="d-lg-none">
+                                            <button class="btn btn-sm btn-outline-success w-100 text-start d-flex justify-content-between align-items-center mb-2"
+                                                    type="button" data-bs-toggle="collapse" data-bs-target="#<?php echo $collapseId; ?>" aria-expanded="true">
+                                                <span><i class="fas fa-layer-group me-1"></i><?php echo sanitize($division); ?></span>
+                                                <i class="fas fa-chevron-down collapse-chevron"></i>
+                                            </button>
+                                            <div class="collapse show" id="<?php echo $collapseId; ?>">
+                                                <?php foreach ($teams as $team): ?>
+                                                <div class="contact-card">
+                                                    <div class="contact-team"><?php echo sanitize(strtoupper($team['team_name'])); ?></div>
+                                                    <div class="contact-manager"><?php echo sanitize($team['manager_first_name'] . ' ' . $team['manager_last_name']); ?></div>
+                                                    <div class="contact-links">
+                                                        <?php if ($team['manager_phone']): ?>
+                                                            <a href="tel:<?php echo sanitize($team['manager_phone']); ?>"><i class="fas fa-phone me-1"></i><?php echo sanitize($team['manager_phone']); ?></a>
+                                                        <?php endif; ?>
+                                                        <?php if ($team['manager_email']): ?>
+                                                            <a href="mailto:<?php echo sanitize($team['manager_email']); ?>"><i class="fas fa-envelope me-1"></i><?php echo sanitize($team['manager_email']); ?></a>
+                                                        <?php else: ?>
+                                                            <span class="text-muted small">No email on file</span>
+                                                        <?php endif; ?>
+                                                    </div>
                                                 </div>
+                                                <?php endforeach; ?>
                                             </div>
-                                        <?php endforeach; ?>
+                                        </div>
+
+                                        <!-- Desktop: full table -->
+                                        <div class="d-none d-lg-block">
+                                            <h5 class="text-success mb-3">
+                                                <i class="fas fa-layer-group"></i> <?php echo sanitize($division); ?>
+                                            </h5>
+                                            <div class="table-responsive">
+                                                <table class="table table-striped table-hover">
+                                                    <thead class="table-success">
+                                                        <tr>
+                                                            <th>Team</th>
+                                                            <th>League</th>
+                                                            <th>Manager</th>
+                                                            <th>Contact Information</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <?php foreach ($teams as $team): ?>
+                                                        <tr>
+                                                            <td><strong><?php echo sanitize(strtoupper($team['team_name'])); ?></strong></td>
+                                                            <td><?php echo sanitize($team['league_name']); ?></td>
+                                                            <td><?php echo sanitize($team['manager_first_name'] . ' ' . $team['manager_last_name']); ?></td>
+                                                            <td>
+                                                                <?php if ($team['manager_phone']): ?>
+                                                                    <div class="mb-1"><i class="fas fa-phone"></i> <a href="tel:<?php echo sanitize($team['manager_phone']); ?>"><?php echo sanitize($team['manager_phone']); ?></a></div>
+                                                                <?php endif; ?>
+                                                                <?php if ($team['manager_email']): ?>
+                                                                    <div><i class="fas fa-envelope"></i> <a href="mailto:<?php echo sanitize($team['manager_email']); ?>"><?php echo sanitize($team['manager_email']); ?></a></div>
+                                                                <?php else: ?>
+                                                                    <span class="text-muted">Not provided</span>
+                                                                <?php endif; ?>
+                                                            </td>
+                                                        </tr>
+                                                        <?php endforeach; ?>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
                                     </div>
+                                    <?php endforeach; ?>
                                 <?php endforeach; ?>
                             </div>
                         <?php endforeach; ?>
