@@ -69,7 +69,8 @@ class RescheduleService {
             throw new TeamScopeViolationException('Game does not involve a team owned by user');
         }
 
-        if (in_array($game['game_status'], ['Completed', 'Cancelled'], true)) {
+        if (in_array($game['game_status'], ['Completed', 'Cancelled'], true)
+            || ($game['home_score'] !== null && $game['away_score'] !== null)) {
             throw new TeamScopeViolationException('Game is not eligible for reschedule');
         }
 
@@ -273,6 +274,7 @@ class RescheduleService {
              JOIN teams at ON g.away_team_id = at.team_id
              WHERE (g.home_team_id IN ({$homePlaceholders}) OR g.away_team_id IN ({$awayPlaceholders}))
                AND g.game_status NOT IN ('Completed', 'Cancelled')
+               AND g.home_score IS NULL AND g.away_score IS NULL
                AND NOT EXISTS (
                  SELECT 1 FROM schedule_change_requests scr
                  WHERE scr.game_id = g.game_id
