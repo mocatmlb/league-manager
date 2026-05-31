@@ -447,6 +447,18 @@ input, select, textarea {
     font-size: 2rem !important;
 }
 
+/* Downsize Bootstrap's lg-select and lg-input on small phones so they don't dominate the screen */
+@media (max-width: 575px) {
+    .form-select-lg, .form-control-lg {
+        font-size: 1rem;
+        padding: 0.5rem 0.75rem;
+    }
+    /* Score input game info banner: tighten font */
+    .score-game-banner {
+        font-size: 0.875rem;
+    }
+}
+
 /* ====================================================
    Mobile-Responsive UI (Story 17.1)
    ==================================================== */

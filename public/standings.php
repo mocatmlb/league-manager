@@ -200,9 +200,9 @@ $pageTitle = "Standings - " . APP_NAME;
                                                 <th>Won</th>
                                                 <th>Lost</th>
                                                 <th>Tied</th>
-                                                <th>Games Back</th>
-                                                <th>RS</th>
-                                                <th>RA</th>
+                                                <th class="d-none d-md-table-cell">Games Back</th>
+                                                <th class="d-none d-md-table-cell">RS</th>
+                                                <th class="d-none d-md-table-cell">RA</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -232,15 +232,15 @@ $pageTitle = "Standings - " . APP_NAME;
                                                 <td><strong><?php echo $team['wins']; ?></strong></td>
                                                 <td><?php echo $team['losses']; ?></td>
                                                 <td><?php echo $team['ties']; ?></td>
-                                                <td>
+                                                <td class="d-none d-md-table-cell">
                                                     <?php if ($team['games_back'] == 0): ?>
                                                         <span class="text-muted">-</span>
                                                     <?php else: ?>
                                                         <?php echo number_format($team['games_back'], 1); ?>
                                                     <?php endif; ?>
                                                 </td>
-                                                <td><?php echo $team['runs_scored']; ?></td>
-                                                <td><?php echo $team['runs_against']; ?></td>
+                                                <td class="d-none d-md-table-cell"><?php echo $team['runs_scored']; ?></td>
+                                                <td class="d-none d-md-table-cell"><?php echo $team['runs_against']; ?></td>
                                             </tr>
                                             <?php 
                                             $place++;

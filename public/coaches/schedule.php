@@ -89,13 +89,13 @@ $pageTitle = 'Team Schedule — District 8 Travel League';
                             <tr>
                                 <th data-col="0" style="cursor:pointer" aria-sort="none">Game # <span class="sort-indicator" aria-hidden="true"></span></th>
                                 <th data-col="1" style="cursor:pointer" aria-sort="none">Date <span class="sort-indicator" aria-hidden="true"></span></th>
-                                <th data-col="2" style="cursor:pointer" aria-sort="none">Time <span class="sort-indicator" aria-hidden="true"></span></th>
+                                <th data-col="2" class="d-none d-md-table-cell" style="cursor:pointer" aria-sort="none">Time <span class="sort-indicator" aria-hidden="true"></span></th>
                                 <th data-col="3" style="cursor:pointer" aria-sort="none">Away Team <span class="sort-indicator" aria-hidden="true"></span></th>
                                 <th data-col="4" style="cursor:pointer" aria-sort="none">Home Team <span class="sort-indicator" aria-hidden="true"></span></th>
-                                <th data-col="5" style="cursor:pointer" aria-sort="none">Location <span class="sort-indicator" aria-hidden="true"></span></th>
+                                <th data-col="5" class="d-none d-md-table-cell" style="cursor:pointer" aria-sort="none">Location <span class="sort-indicator" aria-hidden="true"></span></th>
                                 <th data-col="6" style="cursor:pointer" aria-sort="none">Score <span class="sort-indicator" aria-hidden="true"></span></th>
                             </tr>
-                            <tr>
+                            <tr class="d-none d-md-table-row">
                                 <th><input type="text" class="col-filter form-control form-control-sm" data-col="0" placeholder="Filter..."></th>
                                 <th>
                                     <input type="date" id="dateFrom" class="form-control form-control-sm mb-1" placeholder="From">
@@ -113,10 +113,10 @@ $pageTitle = 'Team Schedule — District 8 Travel League';
                             <tr>
                                 <td><?php echo htmlspecialchars($game['game_number'] ?? ''); ?></td>
                                 <td data-date="<?php echo htmlspecialchars($game['game_date'] ?? ''); ?>"><?php echo htmlspecialchars(formatDate($game['game_date'] ?? '')); ?></td>
-                                <td><?php echo htmlspecialchars($game['game_time'] ?? ''); ?></td>
+                                <td class="d-none d-md-table-cell"><?php echo htmlspecialchars($game['game_time'] ?? ''); ?></td>
                                 <td><?php echo htmlspecialchars(strtoupper($game['away_team_name'] ?? '')); ?></td>
                                 <td><?php echo htmlspecialchars(strtoupper($game['home_team_name'] ?? '')); ?></td>
-                                <td><?php
+                                <td class="d-none d-md-table-cell"><?php
                                     $mapsUrl = buildMapsUrl($game);
                                     $displayText = $game['loc_name'] ?: ($game['location'] ?? '');
                                     if ($mapsUrl && !empty($displayText)):

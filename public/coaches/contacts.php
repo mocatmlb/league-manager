@@ -279,7 +279,7 @@ $pageTitle = "Contact Directory - " . APP_NAME;
                                                         <thead class="table-success">
                                                             <tr>
                                                                 <th>Team</th>
-                                                                <th>League</th>
+                                                                <th class="d-none d-md-table-cell">League</th>
                                                                 <th>Manager</th>
                                                                 <th>Contact Information</th>
                                                             </tr>
@@ -290,7 +290,7 @@ $pageTitle = "Contact Directory - " . APP_NAME;
                                                                 <td>
                                                                     <strong><?php echo sanitize(strtoupper($team['team_name'])); ?></strong>
                                                                 </td>
-                                                                <td><?php echo sanitize($team['league_name']); ?></td>
+                                                                <td class="d-none d-md-table-cell"><?php echo sanitize($team['league_name']); ?></td>
                                                                 <td>
                                                                     <?php echo sanitize($team['manager_first_name'] . ' ' . $team['manager_last_name']); ?>
                                                                 </td>

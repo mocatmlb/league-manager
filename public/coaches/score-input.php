@@ -266,7 +266,7 @@ $pageTitle = 'Score Input — District 8 Travel League';
 
                         <?php if ($autoSelected): ?>
                         <!-- AC3: Auto-selected game banner -->
-                        <div class="alert alert-secondary d-flex align-items-center gap-2 mb-4" role="status">
+                        <div class="alert alert-secondary d-flex align-items-center gap-2 mb-4 score-game-banner" role="status">
                             <i class="fas fa-calendar-day"></i>
                             <span>
                                 <strong>Game #<?php echo htmlspecialchars($autoSelected['game_number'], ENT_QUOTES, 'UTF-8'); ?></strong>

@@ -138,8 +138,8 @@ function _coachNavActive(string $page): string {
                 </li>
                 <li class="nav-item">
                     <a class="nav-link"
-                       href="<?php echo $_rootPath; ?>schedule.php">
-                        <i class="fas fa-calendar-alt"></i> Full Schedule
+                       href="<?php echo $_rootPath; ?>schedule.php" target="_blank" rel="noopener noreferrer">
+                        <i class="fas fa-calendar-alt"></i> Full Schedule <i class="fas fa-external-link-alt fa-xs opacity-50"></i>
                     </a>
                 </li>
                 <li class="nav-item">
