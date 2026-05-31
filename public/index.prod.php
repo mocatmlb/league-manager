@@ -41,9 +41,9 @@ $pageTitle = "Home - " . APP_NAME;
             </div>
         </div>
 
+        <!-- Today's Games -->
         <div class="row mt-4">
-            <!-- Today's Games -->
-            <div class="col-lg-6">
+            <div class="col-12">
                 <div class="card">
                     <div class="card-header">
                         <h3>Today's Games</h3>
@@ -78,9 +78,11 @@ $pageTitle = "Home - " . APP_NAME;
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Upcoming Games (Next 7 Days) -->
-            <div class="col-lg-6">
+        <!-- Upcoming Games (Next 7 Days) -->
+        <div class="row mt-4">
+            <div class="col-12">
                 <div class="card">
                     <div class="card-header">
                         <h3>Upcoming Games (Next 7 Days)</h3>
