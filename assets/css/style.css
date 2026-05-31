@@ -481,7 +481,10 @@ input, select, textarea {
         display: flex;
         align-items: center;
         justify-content: space-between;
+        gap: 0.75rem;
         text-align: left;
+        width: 100%;
+        box-sizing: border-box;
     }
     /* Group role label + team name in a left-side column */
     .vs-card-text {
@@ -494,20 +497,19 @@ input, select, textarea {
     .vs-card-text label {
         margin-bottom: 0;
         font-size: 0.95rem;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 100%;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        line-height: 1.2;
     }
     .vs-score-entry .vs-team-label {
         display: block;
     }
     /* !important on all dimensions — form-control sets width:100% at same specificity */
     .vs-score-input {
-        width: 80px !important;
-        height: 80px !important;
-        min-height: 80px;
-        font-size: 2.2rem !important;
+        width: 70px !important;
+        height: 70px !important;
+        min-height: 70px;
+        font-size: 2rem !important;
         font-weight: 700 !important;
         flex-shrink: 0;
         border: 2px solid #adb5bd !important;
@@ -515,7 +517,7 @@ input, select, textarea {
         background: #f8f9fa !important;
         text-align: center !important;
         padding: 0 !important;
-        line-height: 80px !important;
+        line-height: 70px !important;
     }
     .vs-score-input:focus {
         border-color: #2563eb !important;
