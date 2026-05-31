@@ -167,7 +167,7 @@ class RescheduleService {
         $preHours  = (int) getSetting('reschedule_pre_game_hours', '0');
         $postHours = (int) getSetting('reschedule_post_game_hours', '0');
 
-        if ($preHours > 0) {
+        if ($preHours > 0 && $now < $gameAt) {
             $cutoffBefore = (clone $gameAt)->modify("-{$preHours} hours");
             if ($now >= $cutoffBefore) {
                 throw new SubmissionWindowException(
@@ -302,7 +302,7 @@ class RescheduleService {
             $gameTime = $g['game_time'] ?? '00:00:00';
             $gameAt   = new DateTime($g['game_date'] . ' ' . $gameTime, $tz);
 
-            if ($preHours > 0) {
+            if ($preHours > 0 && $now < $gameAt) {
                 $cutoffBefore = (clone $gameAt)->modify("-{$preHours} hours");
                 if ($now >= $cutoffBefore) {
                     return false;
