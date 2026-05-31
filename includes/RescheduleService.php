@@ -195,8 +195,10 @@ class RescheduleService {
             $requestedAt = new DateTime($requestedDate . ' ' . $reqTime, $tz);
             $earliest    = (clone $now)->modify("+{$minNewHours} hours");
             if ($requestedAt < $earliest) {
+                $earliestFormatted = $earliest->format('M j, Y \a\t g:i A');
                 throw new SubmissionWindowException(
-                    "The requested new game date/time must be at least {$minNewHours} hour(s) from now."
+                    "The requested new game date/time must be at least {$minNewHours} hour(s) from now. "
+                    . "Please choose a date and time on or after {$earliestFormatted}."
                 );
             }
         }

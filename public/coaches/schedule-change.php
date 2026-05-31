@@ -261,6 +261,15 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                     </div>
                     <div class="card-body">
 
+                        <?php if ($minNewGameHours > 0): ?>
+                        <div class="alert alert-info py-2 mb-3">
+                            <i class="fas fa-clock"></i>
+                            The new game date and time you request must be at least
+                            <strong><?php echo $minNewGameHours; ?> hour<?php echo $minNewGameHours !== 1 ? 's' : ''; ?></strong>
+                            from the time you submit this form.
+                        </div>
+                        <?php endif; ?>
+
                         <!-- Game selection dropdown (AC3) -->
                         <div class="mb-4">
                             <label for="game-select" class="form-label fw-bold">Select a game *</label>
