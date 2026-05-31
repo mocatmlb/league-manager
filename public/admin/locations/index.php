@@ -261,6 +261,7 @@ $pageTitle = "Locations Management - " . APP_NAME;
                 <!-- Locations Table -->
                 <div class="card">
                     <div class="card-body">
+                        <div class="table-responsive">
                         <table id="locationsTable" class="table table-striped">
                             <thead>
                                 <tr>
@@ -322,6 +323,7 @@ $pageTitle = "Locations Management - " . APP_NAME;
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
+                        </div><!-- /.table-responsive -->
                     </div>
                 </div>
             </div>

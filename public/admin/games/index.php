@@ -785,6 +785,7 @@ $pageTitle = "Games Management - " . APP_NAME;
                 <!-- Games Table -->
                 <div class="card">
                     <div class="card-body">
+                        <div class="table-responsive">
                         <table id="gamesTable" class="table table-striped">
                             <thead>
                                 <tr>
@@ -911,6 +912,7 @@ $pageTitle = "Games Management - " . APP_NAME;
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
+                        </div><!-- /.table-responsive -->
                     </div>
                 </div>
             </div>

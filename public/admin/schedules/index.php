@@ -454,6 +454,7 @@ $pageTitle = "Schedule Management - " . APP_NAME;
                         <h3>Request History</h3>
                     </div>
                     <div class="card-body">
+                        <div class="table-responsive">
                         <table id="requestsTable" class="table table-striped">
                             <thead>
                                 <tr>
@@ -523,6 +524,7 @@ $pageTitle = "Schedule Management - " . APP_NAME;
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
+                        </div><!-- /.table-responsive -->
                     </div>
                 </div>
             </div>

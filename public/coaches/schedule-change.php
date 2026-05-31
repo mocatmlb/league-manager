@@ -416,6 +416,7 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                         <h5 class="mb-0"><i class="fas fa-list"></i> Your Reschedule Requests</h5>
                     </div>
                     <div class="card-body">
+                        <div class="table-responsive">
                         <table id="coachRequestsTable" class="table table-striped table-hover">
                             <thead>
                                 <tr>
@@ -466,6 +467,7 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                             <?php endforeach; ?>
                             </tbody>
                         </table>
+                        </div><!-- /.table-responsive -->
                     </div>
                 </div>
                 <?php endif; ?>

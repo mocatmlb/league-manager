@@ -38,6 +38,7 @@ $userStatus = (string) ($user['status'] ?? '');
 // ---------------------------------------------------------------------------
 $assignRows = $db->fetchAll(
     'SELECT t.team_id, t.team_name, t.league_name,
+            t.season_id AS season_id,
             s.season_name, s.season_year,
             d.division_name
      FROM team_owners o
@@ -118,6 +119,29 @@ if ($assignment !== false) {
     }
 }
 
+// Hero stat tiles — only when a team is assigned and season_id is known
+$heroStats = null;
+if ($assignment !== false && !$needsTeamPick && !empty($assignment['season_id'])) {
+    $heroStats = $db->fetchOne(
+        'SELECT
+             COUNT(*) AS games_played,
+             SUM(CASE WHEN game_status = \'Completed\'
+                       AND ((home_team_id = :tid AND home_score > away_score)
+                         OR (away_team_id = :tid AND away_score > home_score)) THEN 1 ELSE 0 END) AS wins,
+             SUM(CASE WHEN game_status = \'Completed\'
+                       AND ((home_team_id = :tid AND home_score < away_score)
+                         OR (away_team_id = :tid AND away_score < home_score)) THEN 1 ELSE 0 END) AS losses,
+             SUM(CASE WHEN game_status = \'Completed\'
+                       AND home_score IS NOT NULL
+                       AND home_score = away_score THEN 1 ELSE 0 END) AS tied
+           FROM games
+           WHERE (home_team_id = :tid OR away_team_id = :tid)
+             AND season_id = :sid
+             AND game_status != \'Cancelled\'',
+        ['tid' => $assignment['team_id'], 'sid' => $assignment['season_id']]
+    );
+}
+
 $pageTitle = 'Coaches Dashboard — ' . APP_NAME;
 ?>
 <!DOCTYPE html>
@@ -184,6 +208,27 @@ unset($_coachNavPath, $coachNavWebRoot);
                     <input type="hidden" name="coach_team_action" value="clear" />
                     <button type="submit" class="btn btn-sm btn-outline-light">Switch team</button>
                 </form>
+            <?php endif; ?>
+
+            <?php if ($heroStats !== null): ?>
+                <div class="hero-stats d-flex gap-2 mt-3">
+                    <div class="hero-stat">
+                        <span class="hero-stat-value"><?php echo (int)($heroStats['games_played'] ?? 0); ?></span>
+                        <span class="hero-stat-label">Games</span>
+                    </div>
+                    <div class="hero-stat">
+                        <span class="hero-stat-value"><?php echo (int)($heroStats['wins'] ?? 0); ?></span>
+                        <span class="hero-stat-label">Wins</span>
+                    </div>
+                    <div class="hero-stat">
+                        <span class="hero-stat-value"><?php echo (int)($heroStats['losses'] ?? 0); ?></span>
+                        <span class="hero-stat-label">Losses</span>
+                    </div>
+                    <div class="hero-stat">
+                        <span class="hero-stat-value"><?php echo (int)($heroStats['tied'] ?? 0); ?></span>
+                        <span class="hero-stat-label">Tied</span>
+                    </div>
+                </div>
             <?php endif; ?>
 
         <?php elseif ($heroState === 'pending'): ?>

@@ -436,3 +436,153 @@ footer {
     color: #dc3545;
     background-color: #fff9f9;
 }
+
+/* iOS auto-zoom prevention — inputs must be ≥16px so iOS Safari won't zoom on focus */
+input, select, textarea {
+    font-size: max(16px, 1em);
+}
+
+/* Score input overrides the global font-size rule with a more specific selector — intentional */
+.vs-score-input {
+    font-size: 2rem !important;
+}
+
+/* ====================================================
+   Mobile-Responsive UI (Story 17.1)
+   ==================================================== */
+
+/* Score input: per-team row layout on mobile (≤480px) */
+@media (max-width: 480px) {
+    .vs-score-entry {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+    .vs-label { display: none; }
+    .vs-score-entry > div {
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        padding: 0.85rem 1rem;
+        margin-bottom: 0.6rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .vs-score-entry .vs-team-label {
+        display: block;
+    }
+    .vs-score-input { width: 76px; height: 68px; font-size: 2rem !important; }
+}
+
+/* vs-team-label hidden on desktop, shown via media query above */
+.vs-team-label { display: none; }
+
+/* Mobile schedule cards (hidden on lg+) */
+.mobile-date-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6c757d;
+    padding: 0.5rem 0 0.25rem;
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 0.5rem;
+}
+
+.mobile-game-card {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 0.6rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.mobile-game-card .team-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.mobile-game-card .score-or-vs {
+    font-weight: 700;
+    font-size: 1rem;
+    color: #2563eb;
+}
+
+.mobile-game-card .game-meta {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 0.35rem;
+}
+
+.mobile-filter-chips {
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.mobile-filter-chips::-webkit-scrollbar { display: none; }
+
+.mobile-game-card.is-filtered-out {
+    display: none !important;
+}
+
+.date-group.is-empty {
+    display: none !important;
+}
+
+.chip-btn {
+    flex-shrink: 0;
+    min-height: 44px;
+    padding: 0.3rem 0.85rem;
+    border-radius: 999px;
+    border: 1.5px solid #2563eb;
+    background: #fff;
+    color: #2563eb;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+}
+
+.chip-btn.active,
+.chip-btn:hover {
+    background: #2563eb;
+    color: #fff;
+}
+
+/* Coach hero stat tiles */
+.hero-stats {
+    flex-wrap: wrap;
+}
+
+.hero-stat {
+    flex: 1 1 60px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 8px;
+    padding: 0.5rem 0.6rem;
+    text-align: center;
+    min-width: 60px;
+}
+
+.hero-stat-value {
+    display: block;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.2;
+}
+
+.hero-stat-label {
+    display: block;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: rgba(255,255,255,0.75);
+    margin-top: 0.1rem;
+}
