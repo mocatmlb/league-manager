@@ -126,7 +126,8 @@ $pageTitle = "Schedule - " . APP_NAME;
             <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h1>Game Schedule</h1>
-                    <div class="btn-group" role="group">
+                    <!-- Table/Calendar toggle: desktop only; mobile uses chip filters below -->
+                    <div class="btn-group d-none d-lg-flex" role="group">
                         <button type="button" class="btn btn-outline-primary active" id="tableViewBtn">
                             Table View
                         </button>
@@ -436,16 +437,16 @@ $pageTitle = "Schedule - " . APP_NAME;
                 }
             });
 
-            // View toggle functionality
+            // View toggle (desktop only — buttons are hidden on mobile via d-none d-lg-flex)
             $('#tableViewBtn').click(function() {
-                $('#tableView').show();
+                $('#tableView').removeClass('d-none').show();
                 $('#calendarView').hide();
                 $(this).addClass('active');
                 $('#calendarViewBtn').removeClass('active');
             });
 
             $('#calendarViewBtn').click(function() {
-                $('#tableView').hide();
+                $('#tableView').addClass('d-none').hide();
                 $('#calendarView').show();
                 $(this).addClass('active');
                 $('#tableViewBtn').removeClass('active');
