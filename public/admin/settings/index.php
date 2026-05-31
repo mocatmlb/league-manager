@@ -77,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 try {
                     // Update general settings
                     updateSetting('league_name', sanitize($_POST['league_name']));
+                    updateSetting('league_tagline', sanitize($_POST['league_tagline'] ?? ''));
                     updateSetting('contact_email', sanitize($_POST['contact_email']));
                     updateSetting('weather_hotline', sanitize($_POST['weather_hotline']));
                     updateSetting('field_maintenance_phone', sanitize($_POST['field_maintenance_phone']));
@@ -258,6 +259,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Get current settings
 $currentTimezone = getSetting('timezone', 'America/New_York');
 $leagueName = getSetting('league_name', 'District 8 Travel League');
+$leagueTagline = getSetting('league_tagline', '');
 $contactEmail = getSetting('contact_email', '');
 $weatherHotline = getSetting('weather_hotline', '');
 $fieldMaintenancePhone = getSetting('field_maintenance_phone', '');

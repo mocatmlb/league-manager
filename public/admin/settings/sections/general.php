@@ -12,10 +12,20 @@
             
             <div class="mb-3">
                 <label class="form-label">League Name</label>
-                <input type="text" name="league_name" class="form-control" 
+                <input type="text" name="league_name" class="form-control"
                        value="<?php echo sanitize($leagueName); ?>" required>
                 <div class="form-text">
                     This name will be displayed throughout the application.
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">League Tagline</label>
+                <input type="text" name="league_tagline" class="form-control"
+                       value="<?php echo sanitize($leagueTagline); ?>"
+                       placeholder="Your source for schedules, standings, and league information.">
+                <div class="form-text">
+                    Displayed below the league name on the public home page.
                 </div>
             </div>
             
