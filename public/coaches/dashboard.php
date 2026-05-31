@@ -126,19 +126,27 @@ if ($assignment !== false && !$needsTeamPick && !empty($assignment['season_id'])
         'SELECT
              COUNT(*) AS games_played,
              SUM(CASE WHEN game_status = \'Completed\'
-                       AND ((home_team_id = :tid AND home_score > away_score)
-                         OR (away_team_id = :tid AND away_score > home_score)) THEN 1 ELSE 0 END) AS wins,
+                       AND ((home_team_id = :tid1 AND home_score > away_score)
+                         OR (away_team_id = :tid2 AND away_score > home_score)) THEN 1 ELSE 0 END) AS wins,
              SUM(CASE WHEN game_status = \'Completed\'
-                       AND ((home_team_id = :tid AND home_score < away_score)
-                         OR (away_team_id = :tid AND away_score < home_score)) THEN 1 ELSE 0 END) AS losses,
+                       AND ((home_team_id = :tid3 AND home_score < away_score)
+                         OR (away_team_id = :tid4 AND away_score < home_score)) THEN 1 ELSE 0 END) AS losses,
              SUM(CASE WHEN game_status = \'Completed\'
                        AND home_score IS NOT NULL
                        AND home_score = away_score THEN 1 ELSE 0 END) AS tied
            FROM games
-           WHERE (home_team_id = :tid OR away_team_id = :tid)
+           WHERE (home_team_id = :tid5 OR away_team_id = :tid6)
              AND season_id = :sid
              AND game_status != \'Cancelled\'',
-        ['tid' => $assignment['team_id'], 'sid' => $assignment['season_id']]
+        [
+            'tid1' => $assignment['team_id'],
+            'tid2' => $assignment['team_id'],
+            'tid3' => $assignment['team_id'],
+            'tid4' => $assignment['team_id'],
+            'tid5' => $assignment['team_id'],
+            'tid6' => $assignment['team_id'],
+            'sid'  => $assignment['season_id'],
+        ]
     );
 }
 
