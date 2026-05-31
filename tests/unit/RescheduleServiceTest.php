@@ -24,6 +24,13 @@ if (!function_exists('sendNotification')) {
     }
 }
 
+// getSetting stub — test cases override via $GLOBALS['_test_settings']
+if (!function_exists('getSetting')) {
+    function getSetting(string $key, string $default = ''): string {
+        return (string) ($GLOBALS['_test_settings'][$key] ?? $default);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Mock infrastructure
 // ---------------------------------------------------------------------------
@@ -118,15 +125,14 @@ class RSMockDatabase extends Database {
         // getEligibleGames
         if (stripos($sql, 'FROM games g') !== false
             && stripos($sql, 'game_status NOT IN') !== false) {
-            // Params may have named keys (uid) + indexed team IDs.
-            // Extract only the indexed (numeric) values as team IDs.
-            $indexed = array_values(array_filter(
-                $params,
-                fn($k) => is_int($k),
-                ARRAY_FILTER_USE_KEY
-            ));
-            $half    = (int) (count($indexed) / 2);
-            $teamIds = array_map('intval', array_slice($indexed, 0, $half));
+            // Extract team IDs from named params: keys starting with 'h' or 'a' followed by digits.
+            $teamIds = [];
+            foreach ($params as $k => $v) {
+                if (is_string($k) && preg_match('/^[ha]\d+$/', $k)) {
+                    $teamIds[] = (int) $v;
+                }
+            }
+            $teamIds = array_unique($teamIds);
 
             // Exclude games that have a Pending request in the mock data
             $pendingGameIds = [];
@@ -194,18 +200,20 @@ class RSMockDatabase extends Database {
 // ---------------------------------------------------------------------------
 
 function rsGame(int $gameId, int $homeTeamId = 10, int $awayTeamId = 20,
-                string $status = 'Active', ?string $gameDate = '2099-12-31'): array {
+                string $status = 'Active', ?string $gameDate = '2099-12-31',
+                ?string $rescheduleCutoff = null): array {
     return [
-        'game_id'      => $gameId,
-        'home_team_id' => $homeTeamId,
-        'away_team_id' => $awayTeamId,
-        'game_status'  => $status,
-        'game_number'  => $gameId,
-        'game_date'    => $gameDate,
-        'game_time'    => '10:00:00',
-        'location'     => 'Field A',
-        'home_team_name' => "Home {$homeTeamId}",
-        'away_team_name' => "Away {$awayTeamId}",
+        'game_id'               => $gameId,
+        'home_team_id'          => $homeTeamId,
+        'away_team_id'          => $awayTeamId,
+        'game_status'           => $status,
+        'game_number'           => $gameId,
+        'game_date'             => $gameDate,
+        'game_time'             => '10:00:00',
+        'location'              => 'Field A',
+        'home_team_name'        => "Home {$homeTeamId}",
+        'away_team_name'        => "Away {$awayTeamId}",
+        'reschedule_cutoff_date' => $rescheduleCutoff,
     ];
 }
 
@@ -226,9 +234,9 @@ function rsRequest(int $requestId, int $submittedByUserId, string $status = 'Pen
     ];
 }
 
-function rsRequestData(): array {
+function rsRequestData(string $requestedDate = '2099-01-15'): array {
     return [
-        'requested_date'     => '2099-01-15',
+        'requested_date'     => $requestedDate,
         'requested_time'     => '14:00:00',
         'requested_location' => 'Field B',
         'reason'             => 'Field unavailable',
@@ -582,4 +590,160 @@ register_test('AC3-10: cancel throws RequestNotCancellableException when rowCoun
     );
 
     Database::setInstance(null);
+});
+
+// ---------------------------------------------------------------------------
+// Submission window enforcement tests
+// ---------------------------------------------------------------------------
+
+register_test('Window: all settings 0/blank — submit succeeds (no restriction)', function () {
+    $GLOBALS['_test_settings'] = [
+        'reschedule_pre_game_hours'  => '0',
+        'reschedule_post_game_hours' => '0',
+        'timezone'                   => 'UTC',
+    ];
+    $db = new RSMockDatabase();
+    $db->teams[] = rsTeam(10, 5);
+    $db->games[] = rsGame(1, 10, 20, 'Active', '2099-12-31');
+    $db->users[] = rsUser(5);
+    Database::setInstance($db);
+    $service = new RescheduleService($db);
+
+    $id = $service->submit(5, 1, rsRequestData('2099-12-30'));
+    assert_equals($id, 42, 'submit must return the new request ID');
+
+    Database::setInstance(null);
+    unset($GLOBALS['_test_settings']);
+});
+
+register_test('Window: pre-game blackout hit — submit throws SubmissionWindowException', function () {
+    // Game is 12 hours from now; blackout = 24 hours.
+    $gameAt = (new DateTime('now', new DateTimeZone('UTC')))->modify('+12 hours');
+    $GLOBALS['_test_settings'] = [
+        'reschedule_pre_game_hours'  => '24',
+        'reschedule_post_game_hours' => '0',
+        'timezone'                   => 'UTC',
+    ];
+    $db = new RSMockDatabase();
+    $db->teams[] = rsTeam(10, 5);
+    $game = rsGame(1, 10, 20, 'Active', $gameAt->format('Y-m-d'));
+    $game['game_time'] = $gameAt->format('H:i:s');
+    $db->games[] = $game;
+    $db->users[] = rsUser(5);
+    Database::setInstance($db);
+    $service = new RescheduleService($db);
+
+    $thrown = false;
+    try {
+        $service->submit(5, 1, rsRequestData('2099-01-01'));
+    } catch (SubmissionWindowException $e) {
+        $thrown = true;
+    }
+    assert_true($thrown, 'submit must throw SubmissionWindowException when inside pre-game blackout');
+
+    Database::setInstance(null);
+    unset($GLOBALS['_test_settings']);
+});
+
+register_test('Window: post-game blackout hit — submit throws SubmissionWindowException', function () {
+    // Game ended 8 hours ago; post-game window = 6 hours.
+    $gameAt = (new DateTime('now', new DateTimeZone('UTC')))->modify('-8 hours');
+    $GLOBALS['_test_settings'] = [
+        'reschedule_pre_game_hours'  => '0',
+        'reschedule_post_game_hours' => '6',
+        'timezone'                   => 'UTC',
+    ];
+    $db = new RSMockDatabase();
+    $db->teams[] = rsTeam(10, 5);
+    $game = rsGame(1, 10, 20, 'Active', $gameAt->format('Y-m-d'));
+    $game['game_time'] = $gameAt->format('H:i:s');
+    $db->games[] = $game;
+    $db->users[] = rsUser(5);
+    Database::setInstance($db);
+    $service = new RescheduleService($db);
+
+    $thrown = false;
+    try {
+        $service->submit(5, 1, rsRequestData('2099-01-01'));
+    } catch (SubmissionWindowException $e) {
+        $thrown = true;
+    }
+    assert_true($thrown, 'submit must throw SubmissionWindowException when post-game window has elapsed');
+
+    Database::setInstance(null);
+    unset($GLOBALS['_test_settings']);
+});
+
+register_test('Window: season cutoff hit — submit throws SubmissionWindowException', function () {
+    $GLOBALS['_test_settings'] = [
+        'reschedule_pre_game_hours'  => '0',
+        'reschedule_post_game_hours' => '0',
+        'timezone'                   => 'UTC',
+    ];
+    $db = new RSMockDatabase();
+    $db->teams[] = rsTeam(10, 5);
+    // Game is far in the future but season cutoff is 2025-01-01
+    $db->games[] = rsGame(1, 10, 20, 'Active', '2099-12-31', '2025-01-01');
+    $db->users[] = rsUser(5);
+    Database::setInstance($db);
+    $service = new RescheduleService($db);
+
+    $thrown = false;
+    try {
+        // Requested date is beyond the cutoff
+        $service->submit(5, 1, rsRequestData('2025-06-01'));
+    } catch (SubmissionWindowException $e) {
+        $thrown = true;
+    }
+    assert_true($thrown, 'submit must throw SubmissionWindowException when requested date exceeds season cutoff');
+
+    Database::setInstance(null);
+    unset($GLOBALS['_test_settings']);
+});
+
+register_test('Window: season cutoff NULL — no cutoff enforced', function () {
+    $GLOBALS['_test_settings'] = [
+        'reschedule_pre_game_hours'  => '0',
+        'reschedule_post_game_hours' => '0',
+        'timezone'                   => 'UTC',
+    ];
+    $db = new RSMockDatabase();
+    $db->teams[] = rsTeam(10, 5);
+    // reschedule_cutoff_date is null
+    $db->games[] = rsGame(1, 10, 20, 'Active', '2099-12-31', null);
+    $db->users[] = rsUser(5);
+    Database::setInstance($db);
+    $service = new RescheduleService($db);
+
+    $id = $service->submit(5, 1, rsRequestData('2099-11-01'));
+    assert_equals($id, 42, 'submit must succeed when season has no cutoff date');
+
+    Database::setInstance(null);
+    unset($GLOBALS['_test_settings']);
+});
+
+register_test('Window: getEligibleGames excludes game inside pre-game blackout', function () {
+    $gameAt = (new DateTime('now', new DateTimeZone('UTC')))->modify('+2 hours');
+    $GLOBALS['_test_settings'] = [
+        'reschedule_pre_game_hours'  => '24',
+        'reschedule_post_game_hours' => '0',
+        'timezone'                   => 'UTC',
+    ];
+    $db = new RSMockDatabase();
+    $db->teams[] = rsTeam(10, 5);
+    $game = rsGame(1, 10, 20, 'Active', $gameAt->format('Y-m-d'));
+    $game['game_time'] = $gameAt->format('H:i:s');
+    $db->games[] = $game;
+    // Add a second game far in future to confirm it's still returned
+    $db->games[] = rsGame(2, 10, 20, 'Active', '2099-12-31');
+    Database::setInstance($db);
+    $service = new RescheduleService($db);
+
+    $result = $service->getEligibleGames(5);
+    $ids = array_column($result, 'game_id');
+    assert_true(!in_array(1, $ids, true), 'game inside pre-game blackout must be excluded');
+    assert_true(in_array(2, $ids, true), 'game outside blackout must remain eligible');
+
+    Database::setInstance(null);
+    unset($GLOBALS['_test_settings']);
 });

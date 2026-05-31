@@ -125,6 +125,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     echo '<div class="container mt-4"><div class="alert alert-danger">' . htmlspecialchars($error) . '</div></div>';
                     include EnvLoader::getPath('includes/footer.php');
                     exit;
+                } catch (SubmissionWindowException $e) {
+                    $error = $e->getMessage();
                 } catch (Throwable $e) {
                     $error = 'Request not submitted — please check your connection and try again.';
                 }

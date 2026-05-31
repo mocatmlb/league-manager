@@ -104,6 +104,12 @@ function isSettingsActive($section) {
             </a>
         </div>
 
+        <!-- Schedule Changes -->
+        <a href="?section=schedule-changes"
+           class="list-group-item list-group-item-action <?php echo isSettingsActive('schedule-changes'); ?>">
+            <i class="fas fa-calendar-alt"></i> Schedule Changes
+        </a>
+
         <!-- Migration Cutover -->
         <a href="?section=cutover"
            class="list-group-item list-group-item-action <?php echo isSettingsActive('cutover'); ?>">

@@ -54,6 +54,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             switch ($action) {
                 case 'add_season':
+                    $rescheduleCutoffRaw = sanitize($_POST['reschedule_cutoff_date'] ?? '');
+                    if ($rescheduleCutoffRaw !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $rescheduleCutoffRaw)) {
+                        throw new Exception('Reschedule cutoff date must be a valid date (YYYY-MM-DD).');
+                    }
                     $data = [
                         'program_id' => (int)$_POST['program_id'],
                         'season_name' => sanitize($_POST['season_name']),
@@ -62,16 +66,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'end_date' => sanitize($_POST['end_date']) ?: null,
                         'registration_start' => sanitize($_POST['registration_start']) ?: null,
                         'registration_end' => sanitize($_POST['registration_end']) ?: null,
-                        'season_status' => sanitize($_POST['season_status'])
+                        'season_status' => sanitize($_POST['season_status']),
+                        'reschedule_cutoff_date' => $rescheduleCutoffRaw ?: null,
                     ];
-                    
+
                     $db->insert('seasons', $data);
                     $message = 'Season added successfully!';
                     $messageType = 'success';
                     break;
-                    
+
                 case 'update_season':
                     $seasonId = (int)$_POST['season_id'];
+                    $rescheduleCutoffRaw = sanitize($_POST['reschedule_cutoff_date'] ?? '');
+                    if ($rescheduleCutoffRaw !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $rescheduleCutoffRaw)) {
+                        throw new Exception('Reschedule cutoff date must be a valid date (YYYY-MM-DD).');
+                    }
                     $data = [
                         'program_id' => (int)$_POST['program_id'],
                         'season_name' => sanitize($_POST['season_name']),
@@ -80,9 +89,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'end_date' => sanitize($_POST['end_date']) ?: null,
                         'registration_start' => sanitize($_POST['registration_start']) ?: null,
                         'registration_end' => sanitize($_POST['registration_end']) ?: null,
-                        'season_status' => sanitize($_POST['season_status'])
+                        'season_status' => sanitize($_POST['season_status']),
+                        'reschedule_cutoff_date' => $rescheduleCutoffRaw ?: null,
                     ];
-                    
+
                     $db->update('seasons', $data, 'season_id = :season_id', ['season_id' => $seasonId]);
                     $message = 'Season updated successfully!';
                     $messageType = 'success';
@@ -503,7 +513,7 @@ $programs = $db->fetchAll("SELECT program_id, program_name, sport_type FROM prog
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
@@ -515,6 +525,16 @@ $programs = $db->fetchAll("SELECT program_id, program_name, sport_type FROM prog
                                 <div class="mb-3">
                                     <label class="form-label">Registration End</label>
                                     <input type="date" name="registration_end" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Reschedule Request Cutoff</label>
+                                    <input type="date" name="reschedule_cutoff_date" class="form-control">
+                                    <div class="form-text">Latest date coaches may request rescheduling to. Leave blank for no cutoff.</div>
                                 </div>
                             </div>
                         </div>
@@ -616,6 +636,16 @@ $programs = $db->fetchAll("SELECT program_id, program_name, sport_type FROM prog
                                 </div>
                             </div>
                         </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Reschedule Request Cutoff</label>
+                                    <input type="date" name="reschedule_cutoff_date" id="editRescheduleCutoff" class="form-control">
+                                    <div class="form-text">Latest date coaches may request rescheduling to. Leave blank for no cutoff.</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -683,6 +713,7 @@ $programs = $db->fetchAll("SELECT program_id, program_name, sport_type FROM prog
             document.getElementById('editRegistrationStart').value = season.registration_start || '';
             document.getElementById('editRegistrationEnd').value = season.registration_end || '';
             document.getElementById('editSeasonStatus').value = season.season_status;
+            document.getElementById('editRescheduleCutoff').value = season.reschedule_cutoff_date || '';
             
             var editModal = new bootstrap.Modal(document.getElementById('editSeasonModal'));
             editModal.show();
