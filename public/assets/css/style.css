@@ -470,7 +470,8 @@ input, select, textarea {
         flex-direction: column;
         gap: 0;
     }
-    .vs-label { display: none; }
+    /* !important required — .vs-score-entry > div { display: flex } below has equal specificity */
+    .vs-label { display: none !important; }
     .vs-score-entry > div {
         background: #fff;
         border: 1px solid #dee2e6;
@@ -480,6 +481,23 @@ input, select, textarea {
         display: flex;
         align-items: center;
         justify-content: space-between;
+        text-align: left;
+    }
+    /* Group role label + team name in a left-side column */
+    .vs-card-text {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        flex: 1;
+        min-width: 0;
+    }
+    .vs-card-text label {
+        margin-bottom: 0;
+        font-size: 0.95rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
     }
     .vs-score-entry .vs-team-label {
         display: block;

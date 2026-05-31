@@ -289,14 +289,16 @@ $pageTitle = 'Score Input — District 8 Travel League';
                             <!-- VS Score Entry layout (UX-DR2, UX-DR7) -->
                             <div class="vs-score-entry mb-4">
                                 <div class="text-center">
-                                    <div class="vs-team-label"><small class="text-muted text-uppercase">Away Team</small></div>
-                                     <label class="form-label fw-bold" id="awayLabel" for="away_score">
-                                        <?php
-                                        $awayLabelText = $autoSelected['away_team_name']
-                                            ?? ($preservedGame['away_team_name'] ?? 'Away Team');
-                                        echo htmlspecialchars(strtoupper($awayLabelText), ENT_QUOTES, 'UTF-8');
-                                        ?>
-                                    </label>
+                                    <div class="vs-card-text">
+                                        <div class="vs-team-label"><small class="text-muted text-uppercase">Away Team</small></div>
+                                        <label class="form-label fw-bold" id="awayLabel" for="away_score">
+                                            <?php
+                                            $awayLabelText = $autoSelected['away_team_name']
+                                                ?? ($preservedGame['away_team_name'] ?? 'Away Team');
+                                            echo htmlspecialchars(strtoupper($awayLabelText), ENT_QUOTES, 'UTF-8');
+                                            ?>
+                                        </label>
+                                    </div>
                                     <input type="number"
                                            id="away_score"
                                            name="away_score"
@@ -309,14 +311,16 @@ $pageTitle = 'Score Input — District 8 Travel League';
                                 </div>
                                 <div class="vs-label">VS</div>
                                 <div class="text-center">
-                                    <div class="vs-team-label"><small class="text-muted text-uppercase">Home Team</small></div>
-                                     <label class="form-label fw-bold" id="homeLabel" for="home_score">
-                                        <?php
-                                        $homeLabelText = $autoSelected['home_team_name']
-                                            ?? ($preservedGame['home_team_name'] ?? 'Home Team');
-                                        echo htmlspecialchars(strtoupper($homeLabelText), ENT_QUOTES, 'UTF-8');
-                                        ?>
-                                    </label>
+                                    <div class="vs-card-text">
+                                        <div class="vs-team-label"><small class="text-muted text-uppercase">Home Team</small></div>
+                                        <label class="form-label fw-bold" id="homeLabel" for="home_score">
+                                            <?php
+                                            $homeLabelText = $autoSelected['home_team_name']
+                                                ?? ($preservedGame['home_team_name'] ?? 'Home Team');
+                                            echo htmlspecialchars(strtoupper($homeLabelText), ENT_QUOTES, 'UTF-8');
+                                            ?>
+                                        </label>
+                                    </div>
                                     <input type="number"
                                            id="home_score"
                                            name="home_score"
@@ -378,11 +382,13 @@ $pageTitle = 'Score Input — District 8 Travel League';
 
                                     <div class="vs-score-entry mb-3">
                                         <div class="text-center">
-                                            <div class="vs-team-label"><small class="text-muted text-uppercase">Away Team</small></div>
-                                            <label class="form-label fw-bold"
-                                                   for="away_score_<?php echo (int) $cg['game_id']; ?>">
-                                                <?php echo htmlspecialchars(strtoupper($cg['away_team_name']), ENT_QUOTES, 'UTF-8'); ?>
-                                            </label>
+                                            <div class="vs-card-text">
+                                                <div class="vs-team-label"><small class="text-muted text-uppercase">Away Team</small></div>
+                                                <label class="form-label fw-bold"
+                                                       for="away_score_<?php echo (int) $cg['game_id']; ?>">
+                                                    <?php echo htmlspecialchars(strtoupper($cg['away_team_name']), ENT_QUOTES, 'UTF-8'); ?>
+                                                </label>
+                                            </div>
                                             <input type="number"
                                                    id="away_score_<?php echo (int) $cg['game_id']; ?>"
                                                    name="away_score"
@@ -393,11 +399,13 @@ $pageTitle = 'Score Input — District 8 Travel League';
                                         </div>
                                         <div class="vs-label">VS</div>
                                         <div class="text-center">
-                                            <div class="vs-team-label"><small class="text-muted text-uppercase">Home Team</small></div>
-                                            <label class="form-label fw-bold"
-                                                   for="home_score_<?php echo (int) $cg['game_id']; ?>">
-                                                <?php echo htmlspecialchars(strtoupper($cg['home_team_name']), ENT_QUOTES, 'UTF-8'); ?>
-                                            </label>
+                                            <div class="vs-card-text">
+                                                <div class="vs-team-label"><small class="text-muted text-uppercase">Home Team</small></div>
+                                                <label class="form-label fw-bold"
+                                                       for="home_score_<?php echo (int) $cg['game_id']; ?>">
+                                                    <?php echo htmlspecialchars(strtoupper($cg['home_team_name']), ENT_QUOTES, 'UTF-8'); ?>
+                                                </label>
+                                            </div>
                                             <input type="number"
                                                    id="home_score_<?php echo (int) $cg['game_id']; ?>"
                                                    name="home_score"
