@@ -167,20 +167,14 @@ class RescheduleService {
         $preHours  = (int) getSetting('reschedule_pre_game_hours', '0');
         $postHours = (int) getSetting('reschedule_post_game_hours', '0');
 
-        if ($preHours > 0 && $now < $gameAt) {
-            $cutoffBefore = (clone $gameAt)->modify("-{$preHours} hours");
-            if ($now >= $cutoffBefore) {
+        // Block only when NOW is inside the blackout window: [gameAt - preHours, gameAt + postHours].
+        // Before the window opens or after it closes, submissions are allowed.
+        if ($preHours > 0 || $postHours > 0) {
+            $windowStart = ($preHours > 0)  ? (clone $gameAt)->modify("-{$preHours} hours")  : clone $gameAt;
+            $windowEnd   = ($postHours > 0) ? (clone $gameAt)->modify("+{$postHours} hours") : clone $gameAt;
+            if ($now >= $windowStart && $now <= $windowEnd) {
                 throw new SubmissionWindowException(
-                    "Requests must be submitted at least {$preHours} hour(s) before the game."
-                );
-            }
-        }
-
-        if ($postHours > 0) {
-            $cutoffAfter = (clone $gameAt)->modify("+{$postHours} hours");
-            if ($now > $cutoffAfter) {
-                throw new SubmissionWindowException(
-                    "Requests are no longer accepted more than {$postHours} hour(s) after the game."
+                    "Schedule change requests are not accepted within {$preHours} hour(s) before or {$postHours} hour(s) after the game."
                 );
             }
         }
@@ -302,16 +296,10 @@ class RescheduleService {
             $gameTime = $g['game_time'] ?? '00:00:00';
             $gameAt   = new DateTime($g['game_date'] . ' ' . $gameTime, $tz);
 
-            if ($preHours > 0 && $now < $gameAt) {
-                $cutoffBefore = (clone $gameAt)->modify("-{$preHours} hours");
-                if ($now >= $cutoffBefore) {
-                    return false;
-                }
-            }
-
-            if ($postHours > 0) {
-                $cutoffAfter = (clone $gameAt)->modify("+{$postHours} hours");
-                if ($now > $cutoffAfter) {
+            if ($preHours > 0 || $postHours > 0) {
+                $windowStart = ($preHours > 0)  ? (clone $gameAt)->modify("-{$preHours} hours")  : clone $gameAt;
+                $windowEnd   = ($postHours > 0) ? (clone $gameAt)->modify("+{$postHours} hours") : clone $gameAt;
+                if ($now >= $windowStart && $now <= $windowEnd) {
                     return false;
                 }
             }

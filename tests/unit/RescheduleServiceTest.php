@@ -646,8 +646,8 @@ register_test('Window: pre-game blackout hit — submit throws SubmissionWindowE
 });
 
 register_test('Window: post-game blackout hit — submit throws SubmissionWindowException', function () {
-    // Game ended 8 hours ago; post-game window = 6 hours.
-    $gameAt = (new DateTime('now', new DateTimeZone('UTC')))->modify('-8 hours');
+    // Game started 3 hours ago; post-game window = 6 hours → now is inside [gameAt, gameAt+6h].
+    $gameAt = (new DateTime('now', new DateTimeZone('UTC')))->modify('-3 hours');
     $GLOBALS['_test_settings'] = [
         'reschedule_pre_game_hours'  => '0',
         'reschedule_post_game_hours' => '6',
@@ -668,7 +668,31 @@ register_test('Window: post-game blackout hit — submit throws SubmissionWindow
     } catch (SubmissionWindowException $e) {
         $thrown = true;
     }
-    assert_true($thrown, 'submit must throw SubmissionWindowException when post-game window has elapsed');
+    assert_true($thrown, 'submit must throw SubmissionWindowException when inside post-game blackout window');
+
+    Database::setInstance(null);
+    unset($GLOBALS['_test_settings']);
+});
+
+register_test('Window: past game outside post-game window — submit succeeds', function () {
+    // Game was 28 days ago; post-game window = 2 hours → now is well outside the window.
+    $gameAt = (new DateTime('now', new DateTimeZone('UTC')))->modify('-28 days');
+    $GLOBALS['_test_settings'] = [
+        'reschedule_pre_game_hours'  => '24',
+        'reschedule_post_game_hours' => '2',
+        'timezone'                   => 'UTC',
+    ];
+    $db = new RSMockDatabase();
+    $db->teams[] = rsTeam(10, 5);
+    $game = rsGame(1, 10, 20, 'Active', $gameAt->format('Y-m-d'));
+    $game['game_time'] = $gameAt->format('H:i:s');
+    $db->games[] = $game;
+    $db->users[] = rsUser(5);
+    Database::setInstance($db);
+    $service = new RescheduleService($db);
+
+    $id = $service->submit(5, 1, rsRequestData('2099-01-01'));
+    assert_equals($id, 42, 'submit must succeed for a past game that is outside the blackout window');
 
     Database::setInstance(null);
     unset($GLOBALS['_test_settings']);
