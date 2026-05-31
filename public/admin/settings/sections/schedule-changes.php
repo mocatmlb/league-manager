@@ -35,6 +35,17 @@
                 </div>
             </div>
 
+            <div class="mb-3">
+                <label class="form-label">Minimum lead time for requested new date/time (hours)</label>
+                <input type="number" name="reschedule_min_new_game_hours" class="form-control"
+                       min="0" style="max-width: 160px;"
+                       value="<?php echo (int) $rescheduleMinNewGameHours; ?>">
+                <div class="form-text">
+                    The new game date/time coaches select must be at least this many hours in the future from the time of submission.
+                    Set to <strong>0</strong> to disable. Admins are exempt from this restriction.
+                </div>
+            </div>
+
             <button type="submit" class="btn btn-primary">
                 <i class="fas fa-save"></i> Save Changes
             </button>

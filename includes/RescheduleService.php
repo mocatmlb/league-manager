@@ -98,7 +98,7 @@ class RescheduleService {
             throw new InvalidArgumentException('All request fields (date, time, location, reason) are required');
         }
 
-        $this->enforceSubmissionWindows($game, $requestedDate);
+        $this->enforceSubmissionWindows($game, $requestedDate, $requestedTime);
 
         $existing = $this->db->fetchOne(
             'SELECT 1 FROM schedule_change_requests
@@ -153,13 +153,15 @@ class RescheduleService {
     }
 
     /**
-     * Enforce pre-game blackout, post-game blackout, and season reschedule cutoff windows.
+     * Enforce pre-game blackout, post-game blackout, season reschedule cutoff, and minimum
+     * lead-time windows for the requested new game date/time.
      *
      * @param array  $game          Row from games + schedules + seasons join
      * @param string $requestedDate The coach's requested new game date (YYYY-MM-DD)
+     * @param string $requestedTime The coach's requested new game time (HH:MM or HH:MM:SS)
      * @throws SubmissionWindowException
      */
-    private function enforceSubmissionWindows(array $game, string $requestedDate): void {
+    private function enforceSubmissionWindows(array $game, string $requestedDate, string $requestedTime = ''): void {
         $tz        = new DateTimeZone(getSetting('timezone', 'America/New_York'));
         $now       = new DateTime('now', $tz);
         $gameTime  = $game['game_time'] ?? '00:00:00';
@@ -185,6 +187,18 @@ class RescheduleService {
             throw new SubmissionWindowException(
                 'The requested date exceeds the reschedule deadline for this season.'
             );
+        }
+
+        $minNewHours = (int) getSetting('reschedule_min_new_game_hours', '0');
+        if ($minNewHours > 0 && $requestedDate !== '') {
+            $reqTime    = ($requestedTime !== '') ? $requestedTime : '00:00:00';
+            $requestedAt = new DateTime($requestedDate . ' ' . $reqTime, $tz);
+            $earliest    = (clone $now)->modify("+{$minNewHours} hours");
+            if ($requestedAt < $earliest) {
+                throw new SubmissionWindowException(
+                    "The requested new game date/time must be at least {$minNewHours} hour(s) from now."
+                );
+            }
         }
     }
 

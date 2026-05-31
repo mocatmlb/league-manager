@@ -220,10 +220,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             case 'update_schedule_changes':
                 try {
-                    $preHours  = max(0, (int) ($_POST['reschedule_pre_game_hours']  ?? 0));
-                    $postHours = max(0, (int) ($_POST['reschedule_post_game_hours'] ?? 0));
-                    updateSetting('reschedule_pre_game_hours',  (string) $preHours);
-                    updateSetting('reschedule_post_game_hours', (string) $postHours);
+                    $preHours    = max(0, (int) ($_POST['reschedule_pre_game_hours']      ?? 0));
+                    $postHours   = max(0, (int) ($_POST['reschedule_post_game_hours']     ?? 0));
+                    $minNewHours = max(0, (int) ($_POST['reschedule_min_new_game_hours']  ?? 0));
+                    updateSetting('reschedule_pre_game_hours',      (string) $preHours);
+                    updateSetting('reschedule_post_game_hours',     (string) $postHours);
+                    updateSetting('reschedule_min_new_game_hours',  (string) $minNewHours);
                     logActivity('schedule_change_settings_updated', 'Schedule change window settings updated');
                     $message = 'Schedule change settings saved successfully!';
                 } catch (Exception $e) {
@@ -262,8 +264,9 @@ $fieldMaintenancePhone = getSetting('field_maintenance_phone', '');
 
 $availableTimezones = getAvailableTimezones();
 
-$reschedulePreGameHours  = getSetting('reschedule_pre_game_hours',  '0');
-$reschedulePostGameHours = getSetting('reschedule_post_game_hours', '0');
+$reschedulePreGameHours    = getSetting('reschedule_pre_game_hours',     '0');
+$reschedulePostGameHours   = getSetting('reschedule_post_game_hours',    '0');
+$rescheduleMinNewGameHours = getSetting('reschedule_min_new_game_hours', '0');
 
 // Get section title
 $sectionTitles = [
