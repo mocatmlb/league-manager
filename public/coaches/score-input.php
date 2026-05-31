@@ -304,6 +304,7 @@ $pageTitle = 'Score Input — District 8 Travel League';
                                            name="away_score"
                                            class="vs-score-input form-control text-center"
                                            inputmode="numeric"
+                                           placeholder="–"
                                            min="0"
                                            max="99"
                                            required
@@ -326,6 +327,7 @@ $pageTitle = 'Score Input — District 8 Travel League';
                                            name="home_score"
                                            class="vs-score-input form-control text-center"
                                            inputmode="numeric"
+                                           placeholder="–"
                                            min="0"
                                            max="99"
                                            required
@@ -394,6 +396,7 @@ $pageTitle = 'Score Input — District 8 Travel League';
                                                    name="away_score"
                                                    class="vs-score-input form-control text-center"
                                                    inputmode="numeric"
+                                           placeholder="–"
                                                    min="0" max="99" required
                                                    value="<?php echo (int) $cg['away_score']; ?>">
                                         </div>
@@ -411,6 +414,7 @@ $pageTitle = 'Score Input — District 8 Travel League';
                                                    name="home_score"
                                                    class="vs-score-input form-control text-center"
                                                    inputmode="numeric"
+                                           placeholder="–"
                                                    min="0" max="99" required
                                                    value="<?php echo (int) $cg['home_score']; ?>">
                                         </div>
