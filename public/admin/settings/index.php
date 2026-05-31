@@ -219,6 +219,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 break;
 
+            case 'update_about':
+                try {
+                    updateSetting('about_page_content', $_POST['about_page_content'] ?? '');
+                    logActivity('about_page_updated', 'About page content updated');
+                    $message = 'About page updated successfully!';
+                } catch (Exception $e) {
+                    $error = 'Error updating about page: ' . $e->getMessage();
+                }
+                break;
+
             case 'update_schedule_changes':
                 try {
                     $preHours    = max(0, (int) ($_POST['reschedule_pre_game_hours']      ?? 0));
@@ -261,6 +271,7 @@ $currentTimezone = getSetting('timezone', 'America/New_York');
 $leagueName = getSetting('league_name', 'District 8 Travel League');
 $leagueTagline = getSetting('league_tagline', '');
 $contactEmail = getSetting('contact_email', '');
+$aboutPageContent = getSetting('about_page_content', '');
 $weatherHotline = getSetting('weather_hotline', '');
 $fieldMaintenancePhone = getSetting('field_maintenance_phone', '');
 
@@ -272,6 +283,7 @@ $rescheduleMinNewGameHours = getSetting('reschedule_min_new_game_hours', '0');
 
 // Get section title
 $sectionTitles = [
+    'about' => 'About Page',
     'general' => 'General Settings',
     'contacts' => 'League Contacts',
     'email-setup' => 'Email Setup',
@@ -356,6 +368,9 @@ $pageTitle = ($sectionTitles[$currentSection] ?? 'Settings') . " - " . APP_NAME;
                     <!-- Section Content -->
                     <?php
                     switch ($currentSection):
+                        case 'about':
+                            include 'sections/about.php';
+                            break;
                         case 'general':
                             include 'sections/general.php';
                             break;

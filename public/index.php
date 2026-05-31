@@ -394,6 +394,7 @@ foreach ($weatherLocations as $loc) {
                 <div class="col-12 text-center">
                     <p class="mb-1">&copy; <?php echo date('Y'); ?> <?php echo htmlspecialchars(APP_NAME, ENT_QUOTES, 'UTF-8'); ?>. All rights reserved.</p>
                     <p class="mb-0 small">
+                        <a href="about.php" class="text-muted me-2">About</a>
                         <a href="privacy-policy.php" class="text-muted me-2">Privacy Policy</a>
                         <a href="terms.php" class="text-muted">Terms &amp; Conditions</a>
                     </p>

@@ -17,9 +17,15 @@ function isSettingsActive($section) {
 <div class="settings-sidebar">
     <div class="list-group">
         <!-- General Settings -->
-        <a href="?section=general" 
+        <a href="?section=general"
            class="list-group-item list-group-item-action <?php echo isSettingsActive('general'); ?>">
             <i class="fas fa-cog"></i> General Settings
+        </a>
+
+        <!-- About Page -->
+        <a href="?section=about"
+           class="list-group-item list-group-item-action <?php echo isSettingsActive('about'); ?>">
+            <i class="fas fa-info-circle"></i> About Page
         </a>
 
         <!-- League Contacts -->
