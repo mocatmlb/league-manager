@@ -300,13 +300,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'modified_date' => date('Y-m-d H:i:s')
                     ], 'game_id = :game_id', ['game_id' => $gameId]);
 
-                    $gameStatus = $db->fetchOne("SELECT game_status FROM games WHERE game_id = ?", [$gameId]);
-                    if ($gameStatus && $gameStatus['game_status'] === 'Pending Change') {
-                        $db->update('games', [
-                            'game_status' => 'Scheduled',
-                            'modified_date' => date('Y-m-d H:i:s')
-                        ], 'game_id = ?', [$gameId]);
-                    }
+                    $db->update('games', [
+                        'game_status' => 'Scheduled',
+                        'modified_date' => date('Y-m-d H:i:s')
+                    ], "game_id = ? AND game_status NOT IN ('Completed', 'Cancelled')", [$gameId]);
 
                     $db->commit();
 
