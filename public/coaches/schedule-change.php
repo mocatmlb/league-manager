@@ -272,35 +272,113 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                 <?php endif; ?>
 
                 <!-- =========================================================
-                     POSTPONE A GAME SECTION
+                     UNIFIED SCHEDULE CHANGE CARD
                      ========================================================= -->
+                <?php $defaultSection = (!empty($postponableGames)) ? 'postpone' : 'reschedule'; ?>
 
                 <div class="card mb-4">
                     <div class="card-header">
-                        <h3 class="mb-0"><i class="fas fa-ban"></i> Postpone a Game</h3>
+                        <h3 class="mb-0"><i class="fas fa-calendar-alt"></i> Schedule Change Request</h3>
                     </div>
                     <div class="card-body">
-                        <p class="text-muted">Use this when a game cannot be played as scheduled and no new date is available yet.
-                            The game will be marked Postponed (or submitted for admin review).
-                            You can request a reschedule once a new date is known.</p>
 
-                        <?php if (empty($postponableGames)): ?>
-                        <div class="alert alert-info" role="alert">
-                            <i class="fas fa-info-circle"></i>
-                            No games are available to postpone — scored, cancelled, and already-postponed games are not eligible.
+                        <!-- Request type radio -->
+                        <div class="mb-4">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="schedule-change-type"
+                                       id="radio-postpone" value="postpone"
+                                       <?php if ($defaultSection === 'postpone'): ?>checked<?php endif; ?>>
+                                <label class="form-check-label" for="radio-postpone">
+                                    <i class="fas fa-ban"></i> Postpone a Game
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="schedule-change-type"
+                                       id="radio-reschedule" value="reschedule"
+                                       <?php if ($defaultSection === 'reschedule'): ?>checked<?php endif; ?>>
+                                <label class="form-check-label" for="radio-reschedule">
+                                    <i class="fas fa-calendar-alt"></i> Request a Reschedule
+                                </label>
+                            </div>
                         </div>
-                        <?php else: ?>
-                        <form method="POST">
-                            <input type="hidden" name="csrf_token"
-                                   value="<?php echo htmlspecialchars(Auth::generateCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>">
-                            <input type="hidden" name="action" value="postpone">
 
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Select a game *</label>
-                                <select name="game_id" class="form-select form-select-lg" required>
+                        <!-- ── Postpone section ── -->
+                        <div id="postpone-section" <?php if ($defaultSection !== 'postpone'): ?>style="display:none"<?php endif; ?>>
+                            <p class="text-muted">Use this when a game cannot be played as scheduled and no new date is available yet.
+                                The game will be marked Postponed (or submitted for admin review).
+                                You can request a reschedule once a new date is known.</p>
+
+                            <?php if (empty($postponableGames)): ?>
+                            <div class="alert alert-info" role="alert">
+                                <i class="fas fa-info-circle"></i>
+                                No games are available to postpone — scored, cancelled, and already-postponed games are not eligible.
+                            </div>
+                            <?php else: ?>
+                            <form method="POST">
+                                <input type="hidden" name="csrf_token"
+                                       value="<?php echo htmlspecialchars(Auth::generateCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>">
+                                <input type="hidden" name="action" value="postpone">
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Select a game *</label>
+                                    <select name="game_id" class="form-select form-select-lg" required>
+                                        <option value="">— choose a game —</option>
+                                        <?php foreach ($postponableGames as $g): ?>
+                                        <option value="<?php echo (int) $g['game_id']; ?>">
+                                            Game #<?php echo htmlspecialchars((string) ($g['game_number'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
+                                            &mdash; <?php echo htmlspecialchars(formatDate($g['game_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
+                                            &mdash; <?php echo htmlspecialchars(strtoupper($g['away_team_name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
+                                            @ <?php echo htmlspecialchars(strtoupper($g['home_team_name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
+                                        </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Reason *</label>
+                                    <textarea name="postpone_reason" class="form-control" rows="3" required
+                                              placeholder="Explain why this game needs to be postponed..."></textarea>
+                                </div>
+
+                                <div class="text-center">
+                                    <button type="submit" class="btn btn-warning btn-lg">
+                                        <i class="fas fa-ban"></i> Mark as Postponed
+                                    </button>
+                                </div>
+                            </form>
+                            <?php endif; ?>
+                        </div>
+
+                        <!-- ── Reschedule section ── -->
+                        <div id="reschedule-section" <?php if ($defaultSection !== 'reschedule'): ?>style="display:none"<?php endif; ?>>
+
+                            <?php if (empty($eligibleGames)): ?>
+                            <div class="alert alert-info" role="alert">
+                                <i class="fas fa-info-circle"></i>
+                                No games are available to reschedule — scored and cancelled games are not eligible.
+                            </div>
+                            <?php else: ?>
+
+                            <?php if ($minNewGameHours > 0): ?>
+                            <div class="alert alert-info py-2 mb-3">
+                                <i class="fas fa-clock"></i>
+                                The new game date and time you request must be at least
+                                <strong><?php echo $minNewGameHours; ?> hour<?php echo $minNewGameHours !== 1 ? 's' : ''; ?></strong>
+                                from the time you submit this form.
+                            </div>
+                            <?php endif; ?>
+
+                            <!-- Game selection dropdown (AC3) -->
+                            <div class="mb-4">
+                                <label for="game-select" class="form-label fw-bold">Select a game *</label>
+                                <select id="game-select" class="form-select form-select-lg">
                                     <option value="">— choose a game —</option>
-                                    <?php foreach ($postponableGames as $g): ?>
-                                    <option value="<?php echo (int) $g['game_id']; ?>">
+                                    <?php foreach ($eligibleGames as $g): ?>
+                                    <option value="<?php echo (int) $g['game_id']; ?>"
+                                            data-date="<?php echo htmlspecialchars($g['game_date'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                                            data-time="<?php echo htmlspecialchars($g['game_time'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                                            data-location="<?php echo htmlspecialchars($g['location'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                                            <?php if ($preservedGameId === (int) $g['game_id']): ?>selected<?php endif; ?>>
                                         Game #<?php echo htmlspecialchars((string) ($g['game_number'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
                                         &mdash; <?php echo htmlspecialchars(formatDate($g['game_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
                                         &mdash; <?php echo htmlspecialchars(strtoupper($g['away_team_name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
@@ -310,184 +388,123 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                                 </select>
                             </div>
 
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Reason *</label>
-                                <textarea name="postpone_reason" class="form-control" rows="3" required
-                                          placeholder="Explain why this game needs to be postponed..."></textarea>
-                            </div>
-
-                            <div class="text-center">
-                                <button type="submit" class="btn btn-warning btn-lg">
-                                    <i class="fas fa-ban"></i> Mark as Postponed
-                                </button>
-                            </div>
-                        </form>
-                        <?php endif; ?>
-                    </div>
-                </div>
-
-                <!-- =========================================================
-                     SUBMIT REQUEST SECTION
-                     ========================================================= -->
-
-                <?php if (empty($eligibleGames)): ?>
-                    <!-- AC2: Empty state (UX-DR16) -->
-                    <div class="alert alert-info" role="alert">
-                        <i class="fas fa-info-circle"></i>
-                        No games are available to reschedule — scored and cancelled games are not eligible.
-                    </div>
-
-                <?php else: ?>
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h3 class="mb-0"><i class="fas fa-calendar-alt"></i> Request a Reschedule</h3>
-                    </div>
-                    <div class="card-body">
-
-                        <?php if ($minNewGameHours > 0): ?>
-                        <div class="alert alert-info py-2 mb-3">
-                            <i class="fas fa-clock"></i>
-                            The new game date and time you request must be at least
-                            <strong><?php echo $minNewGameHours; ?> hour<?php echo $minNewGameHours !== 1 ? 's' : ''; ?></strong>
-                            from the time you submit this form.
-                        </div>
-                        <?php endif; ?>
-
-                        <!-- Game selection dropdown (AC3) -->
-                        <div class="mb-4">
-                            <label for="game-select" class="form-label fw-bold">Select a game *</label>
-                            <select id="game-select" class="form-select form-select-lg">
-                                <option value="">— choose a game —</option>
-                                <?php foreach ($eligibleGames as $g): ?>
-                                <option value="<?php echo (int) $g['game_id']; ?>"
-                                        data-date="<?php echo htmlspecialchars($g['game_date'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
-                                        data-time="<?php echo htmlspecialchars($g['game_time'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
-                                        data-location="<?php echo htmlspecialchars($g['location'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
-                                        <?php if ($preservedGameId === (int) $g['game_id']): ?>selected<?php endif; ?>>
-                                    Game #<?php echo htmlspecialchars((string) ($g['game_number'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
-                                    &mdash; <?php echo htmlspecialchars(formatDate($g['game_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
-                                    &mdash; <?php echo htmlspecialchars(strtoupper($g['away_team_name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
-                                    @ <?php echo htmlspecialchars(strtoupper($g['home_team_name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
-                                </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-
-                        <!-- Game Detail Reveal Panel (AC3, UX-DR5) -->
-                        <div class="game-detail-panel card bg-light mb-4" aria-live="polite" style="display:none">
-                            <div class="card-body">
-                                <h6 class="card-title">Current Schedule</h6>
-                                <div class="row">
-                                    <div class="col-md-4">
-                                        <strong>Date:</strong>
-                                        <span id="detail-date"></span>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <strong>Time:</strong>
-                                        <span id="detail-time"></span>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <strong>Location:</strong>
-                                        <span id="detail-location"></span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Request form (hidden until game selected, UX-DR5) -->
-                        <form id="reschedule-form" method="POST" style="display:none">
-                            <input type="hidden" name="csrf_token"
-                                   value="<?php echo htmlspecialchars(Auth::generateCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>">
-                            <input type="hidden" name="action" value="submit">
-                            <input type="hidden" name="game_id" id="form-game-id" value="">
-
-                            <div class="row mb-3">
-                                <div class="col-md-4">
-                                    <label class="form-label fw-bold">New Date *</label>
-                                    <input type="date" id="requested-date" name="requested_date" class="form-control" required
-                                           value="<?php echo htmlspecialchars($postValues['requested_date'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
-                                    <?php if ($minNewGameHours > 0): ?>
-                                    <div class="form-text">Must be at least <?php echo $minNewGameHours; ?> hour(s) from now.</div>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fw-bold">New Time *</label>
-                                    <input type="time" id="requested-time" name="requested_time" class="form-control" required
-                                           value="<?php echo htmlspecialchars($postValues['requested_time'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fw-bold">New Location *</label>
-                                    <select name="requested_location" id="requestedLocationSelect" class="form-select" required>
-                                        <option value="">Select Location</option>
-                                        <?php foreach ($locations as $loc): ?>
-                                        <option value="<?php echo htmlspecialchars($loc['location_name'], ENT_QUOTES, 'UTF-8'); ?>"
-                                            <?php if (($postValues['requested_location'] ?? '') === $loc['location_name']): ?>selected<?php endif; ?>>
-                                            <?php echo htmlspecialchars($loc['location_name'], ENT_QUOTES, 'UTF-8'); ?>
-                                        </option>
-                                        <?php endforeach; ?>
-                                        <option value="not-listed"
-                                            <?php if (($postValues['requested_location'] ?? '') === 'not-listed'): ?>selected<?php endif; ?>>
-                                            (Not Listed)
-                                        </option>
-                                    </select>
-                                    <div id="notListedFields" style="display:none; margin-top: 8px;">
-                                        <input type="text" name="location_name_new" id="locationNameNew"
-                                               class="form-control form-control-sm"
-                                               placeholder="Enter location name"
-                                               value="<?php echo htmlspecialchars($postValues['location_name_new'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Reason for Change *</label>
-                                <textarea name="reason" class="form-control" rows="4" required
-                                          placeholder="Please provide a detailed reason for the schedule change request..."><?php echo htmlspecialchars($postValues['reason'] ?? '', ENT_QUOTES, 'UTF-8'); ?></textarea>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Game Notes <small class="text-muted fw-normal">(admin-visible only, optional)</small></label>
-                                <textarea name="game_notes" class="form-control" rows="3"
-                                          placeholder="Any additional context about this game for the admin..."><?php echo htmlspecialchars($postValues['game_notes'] ?? '', ENT_QUOTES, 'UTF-8'); ?></textarea>
-                            </div>
-
-                            <!-- Contact info (read-only, pre-populated, UX-DR8) -->
-                            <div class="card bg-light mb-3">
+                            <!-- Game Detail Reveal Panel (AC3, UX-DR5) -->
+                            <div class="game-detail-panel card bg-light mb-4" aria-live="polite" style="display:none">
                                 <div class="card-body">
-                                    <h6 class="card-title">
-                                        Contact Information
-                                        <a href="profile.php" class="small ms-2">Update in your profile →</a>
-                                    </h6>
+                                    <h6 class="card-title">Current Schedule</h6>
                                     <div class="row">
                                         <div class="col-md-4">
-                                            <strong>Name:</strong>
-                                            <?php echo htmlspecialchars(
-                                                trim(($coachContact['first_name'] ?? '') . ' ' . ($coachContact['last_name'] ?? '')),
-                                                ENT_QUOTES, 'UTF-8'
-                                            ); ?>
+                                            <strong>Date:</strong>
+                                            <span id="detail-date"></span>
                                         </div>
                                         <div class="col-md-4">
-                                            <strong>Phone:</strong>
-                                            <?php echo htmlspecialchars($coachContact['phone'] ?? '', ENT_QUOTES, 'UTF-8'); ?>
+                                            <strong>Time:</strong>
+                                            <span id="detail-time"></span>
                                         </div>
                                         <div class="col-md-4">
-                                            <strong>Email:</strong>
-                                            <?php echo htmlspecialchars($coachContact['email'] ?? '', ENT_QUOTES, 'UTF-8'); ?>
+                                            <strong>Location:</strong>
+                                            <span id="detail-location"></span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="text-center">
-                                <button type="submit" class="btn btn-primary btn-lg">
-                                    <i class="fas fa-paper-plane"></i> Request Reschedule
-                                </button>
-                            </div>
-                        </form>
+                            <!-- Request form (hidden until game selected, UX-DR5) -->
+                            <form id="reschedule-form" method="POST" style="display:none">
+                                <input type="hidden" name="csrf_token"
+                                       value="<?php echo htmlspecialchars(Auth::generateCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>">
+                                <input type="hidden" name="action" value="submit">
+                                <input type="hidden" name="game_id" id="form-game-id" value="">
+
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">New Date *</label>
+                                        <input type="date" id="requested-date" name="requested_date" class="form-control" required
+                                               value="<?php echo htmlspecialchars($postValues['requested_date'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                                        <?php if ($minNewGameHours > 0): ?>
+                                        <div class="form-text">Must be at least <?php echo $minNewGameHours; ?> hour(s) from now.</div>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">New Time *</label>
+                                        <input type="time" id="requested-time" name="requested_time" class="form-control" required
+                                               value="<?php echo htmlspecialchars($postValues['requested_time'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">New Location *</label>
+                                        <select name="requested_location" id="requestedLocationSelect" class="form-select" required>
+                                            <option value="">Select Location</option>
+                                            <?php foreach ($locations as $loc): ?>
+                                            <option value="<?php echo htmlspecialchars($loc['location_name'], ENT_QUOTES, 'UTF-8'); ?>"
+                                                <?php if (($postValues['requested_location'] ?? '') === $loc['location_name']): ?>selected<?php endif; ?>>
+                                                <?php echo htmlspecialchars($loc['location_name'], ENT_QUOTES, 'UTF-8'); ?>
+                                            </option>
+                                            <?php endforeach; ?>
+                                            <option value="not-listed"
+                                                <?php if (($postValues['requested_location'] ?? '') === 'not-listed'): ?>selected<?php endif; ?>>
+                                                (Not Listed)
+                                            </option>
+                                        </select>
+                                        <div id="notListedFields" style="display:none; margin-top: 8px;">
+                                            <input type="text" name="location_name_new" id="locationNameNew"
+                                                   class="form-control form-control-sm"
+                                                   placeholder="Enter location name"
+                                                   value="<?php echo htmlspecialchars($postValues['location_name_new'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Reason for Change *</label>
+                                    <textarea name="reason" class="form-control" rows="4" required
+                                              placeholder="Please provide a detailed reason for the schedule change request..."><?php echo htmlspecialchars($postValues['reason'] ?? '', ENT_QUOTES, 'UTF-8'); ?></textarea>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Game Notes <small class="text-muted fw-normal">(admin-visible only, optional)</small></label>
+                                    <textarea name="game_notes" class="form-control" rows="3"
+                                              placeholder="Any additional context about this game for the admin..."><?php echo htmlspecialchars($postValues['game_notes'] ?? '', ENT_QUOTES, 'UTF-8'); ?></textarea>
+                                </div>
+
+                                <!-- Contact info (read-only, pre-populated, UX-DR8) -->
+                                <div class="card bg-light mb-3">
+                                    <div class="card-body">
+                                        <h6 class="card-title">
+                                            Contact Information
+                                            <a href="profile.php" class="small ms-2">Update in your profile →</a>
+                                        </h6>
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <strong>Name:</strong>
+                                                <?php echo htmlspecialchars(
+                                                    trim(($coachContact['first_name'] ?? '') . ' ' . ($coachContact['last_name'] ?? '')),
+                                                    ENT_QUOTES, 'UTF-8'
+                                                ); ?>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <strong>Phone:</strong>
+                                                <?php echo htmlspecialchars($coachContact['phone'] ?? '', ENT_QUOTES, 'UTF-8'); ?>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <strong>Email:</strong>
+                                                <?php echo htmlspecialchars($coachContact['email'] ?? '', ENT_QUOTES, 'UTF-8'); ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="text-center">
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-paper-plane"></i> Request Reschedule
+                                    </button>
+                                </div>
+                            </form>
+                            <?php endif; ?>
+
+                        </div><!-- /#reschedule-section -->
 
                     </div>
                 </div>
-                <?php endif; ?>
 
                 <!-- =========================================================
                      PENDING REQUESTS TABLE (AC6)
@@ -602,6 +619,21 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
     });
     </script>
     <script>
+    // Toggle between postpone and reschedule sections
+    (function () {
+        var radios = document.querySelectorAll('input[name="schedule-change-type"]');
+        function applySection(val) {
+            var ps = document.getElementById('postpone-section');
+            var rs = document.getElementById('reschedule-section');
+            if (ps) ps.style.display = (val === 'postpone') ? '' : 'none';
+            if (rs) rs.style.display = (val === 'reschedule') ? '' : 'none';
+        }
+        radios.forEach(function (r) {
+            r.addEventListener('change', function () { applySection(this.value); });
+        });
+    })();
+    </script>
+    <script>
     // Reveal game detail panel and request form on game selection (AC3, UX-DR5)
     function onGameSelected(select) {
         var opt    = select.options[select.selectedIndex];
@@ -624,9 +656,12 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
         if (form)   form.style.display  = '';
     }
 
-    document.getElementById('game-select').addEventListener('change', function () {
-        onGameSelected(this);
-    });
+    var gameSelectEl = document.getElementById('game-select');
+    if (gameSelectEl) {
+        gameSelectEl.addEventListener('change', function () {
+            onGameSelected(this);
+        });
+    }
 
     // Not Listed toggle
     function toggleNotListed() {
