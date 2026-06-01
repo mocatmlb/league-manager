@@ -436,3 +436,334 @@ footer {
     color: #dc3545;
     background-color: #fff9f9;
 }
+
+/* iOS auto-zoom prevention — inputs must be ≥16px so iOS Safari won't zoom on focus */
+input, select, textarea {
+    font-size: max(16px, 1em);
+}
+
+/* Score input overrides the global font-size rule with a more specific selector — intentional */
+.vs-score-input {
+    font-size: 2rem !important;
+}
+
+/* Downsize Bootstrap's lg-select and lg-input on small phones so they don't dominate the screen */
+@media (max-width: 575px) {
+    .form-select-lg, .form-control-lg {
+        font-size: 1rem;
+        padding: 0.5rem 0.75rem;
+    }
+    /* Score input game info banner: tighten font */
+    .score-game-banner {
+        font-size: 0.875rem;
+    }
+}
+
+/* ====================================================
+   Mobile-Responsive UI (Story 17.1)
+   ==================================================== */
+
+/* Score input: per-team row layout on mobile (≤480px) */
+@media (max-width: 480px) {
+    .vs-score-entry {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+    /* !important required — .vs-score-entry > div { display: flex } below has equal specificity */
+    .vs-label { display: none !important; }
+    .vs-score-entry > div {
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        padding: 0.85rem 1rem;
+        margin-bottom: 0.6rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        text-align: left;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    /* Group role label + team name in a left-side column */
+    .vs-card-text {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        flex: 1;
+        min-width: 0;
+    }
+    .vs-card-text label {
+        margin-bottom: 0;
+        font-size: 0.95rem;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        line-height: 1.2;
+    }
+    .vs-score-entry .vs-team-label {
+        display: block;
+    }
+    /* !important on all dimensions — form-control sets width:100% at same specificity */
+    .vs-score-input {
+        width: 70px !important;
+        height: 70px !important;
+        min-height: 70px;
+        font-size: 2rem !important;
+        font-weight: 700 !important;
+        flex-shrink: 0;
+        border: 2px solid #adb5bd !important;
+        border-radius: 10px !important;
+        background: #f8f9fa !important;
+        text-align: center !important;
+        padding: 0 !important;
+        line-height: 70px !important;
+    }
+    .vs-score-input:focus {
+        border-color: #2563eb !important;
+        background: #fff !important;
+        box-shadow: 0 0 0 3px rgba(37,99,235,0.15) !important;
+        outline: none;
+    }
+}
+
+/* vs-team-label hidden on desktop, shown via media query above */
+.vs-team-label { display: none; }
+
+/* Mobile schedule cards (hidden on lg+) */
+.mobile-date-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6c757d;
+    padding: 0.5rem 0 0.25rem;
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 0.5rem;
+}
+
+.mobile-game-card {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 0.6rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.mobile-game-card .team-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.mobile-game-card .score-or-vs {
+    font-weight: 700;
+    font-size: 1rem;
+    color: #2563eb;
+}
+
+.mobile-game-card .game-meta {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 0.35rem;
+}
+
+.mobile-filter-chips {
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.mobile-filter-chips::-webkit-scrollbar { display: none; }
+
+.mobile-game-card.is-filtered-out {
+    display: none !important;
+}
+
+.date-group.is-empty {
+    display: none !important;
+}
+
+.chip-btn {
+    flex-shrink: 0;
+    min-height: 44px;
+    padding: 0.3rem 0.85rem;
+    border-radius: 999px;
+    border: 1.5px solid #2563eb;
+    background: #fff;
+    color: #2563eb;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+}
+
+.chip-btn.active,
+.chip-btn:hover {
+    background: #2563eb;
+    color: #fff;
+}
+
+/* Coach hero stat tiles */
+.hero-stats {
+    flex-wrap: wrap;
+}
+
+.hero-stat {
+    flex: 1 1 60px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 8px;
+    padding: 0.5rem 0.6rem;
+    text-align: center;
+    min-width: 60px;
+}
+
+.hero-stat-value {
+    display: block;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.2;
+}
+
+.hero-stat-label {
+    display: block;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: rgba(255,255,255,0.75);
+    margin-top: 0.1rem;
+}
+
+/* Contact cards (mobile) */
+.contact-card {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 0.6rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.contact-card .contact-team {
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+.contact-card .contact-manager {
+    font-size: 0.82rem;
+    color: #6c757d;
+    margin-top: 0.1rem;
+}
+
+.contact-card .contact-links {
+    margin-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.contact-card .contact-links a {
+    font-size: 0.875rem;
+    text-decoration: none;
+}
+
+/* Collapse chevron rotation */
+.collapse-chevron {
+    transition: transform 0.2s ease;
+}
+
+[aria-expanded="false"] .collapse-chevron {
+    transform: rotate(-90deg);
+}
+
+/* Standings mobile expandable cards */
+.standings-card {
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    margin-bottom: 0.5rem;
+    overflow: hidden;
+}
+
+.standings-card-first {
+    border-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.standings-card-header {
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 0.7rem 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.standings-card-place {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #6c757d;
+    flex-shrink: 0;
+    min-width: 2rem;
+}
+
+.standings-card-first .standings-card-place {
+    color: #b45309;
+}
+
+.standings-card-team {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #212529;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.standings-card-record {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #6c757d;
+    flex-shrink: 0;
+    letter-spacing: 0.02em;
+}
+
+.standings-chevron {
+    font-size: 0.7rem;
+    color: #adb5bd;
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.standings-card-header[aria-expanded="true"] .standings-chevron {
+    transform: rotate(180deg);
+}
+
+.standings-card-detail {
+    padding: 0.5rem 0.9rem 0.75rem;
+    border-top: 1px solid #f0f0f0;
+}
+
+.standings-detail-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.82rem;
+    padding: 0.2rem 0;
+    color: #495057;
+}
+
+.standings-detail-row span:first-child {
+    color: #6c757d;
+}
+
+.standings-detail-row span:last-child {
+    font-weight: 600;
+}

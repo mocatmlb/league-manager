@@ -323,6 +323,7 @@ $baseUrl   = EnvLoader::getBaseUrl();
                                 No leagues configured yet. Add the first one above.
                             </div>
                         <?php else: ?>
+                            <div class="table-responsive">
                             <table class="table table-hover mb-0" id="active-leagues-table">
                                 <thead class="table-light">
                                     <tr>
@@ -390,6 +391,7 @@ $baseUrl   = EnvLoader::getBaseUrl();
                                     <?php endforeach; ?>
                                 </tbody>
                             </table>
+                            </div><!-- /.table-responsive -->
                         <?php endif; ?>
                     </div>
                 </div>
@@ -404,6 +406,7 @@ $baseUrl   = EnvLoader::getBaseUrl();
                         </h5>
                     </div>
                     <div class="card-body p-0">
+                        <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
                                 <tr>
@@ -435,6 +438,7 @@ $baseUrl   = EnvLoader::getBaseUrl();
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
+                        </div><!-- /.table-responsive -->
                     </div>
                 </div>
                 <?php endif; ?>

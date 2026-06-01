@@ -183,13 +183,13 @@ function getDivisionStandings($divisionId) {
     $db = Database::getInstance();
     
     $sql = "SELECT t.team_id, t.team_name, t.league_name,
-                   COUNT(CASE WHEN (g.home_team_id = t.team_id AND g.home_score > g.away_score) 
-                              OR (g.away_team_id = t.team_id AND g.away_score > g.home_score) 
+                   COUNT(CASE WHEN (g.home_team_id = t.team_id AND g.home_score > g.away_score)
+                              OR (g.away_team_id = t.team_id AND g.away_score > g.home_score)
                          THEN 1 END) as wins,
-                   COUNT(CASE WHEN (g.home_team_id = t.team_id AND g.home_score < g.away_score) 
-                              OR (g.away_team_id = t.team_id AND g.away_score < g.home_score) 
+                   COUNT(CASE WHEN (g.home_team_id = t.team_id AND g.home_score < g.away_score)
+                              OR (g.away_team_id = t.team_id AND g.away_score < g.home_score)
                          THEN 1 END) as losses,
-                   COUNT(CASE WHEN (g.home_team_id = t.team_id OR g.away_team_id = t.team_id) 
+                   COUNT(CASE WHEN (g.home_team_id = t.team_id OR g.away_team_id = t.team_id)
                               AND g.home_score = g.away_score AND g.game_status = 'Completed'
                          THEN 1 END) as ties,
                    SUM(CASE WHEN g.home_team_id = t.team_id THEN COALESCE(g.home_score, 0)
@@ -197,7 +197,10 @@ function getDivisionStandings($divisionId) {
                             ELSE 0 END) as runs_scored,
                    SUM(CASE WHEN g.home_team_id = t.team_id THEN COALESCE(g.away_score, 0)
                             WHEN g.away_team_id = t.team_id THEN COALESCE(g.home_score, 0)
-                            ELSE 0 END) as runs_against
+                            ELSE 0 END) as runs_against,
+                   (SELECT COUNT(*) FROM games g2
+                    WHERE (g2.home_team_id = t.team_id OR g2.away_team_id = t.team_id)
+                      AND g2.game_status NOT IN ('Completed', 'Cancelled')) as games_remaining
             FROM teams t
             LEFT JOIN games g ON (g.home_team_id = t.team_id OR g.away_team_id = t.team_id)
                               AND g.game_status = 'Completed'

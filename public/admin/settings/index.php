@@ -77,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 try {
                     // Update general settings
                     updateSetting('league_name', sanitize($_POST['league_name']));
+                    updateSetting('league_tagline', trim($_POST['league_tagline'] ?? ''));
                     updateSetting('contact_email', sanitize($_POST['contact_email']));
                     updateSetting('weather_hotline', sanitize($_POST['weather_hotline']));
                     updateSetting('field_maintenance_phone', sanitize($_POST['field_maintenance_phone']));
@@ -218,6 +219,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 break;
 
+            case 'update_about':
+                try {
+                    updateSetting('about_page_content', $_POST['about_page_content'] ?? '');
+                    logActivity('about_page_updated', 'About page content updated');
+                    $message = 'About page updated successfully!';
+                } catch (Exception $e) {
+                    $error = 'Error updating about page: ' . $e->getMessage();
+                }
+                break;
+
             case 'update_schedule_changes':
                 try {
                     $preHours    = max(0, (int) ($_POST['reschedule_pre_game_hours']      ?? 0));
@@ -226,10 +237,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     updateSetting('reschedule_pre_game_hours',      (string) $preHours);
                     updateSetting('reschedule_post_game_hours',     (string) $postHours);
                     updateSetting('reschedule_min_new_game_hours',  (string) $minNewHours);
+                    $autoApprove = isset($_POST['postponement_auto_approve']) && $_POST['postponement_auto_approve'] === '1' ? '1' : '0';
+                    updateSetting('postponement_auto_approve', $autoApprove);
                     logActivity('schedule_change_settings_updated', 'Schedule change window settings updated');
                     $message = 'Schedule change settings saved successfully!';
                 } catch (Exception $e) {
                     $error = 'Error saving schedule change settings: ' . $e->getMessage();
+                }
+                break;
+
+            case 'update_scr_reasons':
+                try {
+                    $type = $_POST['scr_type'] ?? '';
+                    if ($type === 'postpone') {
+                        $raw = $_POST['postpone_reasons'] ?? [];
+                        $reasons = array_values(array_filter(array_map('trim', (array) $raw)));
+                        updateSetting('scr_postpone_reasons', json_encode($reasons));
+                        logActivity('scr_reasons_updated', 'Postponement canned reasons updated (' . count($reasons) . ' entries)');
+                    } elseif ($type === 'reschedule') {
+                        $raw = $_POST['reschedule_reasons'] ?? [];
+                        $reasons = array_values(array_filter(array_map('trim', (array) $raw)));
+                        updateSetting('scr_reschedule_reasons', json_encode($reasons));
+                        logActivity('scr_reasons_updated', 'Reschedule canned reasons updated (' . count($reasons) . ' entries)');
+                    } else {
+                        throw new Exception('Unknown reason type.');
+                    }
+                    $message = 'Canned reasons saved successfully!';
+                } catch (Exception $e) {
+                    $error = 'Error saving canned reasons: ' . $e->getMessage();
                 }
                 break;
 
@@ -258,7 +293,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Get current settings
 $currentTimezone = getSetting('timezone', 'America/New_York');
 $leagueName = getSetting('league_name', 'District 8 Travel League');
+$leagueTagline = getSetting('league_tagline', '');
 $contactEmail = getSetting('contact_email', '');
+$aboutPageContent = getSetting('about_page_content', '');
 $weatherHotline = getSetting('weather_hotline', '');
 $fieldMaintenancePhone = getSetting('field_maintenance_phone', '');
 
@@ -267,9 +304,12 @@ $availableTimezones = getAvailableTimezones();
 $reschedulePreGameHours    = getSetting('reschedule_pre_game_hours',     '0');
 $reschedulePostGameHours   = getSetting('reschedule_post_game_hours',    '0');
 $rescheduleMinNewGameHours = getSetting('reschedule_min_new_game_hours', '0');
+$scrPostponeReasons  = json_decode(getSetting('scr_postpone_reasons',  '[]'), true) ?? [];
+$scrRescheduleReasons = json_decode(getSetting('scr_reschedule_reasons', '[]'), true) ?? [];
 
 // Get section title
 $sectionTitles = [
+    'about' => 'About Page',
     'general' => 'General Settings',
     'contacts' => 'League Contacts',
     'email-setup' => 'Email Setup',
@@ -354,6 +394,9 @@ $pageTitle = ($sectionTitles[$currentSection] ?? 'Settings') . " - " . APP_NAME;
                     <!-- Section Content -->
                     <?php
                     switch ($currentSection):
+                        case 'about':
+                            include 'sections/about.php';
+                            break;
                         case 'general':
                             include 'sections/general.php';
                             break;

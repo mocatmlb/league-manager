@@ -191,7 +191,64 @@ $pageTitle = "Standings - " . APP_NAME;
                             <?php if (empty($standings)): ?>
                                 <p class="text-muted">No teams or games recorded for this division yet.</p>
                             <?php else: ?>
-                                <div class="table-responsive">
+                                <!-- Mobile standings cards (hidden on lg+) -->
+                                <div class="d-lg-none">
+                                    <?php
+                                    static $standingCardIdx = 0;
+                                    $place = 1;
+                                    foreach ($standings as $team):
+                                        $cardId = 'sc-' . $standingCardIdx++;
+                                        $teamLabel = sanitize(strtoupper($team['team_name'] ?: $team['league_name']));
+                                        $isFirst = ($place === 1);
+                                        $totalGames = (int)$team['wins'] + (int)$team['losses'] + (int)$team['ties'];
+                                        if ($totalGames === 0) {
+                                            $wpStr = '—';
+                                        } elseif ($team['win_percentage'] >= 1.0) {
+                                            $wpStr = '1.000';
+                                        } else {
+                                            $wpStr = substr(number_format((float)$team['win_percentage'], 3), 1);
+                                        }
+                                    ?>
+                                    <div class="standings-card<?php echo $isFirst ? ' standings-card-first' : ''; ?>">
+                                        <button class="standings-card-header collapsed"
+                                                type="button"
+                                                data-bs-toggle="collapse"
+                                                data-bs-target="#<?php echo $cardId; ?>"
+                                                aria-expanded="false">
+                                            <span class="standings-card-place">#<?php echo $place; ?><?php if ($isFirst): ?>&nbsp;👑<?php endif; ?></span>
+                                            <span class="standings-card-team"><?php echo $teamLabel; ?></span>
+                                            <span class="standings-card-record"><?php echo $team['wins']; ?>–<?php echo $team['losses']; ?>–<?php echo $team['ties']; ?></span>
+                                            <i class="fas fa-chevron-down standings-chevron"></i>
+                                        </button>
+                                        <div class="collapse" id="<?php echo $cardId; ?>">
+                                            <div class="standings-card-detail">
+                                                <div class="standings-detail-row">
+                                                    <span>Win %</span>
+                                                    <span><?php echo $wpStr; ?></span>
+                                                </div>
+                                                <div class="standings-detail-row">
+                                                    <span>Games Back</span>
+                                                    <span><?php echo $team['games_back'] == 0 ? '—' : number_format($team['games_back'], 1); ?></span>
+                                                </div>
+                                                <div class="standings-detail-row">
+                                                    <span>Games Remaining</span>
+                                                    <span><?php echo (int)$team['games_remaining']; ?></span>
+                                                </div>
+                                                <div class="standings-detail-row">
+                                                    <span>Runs Scored</span>
+                                                    <span><?php echo $team['runs_scored']; ?></span>
+                                                </div>
+                                                <div class="standings-detail-row">
+                                                    <span>Runs Against</span>
+                                                    <span><?php echo $team['runs_against']; ?></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <?php $place++; endforeach; ?>
+                                </div>
+                                <!-- Desktop table (hidden on mobile) -->
+                                <div class="table-responsive d-none d-lg-block">
                                     <table class="table table-striped standings-table">
                                         <thead>
                                             <tr>
@@ -206,9 +263,9 @@ $pageTitle = "Standings - " . APP_NAME;
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <?php 
+                                            <?php
                                             $place = 1;
-                                            foreach ($standings as $team): 
+                                            foreach ($standings as $team):
                                                 $placeClass = '';
                                                 if ($place === 1) {
                                                     $placeClass = 'place-1';
@@ -242,9 +299,9 @@ $pageTitle = "Standings - " . APP_NAME;
                                                 <td><?php echo $team['runs_scored']; ?></td>
                                                 <td><?php echo $team['runs_against']; ?></td>
                                             </tr>
-                                            <?php 
+                                            <?php
                                             $place++;
-                                            endforeach; 
+                                            endforeach;
                                             ?>
                                         </tbody>
                                     </table>

@@ -97,3 +97,16 @@ These are race conditions, missing transactions, and performance issues. See [10
 - **`getSetting()` performance in `getEligibleGames()`** — `getSetting('reschedule_pre_game_hours')`, `getSetting('reschedule_post_game_hours')`, and `getSetting('timezone')` are called once per `getEligibleGames()` invocation (not per game), but `getSetting()` issues a DB query every call with no caching. Pre-existing pattern across the app; a settings cache would benefit multiple call sites.
 - **Invalid timezone string from admin settings could crash `DateTimeZone` constructor** — If an admin saves a nonsense timezone value, `new DateTimeZone(getSetting('timezone'))` throws, bubbling out as a generic error. Pre-existing risk throughout the app (timezone is used everywhere). Mitigation: validate the timezone on save in the system-timezone settings section.
 - **Malformed `game_date` string (non-NULL, non-ISO) crashes `DateTime` constructor in `enforceSubmissionWindows()`** — Pre-existing data quality risk; a corrupt schedule row would cause an unhandled exception (caught by generic `Throwable` handler in the controller, so no crash, but error message is misleading). Fix: wrap `DateTime` construction in a try/catch and throw a `TeamScopeViolationException` with a clear message.
+
+## Deferred from: code review of 17-1-mobile-responsive-ui.md (2026-05-31)
+
+- **Admin tables outside story file list lack `.table-responsive` (strict AC7)** — User confirmed strict AC7 applies: `admin/games/index.php`, `admin/divisions/index.php`, `admin/users/invitations.php`, and `admin/settings/sections/*` tables still need wraps. Not fixed in review pass — follow-up before story 17-1 is done.
+
+## Deferred from: code review of 18-1-coach-game-postponement.md (2026-05-31)
+
+- Missing notification — sendNotification placeholder for Story 18-2. Intentionally deferred to follow-up story. [includes/RescheduleService.php]
+
+## Deferred from: spec-scr-canned-reasons (2026-06-01)
+
+- **`scrAddReason()` uses innerHTML with caller-supplied string** — `public/admin/settings/sections/schedule-changes.php`. Call sites are hardcoded string literals so there is no live XSS vector. Consider switching to `createElement`/`setAttribute` if the function is ever generalized.
+- **`INSERT IGNORE` can't reset canned reason defaults** — `database/migrations/036_add_scr_canned_reasons.sql`. An admin who accidentally clears all reasons via the UI cannot recover defaults from a migration re-run. Could add a separate "reset to defaults" button in the settings UI if needed.

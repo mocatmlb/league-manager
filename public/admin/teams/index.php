@@ -604,6 +604,7 @@ $pageTitle = "Teams Management - " . APP_NAME;
                         <?php if (empty($pendingRegistrations)): ?>
                             <p class="p-3 mb-0 text-muted">No pending registrations.</p>
                         <?php else: ?>
+                            <div class="table-responsive">
                             <table class="table table-hover mb-0">
                                 <thead>
                                     <tr>
@@ -705,6 +706,7 @@ $pageTitle = "Teams Management - " . APP_NAME;
                                 <?php endforeach; ?>
                                 </tbody>
                             </table>
+                            </div><!-- /.table-responsive -->
                         <?php endif; ?>
                     </div>
                 </div>
@@ -724,6 +726,7 @@ $pageTitle = "Teams Management - " . APP_NAME;
                             <?php if (empty($rejectedRegistrations)): ?>
                                 <p class="p-3 mb-0 text-muted">No rejected registrations.</p>
                             <?php else: ?>
+                                <div class="table-responsive">
                                 <table class="table table-hover mb-0">
                                     <thead>
                                         <tr>
@@ -779,6 +782,7 @@ $pageTitle = "Teams Management - " . APP_NAME;
                                     <?php endforeach; ?>
                                     </tbody>
                                 </table>
+                                </div><!-- /.table-responsive -->
                             <?php endif; ?>
                         </div>
                     </div>
@@ -858,6 +862,7 @@ $pageTitle = "Teams Management - " . APP_NAME;
                 <!-- Teams Table -->
                 <div class="card">
                     <div class="card-body">
+                        <div class="table-responsive">
                         <table id="teamsTable" class="table table-striped">
                             <thead>
                                 <tr>
@@ -921,6 +926,7 @@ $pageTitle = "Teams Management - " . APP_NAME;
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
+                        </div><!-- /.table-responsive -->
                     </div>
                 </div>
             </div>

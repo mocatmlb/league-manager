@@ -41,16 +41,25 @@ class ScoreService {
         $this->enforceTeamScopeWithIds($teamIds, $game);
         $this->enforceTimeGate($game);
 
+        $submitter = $this->db->fetchOne(
+            'SELECT username FROM users WHERE id = :id',
+            ['id' => $userId]
+        );
+        $submittedBy = ($submitter['username'] ?? null) ?: (string) $userId;
+
         $this->db->query(
             'UPDATE games
              SET home_score = :home_score, away_score = :away_score,
-                 game_status = :status, modified_date = NOW()
+                 game_status = :status, modified_date = NOW(),
+                 score_submitted_at = UTC_TIMESTAMP(),
+                 score_submitted_by = :submitted_by
              WHERE game_id = :game_id',
             [
-                'home_score' => $homeScore,
-                'away_score' => $awayScore,
-                'status'     => 'Completed',
-                'game_id'    => $gameId,
+                'home_score'   => $homeScore,
+                'away_score'   => $awayScore,
+                'status'       => 'Completed',
+                'submitted_by' => $submittedBy,
+                'game_id'      => $gameId,
             ]
         );
 
@@ -90,6 +99,7 @@ class ScoreService {
         $game = $this->loadGame($gameId);
         $this->enforceTeamScopeWithIds($teamIds, $game);
         $this->enforceCompletedForEdit($game);
+        $this->enforceEditWindow($game);
         $this->enforceTimeGate($game);
 
         $expectedModifiedDate = $game['modified_date'] ?? null;
@@ -114,6 +124,14 @@ class ScoreService {
             throw new ScoreConflictException(
                 "Game {$gameId} was modified by a concurrent request. Please reload and try again."
             );
+        }
+
+        try {
+            if (function_exists('sendNotification')) {
+                sendNotification('onGameScoreUpdate', $gameId);
+            }
+        } catch (Throwable $e) {
+            error_log('[ScoreService] Admin notification failed — game_id=' . $gameId . ' error=' . $e->getMessage());
         }
 
         ActivityLogger::log('score.edited', [
@@ -182,6 +200,7 @@ class ScoreService {
              JOIN teams at ON g.away_team_id = at.team_id
              WHERE (g.home_team_id IN ({$placeholders}) OR g.away_team_id IN ({$placeholders}))
                AND g.game_status = 'Completed'
+               AND g.score_submitted_at >= UTC_TIMESTAMP() - INTERVAL 24 HOUR
              ORDER BY g.modified_date DESC
              LIMIT 20",
             array_merge(array_values($teamIds), array_values($teamIds))
@@ -233,6 +252,22 @@ class ScoreService {
         if (($game['game_status'] ?? '') !== 'Completed') {
             throw new GameNotEligibleException(
                 "Game {$game['game_id']} cannot be edited until it is marked completed"
+            );
+        }
+    }
+
+    private function enforceEditWindow(array $game): void {
+        $submittedAt = $game['score_submitted_at'] ?? null;
+        if ($submittedAt === null) {
+            throw new GameNotEligibleException(
+                "Game {$game['game_id']} edit window has closed"
+            );
+        }
+        $deadline = new DateTime($submittedAt, new DateTimeZone('UTC'));
+        $deadline->modify('+24 hours');
+        if (new DateTime('now', new DateTimeZone('UTC')) > $deadline) {
+            throw new GameNotEligibleException(
+                "Game {$game['game_id']} edit window has closed"
             );
         }
     }

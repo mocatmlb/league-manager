@@ -184,3 +184,8 @@
         font-size: 1.5rem;
     }
 }
+
+/* iOS auto-zoom prevention */
+input, select, textarea {
+    font-size: max(16px, 1em);
+}

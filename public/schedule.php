@@ -43,7 +43,7 @@ $sql = "SELECT g.game_number, g.game_status, g.home_score, g.away_score,
                loc.location_name as loc_name, loc.address, loc.city, loc.state, loc.zip_code,
                ht.team_name as home_team, ht.league_name as home_league,
                at.team_name as away_team, at.league_name as away_league,
-               d.division_name, p.program_name, se.season_name
+               d.division_name, p.program_name, p.program_code, se.season_name, se.season_year
         FROM games g
         JOIN schedules s ON g.game_id = s.game_id
         LEFT JOIN locations loc ON s.location_id = loc.location_id
@@ -57,6 +57,34 @@ $sql = "SELECT g.game_number, g.game_status, g.home_score, g.away_score,
         ORDER BY s.game_date ASC, s.game_time ASC, s.location ASC";
 
 $games = $db->fetchAll($sql, $filterSql['params']);
+
+// Pre-group games by date and collect unique filter values for mobile chips
+$mobileGamesByDate = [];
+$mobileChipPrograms = [];
+$mobileChipSeasons = [];
+$mobileChipDivisions = [];
+foreach ($games as $game) {
+    $date = $game['game_date'];
+    if (!isset($mobileGamesByDate[$date])) {
+        $mobileGamesByDate[$date] = [];
+    }
+    $mobileGamesByDate[$date][] = $game;
+
+    $progName = trim((string) ($game['program_name'] ?? ''));
+    if ($progName !== '' && !in_array($progName, $mobileChipPrograms, true)) {
+        $mobileChipPrograms[] = $progName;
+    }
+
+    $seasonLabel = trim((string) (($game['season_name'] ?? '') . ' ' . ($game['season_year'] ?? '')));
+    if ($seasonLabel !== '' && !in_array($seasonLabel, $mobileChipSeasons, true)) {
+        $mobileChipSeasons[] = $seasonLabel;
+    }
+
+    $divName = $game['division_name'] ?? '';
+    if ($divName !== '' && !in_array($divName, $mobileChipDivisions, true)) {
+        $mobileChipDivisions[] = $divName;
+    }
+}
 
 function buildMapsUrl($game) {
     $parts = [];
@@ -98,7 +126,8 @@ $pageTitle = "Schedule - " . APP_NAME;
             <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h1>Game Schedule</h1>
-                    <div class="btn-group" role="group">
+                    <!-- Table/Calendar toggle: desktop only; mobile uses chip filters below -->
+                    <div class="btn-group d-none d-lg-flex" role="group">
                         <button type="button" class="btn btn-outline-primary active" id="tableViewBtn">
                             Table View
                         </button>
@@ -110,8 +139,8 @@ $pageTitle = "Schedule - " . APP_NAME;
             </div>
         </div>
 
-        <!-- Filters -->
-        <div class="card mb-4">
+        <!-- Filters (desktop only) -->
+        <div class="card mb-4 d-none d-lg-block">
             <div class="card-body">
                 <form id="filterForm" method="get" class="row g-3">
                     <!-- Program Filter -->
@@ -159,8 +188,105 @@ $pageTitle = "Schedule - " . APP_NAME;
             </div>
         </div>
 
-        <!-- Table View -->
-        <div id="tableView">
+        <!-- Mobile schedule: chips + game cards (hidden on lg+) -->
+        <div id="mobileSchedule" class="d-lg-none">
+            <!-- Filter chips (program / season / division) -->
+            <?php if (!empty($mobileChipPrograms)): ?>
+                <div class="small text-muted text-uppercase mb-1" style="font-size:0.7rem;letter-spacing:0.05em;">Program</div>
+                <div class="mobile-filter-chips mb-2 d-flex gap-2 overflow-auto pb-1">
+                    <button type="button" class="chip-btn active" data-dimension="program" data-filter="all">All</button>
+                    <?php foreach ($mobileChipPrograms as $chipProg): ?>
+                        <button type="button" class="chip-btn" data-dimension="program" data-filter="<?php echo htmlspecialchars($chipProg, ENT_QUOTES, 'UTF-8'); ?>">
+                            <?php echo htmlspecialchars($chipProg, ENT_QUOTES, 'UTF-8'); ?>
+                        </button>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+            <?php if (!empty($mobileChipSeasons)): ?>
+                <div class="small text-muted text-uppercase mb-1" style="font-size:0.7rem;letter-spacing:0.05em;">Season</div>
+                <div class="mobile-filter-chips mb-2 d-flex gap-2 overflow-auto pb-1">
+                    <button type="button" class="chip-btn active" data-dimension="season" data-filter="all">All</button>
+                    <?php foreach ($mobileChipSeasons as $chipSeason): ?>
+                        <button type="button" class="chip-btn" data-dimension="season" data-filter="<?php echo htmlspecialchars($chipSeason, ENT_QUOTES, 'UTF-8'); ?>">
+                            <?php echo htmlspecialchars($chipSeason, ENT_QUOTES, 'UTF-8'); ?>
+                        </button>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+            <?php if (!empty($mobileChipDivisions)): ?>
+                <div class="small text-muted text-uppercase mb-1" style="font-size:0.7rem;letter-spacing:0.05em;">Division</div>
+                <div class="mobile-filter-chips mb-3 d-flex gap-2 overflow-auto pb-1">
+                    <button type="button" class="chip-btn active" data-dimension="division" data-filter="all">All</button>
+                    <?php foreach ($mobileChipDivisions as $chipDiv): ?>
+                        <button type="button" class="chip-btn" data-dimension="division" data-filter="<?php echo htmlspecialchars($chipDiv, ENT_QUOTES, 'UTF-8'); ?>">
+                            <?php echo htmlspecialchars($chipDiv, ENT_QUOTES, 'UTF-8'); ?>
+                        </button>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+
+            <?php if (empty($games)): ?>
+                <div class="alert alert-info">No games found. Try adjusting your filters.</div>
+            <?php else: ?>
+                <?php foreach ($mobileGamesByDate as $gameDate => $dateGames): ?>
+                    <div class="date-group">
+                        <div class="mobile-date-label"><?php echo htmlspecialchars(date('l, F j, Y', strtotime($gameDate)), ENT_QUOTES, 'UTF-8'); ?></div>
+                        <?php foreach ($dateGames as $mg): ?>
+                            <?php
+                            $mgProgram = htmlspecialchars(trim((string) ($mg['program_name'] ?? '')), ENT_QUOTES, 'UTF-8');
+                            $mgSeason = htmlspecialchars(trim((string) (($mg['season_name'] ?? '') . ' ' . ($mg['season_year'] ?? ''))), ENT_QUOTES, 'UTF-8');
+                            $mgDiv = htmlspecialchars($mg['division_name'] ?? '', ENT_QUOTES, 'UTF-8');
+                            $mgStatus = $mg['game_status'];
+                            $mgAway = strtoupper($mg['away_team'] ?: $mg['away_league']);
+                            $mgHome = strtoupper($mg['home_team'] ?: $mg['home_league']);
+                            $mgLoc = $mg['loc_name'] ?: $mg['location'];
+                            $mgTime = formatTime($mg['game_time']);
+                            $mgStatusClass = '';
+                            switch ($mgStatus) {
+                                case 'Active': $mgStatusClass = 'status-active'; break;
+                                case 'Completed': $mgStatusClass = 'status-completed'; break;
+                                case 'Cancelled': $mgStatusClass = 'status-cancelled'; break;
+                                case 'Scheduled': $mgStatusClass = 'status-scheduled'; break;
+                                case 'Created': $mgStatusClass = 'status-created'; break;
+                                case 'Pending Change': $mgStatusClass = 'status-pending-change'; break;
+                                case 'Postponed': $mgStatusClass = 'status-postponed'; break;
+                                default: $mgStatusClass = 'status-default'; break;
+                            }
+                            ?>
+                            <div class="mobile-game-card" data-program="<?php echo $mgProgram; ?>" data-season="<?php echo $mgSeason; ?>" data-division="<?php echo $mgDiv; ?>" data-status="<?php echo htmlspecialchars($mgStatus, ENT_QUOTES, 'UTF-8'); ?>">
+                                <div class="team-row">
+                                    <span><?php echo htmlspecialchars($mgAway, ENT_QUOTES, 'UTF-8'); ?></span>
+                                    <span class="score-or-vs">
+                                        <?php if ($mgStatus === 'Completed' && $mg['away_score'] !== null): ?>
+                                            <?php echo (int)$mg['away_score']; ?>
+                                        <?php else: ?>
+                                            &mdash;
+                                        <?php endif; ?>
+                                    </span>
+                                </div>
+                                <div class="team-row mt-1">
+                                    <span><?php echo htmlspecialchars($mgHome, ENT_QUOTES, 'UTF-8'); ?></span>
+                                    <span class="score-or-vs">
+                                        <?php if ($mgStatus === 'Completed' && $mg['home_score'] !== null): ?>
+                                            <?php echo (int)$mg['home_score']; ?>
+                                        <?php else: ?>
+                                            vs
+                                        <?php endif; ?>
+                                    </span>
+                                </div>
+                                <div class="game-meta d-flex justify-content-between align-items-center mt-2">
+                                    <span><?php echo htmlspecialchars($mgTime . ($mgLoc ? ' · ' . $mgLoc : ''), ENT_QUOTES, 'UTF-8'); ?></span>
+                                    <span class="badge <?php echo $mgStatusClass; ?>"><?php echo htmlspecialchars($mgStatus, ENT_QUOTES, 'UTF-8'); ?></span>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+
+        <!-- Table View (desktop only) -->
+        <div id="tableView" class="d-none d-lg-block">
             <div class="card">
                 <div class="card-body">
                     <?php if (empty($games)): ?>
@@ -182,7 +308,6 @@ $pageTitle = "Schedule - " . APP_NAME;
                                         <th>Score</th>
                                         <th>Status</th>
                                         <th>Program</th>
-                                        <th>Division</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -252,8 +377,7 @@ $pageTitle = "Schedule - " . APP_NAME;
                                                 <?php echo sanitize($game['game_status']); ?>
                                             </span>
                                         </td>
-                                        <td><?php echo sanitize($game['program_name']); ?></td>
-                                        <td><?php echo sanitize($game['division_name']); ?></td>
+                                        <td><?php echo sanitize($game['program_code']); ?></td>
                                     </tr>
                                     <?php endforeach; ?>
                                 </tbody>
@@ -313,16 +437,16 @@ $pageTitle = "Schedule - " . APP_NAME;
                 }
             });
 
-            // View toggle functionality
+            // View toggle (desktop only — buttons are hidden on mobile via d-none d-lg-flex)
             $('#tableViewBtn').click(function() {
-                $('#tableView').show();
+                $('#tableView').removeClass('d-none').show();
                 $('#calendarView').hide();
                 $(this).addClass('active');
                 $('#calendarViewBtn').removeClass('active');
             });
 
             $('#calendarViewBtn').click(function() {
-                $('#tableView').hide();
+                $('#tableView').addClass('d-none').hide();
                 $('#calendarView').show();
                 $(this).addClass('active');
                 $('#tableViewBtn').removeClass('active');
@@ -359,6 +483,46 @@ $pageTitle = "Schedule - " . APP_NAME;
                 $divisionSelect.prop('disabled', !seasonId);
                 $divisionSelect.val('');
             }
+
+            // Mobile chip filtering (client-side: program + season + division)
+            var mobileFilters = { program: 'all', season: 'all', division: 'all' };
+
+            function applyMobileFilters() {
+                document.querySelectorAll('.mobile-game-card').forEach(function(card) {
+                    var show = true;
+                    if (mobileFilters.program !== 'all' && card.dataset.program !== mobileFilters.program) {
+                        show = false;
+                    }
+                    if (mobileFilters.season !== 'all' && card.dataset.season !== mobileFilters.season) {
+                        show = false;
+                    }
+                    if (mobileFilters.division !== 'all' && card.dataset.division !== mobileFilters.division) {
+                        show = false;
+                    }
+                    card.classList.toggle('is-filtered-out', !show);
+                });
+                document.querySelectorAll('.date-group').forEach(function(group) {
+                    var visible = group.querySelectorAll('.mobile-game-card:not(.is-filtered-out)').length;
+                    group.classList.toggle('is-empty', visible === 0);
+                });
+            }
+
+            document.querySelectorAll('#mobileSchedule .chip-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var dimension = this.dataset.dimension;
+                    var filter = this.dataset.filter;
+                    if (!dimension) {
+                        return;
+                    }
+                    var row = this.closest('.mobile-filter-chips');
+                    if (row) {
+                        row.querySelectorAll('.chip-btn').forEach(function(b) { b.classList.remove('active'); });
+                    }
+                    this.classList.add('active');
+                    mobileFilters[dimension] = filter;
+                    applyMobileFilters();
+                });
+            });
         });
     </script>
 </body>

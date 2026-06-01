@@ -338,6 +338,203 @@ class RescheduleService {
     }
 
     /**
+     * Return games eligible for coach-initiated postponement for the coach's assigned teams.
+     * Excludes Completed, Cancelled, already-Postponed, scored games, and games with an
+     * existing Pending postponement submitted by the same coach.
+     *
+     * @return array
+     */
+    public function getEligiblePostponementGames(int $userId): array {
+        $teams = TeamScope::getScopedTeams($userId);
+        if (empty($teams)) {
+            return [];
+        }
+
+        $teamIds    = array_map('intval', array_column($teams, 'team_id'));
+        $homeParams = [];
+        $awayParams = [];
+        foreach ($teamIds as $i => $id) {
+            $homeParams['h' . $i] = $id;
+            $awayParams['a' . $i] = $id;
+        }
+        $homePlaceholders = implode(',', array_map(fn($k) => ':' . $k, array_keys($homeParams)));
+        $awayPlaceholders = implode(',', array_map(fn($k) => ':' . $k, array_keys($awayParams)));
+
+        $games = $this->db->fetchAll(
+            "SELECT g.*, s.game_date, s.game_time, s.location,
+                    ht.team_name AS home_team_name, at.team_name AS away_team_name
+             FROM games g
+             LEFT JOIN schedules s ON g.game_id = s.game_id
+             JOIN teams ht ON g.home_team_id = ht.team_id
+             JOIN teams at ON g.away_team_id = at.team_id
+             WHERE (g.home_team_id IN ({$homePlaceholders}) OR g.away_team_id IN ({$awayPlaceholders}))
+               AND g.game_status NOT IN ('Completed', 'Cancelled', 'Postponed', 'Pending Change')
+               AND g.home_score IS NULL AND g.away_score IS NULL
+               AND NOT EXISTS (
+                 SELECT 1 FROM schedule_change_requests scr
+                 WHERE scr.game_id = g.game_id
+                   AND scr.submitted_by_user_id = :uid
+                   AND scr.request_type = 'Postponement'
+                   AND scr.request_status = 'Pending'
+               )",
+            array_merge(['uid' => $userId], $homeParams, $awayParams)
+        );
+
+        return array_values(array_filter($games, function ($g) {
+            return isset($g['game_date']) && $g['game_date'] !== null && $g['game_date'] !== '';
+        }));
+    }
+
+    /**
+     * Submit a coach-initiated postponement for a game owned by the coach's team.
+     *
+     * @return int  New SCR request ID
+     * @throws TeamScopeViolationException  Game not found, wrong team, or ineligible status
+     * @throws InvalidArgumentException    Blank reason
+     */
+    public function submitPostponement(int $userId, int $gameId, string $reason): int {
+        if ($userId <= 0 || $gameId <= 0) {
+            throw new TeamScopeViolationException('Invalid user or game');
+        }
+        if (trim($reason) === '') {
+            throw new InvalidArgumentException('Reason is required');
+        }
+
+        $teams   = TeamScope::getScopedTeams($userId);
+        $teamIds = array_map('intval', array_column($teams, 'team_id'));
+
+        $game = $this->db->fetchOne(
+            'SELECT g.*, s.game_date, s.game_time, s.location
+             FROM games g
+             LEFT JOIN schedules s ON g.game_id = s.game_id
+             WHERE g.game_id = :game_id',
+            ['game_id' => $gameId]
+        );
+
+        if (empty($game)) {
+            throw new TeamScopeViolationException('Game not found');
+        }
+
+        $homeId = (int) $game['home_team_id'];
+        $awayId = (int) $game['away_team_id'];
+        if (!in_array($homeId, $teamIds, true) && !in_array($awayId, $teamIds, true)) {
+            throw new TeamScopeViolationException('Game does not involve a team owned by user');
+        }
+
+        if (in_array($game['game_status'], ['Completed', 'Cancelled', 'Postponed', 'Pending Change'], true)
+            || (($game['home_score'] ?? null) !== null || ($game['away_score'] ?? null) !== null)) {
+            throw new TeamScopeViolationException('Game is not eligible for postponement');
+        }
+
+        $user = $this->db->fetchOne(
+            'SELECT first_name, last_name, phone FROM users WHERE id = :id',
+            ['id' => $userId]
+        );
+        $requestedBy = '';
+        if (!empty($user)) {
+            $phone = !empty($user['phone']) ? $user['phone'] : 'no phone';
+            $requestedBy = trim($user['first_name'] . ' ' . $user['last_name'])
+                . ' (' . $phone . ')';
+        }
+
+        $autoApprove = (bool) getSetting('postponement_auto_approve', '1');
+
+        // Check for existing Pending postponement from this user
+        $existing = $this->db->fetchOne(
+            "SELECT request_id FROM schedule_change_requests
+             WHERE game_id = :gid AND submitted_by_user_id = :uid
+               AND request_type = 'Postponement' AND request_status = 'Pending'",
+            ['gid' => $gameId, 'uid' => $userId]
+        );
+        if (!empty($existing)) {
+            throw new TeamScopeViolationException('A pending postponement already exists for this game');
+        }
+
+        $requestId = 0;
+        $this->db->beginTransaction();
+        try {
+            if ($autoApprove) {
+                $requestId = (int) $this->db->insert('schedule_change_requests', [
+                    'game_id'              => $gameId,
+                    'submitted_by_user_id' => $userId,
+                    'requested_by'         => $requestedBy,
+                    'request_type'         => 'Postponement',
+                    'request_status'       => 'Approved',
+                    'original_date'        => $game['game_date'] ?? null,
+                    'original_time'        => $game['game_time'] ?? null,
+                    'original_location'    => $game['location'] ?? null,
+                    'requested_date'       => null,
+                    'requested_time'       => null,
+                    'requested_location'   => null,
+                    'reason'               => $reason,
+                ]);
+
+                $this->db->update('games', [
+                    'game_status'   => 'Postponed',
+                    'modified_date' => date('Y-m-d H:i:s'),
+                ], "game_id = :gid AND game_status NOT IN ('Completed', 'Cancelled')", ['gid' => $gameId]);
+
+                $this->db->update('schedule_history', ['is_current' => 0],
+                    'game_id = :gid AND is_current = 1', ['gid' => $gameId]);
+
+                $maxVersion  = $this->db->fetchOne(
+                    'SELECT MAX(version_number) AS max_ver FROM schedule_history WHERE game_id = ?',
+                    [$gameId]
+                );
+                $nextVersion = ($maxVersion['max_ver'] ?? 0) + 1;
+
+                $this->db->insert('schedule_history', [
+                    'game_id'           => $gameId,
+                    'version_number'    => $nextVersion,
+                    'schedule_type'     => 'Changed',
+                    'game_date'         => $game['game_date'] ?? null,
+                    'game_time'         => $game['game_time'] ?? null,
+                    'location'          => $game['location'] ?? null,
+                    'change_request_id' => $requestId,
+                    'is_current'        => 1,
+                    'notes'             => 'Game postponed by coach: ' . $reason,
+                ]);
+
+                ActivityLogger::log('game.postponed', [
+                    'user_id'    => $userId,
+                    'game_id'    => $gameId,
+                    'request_id' => $requestId,
+                ]);
+            } else {
+                $requestId = (int) $this->db->insert('schedule_change_requests', [
+                    'game_id'              => $gameId,
+                    'submitted_by_user_id' => $userId,
+                    'requested_by'         => $requestedBy,
+                    'request_type'         => 'Postponement',
+                    'request_status'       => 'Pending',
+                    'original_date'        => $game['game_date'] ?? null,
+                    'original_time'        => $game['game_time'] ?? null,
+                    'original_location'    => $game['location'] ?? null,
+                    'requested_date'       => null,
+                    'requested_time'       => null,
+                    'requested_location'   => null,
+                    'reason'               => $reason,
+                ]);
+
+                ActivityLogger::log('game.postponement_requested', [
+                    'user_id'    => $userId,
+                    'game_id'    => $gameId,
+                    'request_id' => $requestId,
+                ]);
+            }
+
+            $this->db->commit();
+        } catch (Throwable $e) {
+            $this->db->rollback();
+            throw $e;
+        }
+
+        // Story 18-2: sendNotification('onSchedulePostponed') fires here for auto-approve path
+
+        return $requestId;
+    }
+
+    /**
      * Return all reschedule requests submitted by the given coach, newest first.
      *
      * @return array

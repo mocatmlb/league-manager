@@ -198,6 +198,7 @@ $pageTitle = 'User Management — ' . APP_NAME;
         <?php else: ?>
             <div class="card">
                 <div class="card-body p-0">
+                    <div class="table-responsive">
                     <table class="table table-sm table-striped table-hover mb-0">
                         <thead class="table-light">
                             <tr>
@@ -238,6 +239,7 @@ $pageTitle = 'User Management — ' . APP_NAME;
                             <?php endforeach; ?>
                         </tbody>
                     </table>
+                    </div><!-- /.table-responsive -->
                 </div>
             </div>
 

@@ -50,15 +50,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'edit_request':
                 try {
                     $requestId = (int)$_POST['request_id'];
+                    $existingRequest = $db->fetchOne("SELECT request_type FROM schedule_change_requests WHERE request_id = ?", [$requestId]);
+                    $isPostponement = $existingRequest && ($existingRequest['request_type'] ?? '') === 'Postponement';
                     
-                    // Update the schedule change request
-                    $updateData = [
-                        'requested_date' => sanitize($_POST['requested_date']),
-                        'requested_time' => sanitize($_POST['requested_time']),
-                        'requested_location' => sanitize($_POST['requested_location']),
-                        'reason' => sanitize($_POST['reason']),
-                        'modified_date' => date('Y-m-d H:i:s')
-                    ];
+                    $updateData = ['reason' => sanitize($_POST['reason']), 'modified_date' => date('Y-m-d H:i:s')];
+                    if (!$isPostponement) {
+                        $updateData['requested_date'] = sanitize($_POST['requested_date']);
+                        $updateData['requested_time'] = sanitize($_POST['requested_time']);
+                        $updateData['requested_location'] = sanitize($_POST['requested_location']);
+                    }
                     
                     $db->update('schedule_change_requests', $updateData, 'request_id = :request_id', ['request_id' => $requestId]);
                     
@@ -81,71 +81,105 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'approve_change':
                 try {
                     $requestId = (int)$_POST['request_id'];
-                    
+
                     // Get the change request details
                     $request = $db->fetchOne("SELECT * FROM schedule_change_requests WHERE request_id = ?", [$requestId]);
-                    
+
                     if ($request) {
                         $db->beginTransaction();
-                        
-                        // Mark current schedule version as no longer current
-                        $db->update('schedule_history', [
-                            'is_current' => 0
-                        ], 'game_id = :game_id AND is_current = 1', ['game_id' => $request['game_id']]);
-                        
-                        // Get the next version number
-                        $maxVersion = $db->fetchOne("SELECT MAX(version_number) as max_ver FROM schedule_history WHERE game_id = ?", [$request['game_id']]);
-                        $nextVersion = ($maxVersion['max_ver'] ?? 0) + 1;
-                        
-                        // Create new schedule history entry
-                        $db->insert('schedule_history', [
-                            'game_id' => $request['game_id'],
-                            'version_number' => $nextVersion,
-                            'schedule_type' => 'Changed',
-                            'game_date' => $request['requested_date'],
-                            'game_time' => $request['requested_time'],
-                            'location' => $request['requested_location'],
-                            'change_request_id' => $requestId,
-                            'created_by_type' => 'Admin',
-                            'created_by_id' => $currentUser['id'],
-                            'is_current' => 1,
-                            'notes' => 'Schedule changed via request #' . $requestId . 
-                                      (($_POST['admin_notes'] ?? '') ? '. Admin notes: ' . sanitize($_POST['admin_notes']) : '')
-                        ]);
-                        
-                        // Update the main schedules table for backward compatibility
-                        $db->update('schedules', [
-                            'game_date' => $request['requested_date'],
-                            'game_time' => $request['requested_time'],
-                            'location' => $request['requested_location'],
-                            'modified_date' => date('Y-m-d H:i:s')
-                        ], 'game_id = :game_id', ['game_id' => $request['game_id']]);
-                        
-                        // Update request status
-                        $db->update('schedule_change_requests', [
-                            'request_status' => 'Approved',
-                            'reviewed_by' => $currentUser['id'],
-                            'reviewed_at' => date('Y-m-d H:i:s'),
-                            'review_notes' => sanitize($_POST['admin_notes'] ?? '')
-                        ], 'request_id = :request_id', ['request_id' => $requestId]);
-                        
-                        // Update game status to Scheduled (if not Cancelled or Completed)
-                        $gameStatus = $db->fetchOne("SELECT game_status FROM games WHERE game_id = ?", [$request['game_id']]);
-                        if ($gameStatus && $gameStatus['game_status'] === 'Pending Change') {
+
+                        if ($request['request_type'] === 'Postponement') {
+                            // Postponement approval — mark game Postponed, no date/schedule change
+                            $db->update('games', [
+                                'game_status'   => 'Postponed',
+                                'modified_date' => date('Y-m-d H:i:s'),
+                            ], "game_id = ? AND game_status NOT IN ('Completed', 'Cancelled')", [$request['game_id']]);
+
+                            $db->update('schedule_history', ['is_current' => 0],
+                                'game_id = :gid AND is_current = 1', ['gid' => $request['game_id']]);
+
+                            $maxVersion  = $db->fetchOne("SELECT MAX(version_number) as max_ver FROM schedule_history WHERE game_id = ?", [$request['game_id']]);
+                            $nextVersion = ($maxVersion['max_ver'] ?? 0) + 1;
+
+                            $db->insert('schedule_history', [
+                                'game_id'           => $request['game_id'],
+                                'version_number'    => $nextVersion,
+                                'schedule_type'     => 'Changed',
+                                'game_date'         => $request['original_date'],
+                                'game_time'         => $request['original_time'],
+                                'location'          => $request['original_location'],
+                                'change_request_id' => $requestId,
+                                'created_by_type'   => 'Admin',
+                                'created_by_id'     => $currentUser['id'],
+                                'is_current'        => 1,
+                                'notes'             => 'Postponement approved via request #' . $requestId .
+                                                       (($_POST['admin_notes'] ?? '') ? '. Admin notes: ' . sanitize($_POST['admin_notes']) : ''),
+                            ]);
+
+                            $db->update('schedule_change_requests', [
+                                'request_status' => 'Approved',
+                                'reviewed_by'    => $currentUser['id'],
+                                'reviewed_at'    => date('Y-m-d H:i:s'),
+                                'review_notes'   => sanitize($_POST['admin_notes'] ?? ''),
+                            ], 'request_id = :rid', ['rid' => $requestId]);
+
+                            $db->commit();
+
+                            logActivity('postponement_approved', "Postponement request #{$requestId} approved", $currentUser['id']);
+                            // Story 18-2: sendNotification('onSchedulePostponed') fires here
+                            $message = 'Postponement approved. Game is now marked Postponed.';
+
+                        } else {
+                            // Reschedule approval — existing logic unchanged
+                            $db->update('schedule_history', [
+                                'is_current' => 0
+                            ], 'game_id = :game_id AND is_current = 1', ['game_id' => $request['game_id']]);
+
+                            $maxVersion = $db->fetchOne("SELECT MAX(version_number) as max_ver FROM schedule_history WHERE game_id = ?", [$request['game_id']]);
+                            $nextVersion = ($maxVersion['max_ver'] ?? 0) + 1;
+
+                            $db->insert('schedule_history', [
+                                'game_id' => $request['game_id'],
+                                'version_number' => $nextVersion,
+                                'schedule_type' => 'Changed',
+                                'game_date' => $request['requested_date'],
+                                'game_time' => $request['requested_time'],
+                                'location' => $request['requested_location'],
+                                'change_request_id' => $requestId,
+                                'created_by_type' => 'Admin',
+                                'created_by_id' => $currentUser['id'],
+                                'is_current' => 1,
+                                'notes' => 'Schedule changed via request #' . $requestId .
+                                          (($_POST['admin_notes'] ?? '') ? '. Admin notes: ' . sanitize($_POST['admin_notes']) : '')
+                            ]);
+
+                            $db->update('schedules', [
+                                'game_date' => $request['requested_date'],
+                                'game_time' => $request['requested_time'],
+                                'location' => $request['requested_location'],
+                                'modified_date' => date('Y-m-d H:i:s')
+                            ], 'game_id = :game_id', ['game_id' => $request['game_id']]);
+
+                            $db->update('schedule_change_requests', [
+                                'request_status' => 'Approved',
+                                'reviewed_by' => $currentUser['id'],
+                                'reviewed_at' => date('Y-m-d H:i:s'),
+                                'review_notes' => sanitize($_POST['admin_notes'] ?? '')
+                            ], 'request_id = :request_id', ['request_id' => $requestId]);
+
                             $db->update('games', [
                                 'game_status' => 'Scheduled',
                                 'modified_date' => date('Y-m-d H:i:s')
-                            ], 'game_id = ?', [$request['game_id']]);
+                            ], "game_id = ? AND game_status NOT IN ('Completed', 'Cancelled')", [$request['game_id']]);
+
+                            $db->commit();
+
+                            logActivity('schedule_change_approved', "Schedule change request #{$requestId} approved - Version {$nextVersion} created", $currentUser['id']);
+
+                            sendNotification('onScheduleChangeApprove', $request['game_id'], $requestId);
+
+                            $message = 'Schedule change approved successfully! New schedule version created.';
                         }
-                        
-                        $db->commit();
-                        
-                        logActivity('schedule_change_approved', "Schedule change request #{$requestId} approved - Version {$nextVersion} created", $currentUser['id']);
-                        
-                        // Send email notification for schedule change approval
-                        sendNotification('onScheduleChangeApprove', $request['game_id'], $requestId);
-                        
-                        $message = 'Schedule change approved successfully! New schedule version created.';
                     }
                 } catch (Exception $e) {
                     $db->rollback();
@@ -192,7 +226,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $db->update('games', [
                                 'game_status' => 'Scheduled',
                                 'modified_date' => date('Y-m-d H:i:s')
-                            ], 'game_id = ?', [$request['game_id']]);
+                            ], "game_id = ? AND game_status NOT IN ('Completed', 'Cancelled')", [$request['game_id']]);
                         }
                     }
 
@@ -266,13 +300,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'modified_date' => date('Y-m-d H:i:s')
                     ], 'game_id = :game_id', ['game_id' => $gameId]);
 
-                    $gameStatus = $db->fetchOne("SELECT game_status FROM games WHERE game_id = ?", [$gameId]);
-                    if ($gameStatus && $gameStatus['game_status'] === 'Pending Change') {
-                        $db->update('games', [
-                            'game_status' => 'Scheduled',
-                            'modified_date' => date('Y-m-d H:i:s')
-                        ], 'game_id = ?', [$gameId]);
-                    }
+                    $db->update('games', [
+                        'game_status' => 'Scheduled',
+                        'modified_date' => date('Y-m-d H:i:s')
+                    ], "game_id = ? AND game_status NOT IN ('Completed', 'Cancelled')", [$gameId]);
 
                     $db->commit();
 
@@ -394,16 +425,21 @@ $pageTitle = "Schedule Management - " . APP_NAME;
                     </div>
                     <div class="card-body">
                         <?php foreach ($pendingRequests as $request): ?>
-                        <div class="border rounded p-3 mb-3">
+                        <?php $isPostponement = ($request['request_type'] ?? '') === 'Postponement'; ?>
+                        <div class="card mb-3 <?php echo $isPostponement ? 'border-warning' : ''; ?>">
+                            <div class="card-body p-3">
                             <div class="row">
                                 <div class="col-md-8">
                                     <h5>Game #<?php echo sanitize($request['game_number']); ?>:
                                         <?php echo sanitize($request['away_team_name']); ?> @ <?php echo sanitize($request['home_team_name']); ?>
+                                        <span class="badge <?php echo $isPostponement ? 'bg-warning text-dark' : 'bg-secondary'; ?> ms-2">
+                                            <?php echo sanitize($request['request_type'] ?? 'Reschedule'); ?>
+                                        </span>
                                         <?php if (!empty($request['has_notes'])): ?>
                                             <i class="fas fa-sticky-note text-warning ms-1" title="This game has notes — view in Games"></i>
                                         <?php endif; ?>
                                     </h5>
-                                    
+
                                     <div class="row">
                                         <div class="col-md-6">
                                             <strong>Current:</strong><br>
@@ -413,23 +449,32 @@ $pageTitle = "Schedule Management - " . APP_NAME;
                                         </div>
                                         <div class="col-md-6">
                                             <strong>Requested:</strong><br>
+                                            <?php if (!$isPostponement): ?>
                                             Date: <?php echo formatDate($request['requested_date']); ?><br>
                                             Time: <?php echo formatTime($request['requested_time']); ?><br>
                                             Location: <?php echo sanitize($request['requested_location']); ?>
+                                            <?php else: ?>
+                                            <em class="text-muted">Postponement — no new date requested</em>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
-                                    
+
                                     <?php if ($request['reason']): ?>
                                     <div class="mt-2">
                                         <strong>Reason:</strong> <?php echo sanitize($request['reason']); ?>
                                     </div>
                                     <?php endif; ?>
-                                    
+
                                     <small class="text-muted">
                                         Requested on <?php echo formatDate($request['created_date'], 'M j, Y g:i A'); ?>
                                     </small>
                                 </div>
                                 <div class="col-md-4 text-end">
+                                    <?php if ($isPostponement): ?>
+                                    <p class="text-warning-emphasis small mb-2">
+                                        <i class="fas fa-clock"></i> Approving will mark this game as <strong>Postponed</strong> — no date or schedule change will be made.
+                                    </p>
+                                    <?php endif; ?>
                                     <button class="btn btn-success btn-sm mb-2" onclick="approveRequest(<?php echo $request['request_id']; ?>)">
                                         <i class="fas fa-check"></i> Approve
                                     </button>
@@ -437,6 +482,7 @@ $pageTitle = "Schedule Management - " . APP_NAME;
                                         <i class="fas fa-times"></i> Deny
                                     </button>
                                 </div>
+                            </div>
                             </div>
                         </div>
                         <?php endforeach; ?>
@@ -454,6 +500,7 @@ $pageTitle = "Schedule Management - " . APP_NAME;
                         <h3>Request History</h3>
                     </div>
                     <div class="card-body">
+                        <div class="table-responsive">
                         <table id="requestsTable" class="table table-striped">
                             <thead>
                                 <tr>
@@ -523,6 +570,7 @@ $pageTitle = "Schedule Management - " . APP_NAME;
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
+                        </div><!-- /.table-responsive -->
                     </div>
                 </div>
             </div>
@@ -559,7 +607,7 @@ $pageTitle = "Schedule Management - " . APP_NAME;
                         
                         <hr>
                         
-                        <div class="row">
+                        <div class="row" id="editRequestDateFields">
                             <div class="col-md-4">
                                 <div class="mb-3">
                                     <label class="form-label">Requested Date *</label>
@@ -608,7 +656,7 @@ $pageTitle = "Schedule Management - " . APP_NAME;
                         <input type="hidden" name="csrf_token" value="<?php echo Auth::generateCSRFToken(); ?>">
                         <input type="hidden" name="request_id" id="approveRequestId">
                         
-                        <p>Are you sure you want to approve this schedule change? The game schedule will be updated immediately.</p>
+                        <p>Are you sure you want to approve this request? For reschedule requests the game schedule will be updated; for postponement requests the game will be marked Postponed.</p>
                         
                         <div class="mb-3">
                             <label class="form-label">Admin Notes (Optional)</label>
@@ -791,6 +839,13 @@ $pageTitle = "Schedule Management - " . APP_NAME;
                 month: 'numeric', day: 'numeric', year: 'numeric', 
                 hour: 'numeric', minute: '2-digit', hour12: true
             });
+            
+            // Hide date fields for postponement requests (no date change involved)
+            var isPostponement = (request.request_type || '') === 'Postponement';
+            var dateFields = document.getElementById('editRequestDateFields');
+            if (dateFields) {
+                dateFields.style.display = isPostponement ? 'none' : '';
+            }
             
             // Set form fields
             document.getElementById('editRequestedDate').value = request.requested_date;
