@@ -237,6 +237,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     updateSetting('reschedule_pre_game_hours',      (string) $preHours);
                     updateSetting('reschedule_post_game_hours',     (string) $postHours);
                     updateSetting('reschedule_min_new_game_hours',  (string) $minNewHours);
+                    $autoApprove = isset($_POST['postponement_auto_approve']) && $_POST['postponement_auto_approve'] === '1' ? '1' : '0';
+                    updateSetting('postponement_auto_approve', $autoApprove);
                     logActivity('schedule_change_settings_updated', 'Schedule change window settings updated');
                     $message = 'Schedule change settings saved successfully!';
                 } catch (Exception $e) {

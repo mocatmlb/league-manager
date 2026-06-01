@@ -76,9 +76,9 @@ class RSMockDatabase extends Database {
     public function rollback(): bool         { $this->rolledBack = true; return true; }
 
     public function fetchOne($sql, $params = []) {
-        // Game lookup (submit)
-        if (stripos($sql, 'FROM games g') !== false && stripos($sql, 'WHERE g.game_id') !== false) {
-            $id = (int) ($params['game_id'] ?? -1);
+        // Game lookup (submit + submitPostponement)
+        if (stripos($sql, 'FROM games g') !== false && stripos($sql, 'game_id') !== false) {
+            $id = (int) ($params['game_id'] ?? $params[0] ?? -1);
             foreach ($this->games as $g) {
                 if ((int) $g['game_id'] === $id) {
                     return $g;
@@ -87,7 +87,12 @@ class RSMockDatabase extends Database {
             return false;
         }
 
-        // User lookup (submit — requested_by)
+        // MAX(version_number) for schedule_history (submitPostponement)
+        if (stripos($sql, 'MAX(version_number)') !== false) {
+            return ['max_ver' => 1];
+        }
+
+        // User lookup (submit + submitPostponement — requested_by)
         if (stripos($sql, 'FROM users') !== false && stripos($sql, 'WHERE id') !== false) {
             $id = (int) ($params['id'] ?? -1);
             foreach ($this->users as $u) {
@@ -120,6 +125,42 @@ class RSMockDatabase extends Database {
             return array_values(
                 array_filter($this->teams, fn($t) => (int) ($t['owner_user_id'] ?? -1) === $userId)
             );
+        }
+
+        // getEligiblePostponementGames (must check before getEligibleGames — same base pattern)
+        if (stripos($sql, 'FROM games g') !== false
+            && stripos($sql, 'game_status NOT IN') !== false
+            && stripos($sql, "request_type = 'Postponement'") !== false) {
+            $teamIds = [];
+            foreach ($params as $k => $v) {
+                if (is_string($k) && preg_match('/^[ha]\d+$/', $k)) {
+                    $teamIds[] = (int) $v;
+                }
+            }
+            $teamIds = array_unique($teamIds);
+            $uid = (int) ($params['uid'] ?? -1);
+
+            // Pending postponement SCRs from this user exclude the game
+            $pendingPostponementGameIds = [];
+            foreach ($this->requests as $r) {
+                if ($r['request_status'] === 'Pending'
+                    && ($r['request_type'] ?? '') === 'Postponement'
+                    && (int) ($r['submitted_by_user_id'] ?? -1) === $uid) {
+                    $pendingPostponementGameIds[] = (int) $r['game_id'];
+                }
+            }
+
+            return array_values(array_filter(
+                $this->games,
+                fn($g) => $g['game_status'] !== 'Completed'
+                    && $g['game_status'] !== 'Cancelled'
+                    && $g['game_status'] !== 'Postponed'
+                    && ($g['home_score'] ?? null) === null
+                    && ($g['away_score'] ?? null) === null
+                    && !in_array((int) $g['game_id'], $pendingPostponementGameIds, true)
+                    && (in_array((int) $g['home_team_id'], $teamIds, true)
+                        || in_array((int) $g['away_team_id'], $teamIds, true))
+            ));
         }
 
         // getEligibleGames
@@ -231,7 +272,25 @@ function rsRequest(int $requestId, int $submittedByUserId, string $status = 'Pen
         'game_id'              => 1,
         'submitted_by_user_id' => $submittedByUserId,
         'request_status'       => $status,
+        'request_type'         => 'Reschedule',
     ];
+}
+
+function rsPostponementRequest(int $requestId, int $gameId, int $submittedByUserId, string $status = 'Pending'): array {
+    return [
+        'request_id'           => $requestId,
+        'game_id'              => $gameId,
+        'submitted_by_user_id' => $submittedByUserId,
+        'request_status'       => $status,
+        'request_type'         => 'Postponement',
+    ];
+}
+
+function rsScoredGame(int $gameId, int $homeTeamId = 10, int $awayTeamId = 20): array {
+    $g = rsGame($gameId, $homeTeamId, $awayTeamId);
+    $g['home_score'] = 3;
+    $g['away_score'] = 2;
+    return $g;
 }
 
 function rsRequestData(string $requestedDate = '2099-01-15'): array {
@@ -767,6 +826,284 @@ register_test('Window: getEligibleGames excludes game inside pre-game blackout',
     $ids = array_column($result, 'game_id');
     assert_true(!in_array(1, $ids, true), 'game inside pre-game blackout must be excluded');
     assert_true(in_array(2, $ids, true), 'game outside blackout must remain eligible');
+
+    Database::setInstance(null);
+    unset($GLOBALS['_test_settings']);
+});
+
+// ---------------------------------------------------------------------------
+// Story 18-1: getEligiblePostponementGames tests
+// ---------------------------------------------------------------------------
+
+register_test('Postpone: getEligiblePostponementGames excludes Completed, Cancelled, Postponed', function () {
+    $db = new RSMockDatabase();
+    $db->teams[] = rsTeam(10, 5);
+    $db->games[] = rsGame(1, 10, 20, 'Active');
+    $db->games[] = rsGame(2, 10, 20, 'Completed');
+    $db->games[] = rsGame(3, 10, 20, 'Cancelled');
+    $db->games[] = rsGame(4, 10, 20, 'Postponed');
+    Database::setInstance($db);
+    $service = new RescheduleService($db);
+
+    $result = $service->getEligiblePostponementGames(5);
+    $ids = array_column($result, 'game_id');
+
+    assert_true(in_array(1, $ids, true), 'Active game must be eligible');
+    assert_true(!in_array(2, $ids, true), 'Completed game must be excluded');
+    assert_true(!in_array(3, $ids, true), 'Cancelled game must be excluded');
+    assert_true(!in_array(4, $ids, true), 'Already-Postponed game must be excluded');
+
+    Database::setInstance(null);
+});
+
+register_test('Postpone: getEligiblePostponementGames excludes scored games', function () {
+    $db = new RSMockDatabase();
+    $db->teams[] = rsTeam(10, 5);
+    $db->games[] = rsGame(1, 10, 20, 'Active');
+    $db->games[] = rsScoredGame(2, 10, 20);
+    Database::setInstance($db);
+    $service = new RescheduleService($db);
+
+    $result = $service->getEligiblePostponementGames(5);
+    $ids = array_column($result, 'game_id');
+
+    assert_true(in_array(1, $ids, true), 'Unscored game must be eligible');
+    assert_true(!in_array(2, $ids, true), 'Scored game must be excluded');
+
+    Database::setInstance(null);
+});
+
+register_test('Postpone: getEligiblePostponementGames excludes game with Pending postponement from same user', function () {
+    $db = new RSMockDatabase();
+    $db->teams[] = rsTeam(10, 5);
+    $db->games[] = rsGame(1, 10, 20, 'Active');
+    $db->games[] = rsGame(2, 10, 20, 'Active');
+    // Game 1 has a pending postponement from user 5
+    $db->requests[] = rsPostponementRequest(99, 1, 5, 'Pending');
+    Database::setInstance($db);
+    $service = new RescheduleService($db);
+
+    $result = $service->getEligiblePostponementGames(5);
+    $ids = array_column($result, 'game_id');
+
+    assert_true(!in_array(1, $ids, true), 'Game with pending postponement from same user must be excluded');
+    assert_true(in_array(2, $ids, true), 'Game without pending postponement must remain eligible');
+
+    Database::setInstance(null);
+});
+
+// ---------------------------------------------------------------------------
+// Story 18-1: submitPostponement tests
+// ---------------------------------------------------------------------------
+
+register_test('Postpone: submitPostponement auto-approve updates game_status to Postponed', function () {
+    $GLOBALS['_test_settings'] = ['postponement_auto_approve' => '1'];
+    $db = new RSMockDatabase();
+    $db->teams[] = rsTeam(10, 5);
+    $db->games[] = rsGame(1, 10, 20, 'Active');
+    $db->users[] = rsUser(5);
+    $db->nextInsertId = 77;
+    Database::setInstance($db);
+    $service = new RescheduleService($db);
+
+    $service->submitPostponement(5, 1, 'Field flooded');
+
+    $gameUpdate = null;
+    foreach ($db->queryCalls as $c) {
+        if (stripos($c['sql'], 'UPDATE games') !== false && stripos($c['sql'], 'game_status') !== false) {
+            $gameUpdate = $c;
+            break;
+        }
+    }
+    assert_not_null($gameUpdate, 'submitPostponement auto-approve must UPDATE games table');
+
+    Database::setInstance(null);
+    unset($GLOBALS['_test_settings']);
+});
+
+register_test('Postpone: submitPostponement auto-approve creates Approved SCR with Postponement type', function () {
+    $GLOBALS['_test_settings'] = ['postponement_auto_approve' => '1'];
+    $db = new RSMockDatabase();
+    $db->teams[] = rsTeam(10, 5);
+    $db->games[] = rsGame(1, 10, 20, 'Active');
+    $db->users[] = rsUser(5);
+    $db->nextInsertId = 77;
+    Database::setInstance($db);
+    $service = new RescheduleService($db);
+
+    $id = $service->submitPostponement(5, 1, 'Field flooded');
+
+    assert_equals($id, 77, 'submitPostponement must return the new request ID');
+
+    $scrInsert = null;
+    foreach ($db->insertCalls as $c) {
+        if ($c['table'] === 'schedule_change_requests') {
+            $scrInsert = $c;
+            break;
+        }
+    }
+    assert_not_null($scrInsert, 'submitPostponement must INSERT into schedule_change_requests');
+    assert_equals($scrInsert['data']['request_type'], 'Postponement', 'request_type must be Postponement');
+    assert_equals($scrInsert['data']['request_status'], 'Approved', 'auto-approve path must set Approved');
+
+    Database::setInstance(null);
+    unset($GLOBALS['_test_settings']);
+});
+
+register_test('Postpone: submitPostponement pending does NOT update game_status', function () {
+    $GLOBALS['_test_settings'] = ['postponement_auto_approve' => '0'];
+    $db = new RSMockDatabase();
+    $db->teams[] = rsTeam(10, 5);
+    $db->games[] = rsGame(1, 10, 20, 'Active');
+    $db->users[] = rsUser(5);
+    Database::setInstance($db);
+    $service = new RescheduleService($db);
+
+    $service->submitPostponement(5, 1, 'Rain forecast');
+
+    $gameUpdate = null;
+    foreach ($db->queryCalls as $c) {
+        if (stripos($c['sql'], 'UPDATE games') !== false && stripos($c['sql'], 'game_status') !== false) {
+            $gameUpdate = $c;
+            break;
+        }
+    }
+    assert_true($gameUpdate === null, 'pending path must NOT update games table');
+
+    Database::setInstance(null);
+    unset($GLOBALS['_test_settings']);
+});
+
+register_test('Postpone: submitPostponement pending creates Pending SCR', function () {
+    $GLOBALS['_test_settings'] = ['postponement_auto_approve' => '0'];
+    $db = new RSMockDatabase();
+    $db->teams[] = rsTeam(10, 5);
+    $db->games[] = rsGame(1, 10, 20, 'Active');
+    $db->users[] = rsUser(5);
+    Database::setInstance($db);
+    $service = new RescheduleService($db);
+
+    $service->submitPostponement(5, 1, 'Rain forecast');
+
+    $scrInsert = null;
+    foreach ($db->insertCalls as $c) {
+        if ($c['table'] === 'schedule_change_requests') {
+            $scrInsert = $c;
+            break;
+        }
+    }
+    assert_not_null($scrInsert, 'submitPostponement pending must INSERT into schedule_change_requests');
+    assert_equals($scrInsert['data']['request_type'], 'Postponement', 'request_type must be Postponement');
+    assert_equals($scrInsert['data']['request_status'], 'Pending', 'pending path must set Pending');
+
+    Database::setInstance(null);
+    unset($GLOBALS['_test_settings']);
+});
+
+register_test('Postpone: submitPostponement throws TeamScopeViolationException on wrong team', function () {
+    $GLOBALS['_test_settings'] = ['postponement_auto_approve' => '1'];
+    $db = new RSMockDatabase();
+    $db->teams[] = rsTeam(10, 5);  // user 5 owns team 10
+    $db->games[] = rsGame(1, 20, 30, 'Active');  // game involves teams 20 and 30, not 10
+    $db->users[] = rsUser(5);
+    Database::setInstance($db);
+    $service = new RescheduleService($db);
+
+    $thrown = false;
+    try {
+        $service->submitPostponement(5, 1, 'Rain forecast');
+    } catch (TeamScopeViolationException $e) {
+        $thrown = true;
+    }
+    assert_true($thrown, 'submitPostponement must throw TeamScopeViolationException for wrong team');
+
+    Database::setInstance(null);
+    unset($GLOBALS['_test_settings']);
+});
+
+register_test('Postpone: submitPostponement throws InvalidArgumentException on blank reason', function () {
+    $GLOBALS['_test_settings'] = ['postponement_auto_approve' => '1'];
+    $db = new RSMockDatabase();
+    $db->teams[] = rsTeam(10, 5);
+    $db->games[] = rsGame(1, 10, 20, 'Active');
+    $db->users[] = rsUser(5);
+    Database::setInstance($db);
+    $service = new RescheduleService($db);
+
+    $thrown = false;
+    try {
+        $service->submitPostponement(5, 1, '   ');
+    } catch (InvalidArgumentException $e) {
+        $thrown = true;
+    }
+    assert_true($thrown, 'submitPostponement must throw InvalidArgumentException for blank reason');
+
+    Database::setInstance(null);
+    unset($GLOBALS['_test_settings']);
+});
+
+register_test('Postpone: submitPostponement throws on Pending Change game status', function () {
+    $GLOBALS['_test_settings'] = ['postponement_auto_approve' => '1'];
+    $db = new RSMockDatabase();
+    $db->teams[] = rsTeam(10, 5);
+    $db->games[] = rsGame(1, 10, 20, 'Pending Change');
+    $db->users[] = rsUser(5);
+    Database::setInstance($db);
+    $service = new RescheduleService($db);
+
+    $thrown = false;
+    try {
+        $service->submitPostponement(5, 1, 'Field flooded');
+    } catch (TeamScopeViolationException $e) {
+        $thrown = true;
+    }
+    assert_true($thrown, 'submitPostponement must reject Pending Change games');
+
+    Database::setInstance(null);
+    unset($GLOBALS['_test_settings']);
+});
+
+register_test('Postpone: submitPostponement throws on duplicate Pending postponement', function () {
+    $GLOBALS['_test_settings'] = ['postponement_auto_approve' => '1'];
+    $db = new RSMockDatabase();
+    $db->teams[] = rsTeam(10, 5);
+    $db->games[] = rsGame(1, 10, 20, 'Active');
+    $db->users[] = rsUser(5);
+    $db->requests[] = rsPostponementRequest(99, 1, 5, 'Pending');
+    Database::setInstance($db);
+    $service = new RescheduleService($db);
+
+    $thrown = false;
+    try {
+        $service->submitPostponement(5, 1, 'Field flooded');
+    } catch (TeamScopeViolationException $e) {
+        $thrown = true;
+    }
+    assert_true($thrown, 'submitPostponement must reject duplicate Pending postponement');
+
+    Database::setInstance(null);
+    unset($GLOBALS['_test_settings']);
+});
+
+register_test('Postpone: submitPostponement throws on partially-scored game', function () {
+    $GLOBALS['_test_settings'] = ['postponement_auto_approve' => '1'];
+    $db = new RSMockDatabase();
+    $db->teams[] = rsTeam(10, 5);
+    $g = rsGame(1, 10, 20, 'Active');
+    $g['home_score'] = 3;
+    $g['away_score'] = null;
+    $db->games[] = $g;
+    $db->users[] = rsUser(5);
+    Database::setInstance($db);
+    $service = new RescheduleService($db);
+
+    $thrown = false;
+    try {
+        $service->submitPostponement(5, 1, 'Field flooded');
+    } catch (TeamScopeViolationException $e) {
+        $thrown = true;
+    }
+    assert_true($thrown, 'submitPostponement must reject game with one score set');
 
     Database::setInstance(null);
     unset($GLOBALS['_test_settings']);

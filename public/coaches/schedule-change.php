@@ -132,6 +132,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         }
+    } elseif ($action === 'postpone') {
+        if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+            $error = 'Invalid form submission. Please try again.';
+        } else {
+            $gameId = (int) ($_POST['game_id'] ?? 0);
+            $reason = trim($_POST['postpone_reason'] ?? '');
+            if ($gameId <= 0) {
+                $error = 'Please select a game.';
+            } elseif ($reason === '') {
+                $error = 'Please provide a reason for the postponement.';
+            } else {
+                $autoApprove = (bool) getSetting('postponement_auto_approve', '1');
+                try {
+                    $service->submitPostponement($userId, $gameId, $reason);
+                    $_SESSION['flash_success'] = $autoApprove
+                        ? 'Game has been marked as postponed.'
+                        : 'Your postponement request has been submitted and is pending admin review.';
+                    header('Location: schedule-change.php');
+                    exit;
+                } catch (TeamScopeViolationException $e) {
+                    http_response_code(403);
+                    $error = 'Not authorized — you are not permitted to postpone this game.';
+                } catch (Throwable $e) {
+                    $error = 'Postponement not submitted — please check your connection and try again.';
+                }
+            }
+        }
     } elseif ($action === 'cancel') {
         if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
             $error = 'Invalid form submission. Please try again.';
@@ -157,8 +184,9 @@ if (isset($_SESSION['flash_success'])) {
     unset($_SESSION['flash_success']);
 }
 
-$eligibleGames  = $service->getEligibleGames($userId);
-$coachRequests  = $service->getCoachRequests($userId);
+$eligibleGames    = $service->getEligibleGames($userId);
+$postponableGames = $service->getEligiblePostponementGames($userId);
+$coachRequests    = $service->getCoachRequests($userId);
 $locations      = $db->fetchAll('SELECT location_name, city, state FROM locations WHERE active_status = \'Active\' ORDER BY location_name');
 $minNewGameHours = (int) getSetting('reschedule_min_new_game_hours', '0');
 
@@ -242,6 +270,61 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                     <span class="ms-2 text-muted small">or scroll down to pick the correct location from the list.</span>
                 </div>
                 <?php endif; ?>
+
+                <!-- =========================================================
+                     POSTPONE A GAME SECTION
+                     ========================================================= -->
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3 class="mb-0"><i class="fas fa-ban"></i> Postpone a Game</h3>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">Use this when a game cannot be played as scheduled and no new date is available yet.
+                            The game will be marked Postponed (or submitted for admin review).
+                            You can request a reschedule once a new date is known.</p>
+
+                        <?php if (empty($postponableGames)): ?>
+                        <div class="alert alert-info" role="alert">
+                            <i class="fas fa-info-circle"></i>
+                            No games are available to postpone — scored, cancelled, and already-postponed games are not eligible.
+                        </div>
+                        <?php else: ?>
+                        <form method="POST">
+                            <input type="hidden" name="csrf_token"
+                                   value="<?php echo htmlspecialchars(Auth::generateCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>">
+                            <input type="hidden" name="action" value="postpone">
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Select a game *</label>
+                                <select name="game_id" class="form-select form-select-lg" required>
+                                    <option value="">— choose a game —</option>
+                                    <?php foreach ($postponableGames as $g): ?>
+                                    <option value="<?php echo (int) $g['game_id']; ?>">
+                                        Game #<?php echo htmlspecialchars((string) ($g['game_number'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
+                                        &mdash; <?php echo htmlspecialchars(formatDate($g['game_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
+                                        &mdash; <?php echo htmlspecialchars(strtoupper($g['away_team_name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
+                                        @ <?php echo htmlspecialchars(strtoupper($g['home_team_name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
+                                    </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Reason *</label>
+                                <textarea name="postpone_reason" class="form-control" rows="3" required
+                                          placeholder="Explain why this game needs to be postponed..."></textarea>
+                            </div>
+
+                            <div class="text-center">
+                                <button type="submit" class="btn btn-warning btn-lg">
+                                    <i class="fas fa-ban"></i> Mark as Postponed
+                                </button>
+                            </div>
+                        </form>
+                        <?php endif; ?>
+                    </div>
+                </div>
 
                 <!-- =========================================================
                      SUBMIT REQUEST SECTION
@@ -413,7 +496,7 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                 <?php if (!empty($coachRequests)): ?>
                 <div class="card mb-4">
                     <div class="card-header">
-                        <h5 class="mb-0"><i class="fas fa-list"></i> Your Reschedule Requests</h5>
+                        <h5 class="mb-0"><i class="fas fa-list"></i> Your Requests</h5>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
@@ -423,6 +506,7 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                                     <th>Req ID</th>
                                     <th>Game ID</th>
                                     <th>Game #</th>
+                                    <th>Type</th>
                                     <th>Original Date</th>
                                     <th>Requested Date</th>
                                     <th>Reason</th>
@@ -432,20 +516,34 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                             </thead>
                             <tbody>
                             <?php foreach ($coachRequests as $req): ?>
+                            <?php $isPostponement = ($req['request_type'] ?? '') === 'Postponement'; ?>
                             <tr>
                                 <td><?php echo (int) $req['request_id']; ?></td>
                                 <td><?php echo (int) $req['game_id']; ?></td>
                                 <td><?php echo htmlspecialchars((string) ($req['game_number'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td><?php echo htmlspecialchars((string) ($req['request_type'] ?? 'Reschedule'), ENT_QUOTES, 'UTF-8'); ?></td>
                                 <td><?php echo htmlspecialchars(formatDate($req['original_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
-                                <td><?php echo htmlspecialchars(formatDate($req['requested_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td><?php echo $isPostponement
+                                        ? '<em class="text-muted">N/A</em>'
+                                        : htmlspecialchars(formatDate($req['requested_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
                                 <td><?php echo htmlspecialchars((string) ($req['reason'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
                                 <td>
-                                    <?php if ($req['request_status'] === 'Pending'): ?>
-                                        <span class="badge bg-warning text-dark">Pending</span>
-                                    <?php elseif ($req['request_status'] === 'Approved'): ?>
-                                        <span class="badge bg-success">Approved</span>
+                                    <?php if ($isPostponement): ?>
+                                        <?php if ($req['request_status'] === 'Pending'): ?>
+                                            <span class="badge bg-warning text-dark">Pending Review</span>
+                                        <?php elseif ($req['request_status'] === 'Approved'): ?>
+                                            <span class="badge bg-secondary">Postponed</span>
+                                        <?php else: ?>
+                                            <span class="badge bg-danger">Denied</span>
+                                        <?php endif; ?>
                                     <?php else: ?>
-                                        <span class="badge bg-danger">Denied</span>
+                                        <?php if ($req['request_status'] === 'Pending'): ?>
+                                            <span class="badge bg-warning text-dark">Pending</span>
+                                        <?php elseif ($req['request_status'] === 'Approved'): ?>
+                                            <span class="badge bg-success">Approved</span>
+                                        <?php else: ?>
+                                            <span class="badge bg-danger">Denied</span>
+                                        <?php endif; ?>
                                     <?php endif; ?>
                                 </td>
                                 <td>
@@ -495,7 +593,7 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                 order: [[0, 'desc']],
                 columnDefs: [
                     { type: 'num', targets: 0 },
-                    { orderable: false, searchable: false, targets: 7 }
+                    { orderable: false, searchable: false, targets: 8 }
                 ],
                 pageLength: 25,
                 language: { search: 'Filter requests:' }

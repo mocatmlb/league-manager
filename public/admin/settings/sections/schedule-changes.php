@@ -2,6 +2,7 @@
 /**
  * Schedule Changes Settings Section
  */
+$postponeAutoApprove = (bool) getSetting('postponement_auto_approve', '1');
 ?>
 
 <div class="card">
@@ -43,6 +44,22 @@
                 <div class="form-text">
                     The new game date/time coaches select must be at least this many hours in the future from the time of submission.
                     Set to <strong>0</strong> to disable. Admins are exempt from this restriction.
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Coach Postponement Approval</label>
+                <select name="postponement_auto_approve" class="form-select" style="max-width:360px;">
+                    <option value="1" <?php echo $postponeAutoApprove ? 'selected' : ''; ?>>
+                        Auto-approve (game marked Postponed immediately)
+                    </option>
+                    <option value="0" <?php echo !$postponeAutoApprove ? 'selected' : ''; ?>>
+                        Require admin approval (request goes to pending queue)
+                    </option>
+                </select>
+                <div class="form-text">
+                    Auto-approve: coach submission immediately marks the game Postponed.
+                    Require approval: submission appears as Pending in the schedule change queue until an admin acts.
                 </div>
             </div>
 

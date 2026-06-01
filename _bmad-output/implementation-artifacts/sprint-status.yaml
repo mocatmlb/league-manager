@@ -36,6 +36,9 @@
 
 generated: '2026-05-04'
 last_updated: '2026-05-31'
+# Updated: Story 18-1 code review — all patches applied, status set to done
+# Updated: Story 18-1 implemented — coach game postponement with auto-approve/pending modes
+# Updated: Epic 18 added — coach-initiated postponement + postponement/cancellation email notifications
 # Updated: Story 17-1 code review — patches applied; strict AC7 admin wraps deferred
 # Updated: Story 17-1 mobile responsive UI implemented and ready for review
 # Updated: Epic 16 added — Twilio SMS notifications with coach opt-in preference
@@ -163,3 +166,9 @@ development_status:
   epic-17: in-progress
   17-1-mobile-responsive-ui: in-progress
   epic-17-retrospective: optional
+
+  # Epic 18: Game Postponement & Status Notifications
+  epic-18: in-progress
+  18-1-coach-game-postponement: done
+  18-2-postponement-cancellation-notifications: ready-for-dev
+  epic-18-retrospective: optional
