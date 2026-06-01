@@ -86,7 +86,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: score-input.php');
         exit;
 
-    } catch (TeamScopeViolationException | GameNotEligibleException $e) {
+    } catch (GameNotEligibleException $e) {
+        $_SESSION['flash_error'] = 'Score not saved — ' . $e->getMessage() . '.';
+        header('Location: score-input.php');
+        exit;
+
+    } catch (TeamScopeViolationException $e) {
         // P11 (DN-1): true 403 response — do not redirect
         http_response_code(403);
         ?>
@@ -365,7 +370,7 @@ $pageTitle = 'Score Input — District 8 Travel League';
                     <div class="collapse" id="editScorePanel">
                         <div class="card-body">
                             <p class="text-muted small mb-3">
-                                Select a completed game below to update its recorded score.
+                                Select a completed game below to update its recorded score. Scores can be edited within 24 hours of the original submission.
                             </p>
                             <?php foreach ($completedGames as $cg): ?>
                             <details class="border rounded p-3 mb-3">
