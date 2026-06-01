@@ -41,6 +41,8 @@ PermissionGuard::requireRole('team_owner', '/coaches/login.php');
 $db     = Database::getInstance();
 $userId = (int) ($_SESSION['coach_user_id'] ?? 0);
 $service = new RescheduleService($db);
+$scrPostponeReasons   = json_decode(getSetting('scr_postpone_reasons',  '[]'), true) ?? [];
+$scrRescheduleReasons = json_decode(getSetting('scr_reschedule_reasons', '[]'), true) ?? [];
 
 // Coach contact info for pre-population (read-only display, UX-DR8)
 $coachContact = $db->fetchOne(
@@ -93,6 +95,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if (empty($error) && empty($dupCandidates)) {
+                if (($postValues['reason'] ?? '') === '__other__') {
+                    $error = 'Please provide a reason for the schedule change.';
+                }
+            }
+
+            if (empty($error) && empty($dupCandidates)) {
                 $requestData = [
                     'requested_date'     => $postValues['requested_date'],
                     'requested_time'     => $postValues['requested_time'],
@@ -140,7 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $reason = trim($_POST['postpone_reason'] ?? '');
             if ($gameId <= 0) {
                 $error = 'Please select a game.';
-            } elseif ($reason === '') {
+            } elseif ($reason === '' || $reason === '__other__') {
                 $error = 'Please provide a reason for the postponement.';
             } else {
                 $autoApprove = (bool) getSetting('postponement_auto_approve', '1');
@@ -336,8 +344,30 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
 
                                 <div class="mb-3">
                                     <label class="form-label fw-bold">Reason *</label>
-                                    <textarea name="postpone_reason" class="form-control" rows="3" required
-                                              placeholder="Explain why this game needs to be postponed..."></textarea>
+                                    <?php if (!empty($scrPostponeReasons)): ?>
+                                        <?php foreach ($scrPostponeReasons as $i => $r): ?>
+                                        <div class="form-check">
+                                            <input class="form-check-input scr-postpone-radio" type="radio"
+                                                   name="postpone_reason" id="pr-<?php echo $i; ?>"
+                                                   value="<?php echo htmlspecialchars($r, ENT_QUOTES, 'UTF-8'); ?>" required>
+                                            <label class="form-check-label" for="pr-<?php echo $i; ?>">
+                                                <?php echo htmlspecialchars($r, ENT_QUOTES, 'UTF-8'); ?>
+                                            </label>
+                                        </div>
+                                        <?php endforeach; ?>
+                                        <div class="form-check">
+                                            <input class="form-check-input scr-postpone-radio" type="radio"
+                                                   name="postpone_reason" id="pr-other"
+                                                   value="__other__">
+                                            <label class="form-check-label" for="pr-other">Other</label>
+                                        </div>
+                                        <textarea id="postpone-other-text" class="form-control mt-2" rows="2"
+                                                  placeholder="Describe the reason..."
+                                                  style="display:none"></textarea>
+                                    <?php else: ?>
+                                        <textarea name="postpone_reason" class="form-control" rows="3" required
+                                                  placeholder="Explain why this game needs to be postponed..."></textarea>
+                                    <?php endif; ?>
                                 </div>
 
                                 <div class="text-center">
@@ -456,8 +486,32 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
 
                                 <div class="mb-3">
                                     <label class="form-label fw-bold">Reason for Change *</label>
-                                    <textarea name="reason" class="form-control" rows="4" required
-                                              placeholder="Please provide a detailed reason for the schedule change request..."><?php echo htmlspecialchars($postValues['reason'] ?? '', ENT_QUOTES, 'UTF-8'); ?></textarea>
+                                    <?php if (!empty($scrRescheduleReasons)): ?>
+                                        <?php foreach ($scrRescheduleReasons as $i => $r): ?>
+                                        <div class="form-check">
+                                            <input class="form-check-input scr-reschedule-radio" type="radio"
+                                                   name="reason" id="rr-<?php echo $i; ?>"
+                                                   value="<?php echo htmlspecialchars($r, ENT_QUOTES, 'UTF-8'); ?>"
+                                                   <?php if (($postValues['reason'] ?? '') === $r): ?>checked<?php endif; ?> required>
+                                            <label class="form-check-label" for="rr-<?php echo $i; ?>">
+                                                <?php echo htmlspecialchars($r, ENT_QUOTES, 'UTF-8'); ?>
+                                            </label>
+                                        </div>
+                                        <?php endforeach; ?>
+                                        <div class="form-check">
+                                            <input class="form-check-input scr-reschedule-radio" type="radio"
+                                                   name="reason" id="rr-other" value="__other__"
+                                                   <?php if (!empty($postValues['reason']) && !in_array($postValues['reason'], $scrRescheduleReasons)): ?>checked<?php endif; ?>>
+                                            <label class="form-check-label" for="rr-other">Other</label>
+                                        </div>
+                                        <textarea id="reschedule-other-text" class="form-control mt-2" rows="2"
+                                                  placeholder="Describe the reason..."
+                                                  style="display:<?php echo (!empty($postValues['reason']) && !in_array($postValues['reason'], $scrRescheduleReasons)) ? 'block' : 'none'; ?>"
+                                                  ><?php echo htmlspecialchars((!empty($postValues['reason']) && !in_array($postValues['reason'], $scrRescheduleReasons)) ? $postValues['reason'] : '', ENT_QUOTES, 'UTF-8'); ?></textarea>
+                                    <?php else: ?>
+                                        <textarea name="reason" class="form-control" rows="4" required
+                                                  placeholder="Please provide a detailed reason for the schedule change request..."><?php echo htmlspecialchars($postValues['reason'] ?? '', ENT_QUOTES, 'UTF-8'); ?></textarea>
+                                    <?php endif; ?>
                                 </div>
 
                                 <div class="mb-3">
@@ -763,5 +817,75 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
     })();
     <?php endif; ?>
     </script>
+    <?php if (!empty($scrPostponeReasons) || !empty($scrRescheduleReasons)): ?>
+    <script>
+    (function() {
+        // Postpone canned reasons — toggle Other textarea and handle submit
+        var pOther = document.getElementById('postpone-other-text');
+        var pRadios = document.querySelectorAll('.scr-postpone-radio');
+        function syncPostponeOther() {
+            var sel = document.querySelector('.scr-postpone-radio:checked');
+            if (!pOther) return;
+            if (sel && sel.value === '__other__') {
+                pOther.style.display = '';
+                pOther.required = true;
+            } else {
+                pOther.style.display = 'none';
+                pOther.required = false;
+            }
+        }
+        pRadios.forEach(function(r) { r.addEventListener('change', syncPostponeOther); });
+        syncPostponeOther();
+
+        // On postpone form submit: if Other selected, inject a hidden input with textarea value
+        var pForm = pOther && pOther.closest('form');
+        if (pForm) {
+            pForm.addEventListener('submit', function(e) {
+                var sel = document.querySelector('.scr-postpone-radio:checked');
+                if (sel && sel.value === '__other__') {
+                    if (!pOther.value.trim()) {
+                        e.preventDefault();
+                        pOther.focus();
+                        return;
+                    }
+                    sel.value = pOther.value.trim();
+                }
+            });
+        }
+
+        // Reschedule canned reasons
+        var rOther = document.getElementById('reschedule-other-text');
+        var rRadios = document.querySelectorAll('.scr-reschedule-radio');
+        function syncRescheduleOther() {
+            var sel = document.querySelector('.scr-reschedule-radio:checked');
+            if (!rOther) return;
+            if (sel && sel.value === '__other__') {
+                rOther.style.display = '';
+                rOther.required = true;
+            } else {
+                rOther.style.display = 'none';
+                rOther.required = false;
+            }
+        }
+        rRadios.forEach(function(r) { r.addEventListener('change', syncRescheduleOther); });
+        syncRescheduleOther();
+
+        var rForm = rOther && rOther.closest('form');
+        if (rForm) {
+            rForm.addEventListener('submit', function(e) {
+                var sel = document.querySelector('.scr-reschedule-radio:checked');
+                if (sel && sel.value === '__other__') {
+                    if (!rOther.value.trim()) {
+                        e.preventDefault();
+                        rOther.focus();
+                        return;
+                    }
+                    sel.value = rOther.value.trim();
+                }
+            });
+        }
+    })();
+    </script>
+    <?php endif; ?>
 </body>
 </html>

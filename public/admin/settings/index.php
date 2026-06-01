@@ -246,6 +246,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 break;
 
+            case 'update_scr_reasons':
+                try {
+                    $type = $_POST['scr_type'] ?? '';
+                    if ($type === 'postpone') {
+                        $raw = $_POST['postpone_reasons'] ?? [];
+                        $reasons = array_values(array_filter(array_map('trim', (array) $raw)));
+                        updateSetting('scr_postpone_reasons', json_encode($reasons));
+                        logActivity('scr_reasons_updated', 'Postponement canned reasons updated (' . count($reasons) . ' entries)');
+                    } elseif ($type === 'reschedule') {
+                        $raw = $_POST['reschedule_reasons'] ?? [];
+                        $reasons = array_values(array_filter(array_map('trim', (array) $raw)));
+                        updateSetting('scr_reschedule_reasons', json_encode($reasons));
+                        logActivity('scr_reasons_updated', 'Reschedule canned reasons updated (' . count($reasons) . ' entries)');
+                    } else {
+                        throw new Exception('Unknown reason type.');
+                    }
+                    $message = 'Canned reasons saved successfully!';
+                } catch (Exception $e) {
+                    $error = 'Error saving canned reasons: ' . $e->getMessage();
+                }
+                break;
+
             case 'disable_shared_credential':
                 try {
                     $adminId = (int) ($currentUser['id'] ?? 0);
@@ -282,6 +304,8 @@ $availableTimezones = getAvailableTimezones();
 $reschedulePreGameHours    = getSetting('reschedule_pre_game_hours',     '0');
 $reschedulePostGameHours   = getSetting('reschedule_post_game_hours',    '0');
 $rescheduleMinNewGameHours = getSetting('reschedule_min_new_game_hours', '0');
+$scrPostponeReasons  = json_decode(getSetting('scr_postpone_reasons',  '[]'), true) ?? [];
+$scrRescheduleReasons = json_decode(getSetting('scr_reschedule_reasons', '[]'), true) ?? [];
 
 // Get section title
 $sectionTitles = [
