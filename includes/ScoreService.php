@@ -41,17 +41,25 @@ class ScoreService {
         $this->enforceTeamScopeWithIds($teamIds, $game);
         $this->enforceTimeGate($game);
 
+        $submitter = $this->db->fetchOne(
+            'SELECT username FROM users WHERE id = :id',
+            ['id' => $userId]
+        );
+        $submittedBy = ($submitter['username'] ?? null) ?: (string) $userId;
+
         $this->db->query(
             'UPDATE games
              SET home_score = :home_score, away_score = :away_score,
                  game_status = :status, modified_date = NOW(),
-                 score_submitted_at = UTC_TIMESTAMP()
+                 score_submitted_at = UTC_TIMESTAMP(),
+                 score_submitted_by = :submitted_by
              WHERE game_id = :game_id',
             [
-                'home_score' => $homeScore,
-                'away_score' => $awayScore,
-                'status'     => 'Completed',
-                'game_id'    => $gameId,
+                'home_score'   => $homeScore,
+                'away_score'   => $awayScore,
+                'status'       => 'Completed',
+                'submitted_by' => $submittedBy,
+                'game_id'      => $gameId,
             ]
         );
 
