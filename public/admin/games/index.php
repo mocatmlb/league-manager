@@ -516,6 +516,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $db->commit();
                     
                     logActivity('game_cancelled', "Game ID $gameId cancelled: $reason");
+                    try {
+                        if (function_exists('sendNotification')) {
+                            if (!sendNotification('onScheduleCancellation', $gameId, null, ['reason' => $reason])) {
+                                error_log('[admin/games] Cancellation notification failed — game_id=' . $gameId);
+                            }
+                        }
+                    } catch (Throwable $e) {
+                        error_log('[admin/games] Cancellation notification failed — game_id=' . $gameId . ': ' . $e->getMessage());
+                    }
                     $message = 'Game cancelled successfully!';
                     
                 } catch (Exception $e) {
@@ -602,6 +611,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $db->commit();
                     
                     logActivity('game_postponed', "Game ID $gameId postponed: $reason");
+                    try {
+                        if (function_exists('sendNotification')) {
+                            if (!sendNotification('onSchedulePostponed', $gameId, null, ['reason' => $reason])) {
+                                error_log('[admin/games] Postponement notification failed — game_id=' . $gameId);
+                            }
+                        }
+                    } catch (Throwable $e) {
+                        error_log('[admin/games] Postponement notification failed — game_id=' . $gameId . ': ' . $e->getMessage());
+                    }
                     $message = 'Game postponed successfully!';
                     
                 } catch (Exception $e) {

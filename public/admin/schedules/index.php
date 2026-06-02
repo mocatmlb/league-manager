@@ -126,7 +126,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $db->commit();
 
                             logActivity('postponement_approved', "Postponement request #{$requestId} approved", $currentUser['id']);
-                            // Story 18-2: sendNotification('onSchedulePostponed') fires here
+                            try {
+                                if (function_exists('sendNotification')) {
+                                    if (!sendNotification('onSchedulePostponed', $request['game_id'], null, ['reason' => $request['reason'] ?? ''])) {
+                                        error_log('[schedules] Postponement notification failed for game_id=' . $request['game_id']);
+                                    }
+                                }
+                            } catch (Throwable $e) {
+                                error_log('[schedules] Postponement notification failed for game_id=' . $request['game_id'] . ' error=' . $e->getMessage());
+                            }
                             $message = 'Postponement approved. Game is now marked Postponed.';
 
                         } else {

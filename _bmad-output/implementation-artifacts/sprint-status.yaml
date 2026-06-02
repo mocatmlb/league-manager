@@ -35,7 +35,8 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: '2026-05-04'
-last_updated: '2026-05-31'
+last_updated: '2026-06-01'
+# Updated: Story 18-2 code review — patches applied, status set to done
 # Updated: Story 18-1 code review — all patches applied, status set to done
 # Updated: Story 18-1 implemented — coach game postponement with auto-approve/pending modes
 # Updated: Epic 18 added — coach-initiated postponement + postponement/cancellation email notifications
@@ -170,5 +171,5 @@ development_status:
   # Epic 18: Game Postponement & Status Notifications
   epic-18: in-progress
   18-1-coach-game-postponement: done
-  18-2-postponement-cancellation-notifications: ready-for-dev
+  18-2-postponement-cancellation-notifications: done
   epic-18-retrospective: optional

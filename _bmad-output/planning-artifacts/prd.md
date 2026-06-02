@@ -1,613 +1,831 @@
 ---
 workflowType: 'prd'
-workflow: 'edit'
+feature: umpire-assignment
+project: league-manager
+outputFile: _bmad-output/planning-artifacts/prd.md
+author: Mike
+date: '2026-05-28'
+version: '1.0'
+releaseMode: phased
 classification:
-  domain: 'sports-league-management'
-  projectType: 'web-application'
-  complexity: 'medium'
+  projectType: web-application
+  domain: sports-league-management
+  complexity: medium
+  projectContext: brownfield
+councilDecisions:
+  mvp_boundary: C
+  role_strategy: R-C
+  multi_umpire: M-C
+  coach_visibility: V-C
 inputDocuments:
-  - docs/Features/user-accounts/user-accounts-requirements.md
-  - docs/Features/user-accounts/user-accounts-implementation.md
+  - _bmad-output/planning-artifacts/product-brief.md
+  - _bmad-output/brainstorming/brainstorming-session-2026-05-28-umpire-assignment.md
+  - _bmad-output/planning-artifacts/research/council-decisions-2026-05-28.md
+  - _bmad-output/planning-artifacts/research/domain-umpire-assignment-research-2026-05-28.md
+  - _bmad-output/planning-artifacts/research/market-umpire-assignment-research-2026-05-28.md
+  - _bmad-output/planning-artifacts/research/technical-umpire-assignment-research-2026-05-28.md
   - _bmad-output/project-context.md
   - docs/requirements.md
   - docs/tech.md
-  - docs/architecture.md
+documentCounts:
+  briefCount: 1
+  researchCount: 4
+  brainstormingCount: 1
+  projectDocsCount: 3
 stepsCompleted:
   - step-01-init
-  - step-e-01-discovery
-  - step-e-02-review
-  - step-e-03-edit
-lastEdited: '2026-05-09'
-editHistory:
-  - date: '2026-05-02'
-    changes: 'Full PRD build-out for post-MVP individual coach login feature'
-  - date: '2026-05-03'
-    changes: 'Validation fixes: rewrote NFR-SEC as quality attributes; added NFR-ACCESS WCAG 2.1 AA; added UJ-8 admin cutover journey; added FR-USERMGMT-7/8/9 for pre-cutover checklist and shared credential disable; relocated NFR-AVAIL-2/3 content to FRs; refined NFR-AVAIL-1 with measurable availability target'
-  - date: '2026-05-03'
-    changes: 'Requirement additions and refinements: revised UJ-1 for dual-purpose self-registration (user + team, admin approval for Team Owner); revised UJ-2 to user-only registration; revised UJ-4 to restrict score submission to past/elapsed games; revised UJ-5 to exclude scored/cancelled games from reschedule; revised UJ-7 to clarify toggle scope; added FR-AUTH-7 CAPTCHA on login; added FR-REG-10 CAPTCHA on registration; updated FR-SCORE-3 with time-eligibility constraint; added FR-SCORE-7 game status completed on score; added FR-RESCHED-7 coach can cancel pending requests; added FR-PROFILE section (preferred name, phone management, self-service password change); added FR-COACHSCHEDULE section (team-scoped schedule view with sort/filter); added FR-RESTRICTIONS section (explicit coach permission boundaries)'
-  - date: '2026-05-03'
-    changes: 'Validation gap fixes: updated FR-REG-3 to include preferred name and phone type fields; added UJ-9 (Coach Manages Profile) and UJ-10 (Coach Views Team Schedule); added FR-TEAMREG section (7 FRs for coach-initiated team registration sub-flow in UJ-1); updated Product Scope in-scope list to reflect all new capabilities; fixed stale NFR-AVAIL-3 reference in Migration Strategy Phase 2 to FR-USERMGMT-7'
-  - date: '2026-05-03'
-    changes: 'Registration flow and team naming additions: added League field to registration form (FR-REG-11/12); added FR-LEAGUELIST section for admin-managed league dropdown; revised FR-TEAMREG with auto-generated team name rule ({league_name}-{coach_last_name}), no-division-selection constraint, home field location entry (up to 5); added FR-PROFILE-7 (team name read-only for coaches); updated UJ-1 and UJ-2 with league field, team name preview, home field steps; updated Product Scope in-scope list; validation fixes: reordered FR-REG table rows (IDs now flow 3–12); corrected out-of-scope entry for coach team registration; added UJ-11 (Admin Manages League Dropdown List) to complete FR-LEAGUELIST traceability; expanded NFR-COMPAT-1 to include team registration and profile management forms; added NFR-PERF-4 for self-registration form submission and email delivery performance'
-  - date: '2026-05-09'
-    changes: 'Schedule history gap addressed: added FR-RESCHED-8 (public schedule unchanged until admin approval); added FR-SCHEDHISTORY section (4 FRs for immutable original schedule record, per-approval history entries, and admin game history view); added UJ-12 (Admin Views Game Schedule History); updated Product Scope in-scope list'
+  - step-02-discovery
+  - step-02b-vision
+  - step-02c-executive-summary
+  - step-03-success
+  - step-04-journeys
+  - step-05-domain
+  - step-06-innovation
+  - step-07-project-type
+  - step-08-scoping
+  - step-09-functional
+  - step-10-nonfunctional
+  - step-11-polish
+  - step-12-complete
+status: complete
 ---
 
-# Product Requirements Document — District 8 Travel League: Individual Coach Logins
+# Product Requirements Document — Umpire Assignment
 
-**Author:** Mike
-**Date:** 2026-05-02
-**Version:** 1.0
+**Project:** District 8 Travel League — league-manager  
+**Author:** Mike  
+**Date:** 2026-05-28  
+**Version:** 1.0  
+**Feature:** Umpire Assignment Module (v2.3.0)
 
 ---
 
 ## Executive Summary
 
-The District 8 Travel League currently operates with a single shared coach password that all coaches use to access protected features (score submission, schedule change requests, contact directory). This creates an accountability gap — there is no way to attribute actions to a specific coach, no mechanism to restrict a coach to their own team's games, and no ability to revoke access for a single coach without affecting all coaches.
+District 8 Travel League assigns **paid umpires** to 100+ interleague games each season. Today the Umpire Assignor (Jennifer Bertollini) coordinates assignments via spreadsheet, email, and phone — disconnected from the **official schedule** on district8travelleague.com. When coaches request reschedules and admins approve them, umpires are not reliably re-notified. Coaches do not know who to pay before game start. No-show and fee disputes trace back to stale unofficial copies.
 
-This feature replaces the shared coach credential with **individual Team Owner accounts**, each tied to a specific team (or teams). Coaches self-register via a controlled URL or accept an admin-sent invitation, and an administrator assigns them to manage one or more teams. Once assigned, each coach accesses only the features and games relevant to their team.
+This PRD defines an **umpire assignment module** built into the existing league-manager brownfield stack (PHP 8.1, MariaDB, PHPMailer, Bootstrap). Assignments bind to authoritative `games` records via foreign keys. A **draft → publish** workflow separates internal assignment work from official communications. On publish, umpires receive assignment emails; coaches see published umpire names and fee reminders on their team schedule. When `schedule_change_requests` are approved, assigned umpires receive automatic change notifications.
 
-**Target users:** Team coaches/managers ("Team Owners") in the District 8 Travel League.
+**Council-approved MVP boundary:** assign + email + reschedule cascade (Decision C), with dedicated `umpire_assignor` role (R-C), two slot model with warn-only partial publish (M-C), and coach visibility of names + fee text (V-C). Token confirm/decline is **P1 stretch**.
 
-**Problem solved:** No individual accountability, no per-team access control, no way to selectively revoke coach access.
+**Primary differentiator:** The only zero-cost solution that is both native to the official schedule and wired into the existing reschedule approval pipeline.
 
-**Primary differentiator from MVP state:** Individual identity + team-scoped permissions replace a single shared password.
+---
+
+## Goals
+
+### Business Goals
+
+| # | Goal | Rationale |
+|---|------|-----------|
+| BG-1 | Establish league-manager as the **system of record** for umpire assignments tied to official games | D8 rules §2.4.1: assignments, no-show fees, and forfeit fees derive from official schedule |
+| BG-2 | Reduce assignor coordination burden vs spreadsheet baseline | Market research: manual workflows consume 10–20 hrs/week; target ≤50% reduction |
+| BG-3 | Eliminate umpire no-shows caused by uncommunicated schedule changes | Highest-ROI integration: hook reschedule approval → auto-notify |
+| BG-4 | Enable coaches to pay umpires before game start without calling assignor | KB 1.15.1: payment before start; coach visibility closes operational loop |
+| BG-5 | Maintain **zero marginal cost** — no new SaaS, SMS vendor, or infrastructure | Shared hosting constraint; paid alternatives $150–480+/year disqualified |
+
+### User Goals
+
+| Persona | Goal |
+|---------|------|
+| Umpire Assignor | Assign plate/base umpires quickly from phone or desktop; publish once; trust notifications go out |
+| Umpire | Receive accurate assignment details; know when games move or cancel |
+| Coach | See who is umpiring and what each team pays — on the same schedule they already use |
+| Administrator | Override when assignor unavailable; audit who changed what |
+| Division Director | Dispute resolution backed by immutable assignment history |
+
+### Product Goals
+
+| # | Goal | Success Signal |
+|---|------|----------------|
+| PG-1 | Draft/publish separation prevents accidental early notifications | Coaches never see draft assignments |
+| PG-2 | Delta-only email sends on re-publish | No duplicate spam on unchanged slots |
+| PG-3 | Reschedule cascade within same job as schedule approval | 100% of material changes trigger umpire email |
+| PG-4 | Conflict detection prevents silent double-books | Hard block with audited override |
+| PG-5 | Role-scoped assignor access without full admin keys | Jennifer operates without score/schedule-edit permissions |
+
+---
+
+## Personas
+
+### P-1: Jennifer Bertollini — Umpire Assignor (Primary)
+
+- **Role:** Umpire Assignor per D8 2026 rules §2.4.4
+- **Context:** Coordinates 30–50 umpires across Intermediate, Junior, Senior divisions; works from phone at fields
+- **Current tools:** Spreadsheet + email + text; parallel to official website schedule
+- **Pain:** Reschedule storms; double-booking; coaches calling for assignment status; no audit trail for fee disputes
+- **Needs:** Fast game-centric assignment UI, unassigned queue, publish batch, conflict warnings, reschedule auto-notify
+- **Success:** Stops maintaining parallel spreadsheet by mid-season
+
+### P-2: Crew Umpire — Paid Official (Secondary)
+
+- **Profile:** Mix of adult and teen umpires; email-primary; may not have app login
+- **Pain:** Wrong field/time after reschedule; email in spam; no way to decline without calling
+- **Needs:** Clear assignment email with game #, date, time, field, role (plate/base), fee note, assignor contact, maps link
+- **P1 needs:** One-click confirm/decline via signed token (no login)
+
+### P-3: Team Coach — Team Owner (Secondary)
+
+- **Context:** Uses coach schedule view for games; must pay umpire before game start
+- **Pain:** Doesn't know assigned umpire until assignor texts; fee split confusion
+- **Needs:** Read-only published umpire names + fee reminder on team schedule
+- **Constraint:** Cannot assign or modify umpires (ROL-35)
+
+### P-4: Mike O'Connell — Division Director / Admin (Tertiary)
+
+- **Context:** Schedule authority; adjudicates reschedules and fee disputes
+- **Needs:** Admin override with mandatory reason; activity log; read-only audit of assignment history
+- **Use case:** Assignor vacation coverage; assignor-error fee waiver per KB 1.15.4–1.15.5
+
+### P-5: Jack Kaplan — Umpire-in-Chief (Tertiary, P2)
+
+- **Context:** Program quality oversight; not day-to-day assignor
+- **Needs:** Read-only view of all assignments and audit trail (ROL-33) — deferred to P2
 
 ---
 
 ## Success Criteria
 
-All criteria are measurable and must be met before this feature is considered complete.
-
-| # | Criterion | Measurement Method | Target |
-|---|-----------|-------------------|--------|
-| SC-1 | Each coach has a unique account | DB query: `SELECT COUNT(*) FROM users WHERE role = 'team_owner'` returns ≥ 1 row per active team | 100% of active teams have at least one assigned Team Owner |
-| SC-2 | Shared coach password is decommissioned | `coaches_password` setting removed or disabled in `settings` table | 0 active logins via legacy shared credential after cutover |
-| SC-3 | Score submission is team-scoped | Coach can submit scores only for games where their team is home or away | 0 unauthorized score submissions attributable to wrong-team access |
-| SC-4 | Reschedule requests are team-scoped | Coach can submit reschedule requests only for games involving their assigned team(s) | 0 unauthorized reschedule requests |
-| SC-5 | Self-registration toggle functions | Admin can enable/disable open registration; when disabled, only invitation links work | Feature toggle changes effective within 1 page load |
-| SC-6 | Admin can assign a coach to a team | Admin UI allows assigning/removing Team Owner role for a user on a specific team | Assignment reflected in coach's accessible games within 60 seconds |
-| SC-7 | Coaches can access rules & contact directory | Authenticated Team Owners can view local rules documents and contact list | 0 unauthenticated access to these pages |
-| SC-8 | Registration completes end-to-end | User registers, verifies email, admin assigns team, coach logs in and sees their team's games | Full flow under 10 minutes from registration to first login |
-
----
-
-## Product Scope
-
-### This Feature (Post-MVP Phase 1: Individual Coach Logins)
-
-Replaces the shared coach credential with individual Team Owner accounts. Scoped to the **coach persona only** — this is not a general public user system.
-
-**In scope:**
-- Configurable self-registration via a controlled URL (on/off toggle)
-- Coach-initiated team registration into an open program/season (via self-registration path; division assigned by admin)
-- Admin-managed league dropdown list (short display names used in team name generation)
-- Auto-generated team name (`{league_name}-{coach_last_name}`); admin-editable only
-- Coach-entered home field locations during registration (up to 5; saved to system field pool)
-- Invitation-based registration (admin sends invite link; user account only)
-- Individual coach accounts with email verification
-- Admin UI to assign/remove coaches from teams
-- Team-scoped score submission (home and away games; past/elapsed games only)
-- Team-scoped schedule change request submission (public schedule unchanged until admin approves)
-- Immutable original schedule record per game; chronological admin-visible game schedule history
-- Coach self-service profile management (name, preferred name, phone numbers, password)
-- Coach team schedule view (filtered from master schedule, fully sortable and filterable)
-- Authenticated access to local rules & regulations documents
-- Authenticated access to league contact directory
-- Explicit coach permission boundaries (admin-only functions inaccessible to Team Owners)
-- Deprecation of shared `coaches_password` credential
-
-**Out of scope (future phases):**
-- General public user accounts
-- Team Official sub-role (assistants who are not the primary team owner)
-- Role change request workflow (user-initiated role escalation)
-- Coach-initiated team registration outside of the controlled self-registration flow (UJ-1)
-- Audit/activity logging dashboard (logging occurs; UI reporting is future)
-- Mobile app; web-responsive only
-- **Multi-team assignment** — A coach owning more than one team (FR-ASSIGN-3 deferred; DB enforces 1 user : 1 team this iteration)
-- **Multiple owners per team** — More than one Team Owner per team (FR-ASSIGN-4 deferred; same 1:1 constraint)
-
-### Existing MVP Features That Remain Unchanged
-
-- Administrator accounts and admin console
-- Public schedule, standings, and home page
-- Public document access
-- All existing admin CRUD operations
-
-### Migration Scope
-
-The existing shared coach login (`coaches_password` in `settings` table) must be deprecated as part of this feature. The transition period allows both systems to operate in parallel until all active coaches have individual accounts. After cutover, the shared credential is disabled.
+| # | Criterion | Measurement | Target |
+|---|-----------|-------------|--------|
+| SC-1 | Published assignments exist for upcoming games | Query: games in next 14 days with ≥1 published slot / total games | ≥80% by week 6 of season |
+| SC-2 | Reschedule approval triggers umpire notification | Integration test + email queue log for approved changes affecting assigned games | 100% |
+| SC-3 | Draft assignments invisible to coaches | Coach schedule API/view returns no umpire data where `published=0` | 0 leaks |
+| SC-4 | Double-book blocked without override | Service test: overlapping datetime same umpire | Block + require reason |
+| SC-5 | Assignor can complete assign+publish without admin role | Permission test: `umpire_assignor` routes only | Pass |
+| SC-6 | Coach schedule shows umpire names + fee text when published | UI test on coach team schedule | Pass for Intermediate/Junior/Senior |
+| SC-7 | Material schedule change resets tentative confirmation | P1: status returns to Pending after approved reschedule | Pass |
+| SC-8 | Activity log captures publish and override events | ActivityLogger entries for `umpire.published`, `umpire.reassigned` | Pass |
+| SC-9 | Assignor weekly time self-reported vs baseline | Stakeholder check-in at 4 and 8 weeks | ≤50% of spreadsheet hours |
+| SC-10 | Zero umpire no-shows attributed to stale schedule post go-live | Qualitative season tracking | 0 confirmed incidents |
 
 ---
 
 ## User Journeys
 
-### UJ-1: Coach Self-Registers and Registers Their Team via QR Code URL
+### UJ-1: Assignor Assigns and Publishes Umpires for a Game
 
-**Precondition:** Admin has enabled open registration and distributed the QR code URL. At least one program/season has open registration.
+1. Assignor logs in with `umpire_assignor` role.
+2. Opens **Unassigned Games** queue (next 14 days) or admin games list.
+3. Selects game → **Assign Umpires** drawer opens with game details (date, time, field, teams, division).
+4. Selects umpire for **Plate** slot; optionally **Base** slot.
+5. System checks double-book conflict; warns if division expects 2 umpires but only 1 assigned.
+6. Saves → status `Draft`, `published=0`.
+7. Clicks **Publish Assignments** (single game or batch) → delta emails sent to affected umpires; slots marked `published=1`, `Pending` (or `Confirmed` if P1 token flow active).
+8. Coach schedule now shows published umpire names + fee reminder.
 
-1. Coach scans QR code and lands on the registration page at the designated URL.
-2. Coach completes the user account form: first name, last name, preferred name (optional), email, primary phone with phone type, secondary phone with phone type (optional), league (selected from admin-managed dropdown; if "Other" is selected, a free-text field is revealed), username, password, password confirmation, and CAPTCHA.
-3. System sends a verification email to the provided address.
-4. Coach clicks the verification link in the email.
-5. User account is created with status `active` and role `user`.
-6. System displays available programs and seasons with open registration; coach selects a program and season. Division is not selectable by the coach.
-7. System auto-generates a team name as `{league_name}-{coach_last_name}` and displays it to the coach as read-only.
-8. Coach optionally adds up to 5 home field locations (location name required; address and additional details optional); each location is saved to the system's available field locations pool.
-9. Coach submits the team registration.
-10. Coach sees a confirmation screen: "Account created and team registration submitted. An administrator will review your registration and assign you to your team."
-11. Admin receives a notification that a new user account is active and a team registration is pending approval.
-12. Admin reviews and approves the team registration, assigns a division, and the system assigns the coach as Team Owner for that team.
-13. Coach receives an email notification that they have been assigned as Team Owner.
+### UJ-2: Assignor Handles Unassigned Game Triage
 
-**Exit:** Coach cannot access team-specific features (score submission, reschedule requests) until admin approves the team registration and assigns them as Team Owner.
+1. Assignor views dashboard widget: games in next 14 days with zero published assignments, sorted by date.
+2. Filters by division or date range.
+3. Assigns from queue using same drawer flow as UJ-1.
 
----
+### UJ-3: Reschedule Approved — Umpire Auto-Notify (MVP)
 
-### UJ-2: Admin Sends Invitation for User Registration
+1. Coach submits `schedule_change_request` for game with published assignments.
+2. Assignor board shows **TENTATIVE** badge on affected game (RES-37).
+3. Admin approves change in schedule management UI.
+4. `UmpireAssignmentService::onScheduleChanged($gameId)` runs:
+   - Detects material change (date, time, or location).
+   - Sets assignment status to `Pending` (clears prior confirm if P1).
+   - Sends `onUmpireAssignmentChanged` email to each assigned umpire.
+   - Sends assignor alert email (RES-39).
+5. Umpire receives updated details; assignor verifies crew still available.
 
-**Precondition:** Admin is logged in. Open registration may be on or off.
+### UJ-4: Coach Views Umpire on Team Schedule (MVP)
 
-1. Admin navigates to User Management → Invitations → Send Invitation.
-2. Admin enters the coach's email address.
-3. System generates a unique registration URL with a 14-day expiration token and sends it to the coach.
-4. Coach receives the email, clicks the link, and completes the user account registration form (first name, last name, preferred name (optional), email, primary phone with phone type, secondary phone with phone type (optional), league (dropdown with "Other" option), username, password, password confirmation, and CAPTCHA).
-5. Account is created with status `active` and role `user`.
-6. Admin receives notification of completed registration.
+1. Coach logs in, navigates to team schedule.
+2. For each game with published assignments, sees:
+   - Plate umpire name
+   - Base umpire name (if assigned)
+   - Fee reminder text per division (e.g., "Each team pays one umpire $50")
+3. Draft or unpublished assignments: no umpire names shown.
 
-**Exit:** Invitation-based registration creates a user account only; team assignment is handled separately via UJ-3.
+### UJ-5: Admin Overrides Assignment (MVP)
 
----
+1. Admin opens game assignment drawer (broader permission than assignor).
+2. Reassigns umpire; system requires **override reason** text.
+3. ActivityLogger records `umpire.reassigned` with reason.
+4. If published, delta notification sent to old and new umpire.
 
-### UJ-3: Admin Assigns Coach to a Team
+### UJ-6: Umpire Confirms or Declines via Email Token (P1)
 
-**Precondition:** Coach has a verified, active account. Admin is logged in.
+1. Umpire receives assignment email with **Confirm** / **Decline** links.
+2. GET link shows preview page; POST confirms action (prevents email prefetch consuming token).
+3. Confirm → status `Confirmed`; Decline → status `Declined`, assignor dashboard alert, optional alt-list prompt (DEC-50).
+4. 48h before game: unconfirmed slots alert assignor (DEC-52).
 
-1. Admin navigates to User Management → Users and finds the coach's account.
-2. Admin clicks "Assign to Team."
-3. Admin selects one or more teams from the list of active-season teams.
-4. System assigns the Team Owner role to the user for the selected team(s).
-5. Coach's account role is updated to `team_owner` (if not already).
-6. Coach receives an email notification: "You have been assigned to manage [Team Name]."
-7. On next login, coach sees their team's games in their dashboard.
+### UJ-7: Game Cancelled — Umpire Released (P1)
 
-**Exit:** Coach can now submit scores and reschedule requests for their assigned team(s).
-
----
-
-### UJ-4: Coach Submits a Game Score
-
-**Precondition:** Coach is logged in with Team Owner role and at least one team assignment.
-
-1. Coach navigates to their dashboard or the Scores section.
-2. System displays only games where the coach's assigned team(s) are the home or away team, and where the game date is in the past OR the game date is today and the game time is in the past. Games with a future date or a future time on the current date are not displayed for score entry.
-3. Coach selects an eligible game with no score recorded (or selects an existing score for edit via explicit "edit score" action).
-4. Coach enters the home team score and away team score.
-5. Coach submits. System records the score, marks the game status as `completed`, and updates standings.
-6. Confirmation displayed. Admin receives notification of score submission.
-
-**Exit:** Score recorded; game marked completed; standings updated.
+1. Admin marks game cancelled/postponed.
+2. System sends `onUmpireGameCancelled` to assigned umpires.
+3. Assignment slots set to `Cancelled`.
 
 ---
 
-### UJ-5: Coach Submits a Reschedule Request
+## Domain Requirements
 
-**Precondition:** Coach is logged in with Team Owner role and at least one team assignment.
+Derived from D8 2026 rules (KB migration 024), Little League norms, and domain research.
 
-1. Coach navigates to Schedule or their dashboard.
-2. System displays only games where the coach's assigned team(s) are involved, excluding games that already have a score reported or have been marked `cancelled` by an administrator.
-3. Coach selects an eligible game and clicks "Request Reschedule."
-4. Coach enters the requested new date/time and reason.
-5. Coach submits. System creates a pending reschedule request.
-6. Admin receives notification. Coach sees request status as "Pending."
-7. If the coach wishes to withdraw the request before admin action, they can cancel it while status is `pending` (see FR-RESCHED-7).
-
-**Exit:** Reschedule request queued for admin review, or withdrawn by coach if still pending.
-
----
-
-### UJ-6: Coach Views Rules & Contact Directory
-
-**Precondition:** Coach is logged in (any active authenticated user).
-
-1. Coach navigates to "League Resources" or equivalent section.
-2. System displays links to uploaded rules and regulation documents (managed by admin via Document Management).
-3. Coach clicks a document link and views or downloads it.
-4. Coach navigates to "Contact Directory."
-5. System displays the league contact list (coaches, admins, officials as configured).
-
-**Exit:** Coach has accessed the information they need.
+| # | Requirement | Source |
+|---|-------------|--------|
+| DR-1 | Assignments must reference games on the **official schedule** only | D8 §2.4.1 |
+| DR-2 | Umpires are **paid before game start**; fee amounts vary by division and crew size | D8 §1.15.1–1.15.2 |
+| DR-3 | Intermediate: 1 umpire $70 ($35/team) or 2×$50 each; Junior/Senior: 1×$100 or 2×$80 each | D8 §1.15.1–1.15.2 |
+| DR-4 | Home team must notify assignor ≥1.5 hours before same-day cancellation | D8 §2.4.4 |
+| DR-5 | Reschedule changes not official until approved on website | D8 §2.5 |
+| DR-6 | Volunteer umpire fallback if assigned umpire no-shows — no fee to volunteer | D8 §1.15.3 |
+| DR-7 | Forfeit/no-contest fee rules apply per plate umpire declaration | D8 §1.15.4–1.15.5 |
+| DR-8 | Assignor/Division Director scheduling error can waive no-contest fees | D8 §1.15.5 |
+| DR-9 | Crew model: 1 or 2 paid umpires (plate + base) by division agreement | LL Rule 1.01; D8 fees |
+| DR-10 | Unofficial schedule copies do not govern — display official schedule banner on umpire comms | DOM-58 |
+| DR-11 | Future: JDP background check + Abuse Awareness Training gates for roster eligibility | LL child protection; P2 |
 
 ---
 
-### UJ-7: Admin Enables/Disables Open Self-Registration
+## Project Scoping & Phased Development
 
-**Precondition:** Admin is logged in.
+### MVP Strategy
 
-1. Admin navigates to Settings → Registration.
-2. Admin toggles "Open Self-Registration" on or off.
-3. When **on**: the designated QR code registration URL (UJ-1) is active; a QR code link is displayed for the admin to share.
-4. When **off**: the QR code registration URL returns a "Registration is currently closed" message; the self-registration + team registration flow (UJ-1) is disabled.
-5. Change takes effect immediately on save.
-6. This toggle does not affect invitation-based registration (UJ-2); admin-sent invitation links remain functional regardless of this setting.
+**Approach:** Problem-solving MVP — replace spreadsheet assignment + manual reschedule notify with authoritative, integrated workflow.
 
-**Exit:** Open self-registration access matches the admin's intended state; invitation-based registration is unaffected.
+**Philosophy:** Ship the smallest set that makes the assignor say "I can stop using my parallel spreadsheet for new games." Reschedule cascade is MVP (council Decision C), not optional.
 
----
+**Resource estimate:** 1 developer, ~3–4 weeks (Size M per technical research); +3–5 days for P1 token flow.
 
-### UJ-8: Admin Disables Shared Credential and Completes Cutover
+### MVP (Phase 1 — v2.3.0)
 
-**Precondition:** All active-season teams have at least one assigned Team Owner. Admin is logged in.
+**Must ship:**
 
-1. Admin navigates to Settings → Migration or equivalent cutover panel.
-2. System displays the pre-cutover checklist; all teams show at least one assigned Team Owner (checklist reads zero gaps).
-3. Admin clicks "Disable Shared Coach Login."
-4. System presents a confirmation dialog: "This will permanently disable the shared coach password. All coaches must use their individual accounts. This cannot be automatically undone."
-5. Admin confirms.
-6. System disables the `coaches_password` credential; any login attempt using the shared password returns a "Coach login has been updated — please use your individual account" message.
-7. Admin sees a success confirmation and a note that the setting can be re-enabled manually during the rollback window.
+| Area | Capabilities |
+|------|-------------|
+| Data | `game_umpire_assignments`, `umpire_assignor` role, umpire roster |
+| Assignor UI | Game-centric drawer on admin games; unassigned queue widget |
+| Slots | Plate + Base; warn (not block) on partial two-umpire crew |
+| Workflow | Draft save; publish (single + batch); delta-only emails |
+| Conflicts | Double-book hard block; override with reason + audit |
+| Reschedule | Hook schedule approval → `onScheduleChanged`; tentative badge during pending request |
+| Coach | Published names + fee reminder on team schedule |
+| Comms | `onUmpireAssignmentPublished`, `onUmpireAssignmentChanged` templates |
+| Audit | ActivityLogger events; assignment history (no hard delete) |
+| Roles | `umpire_assignor` role routes; admin override |
 
-**Exit:** Shared credential is disabled; all coach access is exclusively through individual accounts.
+### P1 — Communication Loop Stretch (v2.3.x)
 
----
+| Capability | Ideas |
+|------------|-------|
+| Token confirm/decline | DEC-49, DEC-52 |
+| Cancellation release email | COM-22 |
+| Assignor alert on reschedule approval | RES-39 |
+| No-response escalation | 48h before game |
+| Re-confirm after material reschedule | RES-37 elicitation |
 
-### UJ-9: Coach Manages Their Profile
+### P2 — Self-Service & Operations (v2.4+)
 
-**Precondition:** Coach is logged in with an active account.
+| Capability | Ideas |
+|------------|-------|
+| Umpire portal / `umpire` role | ROL-32 |
+| Availability / blackout dates | CON-26 |
+| Self-assign with skill gating | WF-03, market Phase 2 |
+| UIC read-only oversight | ROL-33 |
+| Travel time warning | CON-24 |
+| Eligibility gates (JDP/training) | DR-11 |
+| Pay report CSV export | AUD-48 |
+| ICS calendar attachment | COM-15 |
+| Printable weekly crew sheet PDF | WF-10 |
 
-1. Coach navigates to their profile or account settings page.
-2. Coach updates name fields: first name, last name, and/or preferred name.
-3. Coach submits name changes; system saves and confirms update.
-4. Coach adds or updates their primary phone number, selecting a phone type (Home, Work, or Cell).
-5. Coach optionally adds or updates a secondary phone number with phone type, or removes an existing secondary phone number.
-6. Coach saves phone changes; system confirms.
-7. To change password, coach clicks "Change Password," enters their current password, then enters and confirms the new password.
-8. System validates current password, validates new password complexity (FR-REG-5), and saves; coach sees a confirmation.
+### P3 — Deferred / Out of Scope
 
-**Exit:** Profile reflects the coach's updated information; password change (if made) takes effect on the current session.
-
----
-
-### UJ-10: Coach Views Their Team's Schedule
-
-**Precondition:** Coach is logged in with Team Owner role and at least one team assignment.
-
-1. Coach navigates to the Schedule section or their dashboard.
-2. System displays a schedule table filtered to all games involving the coach's assigned team(s), regardless of game status.
-3. Table columns displayed: Game Number, Date, Time, Away Team, Home Team, Location, Score.
-4. Coach clicks any column header to sort ascending; clicks again to sort descending.
-5. Coach uses column filter inputs to filter by any combination of columns (e.g., filter Date to a specific date range, or filter by team name).
-6. Coach can clear filters to return to the full team schedule view.
-
-**Exit:** Coach has reviewed the schedule for their assigned team(s) with the desired sort and filter applied.
-
----
-
-### UJ-11: Admin Manages the League Dropdown List
-
-**Precondition:** Admin is logged in.
-
-1. Admin navigates to Settings → Leagues (or equivalent admin configuration panel).
-2. System displays the current league list: all active entries in display order, with inactive entries shown below with a visual indicator.
-3. Admin clicks "Add League" and enters a short display name (e.g., "Springfield"); confirms.
-4. New entry appears at the bottom of the active list.
-5. Admin reorders entries by dragging or using up/down controls; order is saved on confirmation.
-6. To edit an entry, admin clicks the entry name, updates the display name, and saves.
-7. To deactivate an entry, admin clicks "Deactivate" on the entry; system confirms the action. The entry is removed from the registration dropdown but retained in the system for historical reference.
-8. Admin can reactivate a previously deactivated entry; it returns to the active list at the bottom by default.
-9. Admin verifies the dropdown preview to confirm the list order and the presence of the static "Other" option at the end.
-
-**Exit:** The league dropdown on the registration form reflects the active entries in the configured display order; deactivated entries no longer appear in the dropdown.
-
----
-
-### UJ-12: Admin Views Game Schedule History
-
-**Precondition:** Admin is logged in. At least one game exists in the system.
-
-1. Admin navigates to a game's detail or management view in the admin console.
-2. System displays the game's complete chronological schedule history, from oldest to newest:
-   - **Original schedule entry:** the date, time, and location the game was first created with.
-   - **For each approved reschedule:** the previous date/time/location, the new date/time/location, the reason provided by the coach, the admin who approved it, and the approval timestamp.
-3. Pending reschedule requests are also visible in the history panel with their current status (Pending / Approved / Denied), requested date/time, and reason — giving the admin full context before acting.
-4. Admin can see at a glance how many times a game has been rescheduled and what the original schedule was, regardless of how many iterations have occurred.
-
-**Exit:** Admin has a complete audit trail for the game's scheduling lifecycle.
+See [Out of Scope](#out-of-scope) section.
 
 ---
 
 ## Functional Requirements
 
-### FR-AUTH: Authentication
+### Umpire Roster Management
 
-| ID | Requirement |
-|----|-------------|
-| FR-AUTH-1 | Users can log in with username or email + password via the coach login page |
-| FR-AUTH-2 | Sessions expire after 60 minutes of inactivity |
-| FR-AUTH-3 | Users can reset their password via a time-limited (24-hour) email link |
-| FR-AUTH-4 | Accounts are locked for 15 minutes after 5 consecutive failed login attempts |
-| FR-AUTH-5 | "Remember me" option extends session to 30 days via secure persistent cookie |
-| FR-AUTH-6 | Logout invalidates the session immediately |
-| FR-AUTH-7 | The login page includes a CAPTCHA or equivalent automated bot-detection challenge that activates after 3 consecutive failed login attempts from the same IP address; challenge must be passed before further login attempts are accepted |
+- **FR-ROSTER-1:** Admin or assignor can create and maintain an umpire roster entry (name, email, phone, active status).
+- **FR-ROSTER-2:** Admin or assignor can link a roster entry to an existing user account (`users.id`) when the umpire has login credentials.
+- **FR-ROSTER-3:** Admin or assignor can mark an umpire as **volunteer** (no-pay) so fee reminders are suppressed in coach and umpire communications.
+- **FR-ROSTER-4:** Admin can deactivate an umpire; deactivated umpires cannot be newly assigned but historical assignments remain visible.
+- **FR-ROSTER-5:** Admin can assign the `umpire_assignor` role to a user account.
 
----
+### Assignment Operations
 
-### FR-REG: Registration
+- **FR-ASSIGN-1:** Assignor can view a list of scheduled games filterable by date range and division.
+- **FR-ASSIGN-2:** Assignor can open an **Assign Umpires** interface from a game row showing game number, date, time, location, home/away teams, and division.
+- **FR-ASSIGN-3:** Assignor can assign one umpire to the **Plate** slot and optionally one to the **Base** slot for a game.
+- **FR-ASSIGN-4:** Assignor can save assignments in **Draft** state without sending notifications or exposing names to coaches.
+- **FR-ASSIGN-5:** Assignor can **Publish** assignments for one or more games; publish sends notifications only for slots that changed since last publish (delta).
+- **FR-ASSIGN-6:** Assignor can add optional per-game **assignment notes** included in umpire notification emails.
+- **FR-ASSIGN-7:** Assignor can clear or reassign an umpire from a slot; republish triggers appropriate delta notifications.
+- **FR-ASSIGN-8:** System displays a warning when publishing a game in a division configured for two umpires but fewer than two slots are filled; assignor can proceed with documented override reason.
+- **FR-ASSIGN-9:** Assignor can view an **Unassigned Games** report of games within a configurable window (default 14 days) with no published assignments.
 
-| ID | Requirement |
-|----|-------------|
-| FR-REG-1 | When open registration is **enabled**, any user can access the registration URL and create an account |
-| FR-REG-2 | When open registration is **disabled**, the registration URL returns a closed message; only invitation token URLs produce the registration form |
-| FR-REG-3 | Registration form collects: first name, last name, preferred name (optional), email, primary phone with phone type (Home / Work / Cell), secondary phone with phone type (optional), league (dropdown — see FR-LEAGUELIST), username, password, confirm password |
-| FR-REG-4 | Usernames must be unique across all accounts; duplicate submissions return a field-level error |
-| FR-REG-5 | Passwords must be at least 8 characters and include at least one uppercase letter, one number, and one special character |
-| FR-REG-6 | System sends a verification email upon successful form submission; account status is `unverified` until the link is clicked |
-| FR-REG-7 | Verification links expire after 48 hours; expired links display an option to resend verification |
-| FR-REG-8 | Newly verified accounts are assigned `user` role; Team Owner role is granted only by admin |
-| FR-REG-9 | Admin receives an email notification when a new account completes email verification |
-| FR-REG-10 | The registration form includes a CAPTCHA or equivalent automated bot-detection challenge; submissions that fail the challenge are rejected before account creation |
-| FR-REG-11 | The League field on the registration form is a dropdown populated from the admin-managed league list (FR-LEAGUELIST); the dropdown includes an "Other" option that, when selected, reveals a free-text field for the coach to enter their league name manually |
-| FR-REG-12 | The League field is required; registration cannot be submitted without a league selection or a manually entered value when "Other" is selected |
+### Conflict Detection
 
----
+- **FR-CONFLICT-1:** System blocks saving or publishing an assignment if the same umpire is assigned to overlapping games (same date/time window) unless admin or assignor provides an override reason.
+- **FR-CONFLICT-2:** System logs all conflict overrides via ActivityLogger with umpire, games, and reason.
 
-### FR-LEAGUELIST: League List Management (Admin)
+### Publish & Notification State
 
-| ID | Requirement |
-|----|-------------|
-| FR-LEAGUELIST-1 | Admins can create, edit, and deactivate entries in the league dropdown list used on the registration form |
-| FR-LEAGUELIST-2 | Each league list entry is a short display name (e.g., "Springfield") used as-is in team name generation and in the registration form dropdown |
-| FR-LEAGUELIST-3 | Admins can reorder league list entries to control the display order in the dropdown |
-| FR-LEAGUELIST-4 | Deactivated league entries no longer appear in the registration dropdown but remain in the system for historical reference and existing team records |
-| FR-LEAGUELIST-5 | The registration form dropdown always includes an "Other" option as the last entry regardless of admin configuration |
+- **FR-PUBLISH-1:** Only assignments with `published=1` are visible on coach schedule views and considered official for communications.
+- **FR-PUBLISH-2:** System tracks `last_notified_at` per assignment slot to support delta-only email sends.
+- **FR-PUBLISH-3:** Assignor dashboard shows count of games with unpublished draft assignments.
 
----
+### Reschedule Integration
 
-### FR-INV: Invitation System
+- **FR-RESCHED-1:** When a `schedule_change_request` is **pending** for a game, assignor UI displays assignments as **TENTATIVE**.
+- **FR-RESCHED-2:** When a schedule change is **approved** and affects date, time, or location of a game with published assignments, system automatically sends change notification emails to assigned umpires.
+- **FR-RESCHED-3:** After material schedule change approval, assignment status returns to `Pending` (clears prior confirmation when P1 token flow is enabled).
+- **FR-RESCHED-4:** When a schedule change is **denied**, no umpire notifications are sent and assignments remain on the original slot.
+- **FR-RESCHED-5:** On material schedule change approval, system sends an alert email to the assignor listing affected games and assigned umpires.
+- **FR-RESCHED-6:** System does not send umpire change notifications for immaterial edits (e.g., note-only) — configurable material-change threshold defaults to any date/time/location change.
 
-| ID | Requirement |
-|----|-------------|
-| FR-INV-1 | Admins can send a registration invitation to any email address via the admin User Management panel |
-| FR-INV-2 | Invitation emails contain a unique, single-use registration URL that expires after 14 days |
-| FR-INV-3 | Sending a second invitation to an email that has a pending invitation cancels the prior token and issues a new one |
-| FR-INV-4 | Admins can view all pending invitations with status (pending, completed, expired) and resend or cancel them |
-| FR-INV-5 | Completed invitation tokens cannot be reused |
+### Coach Visibility
 
----
+- **FR-COACH-1:** Coach team schedule displays **published** plate and base umpire names for each game involving the coach's team.
+- **FR-COACH-2:** Coach team schedule displays division-appropriate **fee reminder text** alongside umpire names (per KB 1.15.1–1.15.2), suppressed for volunteer umpires.
+- **FR-COACH-3:** Coaches cannot assign, edit, or remove umpire assignments.
+- **FR-COACH-4:** Coach schedule does not display draft or unpublished assignments.
 
-### FR-TOGGLE: Registration Toggle
+### Admin Override & Audit
 
-| ID | Requirement |
-|----|-------------|
-| FR-TOGGLE-1 | Admins can enable or disable open self-registration from the Settings panel |
-| FR-TOGGLE-2 | When enabled, the admin Settings panel displays the registration URL and a QR code image for that URL |
-| FR-TOGGLE-3 | Toggle change takes effect within one page load with no server restart required |
-| FR-TOGGLE-4 | Disabling open registration does not affect active invitation links already in circulation |
+- **FR-ADMIN-1:** Administrator can assign or reassign umpires on any game regardless of assignor ownership.
+- **FR-ADMIN-2:** Administrator reassignment requires a mandatory **reason** text field.
+- **FR-ADMIN-3:** System records ActivityLogger events for: assign, publish, reassign, decline (P1), and conflict override.
+- **FR-ADMIN-4:** Administrator can view assignment history for a game (current and prior slot states retained).
 
----
+### Token Confirm / Decline (P1)
 
-### FR-TEAMREG: Coach-Initiated Team Registration (Self-Registration Path)
+- **FR-TOKEN-1:** Published assignment emails include signed, single-use token links for Confirm and Decline actions.
+- **FR-TOKEN-2:** Umpire can confirm or decline without logging in; token binds to `umpire_user_id` + `game_id` + slot.
+- **FR-TOKEN-3:** Decline notifies assignor and sets slot status to `Declined`.
+- **FR-TOKEN-4:** System sends assignor alert for slots still unconfirmed 48 hours before game time.
+- **FR-TOKEN-5:** Confirm action uses POST after GET preview to prevent email scanner token consumption.
 
-| ID | Requirement |
-|----|-------------|
-| FR-TEAMREG-1 | After completing email verification during self-registration (UJ-1), the coach is presented with a list of programs and seasons that currently have open registration; only seasons within their active registration period are displayed |
-| FR-TEAMREG-2 | The coach selects a program and season from the available open-registration options; division is not selectable by the coach and is assigned by an admin after approval |
-| FR-TEAMREG-3 | The team name is auto-generated by the system at submission as `{league_name}-{coach_last_name}` using the league value from the coach's registration and the coach's last name; this field is displayed to the coach as read-only during registration and is not editable by the coach |
-| FR-TEAMREG-4 | If the coach selected "Other" for their league, the manually entered league value is used in place of `{league_name}` in the auto-generated team name |
-| FR-TEAMREG-5 | During team registration, the coach can add up to 5 home field locations; each location entry is saved to the system's available field locations pool for use in game scheduling |
-| FR-TEAMREG-6 | Home field location entry requires at minimum a location name; additional details (address, GPS coordinates, notes) are optional at registration time |
-| FR-TEAMREG-7 | Submitted team registrations are created in a `pending` status and appear in the admin dashboard as items requiring review |
-| FR-TEAMREG-8 | Admin receives a notification when a new team registration is submitted via the self-registration path |
-| FR-TEAMREG-9 | Upon admin approval of a team registration, the system assigns the submitting coach as Team Owner for that team (equivalent to FR-ASSIGN-1/2) |
-| FR-TEAMREG-10 | The coach receives an email notification when their team registration is approved and they have been assigned as Team Owner |
-| FR-TEAMREG-11 | A coach who registered via invitation (UJ-2) cannot submit a team registration through the self-registration path; team assignment for invitation-registered coaches is handled exclusively via UJ-3 |
-| FR-TEAMREG-12 | Only an admin can edit a team name after it has been auto-generated; the coach has no ability to modify the team name through any coach-accessible interface |
+### Game Cancellation (P1)
 
----
-
-### FR-ASSIGN: Team Assignment (Admin)
-
-| ID | Requirement |
-|----|-------------|
-| FR-ASSIGN-1 | Admins can assign one or more teams to a user account from the User Detail page |
-| FR-ASSIGN-2 | Assigning the first team to a user elevates their role to `team_owner` automatically |
-| FR-ASSIGN-3 | ~~Admins can assign multiple teams to the same user~~ — **Deferred to future phase.** This iteration enforces 1:1 user-to-team via `UNIQUE(user_id)` on `team_owners`. Multi-team ownership is architecturally supported in the query layer but the DB constraint prevents it. |
-| FR-ASSIGN-4 | ~~Multiple Team Owners can be assigned to the same team~~ — **Deferred to future phase.** Same constraint as FR-ASSIGN-3; a single coach per team is enforced this iteration. |
-| FR-ASSIGN-5 | Admins can remove a team assignment from a user; if the user has no remaining teams, their role reverts to `user` |
-| FR-ASSIGN-6 | Coach receives an email notification when a team is assigned or removed |
-| FR-ASSIGN-7 | Admin can view all team assignments for a user and all users assigned to a specific team |
-
----
-
-### FR-SCORE: Score Submission (Team-Scoped)
-
-| ID | Requirement |
-|----|-------------|
-| FR-SCORE-1 | Team Owners can submit scores for games where their assigned team is the home team |
-| FR-SCORE-2 | Team Owners can submit scores for games where their assigned team is the away team |
-| FR-SCORE-3 | The score submission interface displays only games belonging to the coach's assigned team(s) where the game date is in the past, or the game date is the current date and the game time is in the past; games with a future date or a future time on the current date are excluded |
-| FR-SCORE-4 | Score submission for a game that already has a recorded score requires an explicit "edit score" action (not the default submit flow) |
-| FR-SCORE-5 | Submitted scores update standings immediately upon save |
-| FR-SCORE-6 | Admin receives a notification for each score submission by a Team Owner |
-| FR-SCORE-7 | Upon successful score submission, the game status is set to `completed` |
-
----
-
-### FR-RESCHED: Reschedule Requests (Team-Scoped)
-
-| ID | Requirement |
-|----|-------------|
-| FR-RESCHED-1 | Team Owners can submit reschedule requests for games where their assigned team is the home or away team |
-| FR-RESCHED-2 | The reschedule request interface displays only games belonging to the coach's assigned team(s) |
-| FR-RESCHED-3 | Reschedule requests require a proposed new date/time and a reason (both required) |
-| FR-RESCHED-4 | Submitted requests appear in the admin dashboard as pending items for review |
-| FR-RESCHED-5 | Coaches can view the status of their own submitted reschedule requests (Pending / Approved / Denied) |
-| FR-RESCHED-6 | Admin receives a notification for each reschedule request submitted by a Team Owner |
-| FR-RESCHED-7 | Coaches can cancel a reschedule request they submitted only while the request status is `pending`; requests with status `approved` or `denied` cannot be cancelled by the coach |
-| FR-RESCHED-8 | The public-facing schedule is not updated with a new date, time, or location until an admin explicitly approves the reschedule request; the original scheduled date/time/location remains on the public schedule while a request is `pending` |
-
----
-
-### FR-SCHEDHISTORY: Game Schedule History (Admin)
-
-| ID | Requirement |
-|----|-------------|
-| FR-SCHEDHISTORY-1 | When a game is first scheduled, the system records the original date, time, and location as an immutable history entry so the original schedule is never lost regardless of subsequent changes |
-| FR-SCHEDHISTORY-2 | When an admin approves a reschedule request, the system creates a history entry capturing: the previous date/time/location, the new date/time/location, the reason provided by the coach, the approving admin's identity, and the approval timestamp |
-| FR-SCHEDHISTORY-3 | Admins can view the complete chronological schedule history for any game, from original schedule through all approved reschedules, in a dedicated history panel on the game detail or management screen |
-| FR-SCHEDHISTORY-4 | The game history panel also displays all reschedule requests (pending, approved, and denied) with their status, requested date/time, coach-provided reason, and submission timestamp — giving admins full context for pending decisions |
-
----
-
-### FR-RESOURCES: Authenticated Coach Resources
-
-| ID | Requirement |
-|----|-------------|
-| FR-RESOURCES-1 | Any authenticated user (role ≥ `user`) can access the local rules and regulations documents section |
-| FR-RESOURCES-2 | The rules section displays documents uploaded by admin via the existing Document Management feature |
-| FR-RESOURCES-3 | Any authenticated user (role ≥ `user`) can access the league contact directory |
-| FR-RESOURCES-4 | Unauthenticated requests to the rules or contact directory pages redirect to the login page |
-
----
-
-### FR-USERMGMT: User Management (Admin)
-
-| ID | Requirement |
-|----|-------------|
-| FR-USERMGMT-1 | Admins can view a filterable, searchable, paginated list of all user accounts |
-| FR-USERMGMT-2 | Admins can edit any user's profile fields (name, email, phone, username) |
-| FR-USERMGMT-3 | Admins can change a user's role (user, team_owner, administrator) |
-| FR-USERMGMT-4 | Admins can disable or re-enable a user account; disabled accounts cannot log in |
-| FR-USERMGMT-5 | Admins can reset a user's password, generating a temporary password and forcing a change on next login |
-| FR-USERMGMT-6 | Admins can delete a user account with a confirmation step; associated team assignments are removed |
-| FR-USERMGMT-7 | Admins can view a pre-cutover checklist showing all active-season teams that have zero assigned Team Owners, allowing gap identification before disabling the shared credential |
-| FR-USERMGMT-8 | Admins can disable the legacy shared coach credential from the Settings panel; once disabled, the shared credential no longer grants access to any protected page |
-| FR-USERMGMT-9 | The shared coach credential disable action requires an explicit confirmation step and is only available when the pre-cutover checklist shows zero teams with no assigned Team Owner |
-
----
-
-### FR-PROFILE: Coach Self-Service Profile Management
-
-| ID | Requirement |
-|----|-------------|
-| FR-PROFILE-1 | Authenticated users can update their first name, last name, and preferred name from their profile page |
-| FR-PROFILE-2 | Authenticated users can add or update a primary phone number on their profile; a phone type (Home, Work, or Cell) is required for each number |
-| FR-PROFILE-3 | Authenticated users can add or update a secondary phone number on their profile; a phone type (Home, Work, or Cell) is required for each number |
-| FR-PROFILE-4 | Authenticated users can remove a secondary phone number from their profile; the primary phone number cannot be removed |
-| FR-PROFILE-5 | Authenticated users can change their own password from their profile page while logged in; the current password must be provided before a new password is accepted |
-| FR-PROFILE-6 | New passwords set via FR-PROFILE-5 must meet the same complexity requirements as FR-REG-5 |
-| FR-PROFILE-7 | Team name is not editable by the coach through any profile or self-service interface; the team name field is read-only for all coach roles and is editable only by admins (FR-TEAMREG-12) |
-
----
-
-### FR-COACHSCHEDULE: Coach Team Schedule View
-
-| ID | Requirement |
-|----|-------------|
-| FR-COACHSCHEDULE-1 | Authenticated Team Owners can view a schedule filtered to games involving their assigned team(s) |
-| FR-COACHSCHEDULE-2 | The schedule view displays the following columns for each game: Game Number, Date, Time, Away Team, Home Team, Location, Score |
-| FR-COACHSCHEDULE-3 | All columns in the schedule view are independently sortable (ascending and descending) |
-| FR-COACHSCHEDULE-4 | All columns in the schedule view are independently filterable; text columns support search input; the Date column supports date-range filtering |
-| FR-COACHSCHEDULE-5 | The schedule view displays all games for the coach's assigned team(s) regardless of game status (scheduled, completed, cancelled) |
-| FR-COACHSCHEDULE-6 | The schedule view presentation follows the same column structure and interaction patterns as the existing master public schedule |
-
----
-
-### FR-RESTRICTIONS: Coach Permission Boundaries
-
-| ID | Requirement |
-|----|-------------|
-| FR-RESTRICTIONS-1 | Team Owners cannot terminate, close, or change the status of a season; season lifecycle management is admin-only |
-| FR-RESTRICTIONS-2 | Team Owners cannot change the division or program assignment for any team, including their own assigned team(s); division and program assignment is admin-only |
-| FR-RESTRICTIONS-3 | Team Owners cannot change game status directly; game status transitions (including marking a game cancelled) are admin-only. The sole exception is that submitting a score via the score submission flow sets game status to `completed` (FR-SCORE-7) |
-| FR-RESTRICTIONS-4 | Team Owners cannot submit a score for a game that does not involve their assigned team(s); the system rejects any such submission server-side regardless of client input |
-| FR-RESTRICTIONS-5 | Team Owners cannot submit a score for a game whose date is in the future, or whose date is the current date and whose scheduled time is in the future |
-| FR-RESTRICTIONS-6 | Team Owners cannot view, edit, or access profile information, account settings, or contact details of other coaches, other teams, administrators, or league officials |
-| FR-RESTRICTIONS-7 | Team Owners cannot perform any admin-only function (including but not limited to: user management, team/division/program management, season management, game creation/editing, schedule management, document management, and system settings) |
+- **FR-CANCEL-1:** When game status becomes Cancelled or Postponed, system sends release notification to assigned umpires and sets assignment status to `Cancelled`.
 
 ---
 
 ## Non-Functional Requirements
 
-### NFR-SEC: Security
+### Performance (NFR-PERF)
 
-| ID | Requirement |
-|----|-------------|
-| NFR-SEC-1 | User credentials are stored such that plaintext passwords cannot be recovered from the database under any circumstance, verified by security review prior to launch |
-| NFR-SEC-2 | All state-changing operations (form submissions, role changes, team assignments) are protected against cross-site request forgery; forged requests are rejected with no state change |
-| NFR-SEC-3 | All user-supplied input is parameterized before database execution; SQL injection attacks produce no unauthorized data access or modification |
-| NFR-SEC-4 | Session tokens are transmitted and stored in a manner that prevents access by client-side scripts and transmission over unencrypted connections |
-| NFR-SEC-5 | A user's session token changes on login, logout, and privilege level change, preventing session fixation and privilege escalation via stolen pre-auth tokens |
-| NFR-SEC-6 | The open self-registration URL is not discoverable through public site navigation, search engine indexing, or automated scanning; access is limited to holders of the distributed QR code |
+- **NFR-PERF-1:** Assignor games list with assignment status loads within **3 seconds** on shared hosting for a 4-week window (~200 games).
+- **NFR-PERF-2:** Single-game assignment save (including conflict check) completes within **2 seconds** at p95.
+- **NFR-PERF-3:** Publish batch of up to 20 games completes within **30 seconds** including email queue enqueue.
 
----
+### Security (NFR-SEC)
 
-### NFR-PERF: Performance
+- **NFR-SEC-1:** All assignment mutations require authenticated session with appropriate role and CSRF token per existing app patterns.
+- **NFR-SEC-2:** Confirm/decline tokens are cryptographically random, expire after **7 days** or game datetime (whichever is sooner), and are single-use.
+- **NFR-SEC-3:** Assignor routes are allowlisted; assignor role cannot access score submission, user management, or unrestricted schedule edit routes.
+- **NFR-SEC-4:** Umpire PII (email, phone) exposed only to assignor, admin, and assigned umpire notification — not on public schedule.
 
-| ID | Requirement |
-|----|-------------|
-| NFR-PERF-1 | Login page responds in under 2 seconds at 95th percentile under normal load on shared hosting |
-| NFR-PERF-2 | Score submission completes (form submit → confirmation page) in under 3 seconds at 95th percentile |
-| NFR-PERF-3 | Coach dashboard (game list for assigned teams) loads in under 3 seconds for a coach assigned to up to 3 teams |
-| NFR-PERF-4 | Self-registration form submission (user account creation trigger) completes in under 3 seconds at 95th percentile; verification email is delivered within 5 minutes under normal mail server conditions |
+### Reliability (NFR-REL)
 
----
+- **NFR-REL-1:** Reschedule-triggered umpire notifications execute in the same request or queued job as schedule approval — no silent skip.
+- **NFR-REL-2:** Email send failures are logged in email queue with retrievable status for support/debug (AUD-47).
+- **NFR-REL-3:** Assignment database records are the source of truth; email is a notification channel, not the authority.
 
-### NFR-COMPAT: Compatibility
+### Compatibility (NFR-COMPAT)
 
-| ID | Requirement |
-|----|-------------|
-| NFR-COMPAT-1 | All registration, login, score submission, reschedule request, team registration, and profile management forms are fully functional on mobile viewports (≥ 375px width) |
-| NFR-COMPAT-2 | UI renders correctly in current versions of Chrome, Firefox, and Safari |
-| NFR-COMPAT-3 | Application runs on PHP 8.1 (`ea-php81`) on cPanel shared hosting without additional server configuration |
+- **NFR-COMPAT-1:** Assignor UI is responsive (Bootstrap 5) and usable on mobile viewport ≥320px width.
+- **NFR-COMPAT-2:** No new runtime dependencies beyond existing stack (PHP 8.1, MariaDB, PHPMailer).
+- **NFR-COMPAT-3:** Feature degrades gracefully if email SMTP unavailable — assignments save; publish reports email failure to assignor.
 
----
+### Maintainability (NFR-MAINT)
 
-### NFR-ACCESS: Accessibility
+- **NFR-MAINT-1:** Umpire assignment logic lives in `UmpireAssignmentService` under `includes/` following existing service patterns (`RescheduleService`, `EmailService`).
+- **NFR-MAINT-2:** Database changes delivered via numbered migration in `database/migrations/`.
+- **NFR-MAINT-3:** Division fee reminder text sourced from configuration or KB seed — not hardcoded in views.
 
-| ID | Requirement |
-|----|-------------|
-| NFR-ACCESS-1 | All authentication, registration, and data-entry pages (login, registration, score submission, reschedule request) meet WCAG 2.1 Level AA standards for keyboard navigation, screen reader compatibility, and a minimum 4.5:1 color contrast ratio, verified by automated accessibility scanning tool prior to launch |
+### Accessibility (NFR-ACCESS)
+
+- **NFR-ACCESS-1:** Assignor form controls meet WCAG 2.1 AA contrast and label requirements consistent with existing admin pages.
+- **NFR-ACCESS-2:** P1 confirm/decline action buttons have minimum 44×44px touch targets.
 
 ---
 
-### NFR-AVAIL: Availability & Migration
+## Data Model Summary
 
-| ID | Requirement |
-|----|-------------|
-| NFR-AVAIL-1 | During the transition period, both the new individual login system and the existing shared coach login remain fully operational in parallel; a failure in either system does not degrade the other, maintaining 100% login availability for all current users throughout the transition |
+### New Table: `game_umpire_assignments`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `assignment_id` | INT PK AUTO_INCREMENT | |
+| `game_id` | INT FK → `games.game_id` | ON DELETE CASCADE |
+| `umpire_user_id` | INT FK → `users.id` NULL | NULL = open slot |
+| `slot` | ENUM('Plate','Base') | UNIQUE (`game_id`, `slot`) |
+| `assignment_status` | ENUM('Open','Draft','Pending','Confirmed','Declined','Cancelled') | |
+| `published` | TINYINT(1) DEFAULT 0 | Coach visibility gate |
+| `assigned_by_user_id` | INT FK NULL | |
+| `assigned_at` | DATETIME NULL | |
+| `responded_at` | DATETIME NULL | P1 token flow |
+| `last_notified_at` | DATETIME NULL | Delta email support |
+| `response_token` | VARCHAR(64) UNIQUE NULL | P1 |
+| `token_expires_at` | DATETIME NULL | P1 |
+| `notes` | TEXT NULL | Assignor notes in email |
+| `override_reason` | TEXT NULL | Conflict/partial crew override |
+| `created_at` / `modified_at` | DATETIME | Standard audit timestamps |
+
+**History pattern:** Updates to published assignments insert history row or retain prior state in append-only log table (AUD-46) — implementation choice: either `game_umpire_assignment_history` child table or soft-version via `modified_at` + ActivityLogger; PRD requires dispute-grade provenance.
+
+### New or Extended: Umpire Roster
+
+Option A (MVP): Umpires are `users` with role flag + profile fields (`phone`, `volunteer_flag`, `active`).
+
+Option B: Separate `umpires` table with optional `user_id` link — use if many roster members lack logins.
+
+**Recommendation (MVP):** Extend `users` / profile for linked accounts; `umpire_roster` table for non-login contacts with `email`, `phone`, `name`, `volunteer`, `active`.
+
+### Division Configuration Extension
+
+| Field | Purpose |
+|-------|---------|
+| `default_umpire_count` | 1 or 2 — drives publish warning |
+| `fee_one_umpire_total` | e.g., 70 / 100 |
+| `fee_two_umpire_each` | e.g., 50 / 80 |
+| `fee_reminder_template` | Coach display text |
+
+Seed from KB migration 024 rules for Intermediate, Junior, Senior.
+
+### Existing Tables (Read/Write Integration)
+
+| Table | Integration |
+|-------|-------------|
+| `games` | FK target; `game_status` drives cancellation flow |
+| `schedules` | Date/time/location for conflict check and email content |
+| `schedule_change_requests` | Pending → tentative UI; approval → notification hook |
+| `schedule_history` | Optional cross-reference for audit |
+| `email_templates` | New template rows for umpire notifications |
+| `users` | Umpire and assignor accounts; role column extended |
+
+### Entity Relationship (Conceptual)
+
+```
+games 1──* game_umpire_assignments *──1 users (umpire)
+games 1──1 schedules
+games 1──* schedule_change_requests
+users (assignor) 1──* game_umpire_assignments (assigned_by)
+divisions 1──* games (fee/crew defaults)
+```
 
 ---
 
-## Migration Strategy
+## Email & Notification Specifications
 
-### Current State
+All templates use existing `EmailService::triggerNotificationToAddress()` and `email_templates` table. Plain-text alternative required for each HTML template.
 
-The MVP uses a single `coaches_password` value stored in the `settings` table. All coaches share this password to access score submission, reschedule requests, and the contact directory. No individual identity is tracked.
+### Template Catalog
 
-### Transition Approach
+| Template Key | Trigger | Recipients | Priority |
+|--------------|---------|------------|----------|
+| `onUmpireAssignmentPublished` | Assignor publishes new/changed slot | Assigned umpire email | MVP |
+| `onUmpireAssignmentChanged` | Approved schedule change (material) | Assigned umpire(s) | MVP |
+| `onUmpireAssignmentChangedAssignorAlert` | Approved schedule change (material) | Assignor email | MVP |
+| `onUmpireGameCancelled` | Game cancelled/postponed | Assigned umpire(s) | P1 |
+| `onUmpireAssignmentDeclined` | Token decline | Assignor email | P1 |
+| `onUmpireUnconfirmedReminder` | 48h before game, status Pending | Assignor email | P1 |
 
-**Phase 1 — Parallel operation:**
-- New individual login system is deployed alongside the existing shared credential.
-- Coaches who have registered individually use the new login; coaches who have not yet registered continue using the shared password.
-- Admin dashboard shows a banner: "X teams have no assigned Team Owner — shared login still active."
+### `onUmpireAssignmentPublished` — Content Requirements
 
-**Phase 2 — Coach onboarding:**
-- Admin uses the invitation system or enables open registration to onboard all active team coaches.
-- Admin assigns each registered coach to their team(s).
-- Admin monitors the gap checklist (FR-USERMGMT-7) until it reads zero unassigned teams.
+| Field | Source |
+|-------|--------|
+| Subject | Neutral: `D8 Assignment: {date} {time} — {slot}` (no team names in subject — COM-13 pre-mortem) |
+| Game number | `games.game_number` |
+| Date / time | `schedules` |
+| Location name + maps link | `locations` (existing maps link pattern from Epic 14) |
+| Home vs away teams | `games` |
+| Division | `divisions` |
+| Slot role | Plate or Base |
+| Fee note | Division fee text ("Payment collected at plate before start") |
+| Assignor contact | KB assignor phone + Reply-To assignor email (COM-16, COM-17) |
+| Assignment notes | `game_umpire_assignments.notes` |
+| Official schedule banner | DOM-58 text + link |
+| Confirm/Decline links | P1 only — token URLs |
+| `tel:` links | Assignor phone, home coach if available (MOB-44) |
 
-**Phase 3 — Cutover:**
-- Admin disables open registration (if it was on).
-- Admin disables the shared `coaches_password` credential via the Settings panel.
-- All coach access is now exclusively through individual accounts.
-- Shared credential setting remains in the database in a disabled state for rollback capability during a defined rollback window (suggested: 30 days).
+### `onUmpireAssignmentChanged` — Content Requirements
 
-**Phase 4 — Cleanup (future):**
-- After the rollback window closes, the `coaches_password` setting and legacy auth path can be removed in a subsequent maintenance release.
+Same as published plus:
 
-### Data Migration
+- **Change summary:** "Was: {old date/time/field} → Now: {new date/time/field}"
+- **Action line:** "Please confirm you can still work this assignment" (P1) or "Contact assignor if unavailable" (MVP)
 
-No existing coach data needs to be migrated. The current system holds no individual coach records — only a shared password. All Team Owner accounts are net-new records created during Phase 2 onboarding.
+### Delta Send Rules (COM-14)
+
+Send email when any of: umpire identity changed, slot newly filled, date/time/location changed, game cancelled, publish transitions draft→published. **Do not send** when only internal assignor notes change unless explicitly "re-notify" selected.
+
+### Email Infrastructure
+
+- **From:** Existing league SMTP From address
+- **Reply-To:** Assignor email (COM-16)
+- **Footer:** Day-of issues: call/text assignor per KB §2.4.4 (COM-17) — no Twilio in MVP
+- **Logging:** Record `email_queue` entry ID on assignment for AUD-47
 
 ---
+
+## Role Permissions
+
+### Role Matrix
+
+| Capability | `umpire_assignor` | `admin` | `team_owner` (coach) | `umpire` (P2 portal) | `user` / public |
+|------------|:-----------------:|:-------:|:--------------------:|:--------------------:|:---------------:|
+| View assignor board / unassigned queue | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Assign / draft / publish umpires | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Manage umpire roster | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Override conflict with reason | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Reassign with mandatory reason | ❌ | ✅ | ❌ | ❌ | ❌ |
+| View all assignment audit history | ✅ | ✅ | ❌ | ❌ | ❌ |
+| View published umpires on team schedule | ❌ | ✅ | ✅ (own team) | ❌ | ❌ |
+| Confirm/decline via token | ❌ | ❌ | ❌ | ✅ (email only) | ❌ |
+| Edit game schedule / scores | ❌ | ✅ | ❌ | ❌ | ❌ |
+| Approve schedule change requests | ❌ | ✅ | ❌ | ❌ | ❌ |
+
+### PermissionGuard Implementation
+
+Extend `PermissionGuard::$ROLE_SATISFIES`:
+
+```php
+'umpire_assignor' => ['umpire_assignor', 'admin'],
+'umpire' => ['umpire', 'umpire_assignor', 'admin'],  // P2
+```
+
+**Route allowlist for assignor:**
+
+- `/admin/umpire-assignments/*` (board, queue, publish)
+- `/admin/umpire-roster/*`
+- Read-only access to admin games list fields needed for assignment drawer
+
+**Explicit deny:** assignor cannot access `/admin/schedules/approve`, `/admin/users`, score routes, or coach management.
+
+### Interim Migration
+
+If assignor account not yet provisioned: admin can operate assignment UI until `umpire_assignor` user seeded — document in deployment checklist.
+
+---
+
+## Coach Visibility Specification
+
+Per council decision **V-C**: coaches see **names + fee reminder** on published schedule only.
+
+### Display Rules
+
+| Condition | Coach Team Schedule Shows |
+|-----------|---------------------------|
+| `published=1` and Plate assigned | Plate umpire display name |
+| `published=1` and Base assigned | Base umpire display name |
+| `published=1`, division 2-umpire, only 1 slot | Single name + fee text + optional "(Base TBD)" if assignor enabled |
+| `published=0` or Draft | No umpire section |
+| Volunteer umpire | Names shown; fee reminder replaced with "Volunteer umpire — no fee" |
+| Game cancelled | Umpire section hidden or "Released" after P1 |
+
+### Fee Reminder Text Examples
+
+| Division | Crew | Coach Display |
+|----------|------|---------------|
+| Intermediate | 2 umpires | "Each team pays one umpire $50 before game start." |
+| Intermediate | 1 umpire | "Each team pays $35 before game start ($70 total)." |
+| Junior/Senior | 2 umpires | "Each team pays one umpire $80 before game start." |
+| Junior/Senior | 1 umpire | "Each team pays $50 before game start ($100 total)." |
+
+### Privacy
+
+- Umpire email and phone **not** shown to coaches on schedule (names only).
+- Public schedule page: umpire names **hidden** in MVP (COM-19 deferred — policy decision).
+
+---
+
+## Reschedule Integration Specification
+
+### Hook Point
+
+In schedule change approval handler (`public/admin/schedules/index.php` or `RescheduleService` approval method), after successful commit:
+
+```php
+UmpireAssignmentService::onScheduleChanged($gameId, $changeContext);
+```
+
+### Behavior Matrix
+
+| Event | Assignment UI | Umpire Email | Assignor Email | Coach View |
+|-------|---------------|--------------|----------------|------------|
+| Change request submitted | TENTATIVE badge | None | None | Unchanged until approved |
+| Change approved (material) | Status → Pending | `onUmpireAssignmentChanged` | Alert template | Updates to new datetime + same umpire names |
+| Change approved (immaterial) | No change | None | None | Unchanged |
+| Change denied | Tentative cleared | None | None | Unchanged |
+| Game cancelled | Slots → Cancelled (P1) | `onUmpireGameCancelled` (P1) | Optional | Umpire section removed |
+
+### Material Change Definition
+
+Material = any change to `schedule_date`, `schedule_time`, or `location_id`. Future: configurable minimum time delta (e.g., >15 min) — default all changes material for MVP.
+
+### Transaction Safety
+
+Notification enqueue must not roll back schedule approval if email fails; log failure and surface assignor retry action (NFR-REL-2).
+
+---
+
+## Acceptance Criteria
+
+### MVP Release Checklist
+
+#### Assignment Core
+
+- [ ] **AC-MVP-01:** Assignor can assign Plate and Base umpires to a game and save as Draft without email sent.
+- [ ] **AC-MVP-02:** Assignor can Publish assignments; assigned umpires receive email within 5 minutes (SMTP permitting).
+- [ ] **AC-MVP-03:** Re-publish unchanged slots does not send duplicate emails.
+- [ ] **AC-MVP-04:** Re-publish with different umpire sends email only to old and new umpire as appropriate.
+- [ ] **AC-MVP-05:** Unassigned queue lists games in next 14 days with zero published assignments.
+
+#### Multi-Umpire (M-C)
+
+- [ ] **AC-MVP-06:** Intermediate game configured for 2 umpires shows warning when publishing with only Plate filled; assignor can override with reason.
+- [ ] **AC-MVP-07:** Both Plate and Base can be assigned to different umpires on same game.
+
+#### Conflicts
+
+- [ ] **AC-MVP-08:** Assigning same umpire to overlapping games is blocked until override reason entered.
+- [ ] **AC-MVP-09:** Override reason appears in ActivityLogger.
+
+#### Reschedule (C)
+
+- [ ] **AC-MVP-10:** Pending schedule change shows TENTATIVE on assignor view.
+- [ ] **AC-MVP-11:** Approved date change sends `onUmpireAssignmentChanged` to all published assigned umpires.
+- [ ] **AC-MVP-12:** Denied schedule change sends no umpire emails.
+- [ ] **AC-MVP-13:** Assignor receives alert email on material approved change affecting assigned game.
+
+#### Coach Visibility (V-C)
+
+- [ ] **AC-MVP-14:** Coach team schedule shows published umpire names for their games.
+- [ ] **AC-MVP-15:** Coach team schedule shows correct fee reminder for division and crew size.
+- [ ] **AC-MVP-16:** Draft assignments not visible to coach.
+
+#### Roles (R-C)
+
+- [ ] **AC-MVP-17:** User with `umpire_assignor` role can access assignment UI but not admin user management or schedule approval.
+- [ ] **AC-MVP-18:** Admin can override assignment with mandatory reason.
+
+#### Audit
+
+- [ ] **AC-MVP-19:** Publish event logged in ActivityLogger with game IDs and actor.
+- [ ] **AC-MVP-20:** Assignment history retrievable for dispute ("who was assigned when").
+
+#### Email Quality
+
+- [ ] **AC-MVP-21:** Assignment email contains game number, datetime, field, teams, role, assignor contact, maps link.
+- [ ] **AC-MVP-22:** Plain-text part renders correctly in Gmail and Outlook spot check.
+- [ ] **AC-MVP-23:** Reply-To is assignor address.
+
+### P1 Release Checklist
+
+- [ ] **AC-P1-01:** Confirm token sets status Confirmed; Decline sets Declined and alerts assignor.
+- [ ] **AC-P1-02:** Token is single-use; expired token shows friendly error.
+- [ ] **AC-P1-03:** POST required for confirm after GET preview.
+- [ ] **AC-P1-04:** 48h unconfirmed alert sent to assignor.
+- [ ] **AC-P1-05:** Game cancellation sends release email to umpires.
+- [ ] **AC-P1-06:** Material reschedule clears Confirmed → Pending.
+
+---
+
+## Out of Scope
+
+The following are explicitly **not** in MVP, P1, or P2 unless separately approved:
+
+| Item | Rationale |
+|------|-----------|
+| Payment processing (Stripe, Venmo, field collection tracking) | Teams pay cash at field; KB enforcement is operational |
+| SMS / Twilio notifications | Cost constraint; email + phone in footer sufficient |
+| Umpire self-service portal (full login experience) | P2; email-first for season 1 |
+| Auto-assign / AI scheduling engine | Complexity; manual assign sufficient at D8 scale |
+| Public schedule umpire names | Privacy policy unset; coach-only visibility for MVP |
+| Certification / JDP training tracking | Compliance important but P2 eligibility gate |
+| ICS calendar feeds | P2 nice-to-have |
+| Fee ledger / treasurer reconciliation export | P2 (AUD-48) |
+| Open slot broadcast to crew (DEC-51) | High risk of race conditions |
+| Native mobile apps | Responsive web only |
+| Integration with external SaaS (UmpireScheduler, Assignr) | Zero-cost constraint |
+| Tournament-specific two-umpire enforcement rules | Regular season focus; tournament ops manual |
+
+---
+
+## Risks & Mitigations
+
+| ID | Risk | Likelihood | Impact | Mitigation |
+|----|------|------------|--------|------------|
+| R-1 | Assignor abandons tool for spreadsheet | Medium | High | UJ-1 ≤5 clicks; unassigned queue; parallel run first 2 weeks |
+| R-2 | Email deliverability / spam | Medium | High | Plain-text alt; SPF/DKIM existing; test major clients pre-season |
+| R-3 | PermissionGuard role gap causes security hole | Medium | High | Route allowlist tests; assignor cannot hit admin POST endpoints |
+| R-4 | Reschedule hook missed on edge approval path | Low | High | Single service method; integration test on all approval code paths |
+| R-5 | Partial two-umpire crews at field | Medium | Medium | Warn on publish; override audit; coach sees TBD |
+| R-6 | Teen umpires no-show (no P1 confirm) | Medium | Medium | Ship P1 token confirm if capacity; MVP: assignor phone fallback |
+| R-7 | Shared hosting performance on batch publish | Low | Medium | Batch limit 20; async email queue if needed |
+| R-8 | Token security incident (P1) | Low | High | Single-use, short expiry, POST confirm, bind to umpire+slot |
+| R-9 | Data migration on live season | Medium | Medium | Additive migration only; nullable slots; no breaking FK on games |
+| R-10 | Scope creep into payment processing | Medium | High | PRD out-of-scope gate; fee text read-only only |
+| R-11 | Coach privacy concern publishing names | Low | Low | Council chose V-C; no public display in MVP |
+| R-12 | Assignor unavailable mid-season | Low | Medium | Admin override path documented; seed backup assignor role |
+
+---
+
+## Innovation & Differentiation
+
+| Differentiator | vs Spreadsheet | vs Paid SaaS |
+|----------------|----------------|--------------|
+| Native official schedule FK | Manual sync eliminated | CSV import/sync still required |
+| Reschedule cascade on approval | Manual re-email | Depends on import freshness |
+| Zero marginal cost | Same | $150–480+/year |
+| Coach fee reminder on same schedule view | Separate comms | Rare in standalone tools |
+| Draft/publish comms control | Informal | Some SaaS has similar |
+
+**Core insight:** Schedule-change integration (COM-21) delivers more reliability per dollar than any standalone assignor tool for this brownfield deployment.
+
+---
+
+## Technical Constraints (Brownfield)
+
+| Constraint | Implication |
+|------------|-------------|
+| PHP 8.1, MariaDB, shared cPanel hosting | No Redis, no workers; email via PHPMailer queue or inline |
+| PDO via `Database::getInstance()` | All new queries use prepared statements |
+| Bootstrap 5 + vanilla JS | No React; drawer/modal on admin games page |
+| Existing `ActivityLogger` | Reuse event naming convention |
+| Existing `email_templates` | Seed new rows via migration |
+| `PermissionGuard` partial roles | Must extend for `umpire_assignor` |
+
+### Key Integration Files
+
+| File | Change |
+|------|--------|
+| `includes/UmpireAssignmentService.php` | **New** — core logic |
+| `includes/PermissionGuard.php` | Add role |
+| `public/admin/games/index.php` | Assignment drawer |
+| `public/admin/schedules/index.php` | Approval hook |
+| `public/coaches/schedule.php` (or equivalent) | Coach umpire display |
+| `database/migrations/0xx_umpire_assignments.sql` | Schema |
+
+---
+
+## Test Strategy Summary
+
+| Category | Approach |
+|----------|----------|
+| Unit | `UmpireAssignmentService` conflict check, delta send logic, material change detection |
+| Integration | Reschedule approval → email triggered; publish → coach view updated |
+| Regression | Existing admin games, coach schedule, schedule change flows unchanged |
+| Manual UI | Assignor mobile viewport; coach schedule display; email render spot check |
+| Security | Role route enumeration; CSRF on publish; token expiry |
+
+---
+
+## Open Questions
+
+| # | Question | Owner | Default if Unanswered |
+|---|----------|-------|----------------------|
+| OQ-1 | Exact % of 2026 games requiring 2 umpires by division | Assignor / SME | Warn-only (M-C); division defaults = 2 for Intermediate+ |
+| OQ-2 | Roster table vs users-only for umpires without login | Architect | Separate `umpire_roster` with email for MVP |
+| OQ-3 | Material change time threshold | PM | Any date/time/location change is material |
+| OQ-4 | Show "(Base TBD)" to coaches on partial crew | PM | Yes, when division expects 2 |
+| OQ-5 | P1 token confirm in same release as MVP | PM | Ship MVP first; P1 within 2 weeks if capacity |
+
+---
+
+## Document History
+
+| Date | Version | Change |
+|------|---------|--------|
+| 2026-05-28 | 1.0 | Initial full PRD from product brief, brainstorming, council decisions, domain/market/technical research |
+
+---
+
+## Appendix A: Council Decision Traceability
+
+| Decision | Choice | PRD Sections |
+|----------|--------|--------------|
+| DECISION_REQUIRED-1 MVP boundary | **C** — assign + email + reschedule cascade | Reschedule Integration, MVP scope, FR-RESCHED-* |
+| DECISION_REQUIRED-2 Role strategy | **R-C** — assignor role; umpires email/token | Role Permissions, FR-ROSTER-5 |
+| DECISION_REQUIRED-3 Multi-umpire | **M-C** — two slots; warn if partial | Data Model, FR-ASSIGN-8, AC-MVP-06 |
+| DECISION_REQUIRED-4 Coach visibility | **V-C** — names + fee reminder | Coach Visibility, FR-COACH-* |
+| PM stretch | **B** — token confirm/decline as P1 | FR-TOKEN-*, P1 checklist |
+
+---
+
+## Appendix B: Related Artifacts
+
+| Artifact | Path |
+|----------|------|
+| Product Brief | `_bmad-output/planning-artifacts/product-brief.md` |
+| Brainstorming Session | `_bmad-output/brainstorming/brainstorming-session-2026-05-28-umpire-assignment.md` |
+| Council Decisions | `_bmad-output/planning-artifacts/research/council-decisions-2026-05-28.md` |
+| Domain Research | `_bmad-output/planning-artifacts/research/domain-umpire-assignment-research-2026-05-28.md` |
+| Market Research | `_bmad-output/planning-artifacts/research/market-umpire-assignment-research-2026-05-28.md` |
+| Technical Research | `_bmad-output/planning-artifacts/research/technical-umpire-assignment-research-2026-05-28.md` |
+| Project Context | `_bmad-output/project-context.md` |
+
+---
+
+*PRD workflow complete. Ready for UX design, architecture, and epic/story breakdown.*

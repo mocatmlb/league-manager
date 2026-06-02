@@ -106,6 +106,19 @@ These are race conditions, missing transactions, and performance issues. See [10
 
 - Missing notification — sendNotification placeholder for Story 18-2. Intentionally deferred to follow-up story. [includes/RescheduleService.php]
 
+## Deferred from: spec-score-edit-time-gate (2026-06-01)
+
+- **No unit test coverage for `enforceEditWindow`** — `ScoreServiceTest.php` has no cases for NULL `score_submitted_at`, expired window, or within-window edits. Consider adding these as part of a test hardening pass.
+- **Admin score edit resets `score_submitted_at`** — `public/admin/games/index.php` uses `date('Y-m-d H:i:s')` on every admin score save, which resets the column and unintentionally opens a new 24h coach edit window after an admin correction. Pre-existing admin behavior; out of scope for this story.
+- **No remaining-time indicator in "Edit a Previous Score" UI** — Coaches see the section disappear without forewarning when the window closes. A "closes in X hours" label per game row would improve UX.
+
+## Deferred from: code review of 18-2-postponement-cancellation-notifications (2026-06-01)
+
+- **`EmailService::triggerNotification()` ignores `processQueuedEmail()` failure** — Always returns `true` after queue processing regardless of send result; pre-existing EmailService behavior.
+- **No unit tests for 18-2 notification wiring** — RescheduleServiceTest stubs `sendNotification` without invoke/skip assertions; story did not require new tests.
+- **`approve_change` duplicate-approval race** — No Pending-status guard on approve path; can produce duplicate history rows and duplicate emails; pre-existing schedules bug.
+- **Whitespace-only postpone/cancel reason on admin games page** — sanitize() trims but does not reject empty; emails can show blank REASON; pre-existing validation gap.
+
 ## Deferred from: spec-scr-canned-reasons (2026-06-01)
 
 - **`scrAddReason()` uses innerHTML with caller-supplied string** — `public/admin/settings/sections/schedule-changes.php`. Call sites are hardcoded string literals so there is no live XSS vector. Consider switching to `createElement`/`setAttribute` if the function is ever generalized.

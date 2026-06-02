@@ -529,7 +529,17 @@ class RescheduleService {
             throw $e;
         }
 
-        // Story 18-2: sendNotification('onSchedulePostponed') fires here for auto-approve path
+        if ($autoApprove) {
+            try {
+                if (function_exists('sendNotification')) {
+                    if (!sendNotification('onSchedulePostponed', $gameId, null, ['reason' => $reason])) {
+                        error_log('[RescheduleService] Postponement notification failed — game_id=' . $gameId);
+                    }
+                }
+            } catch (Throwable $e) {
+                error_log('[RescheduleService] Postponement notification failed — game_id=' . $gameId . ' error=' . $e->getMessage());
+            }
+        }
 
         return $requestId;
     }
