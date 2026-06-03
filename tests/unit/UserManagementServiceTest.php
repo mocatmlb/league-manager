@@ -136,11 +136,27 @@ class UMSMockDatabase extends Database {
             return false;
         }
 
-        // Active admin check (createAccount authorization guard)
-        if (stripos($sql, 'FROM admin_users WHERE id = :id AND is_active = 1 LIMIT 1') !== false) {
+        // Admin existence check — legacy admin_users table (createAccount authorization guard)
+        if (stripos($sql, 'FROM admin_users WHERE id = :id LIMIT 1') !== false) {
             foreach ($this->adminUsers as $a) {
-                if ((int) ($a['id'] ?? -1) === (int) ($params['id'] ?? -1) && (int) ($a['is_active'] ?? 0) === 1) {
+                if ((int) ($a['id'] ?? -1) === (int) ($params['id'] ?? -1)) {
                     return ['id' => (int) $a['id']];
+                }
+            }
+            return false;
+        }
+
+        // Admin existence check — users-table administrator (createAccount fallback guard)
+        if (stripos($sql, "FROM users u JOIN roles r ON r.id = u.role_id") !== false
+            && stripos($sql, "r.name = 'administrator'") !== false) {
+            $id = (int) ($params['id'] ?? -1);
+            foreach ($this->users as $u) {
+                if ((int) ($u['id'] ?? -1) === $id && ($u['status'] ?? '') === 'active') {
+                    foreach ($this->roles as $r) {
+                        if ((int) $r['id'] === (int) ($u['role_id'] ?? -1) && $r['name'] === 'administrator') {
+                            return ['id' => $id];
+                        }
+                    }
                 }
             }
             return false;
@@ -1476,4 +1492,38 @@ register_test('Story 13.2 createAccount: requires an active admin user', functio
     }
 
     assert_true($threw, 'createAccount must reject inactive/unknown admin users');
+});
+
+register_test('Story 13.2 createAccount: accepts users-table administrator as admin', function () {
+    $db    = new UMSMockDatabase();
+    $email = new UMSMockEmail();
+    $db->roles     = [['id' => 1, 'name' => 'user'], ['id' => 5, 'name' => 'administrator']];
+    $db->adminUsers = []; // no legacy admin record
+    $db->users     = [['id' => 77, 'username' => 'adminuser@example.com', 'email' => 'adminuser@example.com',
+                        'role_id' => 5, 'status' => 'active', 'first_name' => 'Admin', 'last_name' => 'User']];
+
+    $svc  = makeUMS($db, $email);
+    $data = makeCreateAccountData();
+    $result = $svc->createAccount($data, 77);
+
+    assert_true(isset($result['user_id']), 'createAccount must succeed for users-table administrator');
+});
+
+register_test('Story 13.2 createAccount: rejects users-table user without administrator role', function () {
+    $db    = new UMSMockDatabase();
+    $email = new UMSMockEmail();
+    $db->roles     = [['id' => 1, 'name' => 'user']];
+    $db->adminUsers = [];
+    $db->users     = [['id' => 55, 'username' => 'regularuser@example.com', 'email' => 'regularuser@example.com',
+                        'role_id' => 1, 'status' => 'active']];
+
+    $svc   = makeUMS($db, $email);
+    $threw = false;
+    try {
+        $svc->createAccount(makeCreateAccountData(), 55);
+    } catch (RuntimeException $e) {
+        $threw = true;
+    }
+
+    assert_true($threw, 'createAccount must reject users-table users without administrator role');
 });
