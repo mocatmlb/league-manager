@@ -348,7 +348,7 @@ $locations = $db->fetchAll("SELECT location_name FROM locations WHERE active_sta
 
 // Get pending schedule change requests
 $pendingRequests = $db->fetchAll("
-    SELECT scr.*, g.game_number, s.game_date, s.game_time, s.location,
+    SELECT scr.*, g.game_number, g.game_status, s.game_date, s.game_time, s.location,
            ht.team_name as home_team_name,
            at.team_name as away_team_name,
            (SELECT COUNT(*) FROM schedule_history sh WHERE sh.game_id = g.game_id AND sh.user_notes IS NOT NULL AND sh.user_notes != '') as has_notes
@@ -445,6 +445,11 @@ $pageTitle = "Schedule Management - " . APP_NAME;
                                         </span>
                                         <?php if (!empty($request['has_notes'])): ?>
                                             <i class="fas fa-sticky-note text-warning ms-1" title="This game has notes — view in Games"></i>
+                                        <?php endif; ?>
+                                        <?php if (($request['game_status'] ?? '') === 'Completed'): ?>
+                                            <span class="badge bg-warning text-dark ms-2">
+                                                <i class="fas fa-exclamation-triangle"></i> Score already submitted
+                                            </span>
                                         <?php endif; ?>
                                     </h5>
 

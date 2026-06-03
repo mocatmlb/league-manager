@@ -166,6 +166,7 @@ if ($assignment !== false && !$needsTeamPick && !empty($assignment['season_id'])
            FROM schedule_change_requests scr
            JOIN games g ON g.game_id = scr.game_id
           WHERE scr.request_status = \'Pending\'
+            AND g.game_status != \'Completed\'
             AND (g.home_team_id = :tid1 OR g.away_team_id = :tid2)
             AND g.season_id = :sid',
         ['tid1' => $tid, 'tid2' => $tid, 'sid' => $sid]
