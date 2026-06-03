@@ -14,7 +14,7 @@ $totalGames = $db->fetchOne("SELECT COUNT(*) as count FROM games")['count'] ?? 0
 $completedGames = $db->fetchOne("SELECT COUNT(*) as count FROM games WHERE game_status = 'Completed'")['count'] ?? 0;
 $pendingChanges = $db->fetchOne("SELECT COUNT(*) as count FROM schedule_change_requests WHERE request_status = 'Pending'")['count'] ?? 0;
 $activeTeams = $db->fetchOne("SELECT COUNT(*) as count FROM teams WHERE active_status = 'Active'")['count'] ?? 0;
-$gamesMissingScore = $db->fetchOne("SELECT COUNT(*) as count FROM games WHERE game_status = 'Completed' AND (home_score IS NULL OR away_score IS NULL)")['count'] ?? 0;
+$gamesMissingScore = $db->fetchOne("SELECT COUNT(*) as count FROM games WHERE (game_status = 'Completed' AND (home_score IS NULL OR away_score IS NULL)) OR (game_status = 'Scheduled' AND game_date < CURDATE())")['count'] ?? 0;
 
 // Get current season info
 $currentSeason = $db->fetchOne("SELECT s.*, p.program_name FROM seasons s JOIN programs p ON s.program_id = p.program_id WHERE s.season_status = 'Active' LIMIT 1");
