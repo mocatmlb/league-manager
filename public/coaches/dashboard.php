@@ -119,35 +119,59 @@ if ($assignment !== false) {
     }
 }
 
-// Hero stat tiles — only when a team is assigned and season_id is known
-$heroStats = null;
+// Dashboard stat tiles — only when a team is assigned and season_id is known
+$dashStats          = null;
+$pendingChangesCount = 0;
 if ($assignment !== false && !$needsTeamPick && !empty($assignment['season_id'])) {
-    $heroStats = $db->fetchOne(
+    $tid   = (int) $assignment['team_id'];
+    $sid   = (int) $assignment['season_id'];
+    $today = date('Y-m-d');
+
+    $dashStats = $db->fetchOne(
         'SELECT
-             COUNT(*) AS games_played,
-             SUM(CASE WHEN game_status = \'Completed\'
-                       AND ((home_team_id = :tid1 AND home_score > away_score)
-                         OR (away_team_id = :tid2 AND away_score > home_score)) THEN 1 ELSE 0 END) AS wins,
-             SUM(CASE WHEN game_status = \'Completed\'
-                       AND ((home_team_id = :tid3 AND home_score < away_score)
-                         OR (away_team_id = :tid4 AND away_score < home_score)) THEN 1 ELSE 0 END) AS losses,
-             SUM(CASE WHEN game_status = \'Completed\'
-                       AND home_score IS NOT NULL
-                       AND home_score = away_score THEN 1 ELSE 0 END) AS tied
-           FROM games
-           WHERE (home_team_id = :tid5 OR away_team_id = :tid6)
-             AND season_id = :sid
-             AND game_status != \'Cancelled\'',
+             COUNT(*) AS total_scheduled,
+             SUM(CASE WHEN g.game_status = \'Completed\'
+                       AND ((g.home_team_id = :tid1 AND g.home_score > g.away_score)
+                         OR (g.away_team_id = :tid2 AND g.away_score > g.home_score)) THEN 1 ELSE 0 END) AS wins,
+             SUM(CASE WHEN g.game_status = \'Completed\'
+                       AND ((g.home_team_id = :tid3 AND g.home_score < g.away_score)
+                         OR (g.away_team_id = :tid4 AND g.away_score < g.home_score)) THEN 1 ELSE 0 END) AS losses,
+             SUM(CASE WHEN g.game_status = \'Completed\'
+                       AND g.home_score IS NOT NULL
+                       AND g.home_score = g.away_score THEN 1 ELSE 0 END) AS tied,
+             SUM(CASE WHEN g.game_status NOT IN (\'Postponed\', \'Cancelled\')
+                       AND g.home_score IS NULL
+                       AND s.game_date < :today THEN 1 ELSE 0 END) AS needs_resolution,
+             SUM(CASE WHEN g.game_status = \'Postponed\'
+                       AND g.home_score IS NULL THEN 1 ELSE 0 END) AS needs_reschedule
+           FROM games g
+           LEFT JOIN schedules s ON s.game_id = g.game_id
+           WHERE (g.home_team_id = :tid5 OR g.away_team_id = :tid6)
+             AND g.season_id = :sid
+             AND g.game_status != \'Cancelled\'',
         [
-            'tid1' => $assignment['team_id'],
-            'tid2' => $assignment['team_id'],
-            'tid3' => $assignment['team_id'],
-            'tid4' => $assignment['team_id'],
-            'tid5' => $assignment['team_id'],
-            'tid6' => $assignment['team_id'],
-            'sid'  => $assignment['season_id'],
+            'tid1'  => $tid,
+            'tid2'  => $tid,
+            'tid3'  => $tid,
+            'tid4'  => $tid,
+            'tid5'  => $tid,
+            'tid6'  => $tid,
+            'sid'   => $sid,
+            'today' => $today,
         ]
     );
+
+    $pendingRow = $db->fetchOne(
+        'SELECT COUNT(*) AS cnt
+           FROM schedule_change_requests scr
+           JOIN games g ON g.game_id = scr.game_id
+          WHERE scr.request_status = \'Pending\'
+            AND g.game_status != \'Completed\'
+            AND (g.home_team_id = :tid1 OR g.away_team_id = :tid2)
+            AND g.season_id = :sid',
+        ['tid1' => $tid, 'tid2' => $tid, 'sid' => $sid]
+    );
+    $pendingChangesCount = (int) ($pendingRow['cnt'] ?? 0);
 }
 
 $pageTitle = 'Coaches Dashboard — ' . APP_NAME;
@@ -218,23 +242,38 @@ unset($_coachNavPath, $coachNavWebRoot);
                 </form>
             <?php endif; ?>
 
-            <?php if ($heroStats !== null): ?>
-                <div class="hero-stats d-flex gap-2 mt-3">
-                    <div class="hero-stat">
-                        <span class="hero-stat-value"><?php echo (int)($heroStats['games_played'] ?? 0); ?></span>
-                        <span class="hero-stat-label">Games</span>
+            <?php if ($dashStats !== null):
+                $wins   = (int)($dashStats['wins'] ?? 0);
+                $losses = (int)($dashStats['losses'] ?? 0);
+                $tied   = (int)($dashStats['tied'] ?? 0);
+                $recordStr = $wins . '-' . $losses . ($tied > 0 ? '-' . $tied : '');
+                $needsRes  = (int)($dashStats['needs_resolution'] ?? 0);
+                $needsRscd = (int)($dashStats['needs_reschedule'] ?? 0);
+            ?>
+                <div class="mt-3">
+                    <div class="hero-stats d-flex gap-2 mb-2">
+                        <div class="hero-stat">
+                            <span class="hero-stat-value"><?php echo (int)($dashStats['total_scheduled'] ?? 0); ?></span>
+                            <span class="hero-stat-label">Scheduled</span>
+                        </div>
+                        <div class="hero-stat">
+                            <span class="hero-stat-value"><?php echo htmlspecialchars($recordStr); ?></span>
+                            <span class="hero-stat-label">Record</span>
+                        </div>
                     </div>
-                    <div class="hero-stat">
-                        <span class="hero-stat-value"><?php echo (int)($heroStats['wins'] ?? 0); ?></span>
-                        <span class="hero-stat-label">Wins</span>
-                    </div>
-                    <div class="hero-stat">
-                        <span class="hero-stat-value"><?php echo (int)($heroStats['losses'] ?? 0); ?></span>
-                        <span class="hero-stat-label">Losses</span>
-                    </div>
-                    <div class="hero-stat">
-                        <span class="hero-stat-value"><?php echo (int)($heroStats['tied'] ?? 0); ?></span>
-                        <span class="hero-stat-label">Tied</span>
+                    <div class="hero-stats d-flex gap-2">
+                        <a href="schedule.php" class="hero-stat<?php echo $needsRes > 0 ? ' hero-stat-alert' : ''; ?>">
+                            <span class="hero-stat-value"><?php echo $needsRes; ?></span>
+                            <span class="hero-stat-label">Need Resolve</span>
+                        </a>
+                        <a href="schedule.php" class="hero-stat<?php echo $needsRscd > 0 ? ' hero-stat-alert' : ''; ?>">
+                            <span class="hero-stat-value"><?php echo $needsRscd; ?></span>
+                            <span class="hero-stat-label">Need Reschedule</span>
+                        </a>
+                        <a href="schedule.php" class="hero-stat<?php echo $pendingChangesCount > 0 ? ' hero-stat-alert' : ''; ?>">
+                            <span class="hero-stat-value"><?php echo $pendingChangesCount; ?></span>
+                            <span class="hero-stat-label">Pending Changes</span>
+                        </a>
                     </div>
                 </div>
             <?php endif; ?>

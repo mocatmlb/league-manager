@@ -176,6 +176,32 @@ $completedGames = $service->getCompletedGames($userId);
 $gameCount    = count($eligibleGames);
 $autoSelected = ($gameCount === 1) ? $eligibleGames[0] : null;
 
+// Games that warrant a pending-change warning: status already flagged, OR has a pending SCR row
+// (covers both auto-approved postponements where game_status='Postponed' and manual pending SCRs)
+$gamesWithPendingScr = [];
+if ($gameCount > 0) {
+    // Primary: game_status already indicates an unresolved change
+    foreach ($eligibleGames as $g) {
+        if (in_array($g['game_status'] ?? '', ['Pending Change', 'Postponed'], true)) {
+            $gamesWithPendingScr[] = (int) $g['game_id'];
+        }
+    }
+    // Secondary: pending SCR row exists (e.g. non-auto-approved reschedule on a Scheduled game)
+    $eligibleIds = array_map('intval', array_column($eligibleGames, 'game_id'));
+    $placeholders = implode(',', array_fill(0, count($eligibleIds), '?'));
+    $scrRows = $db->fetchAll(
+        "SELECT DISTINCT game_id FROM schedule_change_requests
+          WHERE game_id IN ($placeholders) AND request_status = 'Pending'",
+        $eligibleIds
+    );
+    foreach ($scrRows as $row) {
+        $id = (int) $row['game_id'];
+        if (!in_array($id, $gamesWithPendingScr, true)) {
+            $gamesWithPendingScr[] = $id;
+        }
+    }
+}
+
 // P9: pre-populate team labels from eligibleGames for the multi-game error-restore case
 $preservedGame = null;
 if ($preservedGameId !== null && $gameCount > 1) {
@@ -279,6 +305,20 @@ $pageTitle = 'Score Input — District 8 Travel League';
                                 &mdash; <?php echo htmlspecialchars(strtoupper($autoSelected['away_team_name']), ENT_QUOTES, 'UTF-8'); ?>
                                 @ <?php echo htmlspecialchars(strtoupper($autoSelected['home_team_name']), ENT_QUOTES, 'UTF-8'); ?>
                             </span>
+                        </div>
+                        <?php endif; ?>
+
+                        <?php if ($autoSelected && in_array((int) $autoSelected['game_id'], $gamesWithPendingScr, true)): ?>
+                        <div class="alert alert-warning" role="alert">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>Heads up:</strong> this game has a pending postponement or schedule change request. Make sure you're submitting the right game before continuing.
+                        </div>
+                        <?php endif; ?>
+
+                        <?php if ($gameCount > 1 && !empty($gamesWithPendingScr)): ?>
+                        <div id="pendingScrWarning" class="alert alert-warning d-none" role="alert">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>Heads up:</strong> this game has a pending postponement or schedule change request. Make sure you're submitting the right game before continuing.
                         </div>
                         <?php endif; ?>
 
@@ -449,6 +489,8 @@ $pageTitle = 'Score Input — District 8 Travel League';
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+    const gamesWithPendingScr = <?php echo json_encode($gamesWithPendingScr); ?>;
+
     // AC4: reveal score form when a game is selected from the dropdown
     function onGameSelected(select) {
         const form = document.getElementById('scoreForm');
@@ -464,6 +506,11 @@ $pageTitle = 'Score Input — District 8 Travel League';
         document.getElementById('homeLabel').textContent = opt.dataset.home;
         document.getElementById('away_score').value = '';
         document.getElementById('home_score').value = '';
+
+        const warning = document.getElementById('pendingScrWarning');
+        if (warning) {
+            warning.classList.toggle('d-none', !gamesWithPendingScr.includes(parseInt(opt.value)));
+        }
 
         form.style.display = '';
         document.getElementById('away_score').focus();

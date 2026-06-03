@@ -639,6 +639,25 @@ input, select, textarea {
     margin-top: 0.1rem;
 }
 
+a.hero-stat {
+    text-decoration: none;
+    cursor: pointer;
+}
+
+a.hero-stat:hover {
+    background: rgba(255,255,255,0.25);
+    text-decoration: none;
+}
+
+.hero-stat-alert {
+    background: rgba(255, 193, 7, 0.3);
+    border: 1px solid rgba(255, 193, 7, 0.55);
+}
+
+a.hero-stat.hero-stat-alert:hover {
+    background: rgba(255, 193, 7, 0.45);
+}
+
 /* Contact cards (mobile) */
 .contact-card {
     background: #fff;
