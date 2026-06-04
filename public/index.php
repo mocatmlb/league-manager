@@ -1,4 +1,5 @@
 <?php
+ob_start();
 define('D8TL_APP', true);
 /**
  * District 8 Travel League - Public Home Page - v2.0.0-MVP
@@ -416,3 +417,4 @@ foreach ($weatherLocations as $loc) {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+<?php ob_end_flush(); ?>
