@@ -22,7 +22,7 @@ define('DB_CHARSET', EnvLoader::get('DB_CHARSET', 'utf8mb4'));
 
 // Application Configuration - Load from environment variables
 define('APP_NAME', EnvLoader::get('APP_NAME', 'District 8 Travel League'));
-define('APP_VERSION', EnvLoader::get('APP_VERSION', '2.0.0-MVP'));
+define('APP_VERSION', EnvLoader::get('APP_VERSION', (new DateTime('now', new DateTimeZone('America/New_York')))->format('Y.n.j')));
 define('APP_URL', EnvLoader::get('APP_URL', 'http://district8travelleague.com'));
 define('APP_ENV', EnvLoader::get('APP_ENV', 'production'));
 

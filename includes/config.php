@@ -19,7 +19,7 @@ define('DB_CHARSET', 'utf8mb4');
 
 // Application Configuration
 define('APP_NAME', 'District 8 Travel League');
-define('APP_VERSION', '2.0.0-MVP');
+define('APP_VERSION', (new DateTime('now', new DateTimeZone('America/New_York')))->format('Y.n.j'));
 // Base URL for links in emails and redirects. Use http://127.0.0.1:8000 when using: php -S 127.0.0.1:8000 -t public/
 define('APP_URL', 'http://127.0.0.1:8000');
 
