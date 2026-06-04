@@ -4,6 +4,12 @@ Items deferred from code reviews — triaged 2026-05-09.
 
 ---
 
+## From spec-home-schedule-mobile-cards (2026-06-03)
+
+- `public/index.prod.php` is missing the weather widget that `index.php` has — this is a pre-existing divergence, not caused by the mobile card change. The prod copy should be brought in sync with the dev home page's weather widget feature.
+
+---
+
 ## Routed to Story 9-1 (Cutover Service Backend)
 
 These are cross-cutting issues that belong in the cutover scope. See the "Deferred Work" section in [9-1-cutover-service-backend.md](9-1-cutover-service-backend.md).

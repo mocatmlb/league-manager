@@ -91,6 +91,18 @@ $weatherLocations = (!empty($_locJson) && is_array(json_decode($_locJson, true))
     : $_defaultLocations;
 if (empty($weatherLocations)) $weatherLocations = $_defaultLocations;
 
+function buildHomeMapsUrl(array $game): string {
+    $parts = [];
+    $name = $game['loc_name'] ?? $game['location'] ?? '';
+    if (!empty($name)) $parts[] = $name;
+    if (!empty($game['address'])) $parts[] = $game['address'];
+    if (!empty($game['city']))    $parts[] = $game['city'];
+    if (!empty($game['state']))   $parts[] = $game['state'];
+    if (!empty($game['zip_code'])) $parts[] = $game['zip_code'];
+    if (empty($parts)) return '';
+    return 'https://maps.google.com/?q=' . urlencode(implode(', ', $parts));
+}
+
 $weatherData = [];
 foreach ($weatherLocations as $loc) {
     $weatherData[] = [
@@ -109,17 +121,7 @@ foreach ($weatherLocations as $loc) {
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="<?php echo dirname($_SERVER['SCRIPT_NAME']); ?>/../assets/css/style.css" rel="stylesheet">
     <style>
-        .home-games-table th,
-        .home-games-table td { padding: 0.3rem 0.4rem; vertical-align: middle; }
-        .home-games-table th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: .03em; color: #888; border-bottom: 1px solid #dee2e6; }
-        .matchup { line-height: 1.2; }
-        .matchup .away { font-weight: 600; font-size: 0.8rem; }
-        .matchup .vs   { font-size: 0.72rem; color: #6c757d; }
-        .matchup .home { font-weight: 600; font-size: 0.8rem; }
-        .col-gnum { white-space: nowrap; font-size: 0.72rem; color: #888; width: 58px; }
-        .col-time { white-space: nowrap; font-size: 0.8rem; width: 38px; }
-        .col-date { white-space: nowrap; font-size: 0.8rem; width: 36px; }
-        .col-loc  { font-size: 0.75rem; color: #555; }
+        .home-games-cards { max-height: 420px; overflow-y: auto; }
     </style>
 </head>
 <body>
@@ -148,33 +150,34 @@ foreach ($weatherLocations as $loc) {
             <div class="col-lg-6 mb-4">
                 <div class="card h-100">
                     <div class="card-header"><h3 class="mb-0" style="font-size:1.1rem">Today's Games</h3></div>
-                    <div class="card-body p-2">
+                    <div class="card-body p-2 home-games-cards">
                         <?php if (empty($todaysGames)): ?>
                             <p class="text-muted mb-0 p-2">No games scheduled for today.</p>
                         <?php else: ?>
-                        <table class="table table-sm mb-0 home-games-table">
-                            <thead>
-                                <tr>
-                                    <th class="col-gnum">Game #</th>
-                                    <th class="col-time">Time</th>
-                                    <th>Matchup</th>
-                                    <th>Location</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            <?php foreach ($todaysGames as $game): ?>
-                            <tr>
-                                <td class="col-gnum"><?php echo sanitize($game['game_number']); ?></td>
-                                <td class="col-time"><?php echo formatTime($game['game_time']); ?></td>
-                                <td class="matchup">
-                                    <span class="away"><?php echo sanitize(strtoupper($game['away_team'] ?: $game['away_league'])); ?></span><br>
-                                    <span class="vs">@&nbsp;</span><span class="home"><?php echo sanitize(strtoupper($game['home_team'] ?: $game['home_league'])); ?></span>
-                                </td>
-                                <td class="col-loc"><?php echo sanitize($game['location']); ?></td>
-                            </tr>
-                            <?php endforeach; ?>
-                            </tbody>
-                        </table>
+                        <?php foreach ($todaysGames as $game):
+                            $away     = sanitize(strtoupper($game['away_team'] ?: $game['away_league']));
+                            $home     = sanitize(strtoupper($game['home_team'] ?: $game['home_league']));
+                            $locText  = htmlspecialchars($game['loc_name'] ?: ($game['location'] ?? ''), ENT_QUOTES, 'UTF-8');
+                            $mapsUrl  = buildHomeMapsUrl($game);
+                            $locLine  = $mapsUrl && $locText
+                                ? '<a href="' . $mapsUrl . '" target="_blank" rel="noopener noreferrer">' . $locText . '</a>'
+                                : $locText;
+                        ?>
+                        <div class="mobile-game-card">
+                            <div class="team-row">
+                                <span><?php echo $away; ?></span>
+                                <span class="score-or-vs">&mdash;</span>
+                            </div>
+                            <div class="team-row mt-1">
+                                <span><?php echo $home; ?></span>
+                                <span class="score-or-vs">vs</span>
+                            </div>
+                            <div class="game-meta mt-2">
+                                <?php echo htmlspecialchars(formatTime($game['game_time']), ENT_QUOTES, 'UTF-8'); ?>
+                                <?php if ($locText): ?> &middot; <?php echo $locLine; ?><?php endif; ?>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -184,35 +187,42 @@ foreach ($weatherLocations as $loc) {
             <div class="col-lg-6 mb-4">
                 <div class="card h-100">
                     <div class="card-header"><h3 class="mb-0" style="font-size:1.1rem">Next 7 Days</h3></div>
-                    <div class="card-body p-2">
+                    <div class="card-body p-2 home-games-cards">
                         <?php if (empty($upcomingGames)): ?>
                             <p class="text-muted mb-0 p-2">No upcoming games in the next 7 days.</p>
-                        <?php else: ?>
-                        <table class="table table-sm mb-0 home-games-table">
-                            <thead>
-                                <tr>
-                                    <th class="col-gnum">Game #</th>
-                                    <th class="col-date">Date</th>
-                                    <th class="col-time">Time</th>
-                                    <th>Matchup</th>
-                                    <th>Location</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            <?php foreach ($upcomingGames as $game): ?>
-                            <tr>
-                                <td class="col-gnum"><?php echo sanitize($game['game_number']); ?></td>
-                                <td class="col-date"><?php echo formatDate($game['game_date'], 'n/j'); ?></td>
-                                <td class="col-time"><?php echo formatTime($game['game_time']); ?></td>
-                                <td class="matchup">
-                                    <span class="away"><?php echo sanitize(strtoupper($game['away_team'] ?: $game['away_league'])); ?></span><br>
-                                    <span class="vs">@&nbsp;</span><span class="home"><?php echo sanitize(strtoupper($game['home_team'] ?: $game['home_league'])); ?></span>
-                                </td>
-                                <td class="col-loc"><?php echo sanitize($game['location']); ?></td>
-                            </tr>
+                        <?php else:
+                            $upcomingByDate = [];
+                            foreach ($upcomingGames as $g) {
+                                $upcomingByDate[$g['game_date']][] = $g;
+                            }
+                        ?>
+                        <?php foreach ($upcomingByDate as $gameDate => $dateGames): ?>
+                            <div class="mobile-date-label"><?php echo htmlspecialchars(date('l, F j', strtotime($gameDate)), ENT_QUOTES, 'UTF-8'); ?></div>
+                            <?php foreach ($dateGames as $game):
+                                $away    = sanitize(strtoupper($game['away_team'] ?: $game['away_league']));
+                                $home    = sanitize(strtoupper($game['home_team'] ?: $game['home_league']));
+                                $locText = htmlspecialchars($game['loc_name'] ?: ($game['location'] ?? ''), ENT_QUOTES, 'UTF-8');
+                                $mapsUrl = buildHomeMapsUrl($game);
+                                $locLine = $mapsUrl && $locText
+                                    ? '<a href="' . $mapsUrl . '" target="_blank" rel="noopener noreferrer">' . $locText . '</a>'
+                                    : $locText;
+                            ?>
+                            <div class="mobile-game-card">
+                                <div class="team-row">
+                                    <span><?php echo $away; ?></span>
+                                    <span class="score-or-vs">&mdash;</span>
+                                </div>
+                                <div class="team-row mt-1">
+                                    <span><?php echo $home; ?></span>
+                                    <span class="score-or-vs">vs</span>
+                                </div>
+                                <div class="game-meta mt-2">
+                                    <?php echo htmlspecialchars(formatTime($game['game_time']), ENT_QUOTES, 'UTF-8'); ?>
+                                    <?php if ($locText): ?> &middot; <?php echo $locLine; ?><?php endif; ?>
+                                </div>
+                            </div>
                             <?php endforeach; ?>
-                            </tbody>
-                        </table>
+                        <?php endforeach; ?>
                         <?php endif; ?>
                     </div>
                 </div>
