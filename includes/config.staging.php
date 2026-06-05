@@ -19,7 +19,7 @@ define('DB_CHARSET', EnvLoader::get('DB_CHARSET', 'utf8mb4'));
 
 // Application Configuration - Staging
 define('APP_NAME', EnvLoader::get('APP_NAME', 'District 8 Travel League - STAGING'));
-define('APP_VERSION', EnvLoader::get('APP_VERSION', '2.0.0-MVP-STAGING'));
+define('APP_VERSION', EnvLoader::get('APP_VERSION', 'CALVER_STAMP'));
 define('APP_URL', EnvLoader::get('APP_URL', 'https://staging.district8travelleague.com'));
 define('APP_ENV', EnvLoader::get('APP_ENV', 'staging'));
 

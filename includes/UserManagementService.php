@@ -643,11 +643,21 @@ class UserManagementService {
         if ($adminUserId < 1) {
             throw new InvalidArgumentException('Admin user is required.');
         }
+        // Check legacy admin_users table first
         $admin = $this->db->fetchOne(
-            'SELECT id FROM admin_users WHERE id = :id AND is_active = 1 LIMIT 1',
+            'SELECT id FROM admin_users WHERE id = :id LIMIT 1',
             ['id' => $adminUserId]
         );
-        if ($admin === false) {
+        if ($admin !== false) {
+            return;
+        }
+        // Also accept users-table accounts with administrator role (set as admin_id on login)
+        $user = $this->db->fetchOne(
+            "SELECT u.id FROM users u JOIN roles r ON r.id = u.role_id
+             WHERE u.id = :id AND r.name = 'administrator' AND u.status = 'active' LIMIT 1",
+            ['id' => $adminUserId]
+        );
+        if ($user === false) {
             throw new RuntimeException('Admin user is not authorized to create accounts.');
         }
     }

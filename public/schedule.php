@@ -239,7 +239,9 @@ $pageTitle = "Schedule - " . APP_NAME;
                             $mgStatus = $mg['game_status'];
                             $mgAway = strtoupper($mg['away_team'] ?: $mg['away_league']);
                             $mgHome = strtoupper($mg['home_team'] ?: $mg['home_league']);
-                            $mgLoc = $mg['loc_name'] ?: $mg['location'];
+                            $mgLoc     = htmlspecialchars($mg['loc_name'] ?: ($mg['location'] ?? ''), ENT_QUOTES, 'UTF-8');
+                            $mgMaps    = buildMapsUrl($mg);
+                            $mgLocLink = $mgMaps ? '<a href="' . $mgMaps . '" target="_blank" rel="noopener noreferrer">' . $mgLoc . '</a>' : $mgLoc;
                             $mgTime = formatTime($mg['game_time']);
                             $mgStatusClass = '';
                             switch ($mgStatus) {
@@ -275,7 +277,7 @@ $pageTitle = "Schedule - " . APP_NAME;
                                     </span>
                                 </div>
                                 <div class="game-meta d-flex justify-content-between align-items-center mt-2">
-                                    <span><?php echo htmlspecialchars($mgTime . ($mgLoc ? ' · ' . $mgLoc : ''), ENT_QUOTES, 'UTF-8'); ?></span>
+                                    <span><?php echo htmlspecialchars($mgTime, ENT_QUOTES, 'UTF-8') . ($mgLoc ? ' · ' . $mgLocLink : ''); ?></span>
                                     <span class="badge <?php echo $mgStatusClass; ?>"><?php echo htmlspecialchars($mgStatus, ENT_QUOTES, 'UTF-8'); ?></span>
                                 </div>
                             </div>

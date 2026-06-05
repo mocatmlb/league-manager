@@ -137,12 +137,14 @@ function generateGameNumber($seasonId, $gameCount) {
  */
 function getUpcomingGames($days = 7) {
     $db = Database::getInstance();
-    
+
     $sql = "SELECT g.*, s.game_date, s.game_time, s.location,
+                   loc.location_name as loc_name, loc.address, loc.city, loc.state, loc.zip_code,
                    ht.team_name as home_team, at.team_name as away_team,
                    ht.league_name as home_league, at.league_name as away_league
             FROM games g
             JOIN schedules s ON g.game_id = s.game_id
+            LEFT JOIN locations loc ON s.location_id = loc.location_id
             JOIN teams ht ON g.home_team_id = ht.team_id
             JOIN teams at ON g.away_team_id = at.team_id
             WHERE s.game_date BETWEEN DATE_ADD(CURDATE(), INTERVAL 1 DAY) AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
@@ -159,12 +161,14 @@ function getUpcomingGames($days = 7) {
  */
 function getTodaysGames() {
     $db = Database::getInstance();
-    
+
     $sql = "SELECT g.*, s.game_date, s.game_time, s.location,
+                   loc.location_name as loc_name, loc.address, loc.city, loc.state, loc.zip_code,
                    ht.team_name as home_team, at.team_name as away_team,
                    ht.league_name as home_league, at.league_name as away_league
             FROM games g
             JOIN schedules s ON g.game_id = s.game_id
+            LEFT JOIN locations loc ON s.location_id = loc.location_id
             JOIN teams ht ON g.home_team_id = ht.team_id
             JOIN teams at ON g.away_team_id = at.team_id
             WHERE s.game_date = CURDATE()

@@ -23,6 +23,8 @@ deployment:
       cp -R includes/* $TARGETDIR/includes/
       cp -R public/* $TARGETDIR/
       cp -f includes/$CONFIG $TARGETDIR/includes/config.php
+      CALVER=$(date +%Y.%-m.%-d)
+      sed -i "s/CALVER_STAMP/$CALVER/" $TARGETDIR/includes/config.php
 
       chmod 644 $TARGETDIR/includes/*.php
       chmod 755 $TARGETDIR/includes
