@@ -405,29 +405,25 @@ $pageTitle = "Schedule - " . APP_NAME;
              ====================================================== -->
         <div id="desktopSchedule" class="d-none d-lg-block">
 
-            <!-- Tab strip -->
-            <ul class="nav nav-tabs mb-3" id="scheduleTabs">
+            <!-- Tab strip — underline style -->
+            <div class="schedule-tab-strip" id="scheduleTabs">
                 <?php
                 $desktopTabDefs = [
-                    ['key' => 'upcoming',  'label' => 'Upcoming',         'extra' => ''],
-                    ['key' => 'completed', 'label' => 'Completed',         'extra' => ''],
-                    ['key' => 'awaiting',  'label' => 'Awaiting Results',  'extra' => 'tab-warn'],
-                    ['key' => 'postponed', 'label' => 'Postponed',         'extra' => 'tab-ppd'],
+                    ['key' => 'upcoming',  'label' => 'Upcoming',        'extra' => ''],
+                    ['key' => 'completed', 'label' => 'Completed',        'extra' => ''],
+                    ['key' => 'awaiting',  'label' => 'Awaiting Results', 'extra' => 'tab-warn'],
+                    ['key' => 'postponed', 'label' => 'Postponed',        'extra' => 'tab-ppd'],
                 ];
                 foreach ($desktopTabDefs as $dtd):
                     $isActive = $activeTab === $dtd['key'];
                 ?>
-                <li class="nav-item">
-                    <button class="nav-link <?php echo $dtd['extra']; ?> <?php echo $isActive ? 'active' : ''; ?>"
-                            data-tab="<?php echo $dtd['key']; ?>">
-                        <?php echo $dtd['label']; ?>
-                        <span class="badge ms-1 <?php echo $isActive ? 'bg-primary' : 'bg-secondary'; ?>">
-                            <?php echo $tabCounts[$dtd['key']]; ?>
-                        </span>
-                    </button>
-                </li>
+                <button class="sch-tab <?php echo $dtd['extra']; ?> <?php echo $isActive ? 'active' : ''; ?>"
+                        data-tab="<?php echo $dtd['key']; ?>">
+                    <?php echo $dtd['label']; ?>
+                    <span class="sch-tab-badge"><?php echo $tabCounts[$dtd['key']]; ?></span>
+                </button>
                 <?php endforeach; ?>
-            </ul>
+            </div>
 
             <!-- ── Upcoming pane ── -->
             <div id="pane-upcoming" class="tab-pane<?php echo $activeTab === 'upcoming' ? ' active' : ''; ?>">
@@ -686,18 +682,12 @@ $pageTitle = "Schedule - " . APP_NAME;
             var pane = document.getElementById('pane-' + name);
             if (pane) pane.classList.add('active');
 
-            // Update tab button state and badge colours
-            document.querySelectorAll('#scheduleTabs .nav-link').forEach(function(b) {
+            // Update tab button active state (CSS handles badge colour via parent class)
+            document.querySelectorAll('#scheduleTabs .sch-tab').forEach(function(b) {
                 b.classList.remove('active');
-                var badge = b.querySelector('.badge');
-                if (badge) badge.className = badge.className.replace('bg-primary', 'bg-secondary');
             });
             var activeBtn = document.querySelector('#scheduleTabs [data-tab="' + name + '"]');
-            if (activeBtn) {
-                activeBtn.classList.add('active');
-                var activeBadge = activeBtn.querySelector('.badge');
-                if (activeBadge) activeBadge.className = activeBadge.className.replace('bg-secondary', 'bg-primary');
-            }
+            if (activeBtn) activeBtn.classList.add('active');
 
             // Fix DataTable column widths (they miscalculate when initialized hidden)
             if (dtMap[name] && typeof dtMap[name].columns === 'function') {
@@ -713,7 +703,7 @@ $pageTitle = "Schedule - " . APP_NAME;
             document.getElementById('hiddenTab').value = name;
         }
 
-        document.querySelectorAll('#scheduleTabs .nav-link').forEach(function(btn) {
+        document.querySelectorAll('#scheduleTabs .sch-tab').forEach(function(btn) {
             btn.addEventListener('click', function() { switchTab(this.dataset.tab); });
         });
 
