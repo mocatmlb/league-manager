@@ -76,7 +76,7 @@ $gamesCompleted = $db->fetchAll(
 
 $gamesAwaiting = $db->fetchAll(
     "SELECT $selectCols $joinBase
-     AND s.game_date < DATE_SUB(?, INTERVAL 1 DAY)
+     AND s.game_date < ?
      AND g.game_status NOT IN ('Completed', 'Cancelled', 'Postponed')
      AND g.home_score IS NULL
      ORDER BY s.game_date ASC, s.game_time ASC",
