@@ -146,6 +146,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $maxVersion = $db->fetchOne("SELECT MAX(version_number) as max_ver FROM schedule_history WHERE game_id = ?", [$request['game_id']]);
                             $nextVersion = ($maxVersion['max_ver'] ?? 0) + 1;
 
+                            $locRow = $db->fetchOne(
+                                "SELECT location_id FROM locations WHERE location_name = ? AND active_status = 'Active' LIMIT 1",
+                                [$request['requested_location']]
+                            );
+                            $resolvedLocationId = $locRow ? (int)$locRow['location_id'] : null;
+
                             $db->insert('schedule_history', [
                                 'game_id' => $request['game_id'],
                                 'version_number' => $nextVersion,
@@ -153,6 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 'game_date' => $request['requested_date'],
                                 'game_time' => $request['requested_time'],
                                 'location' => $request['requested_location'],
+                                'location_id' => $resolvedLocationId,
                                 'change_request_id' => $requestId,
                                 'created_by_type' => 'Admin',
                                 'created_by_id' => $currentUser['id'],
@@ -165,6 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 'game_date' => $request['requested_date'],
                                 'game_time' => $request['requested_time'],
                                 'location' => $request['requested_location'],
+                                'location_id' => $resolvedLocationId,
                                 'modified_date' => date('Y-m-d H:i:s')
                             ], 'game_id = :game_id', ['game_id' => $request['game_id']]);
 
