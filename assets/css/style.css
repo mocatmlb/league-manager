@@ -608,6 +608,50 @@ input, select, textarea {
     color: #fff;
 }
 
+/* Public schedule tabs */
+.tab-pane {
+    display: none;
+}
+.tab-pane.active {
+    display: block;
+}
+.game-row-today {
+    background-color: #fffbeb !important;
+}
+.game-row-today td {
+    font-weight: 500;
+}
+/* Awaiting Results tab accent */
+#scheduleTabs .nav-link.tab-warn.active {
+    color: #92400e;
+    border-color: #fde68a #fde68a #fff;
+    background: #fffbeb;
+}
+#scheduleTabs .nav-link.tab-warn .badge {
+    background: #fef3c7;
+    color: #92400e;
+}
+/* Postponed tab accent */
+#scheduleTabs .nav-link.tab-ppd.active {
+    color: #5b21b6;
+    border-color: #ddd6fe #ddd6fe #fff;
+    background: #f5f3ff;
+}
+#scheduleTabs .nav-link.tab-ppd .badge {
+    background: #ede9fe;
+    color: #5b21b6;
+}
+/* Mobile tab chips — warn/ppd variants */
+.chip-btn.tab-chip-warn { border-color: #f59e0b; color: #92400e; }
+.chip-btn.tab-chip-warn.active { background: #f59e0b; color: #fff; }
+.chip-btn.tab-chip-ppd { border-color: #6f42c1; color: #5b21b6; }
+.chip-btn.tab-chip-ppd.active { background: #6f42c1; color: #fff; }
+/* Mobile tab chip row — tighter padding */
+.mobile-tab-chips .chip-btn {
+    padding: 0.26rem 0.55rem;
+    font-size: 0.7rem;
+}
+
 /* Coach hero stat tiles */
 .hero-stats {
     flex-wrap: wrap;

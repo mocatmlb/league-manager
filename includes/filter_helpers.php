@@ -102,10 +102,12 @@ class FilterHelpers {
      * Get filter values from URL parameters
      */
     public static function getFilterValues() {
+        $tab = $_GET['tab'] ?? '';
         return [
             'program_id' => filter_input(INPUT_GET, 'program', FILTER_VALIDATE_INT) ?: null,
             'season_id' => filter_input(INPUT_GET, 'season', FILTER_VALIDATE_INT) ?: null,
-            'division_id' => filter_input(INPUT_GET, 'division', FILTER_VALIDATE_INT) ?: null
+            'division_id' => filter_input(INPUT_GET, 'division', FILTER_VALIDATE_INT) ?: null,
+            'tab' => in_array($tab, ['upcoming', 'completed', 'awaiting', 'postponed'], true) ? $tab : 'upcoming',
         ];
     }
 

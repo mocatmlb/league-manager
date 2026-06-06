@@ -1,242 +1,228 @@
-# District 8 Travel League Management System
+# District 8 Travel League Manager
 
-## Overview
+A PHP/MySQL web application for operating a youth travel baseball league. Provides a public-facing site, a coach portal, and a full admin console — all server-rendered, running on shared hosting.
 
-The District 8 Travel League Management System is a PHP-based web application designed to replace the legacy system with an improved, secure, and user-friendly platform for managing youth baseball leagues. Built specifically for shared hosting environments, the system provides comprehensive functionality for team management, game scheduling, score tracking, and league administration.
+**Live environments:**
+- Production: `http://district8travelleague.com` (main branch)
+- Staging: `http://staging.district8travelleague.com` (staging branch)
 
-## Current Status: MVP Implementation
+---
 
-The MVP (Minimum Viable Product) is currently in development and represents a direct replacement of the current system functionality. The MVP is built with **PHP 8.0+ and MySQL** for maximum compatibility with shared hosting environments like A Small Orange.
+## What's Built
 
-### Key Features ✅
-- **Public Website**: View schedules, standings, and league information
-- **Three-Tier Authentication**: Public access, coach password protection, and admin console
-- **Administrative Dashboard**: Comprehensive management interface for teams, games, and schedules
-- **Schedule Change Management**: Submit and approve schedule change requests
-- **Score Management**: Input scores and automatically calculate standings
-- **Email Notification System**: Automated notifications with configurable templates
-- **Git-Based Deployment**: Automated deployment with staging environment for testing
+### Public Site
+- Home page with Today's Games and Next 7 Days widgets
+- Schedule browser with division/team filters
+- Standings table (auto-calculated from submitted scores)
+- About, Privacy Policy, Terms pages
+
+### Coach Portal (`/coaches/`)
+| Feature | Description |
+|---------|-------------|
+| Score input | Submit game scores with 24-hour edit window |
+| Schedule change requests | Submit, track, and receive approval notifications |
+| Game postponement | Coach-initiated postponement workflow |
+| Team contacts | View and manage team contact directory |
+| Team registration | Self-service team registration with email confirmation |
+| Profile & password | Per-coach account management |
+| Forgot/reset password | Email-based password reset flow |
+
+### Admin Console (`/admin/`)
+| Module | Routes |
+|--------|--------|
+| Programs | Create and manage sport programs (Baseball, Softball) |
+| Seasons | Time-bound seasons within programs |
+| Divisions | Organizational groupings within seasons |
+| Teams | Team roster and assignment management |
+| Games | Game records with status tracking; bulk CSV import |
+| Schedules | Versioned schedule management with approval workflow |
+| Locations | Centralized field/location management |
+| Users | Per-user accounts with invitation-based onboarding |
+| Settings | App-wide configuration |
+| Logs | Activity log viewer |
+| League List | Published league contact directory management |
+| AI Assistant | Embedded AI chat for admin queries |
+
+### Email Notifications
+Automated emails (via PHPMailer/SMTP) for:
+- Score submission confirmations
+- Schedule change request and approval
+- Game postponement and cancellation
+- User invitations and email verification
+- Password reset
+
+### Authentication
+- **Public**: no login required
+- **Coaches**: per-user accounts with session auth, email verification, invitation-based signup, role-based team scope
+- **Admins**: session auth with role guard; separate admin-side user management
+
+---
 
 ## Technology Stack
 
-- **Frontend**: PHP 8.0+ with HTML/CSS and vanilla JavaScript
-- **Backend**: PHP 8.0+ with MVC-style architecture and MySQLi
-- **Database**: MariaDB 5.5+ (MySQL-compatible) with prepared statements
-- **Authentication**: PHP session-based with role-based access control
-- **Hosting**: A Small Orange Shared Web Hosting with cPanel
-- **Email**: PHPMailer 6.8+ for SMTP email functionality
-- **Deployment**: Git-based automated deployment with .cpanel.yml
-- **Version Control**: Git with GitHub and cPanel Git Version Control integration
+| Layer | Details |
+|-------|---------|
+| Runtime | PHP 8.1+ (`ea-php81` on cPanel) |
+| Data | MariaDB/MySQL via PDO (`includes/database.php`, prepared statements throughout) |
+| Email | PHPMailer 6.8+ (SMTP) |
+| Frontend | Server-rendered PHP/HTML, Bootstrap 5, vanilla JS, jQuery |
+| Tests | Playwright e2e suite (`playwright.config.ts`) |
+| Deployment | Git + cPanel (`.cpanel.yml`), staging + production branches |
 
-## Quick Start
+> The codebase uses **PDO exclusively** — some older docs show MySQLi examples; ignore them.
 
-### Local Installation
+---
 
-#### Prerequisites
-- **PHP 8.0+** (XAMPP, WAMP, MAMP, or native installation)
-- **MySQL/MariaDB 5.5+** (included with XAMPP/WAMP/MAMP)
-- **Apache Web Server** (included with XAMPP/WAMP/MAMP)
-- **Composer** (PHP dependency manager)
-- **Git** for version control
+## Local Development
 
-#### Setup Steps
+### Prerequisites
+- PHP 8.1+
+- MySQL/MariaDB
+- Composer
+- Node.js + npm (for Playwright tests)
+- Git
+
+### Setup
+
 ```bash
-# Clone repository (avoid 403 errors)
-# Option A: SSH (recommended)
 git clone git@github.com:mocatmlb/league-manager.git
-# Option B: HTTPS with a Personal Access Token (no trailing slash)
-# git clone https://github.com/mocatmlb/league-manager.git
 cd league-manager
 
-# Install PHP dependencies
+# PHP dependencies
 composer install
 
-# Copy and configure environment
+# Node dependencies (for tests)
+npm install
+
+# Configure local environment
 cp includes/config.example.php includes/config.php
-# Edit config.php with your local database settings
+# Edit config.php: DB host, name, user, password, SMTP settings
 
 # Create database and import schema
 mysql -u root -p -e "CREATE DATABASE d8tl_local;"
 mysql -u root -p d8tl_local < database/schema.sql
 
-# Start local development server
-# Option 1: Use your local Apache (point to public directory)
-# Option 2: Use PHP built-in server
+# Run migrations
+php database/migrate.php
+
+# Start dev server (docroot is public/)
 php -S localhost:8000 -t public/
 ```
 
-#### Access the Application
-- **Main Application**: http://localhost:8000 (or your Apache virtual host)
-- **Admin Console**: http://localhost:8000/admin/
-- **Coach Portal**: http://localhost:8000/coaches/
+### Local URLs
+| URL | Area |
+|-----|------|
+| http://localhost:8000 | Public site |
+| http://localhost:8000/admin/ | Admin console |
+| http://localhost:8000/coaches/ | Coach portal |
 
-#### Default Login Credentials (Local Development)
-- **Admin Password**: `admin` (change in production)
-- **Coach Password**: `coaches` (change in production)
+### Default Dev Credentials
+- **Admin password**: `admin` (change before any shared use)
+- **Coach accounts**: created via admin invitation flow or seeded via `database/seeds/`
 
-### Remote Installation (A Small Orange Git Deployment)
+### Running Tests
+```bash
+# Playwright e2e tests (requires dev server running)
+npx playwright test
 
-The system uses **automated Git-based deployment** with A Small Orange shared hosting for production and staging environments.
+# PHP unit tests
+php tests/unit/run-unit-tests.php
+```
 
-#### Prerequisites
-- **A Small Orange Shared Hosting** with cPanel access
-- **PHP 8.0+** (configurable via cPanel PHP Selector)
-- **MariaDB/MySQL 5.5+** (included with hosting)
-- **Git Version Control** (available in cPanel)
-- **SMTP Email** (included with hosting or external service)
-
-#### Quick Deployment
-1. **Set up cPanel Git repositories** for production and staging
-2. **Create databases** via cPanel MySQL Databases
-3. **Configure environment files** with production credentials
-4. **Import database schema** via phpMyAdmin
-5. **Deploy via cPanel Git Version Control**
-
-For detailed step-by-step remote installation instructions, see the **[Git Deployment Setup Guide](./GIT_DEPLOYMENT_SETUP.md)**.
-
-#### Environment Configuration
-- **Production**: `http://district8travelleague.com` (main branch)
-- **Staging**: `http://staging.district8travelleague.com` (staging branch)
-- **Development**: Local environment (develop branch)
-
-⚠️ **CRITICAL SECURITY NOTE**: All placeholder values in configuration files MUST be replaced with actual credentials before deployment. Never commit real credentials to version control.
+---
 
 ## Directory Structure
 
 ```
 league-manager/
-├── .cpanel.yml                 # Deployment configuration
-├── composer.json               # PHP dependencies
-├── public/                     # Web-accessible files
-│   ├── index.php              # Main entry point
-│   ├── schedule.php           # Public schedule
-│   ├── standings.php          # Public standings
-│   ├── admin/                 # Admin console
-│   ├── coaches/               # Coach portal
-│   └── assets/                # CSS, JS, images
-├── includes/                   # PHP includes and configuration
-│   ├── config.php             # Main configuration
-│   ├── config.prod.php        # Production configuration
-│   ├── config.staging.php     # Staging configuration
-│   ├── database.php           # Database connection class
-│   └── [other includes]
-├── database/                   # Database schema and migrations
-├── scripts/                    # Utility and maintenance scripts
-├── templates/                  # Email templates
-├── uploads/                    # File uploads directory
-├── logs/                       # Application logs
-├── backups/                    # Database backups
-├── vendor/                     # Composer dependencies
-├── docs/                       # Documentation
-├── tests/                      # Test files
-└── [migration scripts]        # Data migration utilities
+├── public/                  # Web root (Apache docroot)
+│   ├── index.php            # Public home page
+│   ├── schedule.php         # Public schedule
+│   ├── standings.php        # Public standings
+│   ├── login.php            # Unified login entry
+│   ├── admin/               # Admin console pages
+│   ├── coaches/             # Coach portal pages
+│   ├── ajax/                # AJAX endpoint handlers
+│   └── assets/              # CSS, JS, images
+├── includes/                # Shared PHP — loaded via bootstrap.php
+│   ├── bootstrap.php        # Common bootstrap (DB, session, auth)
+│   ├── database.php         # PDO singleton (Database::getInstance())
+│   ├── AuthService.php      # User auth: login, session, roles
+│   ├── EmailService.php     # PHPMailer wrapper
+│   ├── ScoreService.php     # Score submission logic
+│   ├── RescheduleService.php# Schedule change request handling
+│   ├── ActivityLogger.php   # Audit log
+│   ├── [other *Service.php] # One service class per domain
+│   ├── config.php           # Local config (gitignored)
+│   ├── config.prod.php      # Production config (gitignored)
+│   └── config.staging.php   # Staging config (gitignored)
+├── database/
+│   ├── schema.sql           # Full schema (source of truth)
+│   ├── migrations/          # Incremental migration scripts
+│   ├── migrate.php          # Migration runner
+│   └── seeds/               # Dev/test seed data
+├── tests/
+│   ├── unit/                # PHP unit tests
+│   └── e2e/                 # Playwright e2e tests
+├── docs/                    # All project documentation (see below)
+├── scripts/                 # Maintenance and utility scripts
+├── logs/                    # Runtime logs (gitignored)
+├── backups/                 # DB backups (gitignored)
+├── vendor/                  # Composer packages (gitignored)
+├── .cpanel.yml              # cPanel Git deployment config
+└── composer.json
 ```
-
-## Documentation
-
-### 📋 Complete Documentation
-- **[System Requirements](./docs/requirements.md)** - Complete MVP specifications and feature requirements
-- **[Technical Overview](./docs/tech.md)** - Comprehensive technical documentation with PHP/MySQL stack details
-- **[Git Deployment Setup Guide](./GIT_DEPLOYMENT_SETUP.md)** - Complete setup guide for Git-based deployment
-
-### 🚀 Quick Reference
-- **[Deployment Strategy Summary](./DEPLOYMENT_STRATEGY_SUMMARY.md)** - Overview of deployment architecture
-- **[Security Documentation](./SECURITY.md)** - Security best practices and guidelines
-
-## System Architecture
-
-The system uses a hierarchical structure:
-- **Programs**: Top-level sports programs (Baseball, Softball)
-- **Seasons**: Time-bound periods within programs
-- **Divisions**: Organizational groupings within seasons
-- **Teams**: Individual teams participating in divisions
-- **Games**: Individual game records with unique numbering
-- **Locations**: Centralized baseball field management
-- **Schedules**: Versioned scheduling system with approval workflow
-
-## Authentication System
-
-### Three-Tier Access (MVP)
-- **Public Access**: View schedules, standings, and league information (no login required)
-- **Coach Access**: Password-protected access for schedule changes and score submission
-- **Admin Console**: Full administrative access with comprehensive management capabilities
-
-### Future Enhancement (Post-MVP)
-- **Six Primary Roles**: Public User, Team Official, Team Manager, Umpire, Umpire Assignor, Administrator
-- **Multi-Role Support**: Users can hold multiple roles simultaneously
-- **Individual User Accounts**: Personal accounts with role-based permissions
-
-## Support & Contributing
-
-### Getting Help
-- **Documentation**: Check the `/docs` folder for detailed requirements and technical specifications
-- **Issues**: Report bugs and feature requests via GitHub Issues
-- **Local Setup**: See local installation section above for development troubleshooting
-
-### Development Guidelines
-- **Code Style**: Follow established coding standards and linting rules
-- **Testing**: Write comprehensive tests for all new features
-- **Documentation**: Update documentation for any changes
-- **Security**: Follow security best practices and conduct code reviews
-
-## Project Status
-
-### 🚧 Current Status: MVP Development (v2.0.0-MVP)
-**PHP-Based MVP - Direct replacement of current system functionality**
-
-**✅ Completed Components:**
-- Git-based deployment system with staging and production environments
-- Database schema design with comprehensive entity relationships
-- Automated deployment configuration (.cpanel.yml) with health checks
-- Environment-specific configuration system (production/staging)
-- Technical documentation and deployment guides
-
-**🔄 In Development:**
-- Three-tier authentication system (Public/Coach/Admin)
-- Administrative dashboard for comprehensive system management
-- Public website with schedules and standings display
-- Schedule change request and approval workflow
-- Score input system with automatic standings calculation
-- Email notification system with PHPMailer integration
-
-### 📅 Future Phases
-- **v2.1.0**: Enhanced multi-role authentication and individual user accounts
-- **v2.2.0**: Advanced features and comprehensive league management
-- **v2.3.0**: Umpire management system and advanced officiating features
-
-## License
-
-This project is proprietary software developed for the District 8 Travel League. All rights reserved.
 
 ---
 
-For detailed technical requirements, implementation specifications, and feature documentation, see the [System Requirements](./docs/requirements.md) and [Technical Overview](./docs/tech.md) documents.
+## Documentation
 
-## Troubleshooting: GitHub 403 when cloning or pushing
+All docs live in [`docs/`](./docs/). Start here:
 
-If you see an error like:
+| Document | What it covers |
+|----------|---------------|
+| [docs/project-overview.md](./docs/project-overview.md) | Purpose, entry points, brownfield notes |
+| [docs/architecture.md](./docs/architecture.md) | Layers, auth model, services, data flow |
+| [docs/data-models.md](./docs/data-models.md) | DB tables, relationships, migration strategy |
+| [docs/api-contracts.md](./docs/api-contracts.md) | HTTP routes, form contracts, AJAX endpoints |
+| [docs/component-inventory.md](./docs/component-inventory.md) | Reusable PHP/HTML/JS components |
+| [docs/development-guide.md](./docs/development-guide.md) | Local setup, workflow, test details |
+| [docs/deployment-guide.md](./docs/deployment-guide.md) | cPanel/Git deployment walkthrough |
+| [docs/tech.md](./docs/tech.md) | Hosting stack, PHP selector, SMTP config |
+| [docs/SECURITY.md](./docs/SECURITY.md) | Security practices and hardening notes |
+| [docs/Features/user-accounts/](./docs/Features/user-accounts/) | User account system design |
 
-fatal: unable to access 'https://github.com/mocatmlb/league-manager.git/': The requested URL returned error: 403
+---
 
-Try the following:
-- Use SSH instead of HTTPS (recommended):
-  - Ensure you have an SSH key added to your GitHub account.
-  - Clone with: git clone git@github.com:mocatmlb/league-manager.git
-- If using HTTPS, use a Personal Access Token (PAT) instead of a password:
-  - Create a PAT with repo scope in GitHub.
-  - When prompted for a password, paste the PAT. Avoid a trailing slash in the URL.
-- Remove the trailing slash after .git in the URL:
-  - Correct: https://github.com/mocatmlb/league-manager.git
-  - Incorrect: https://github.com/mocatmlb/league-manager.git/
-- Verify you have access to the repository (collaborator/team membership).
-- Update an existing remote that has the wrong URL:
-  - git remote set-url origin git@github.com:mocatmlb/league-manager.git
-- Clear cached HTTPS credentials if switching to PAT:
-  - macOS: Keychain Access → search for github.com → delete the GitHub entry.
-  - Windows: Credential Manager → Windows Credentials → github.com → Remove.
-  - Linux: depends on your credential helper; or run: git config --global --unset credential.helper
-- For cPanel Git Version Control, prefer SSH with a Deploy Key:
-  - Generate an SSH key in cPanel or locally and add the public key to GitHub (Deploy keys for the repo or your account keys).
-  - Use the SSH clone URL in cPanel: git@github.com:mocatmlb/league-manager.git
-- If your org enforces SSO, ensure the PAT is authorized for the org.
-*test1*
+## Deployment
+
+The app deploys via cPanel Git Version Control using `.cpanel.yml`.
+
+- **Production**: push to `main` → auto-deploys to `district8travelleague.com`
+- **Staging**: push to `staging` → auto-deploys to `staging.district8travelleague.com`
+
+Config files (`config.prod.php`, `config.staging.php`) hold environment credentials and are **not committed to version control**.
+
+See [docs/deployment-guide.md](./docs/deployment-guide.md) for the full walkthrough.
+
+### SSH Clone (avoids 403 errors)
+```bash
+git clone git@github.com:mocatmlb/league-manager.git
+```
+
+---
+
+## Security
+
+- All DB access uses PDO prepared statements — no raw query interpolation
+- Sessions use hardened configuration (see `includes/security_bootstrap.php`)
+- CSRF protection on all state-changing forms
+- Credentials are never committed — use `config.*.php` files excluded by `.gitignore`
+
+See [docs/SECURITY.md](./docs/SECURITY.md) for details.
+
+---
+
+## License
+
+Proprietary — developed for the District 8 Travel League. All rights reserved.
