@@ -65,13 +65,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Invalid form submission. Please try again.';
         } else {
             $postValues = [
-                'game_id'            => $_POST['game_id']            ?? '',
-                'requested_date'     => $_POST['requested_date']     ?? '',
-                'requested_time'     => $_POST['requested_time']     ?? '',
-                'requested_location' => $_POST['requested_location'] ?? '',
-                'location_name_new'  => trim($_POST['location_name_new'] ?? ''),
-                'reason'             => $_POST['reason']             ?? '',
-                'game_notes'         => $_POST['game_notes']         ?? '',
+                'game_id'              => $_POST['game_id']              ?? '',
+                'requested_date'       => $_POST['requested_date']       ?? '',
+                'requested_time'       => $_POST['requested_time']       ?? '',
+                'requested_location'   => $_POST['requested_location']   ?? '',
+                'location_name_new'    => trim($_POST['location_name_new']    ?? ''),
+                'location_address_new' => trim($_POST['location_address_new'] ?? ''),
+                'location_city_new'    => trim($_POST['location_city_new']    ?? ''),
+                'location_state_new'   => trim($_POST['location_state_new']   ?? ''),
+                'location_zip_new'     => trim($_POST['location_zip_new']     ?? ''),
+                'reason'               => $_POST['reason']               ?? '',
+                'game_notes'           => $_POST['game_notes']           ?? '',
             ];
 
             // Resolve requested_location: handle "not-listed" inline entry
@@ -79,16 +83,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($resolvedLocation === 'not-listed') {
                 if ($postValues['location_name_new'] === '') {
                     $error = 'Please enter a location name.';
+                } elseif ($postValues['location_city_new'] === '') {
+                    $error = 'City is required when adding a new location.';
+                } elseif ($postValues['location_state_new'] === '') {
+                    $error = 'State is required when adding a new location.';
                 } else {
                     // Duplicate check against existing locations (skip if already confirmed)
                     if (($_POST['dup_confirmed'] ?? '') === '') {
                         $svc = new TeamRegistrationService($db);
                         $dupCandidates = $svc->findDuplicateCandidates([
                             'name'    => $postValues['location_name_new'],
-                            'address' => '',
+                            'address' => $postValues['location_address_new'],
                         ]);
                     }
                     if (empty($dupCandidates)) {
+                        $db->insert('locations', [
+                            'location_name' => $postValues['location_name_new'],
+                            'address'       => $postValues['location_address_new'],
+                            'city'          => $postValues['location_city_new'],
+                            'state'         => $postValues['location_state_new'],
+                            'zip_code'      => $postValues['location_zip_new'],
+                            'active_status' => 'Active',
+                        ]);
+                        logActivity('location_created', "Location added from SCR form: {$postValues['location_name_new']}");
                         $resolvedLocation = $postValues['location_name_new'];
                     }
                 }
@@ -269,8 +286,12 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                         <input type="hidden" name="requested_date"    value="<?php echo htmlspecialchars($postValues['requested_date'],     ENT_QUOTES, 'UTF-8'); ?>">
                         <input type="hidden" name="requested_time"    value="<?php echo htmlspecialchars($postValues['requested_time'],     ENT_QUOTES, 'UTF-8'); ?>">
                         <input type="hidden" name="requested_location" value="not-listed">
-                        <input type="hidden" name="location_name_new" value="<?php echo htmlspecialchars($postValues['location_name_new'], ENT_QUOTES, 'UTF-8'); ?>">
-                        <input type="hidden" name="reason"            value="<?php echo htmlspecialchars($postValues['reason'],            ENT_QUOTES, 'UTF-8'); ?>">
+                        <input type="hidden" name="location_name_new"    value="<?php echo htmlspecialchars($postValues['location_name_new'],    ENT_QUOTES, 'UTF-8'); ?>">
+                        <input type="hidden" name="location_address_new" value="<?php echo htmlspecialchars($postValues['location_address_new'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                        <input type="hidden" name="location_city_new"    value="<?php echo htmlspecialchars($postValues['location_city_new']    ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                        <input type="hidden" name="location_state_new"   value="<?php echo htmlspecialchars($postValues['location_state_new']   ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                        <input type="hidden" name="location_zip_new"     value="<?php echo htmlspecialchars($postValues['location_zip_new']     ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                        <input type="hidden" name="reason"               value="<?php echo htmlspecialchars($postValues['reason'],               ENT_QUOTES, 'UTF-8'); ?>">
                         <button type="submit" class="btn btn-warning btn-sm">
                             <i class="fas fa-check"></i> It's Different — Submit Anyway
                         </button>
@@ -476,10 +497,39 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                                             </option>
                                         </select>
                                         <div id="notListedFields" style="display:none; margin-top: 8px;">
-                                            <input type="text" name="location_name_new" id="locationNameNew"
-                                                   class="form-control form-control-sm"
-                                                   placeholder="Enter location name"
-                                                   value="<?php echo htmlspecialchars($postValues['location_name_new'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                                            <div class="mb-2">
+                                                <input type="text" name="location_name_new" id="locationNameNew"
+                                                       class="form-control form-control-sm"
+                                                       placeholder="Location name *"
+                                                       value="<?php echo htmlspecialchars($postValues['location_name_new'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                                            </div>
+                                            <div class="mb-2">
+                                                <input type="text" name="location_address_new" id="locationAddressNew"
+                                                       class="form-control form-control-sm"
+                                                       placeholder="Street address (optional)"
+                                                       value="<?php echo htmlspecialchars($postValues['location_address_new'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                                            </div>
+                                            <div class="row g-2">
+                                                <div class="col-6">
+                                                    <input type="text" name="location_city_new" id="locationCityNew"
+                                                           class="form-control form-control-sm"
+                                                           placeholder="City *"
+                                                           value="<?php echo htmlspecialchars($postValues['location_city_new'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                                                </div>
+                                                <div class="col-3">
+                                                    <input type="text" name="location_state_new" id="locationStateNew"
+                                                           class="form-control form-control-sm"
+                                                           placeholder="State *"
+                                                           maxlength="2"
+                                                           value="<?php echo htmlspecialchars($postValues['location_state_new'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                                                </div>
+                                                <div class="col-3">
+                                                    <input type="text" name="location_zip_new" id="locationZipNew"
+                                                           class="form-control form-control-sm"
+                                                           placeholder="Zip"
+                                                           value="<?php echo htmlspecialchars($postValues['location_zip_new'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -721,14 +771,24 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
     function toggleNotListed() {
         var sel    = document.getElementById('requestedLocationSelect');
         var fields = document.getElementById('notListedFields');
-        var input  = document.getElementById('locationNameNew');
         if (!sel || !fields) return;
+        var nameInput  = document.getElementById('locationNameNew');
+        var cityInput  = document.getElementById('locationCityNew');
+        var stateInput = document.getElementById('locationStateNew');
         if (sel.value === 'not-listed') {
             fields.style.display = 'block';
-            if (input) input.required = true;
+            if (nameInput)  nameInput.required  = true;
+            if (cityInput)  cityInput.required  = true;
+            if (stateInput) stateInput.required = true;
         } else {
             fields.style.display = 'none';
-            if (input) { input.required = false; input.value = ''; }
+            [nameInput, cityInput, stateInput].forEach(function (el) {
+                if (el) { el.required = false; el.value = ''; }
+            });
+            var addrInput = document.getElementById('locationAddressNew');
+            var zipInput  = document.getElementById('locationZipNew');
+            if (addrInput) addrInput.value = '';
+            if (zipInput)  zipInput.value  = '';
         }
     }
     document.addEventListener('DOMContentLoaded', function () {
