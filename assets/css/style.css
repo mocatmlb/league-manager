@@ -608,6 +608,77 @@ input, select, textarea {
     color: #fff;
 }
 
+/* Public schedule tabs */
+.tab-pane {
+    display: none;
+}
+.tab-pane.active {
+    display: block;
+}
+.game-row-today {
+    background-color: #fffbeb !important;
+}
+.game-row-today td {
+    font-weight: 500;
+}
+
+/* Underline tab strip */
+.schedule-tab-strip {
+    display: flex;
+    border-bottom: 2px solid #dee2e6;
+    margin-bottom: 1rem;
+    gap: 0;
+}
+.sch-tab {
+    padding: 0.55rem 1.1rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #6c757d;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    transition: color .12s;
+    white-space: nowrap;
+}
+.sch-tab:hover { color: #495057; }
+.sch-tab.active { color: #2563eb; border-bottom-color: #2563eb; }
+.sch-tab.tab-warn.active { color: #d97706; border-bottom-color: #f59e0b; }
+.sch-tab.tab-ppd.active  { color: #6f42c1; border-bottom-color: #6f42c1; }
+
+/* Tab count badges */
+.sch-tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border-radius: 10px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    background: #e9ecef;
+    color: #495057;
+}
+.sch-tab.active .sch-tab-badge          { background: #dbeafe; color: #1d4ed8; }
+.sch-tab.tab-warn .sch-tab-badge        { background: #fef3c7; color: #92400e; }
+.sch-tab.tab-ppd .sch-tab-badge         { background: #ede9fe; color: #5b21b6; }
+
+/* Mobile tab chips — warn/ppd variants */
+.chip-btn.tab-chip-warn { border-color: #f59e0b; color: #92400e; }
+.chip-btn.tab-chip-warn.active { background: #f59e0b; color: #fff; }
+.chip-btn.tab-chip-ppd { border-color: #6f42c1; color: #5b21b6; }
+.chip-btn.tab-chip-ppd.active { background: #6f42c1; color: #fff; }
+/* Mobile tab chip row — tighter padding */
+.mobile-tab-chips .chip-btn {
+    padding: 0.26rem 0.55rem;
+    font-size: 0.7rem;
+}
+
 /* Coach hero stat tiles */
 .hero-stats {
     flex-wrap: wrap;
