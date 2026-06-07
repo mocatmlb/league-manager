@@ -521,70 +521,170 @@ $pageTitle = "Schedule Management - " . APP_NAME;
                         <h3>Request History</h3>
                     </div>
                     <div class="card-body">
-                        <div class="table-responsive">
+
+                        <!-- Mobile accordion (shown only below md breakpoint) -->
+                        <div class="d-md-none accordion" id="requestHistoryAccordion">
+                            <?php foreach ($allRequests as $i => $request): ?>
+                            <?php
+                                $isPostponement = ($request['request_type'] ?? '') === 'Postponement';
+                                $statusColor = $request['request_status'] === 'Approved' ? 'success' : ($request['request_status'] === 'Denied' ? 'danger' : 'warning');
+                            ?>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="reqHeading<?php echo $i; ?>">
+                                    <button class="accordion-button collapsed py-2" type="button"
+                                            data-bs-toggle="collapse" data-bs-target="#reqCollapse<?php echo $i; ?>"
+                                            aria-expanded="false" aria-controls="reqCollapse<?php echo $i; ?>">
+                                        <span class="me-2 text-muted" style="font-size:.75rem">#<?php echo $request['request_id'] ?? 'N/A'; ?></span>
+                                        <span class="me-2"><strong>Game #<?php echo sanitize($request['game_number']); ?></strong>
+                                            <?php if (!empty($request['has_notes'])): ?><i class="fas fa-sticky-note text-warning ms-1" title="This game has notes — view in Games"></i><?php endif; ?>
+                                            <br><small><?php echo sanitize($request['away_team_name']); ?> @ <?php echo sanitize($request['home_team_name']); ?></small>
+                                        </span>
+                                        <span class="badge bg-<?php echo $statusColor; ?> me-1"><?php echo $request['request_status']; ?></span>
+                                        <span class="badge bg-secondary"><?php echo sanitize($request['request_type'] ?? 'Reschedule'); ?></span>
+                                    </button>
+                                </h2>
+                                <div id="reqCollapse<?php echo $i; ?>" class="accordion-collapse collapse"
+                                     aria-labelledby="reqHeading<?php echo $i; ?>" data-bs-parent="#requestHistoryAccordion">
+                                    <div class="accordion-body py-2 px-3">
+                                        <div class="mb-2">
+                                            <strong class="d-block text-muted" style="font-size:.75rem">CHANGE DETAILS</strong>
+                                            <span class="text-muted" style="font-size:.75rem">From:</span>
+                                            <?php if ($request['original_date'] && $request['original_time']): ?>
+                                                <strong><?php echo date('n/j/Y', strtotime($request['original_date'])); ?> @ <?php echo date('g:i A', strtotime($request['original_time'])); ?></strong>
+                                                — <small class="text-muted"><?php echo sanitize($request['original_location']); ?></small>
+                                            <?php else: ?>
+                                                <em class="text-muted">Not scheduled</em>
+                                            <?php endif; ?>
+                                            <br>
+                                            <span class="text-muted" style="font-size:.75rem">To:</span>
+                                            <?php if ($isPostponement): ?>
+                                                <em class="text-muted">Postponement — no date change</em>
+                                            <?php elseif ($request['requested_date'] && $request['requested_time']): ?>
+                                                <strong><?php echo date('n/j/Y', strtotime($request['requested_date'])); ?> @ <?php echo date('g:i A', strtotime($request['requested_time'])); ?></strong>
+                                                — <small class="text-muted"><?php echo sanitize($request['requested_location']); ?></small>
+                                            <?php else: ?>
+                                                <em class="text-muted">No change requested</em>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="row mb-2">
+                                            <div class="col-6">
+                                                <strong class="d-block text-muted" style="font-size:.75rem">SUBMITTED</strong>
+                                                <?php echo $request['created_date'] ? date('n/j/Y g:i A', strtotime($request['created_date'])) : '—'; ?><br>
+                                                <small class="text-muted">by <?php echo sanitize($request['requested_by'] ?? '—'); ?></small>
+                                            </div>
+                                            <div class="col-6">
+                                                <strong class="d-block text-muted" style="font-size:.75rem">REVIEWED</strong>
+                                                <?php if ($request['reviewed_at']): ?>
+                                                    <?php echo date('n/j/Y g:i A', strtotime($request['reviewed_at'])); ?><br>
+                                                    <small class="text-muted">by <?php echo sanitize($request['reviewed_by_username'] ?? 'System'); ?></small>
+                                                <?php else: ?>
+                                                    <span class="text-muted">—</span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                        <?php if ($request['request_status'] === 'Pending'): ?>
+                                        <div class="d-flex gap-2 mt-1">
+                                            <button class="btn btn-sm btn-outline-primary" onclick="editRequest(<?php echo htmlspecialchars(json_encode($request)); ?>)">
+                                                <i class="fas fa-edit"></i> Edit
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-success" onclick="approveRequest(<?php echo $request['request_id']; ?>)">
+                                                <i class="fas fa-check"></i> Approve
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" onclick="denyRequest(<?php echo $request['request_id']; ?>)">
+                                                <i class="fas fa-times"></i> Deny
+                                            </button>
+                                        </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        </div><!-- /.accordion -->
+
+                        <!-- Desktop table (hidden below md breakpoint) -->
+                        <div class="d-none d-md-block table-responsive">
                         <table id="requestsTable" class="table table-striped">
                             <thead>
                                 <tr>
-                                    <th>Request ID</th>
-                                    <th>Game #</th>
-                                    <th>Teams</th>
-                                    <th>Current Schedule</th>
-                                    <th>Requested Change</th>
+                                    <th>ID</th>
+                                    <th>Game</th>
+                                    <th>Type</th>
+                                    <th>Change Details</th>
+                                    <th>Submitted</th>
                                     <th>Status</th>
-                                    <th>Actions</th>
+                                    <th>Reviewed / Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($allRequests as $request): ?>
+                                <?php $isPostponement = ($request['request_type'] ?? '') === 'Postponement'; ?>
                                 <tr>
-                                    <td><strong>#<?php echo $request['request_id'] ?? 'N/A'; ?></strong></td>
+                                    <td><small class="text-muted">#<?php echo $request['request_id'] ?? 'N/A'; ?></small></td>
                                     <td>
-                                        <?php echo sanitize($request['game_number']); ?>
+                                        <strong><?php echo sanitize($request['game_number']); ?></strong>
                                         <?php if (!empty($request['has_notes'])): ?>
                                             <i class="fas fa-sticky-note text-warning ms-1" title="This game has notes — view in Games"></i>
                                         <?php endif; ?>
+                                        <br>
+                                        <small class="text-muted"><?php echo sanitize($request['away_team_name']); ?> @ <?php echo sanitize($request['home_team_name']); ?></small>
                                     </td>
-                                    <td><?php echo sanitize($request['away_team_name']) . ' @ ' . sanitize($request['home_team_name']); ?></td>
-                                    <td data-order="<?php echo htmlspecialchars($request['original_date'] ?? '9999-12-31', ENT_QUOTES, 'UTF-8'); ?>">
+                                    <td>
+                                        <span class="badge bg-secondary"><?php echo sanitize($request['request_type'] ?? 'Reschedule'); ?></span>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">From:</small>
                                         <?php if ($request['original_date'] && $request['original_time']): ?>
                                             <strong><?php echo date('n/j/Y', strtotime($request['original_date'])); ?> @ <?php echo date('g:i A', strtotime($request['original_time'])); ?></strong><br>
-                                            <small class="text-muted"><?php echo sanitize($request['original_location']); ?></small>
+                                            <small class="text-muted ms-3"><?php echo sanitize($request['original_location']); ?></small>
                                         <?php else: ?>
                                             <em class="text-muted">Not scheduled</em>
                                         <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <?php if ($request['requested_date'] && $request['requested_time']): ?>
+                                        <br>
+                                        <small class="text-muted">To:</small>
+                                        <?php if ($isPostponement): ?>
+                                            <em class="text-muted">Postponement — no date change</em>
+                                        <?php elseif ($request['requested_date'] && $request['requested_time']): ?>
                                             <strong><?php echo date('n/j/Y', strtotime($request['requested_date'])); ?> @ <?php echo date('g:i A', strtotime($request['requested_time'])); ?></strong><br>
-                                            <small class="text-muted"><?php echo sanitize($request['requested_location']); ?></small>
+                                            <small class="text-muted ms-3"><?php echo sanitize($request['requested_location']); ?></small>
                                         <?php else: ?>
                                             <em class="text-muted">No change requested</em>
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <span class="badge bg-<?php 
-                                            echo $request['request_status'] === 'Approved' ? 'success' : 
-                                                ($request['request_status'] === 'Denied' ? 'danger' : 'warning'); 
+                                        <?php if ($request['created_date']): ?>
+                                            <?php echo date('M j, Y', strtotime($request['created_date'])); ?><br>
+                                            <small class="text-muted"><?php echo date('g:i A', strtotime($request['created_date'])); ?></small><br>
+                                        <?php else: ?>
+                                            —<br>
+                                        <?php endif; ?>
+                                        <small class="text-muted">by <?php echo sanitize($request['requested_by'] ?? '—'); ?></small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-<?php
+                                            echo $request['request_status'] === 'Approved' ? 'success' :
+                                                ($request['request_status'] === 'Denied' ? 'danger' : 'warning');
                                         ?>">
                                             <?php echo $request['request_status']; ?>
                                         </span>
                                     </td>
                                     <td>
                                         <?php if ($request['request_status'] === 'Pending'): ?>
-                                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editRequest(<?php echo htmlspecialchars(json_encode($request)); ?>)">
+                                            <small class="text-muted d-block mb-1">—</small>
+                                            <button class="btn btn-sm btn-outline-primary me-1 mb-1" onclick="editRequest(<?php echo htmlspecialchars(json_encode($request)); ?>)">
                                                 <i class="fas fa-edit"></i> Edit
                                             </button>
-                                            <button class="btn btn-sm btn-outline-success me-1" onclick="approveRequest(<?php echo $request['request_id']; ?>)">
+                                            <button class="btn btn-sm btn-outline-success me-1 mb-1" onclick="approveRequest(<?php echo $request['request_id']; ?>)">
                                                 <i class="fas fa-check"></i> Approve
                                             </button>
-                                            <button class="btn btn-sm btn-outline-danger" onclick="denyRequest(<?php echo $request['request_id']; ?>)">
+                                            <button class="btn btn-sm btn-outline-danger mb-1" onclick="denyRequest(<?php echo $request['request_id']; ?>)">
                                                 <i class="fas fa-times"></i> Deny
                                             </button>
                                         <?php else: ?>
-                                            <small class="text-muted">
-                                                <?php echo $request['reviewed_by_username'] ?? 'System'; ?><br>
-                                                <?php echo $request['reviewed_at'] ? date('n/j/Y g:i A', strtotime($request['reviewed_at'])) : 'N/A'; ?>
-                                            </small>
+                                            <?php echo $request['reviewed_at'] ? date('M j, Y', strtotime($request['reviewed_at'])) : '—'; ?><br>
+                                            <?php if ($request['reviewed_at']): ?>
+                                                <small class="text-muted"><?php echo date('g:i A', strtotime($request['reviewed_at'])); ?></small><br>
+                                            <?php endif; ?>
+                                            <small class="text-muted">by <?php echo sanitize($request['reviewed_by_username'] ?? 'System'); ?></small>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
@@ -818,7 +918,8 @@ $pageTitle = "Schedule Management - " . APP_NAME;
             $('#requestsTable').DataTable({
                 order: [[0, 'desc']],
                 columnDefs: [{ type: 'num', targets: 0 }],
-                pageLength: 25
+                pageLength: 25,
+                autoWidth: false
             });
         });
         
