@@ -1066,8 +1066,9 @@ $pageTitle = "Schedule - " . APP_NAME;
                 card.classList.toggle('is-filtered-out', !show);
             });
             activePane.querySelectorAll('.date-group').forEach(function(group) {
-                var visible = group.querySelectorAll('.mobile-game-card:not(.is-filtered-out)').length;
-                group.classList.toggle('is-empty', visible === 0);
+                var visibleGames = group.querySelectorAll('.mobile-game-card:not(.is-filtered-out)').length;
+                var hasSpecialDates = group.querySelectorAll('.mobile-special-date-card').length > 0;
+                group.classList.toggle('is-empty', visibleGames === 0 && !hasSpecialDates);
             });
         }
 
