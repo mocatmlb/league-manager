@@ -920,3 +920,46 @@ a.hero-stat.hero-stat-alert:hover {
 .cal-search-wrap .form-control-sm {
     font-size: 0.82rem;
 }
+
+/* Special date background events */
+.fc-special-date .fc-bg-event {
+    opacity: 0.25;
+}
+.fc .fc-bg-event .fc-event-title {
+    font-size: 0.65rem;
+    font-weight: 700;
+    opacity: 1;
+    padding: 1px 4px;
+    color: #1e293b; /* Darker text for better contrast on tinted backgrounds */
+}
+
+/* Calendar legend */
+.cal-legend-chip {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.cal-legend-upcoming { background: #2563eb; color: #fff; }
+.cal-legend-completed { background: #6c757d; color: #fff; }
+.cal-legend-awaiting { background: #f59e0b; color: #000; }
+.cal-legend-postponed { background: #6f42c1; color: #fff; }
+.cal-legend-special { background: #e2e8f0; color: #475569; }
+
+/* Mobile Special Date Markers */
+.mobile-special-date-marker {
+    display: block;
+    background: #f1f5f9;
+    border-left: 3px solid #cbd5e1;
+    padding: 6px 10px;
+    margin-bottom: 8px;
+    border-radius: 0 4px 4px 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #475569;
+}
+.mobile-special-date-marker i {
+    color: #64748b;
+    margin-right: 4px;
+}

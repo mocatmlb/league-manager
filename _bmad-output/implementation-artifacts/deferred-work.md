@@ -129,3 +129,5 @@ These are race conditions, missing transactions, and performance issues. See [10
 
 - **`scrAddReason()` uses innerHTML with caller-supplied string** — `public/admin/settings/sections/schedule-changes.php`. Call sites are hardcoded string literals so there is no live XSS vector. Consider switching to `createElement`/`setAttribute` if the function is ever generalized.
 - **`INSERT IGNORE` can't reset canned reason defaults** — `database/migrations/036_add_scr_canned_reasons.sql`. An admin who accidentally clears all reasons via the UI cannot recover defaults from a migration re-run. Could add a separate "reset to defaults" button in the settings UI if needed.
+## Deferred from: code review (2026-06-07) story 21.3
+- [Review][Defer] Missing mobile support for special dates [public/schedule.php] — deferred, pre-existing (mobile lacks calendar)

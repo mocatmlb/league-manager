@@ -2054,3 +2054,18 @@ As an admin, I want to configure blackout date ranges during which coaches canno
 
 **Status:** ready-for-dev
 **Story Key:** 21-4-reschedule-blackout-dates
+
+### Story 21.5: Calendar View — Show Score for Completed Games
+
+As a league participant, I want to see the final score when I click a completed game on the calendar, so that I can quickly check results without switching to the table view.
+
+**Status:** ready-for-dev
+**Story Key:** 21-5-calendar-score-display
+
+### Story 21.6: Calendar View — Awaiting Results Badge and Days Late
+
+As a league participant, I want awaiting-results games on the calendar to clearly show their status and how overdue they are, so that I can tell at a glance which games still need scores submitted without switching to the table view.
+
+**Status:** ready-for-dev
+**Depends on:** Story 21.5
+**Story Key:** 21-6-calendar-awaiting-badge

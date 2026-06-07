@@ -138,6 +138,42 @@ foreach (['upcoming' => $gamesUpcoming, 'completed' => $gamesCompleted,
     }
 }
 
+// Query special dates filtered by active season and global
+$specialDateScopeId = (int)($filters['season_id'] ?? 0);
+if ($specialDateScopeId > 0) {
+    $specialDates = $db->fetchAll(
+        "SELECT id, date, label, date_type, display_color
+         FROM league_special_dates
+         WHERE season_id IS NULL
+            OR season_id = ?
+         ORDER BY date ASC",
+        [$specialDateScopeId]
+    );
+} else {
+    $specialDates = $db->fetchAll(
+        "SELECT id, date, label, date_type, display_color
+         FROM league_special_dates
+         WHERE season_id IS NULL
+         ORDER BY date ASC"
+    );
+}
+
+$specialDateEvents = [];
+foreach ($specialDates as $sd) {
+    $specialDateEvents[] = [
+        'title'      => $sd['label'],
+        'start'      => $sd['date'],
+        'allDay'     => true,
+        'display'    => 'background',
+        'color'      => $sd['display_color'],
+        'classNames' => ['fc-special-date'],
+        'extendedProps' => [
+            'isSpecialDate' => true,
+            'dateType'      => $sd['date_type'],
+        ],
+    ];
+}
+
 // Days Late for awaiting games
 foreach ($gamesAwaiting as &$g) {
     $g['days_late'] = (int)floor((strtotime($today) - strtotime($g['game_date'])) / 86400);
@@ -156,6 +192,11 @@ foreach (['upcoming' => $gamesUpcoming, 'completed' => $gamesCompleted,
     foreach ($tabGames as $game) {
         $mobileByTab[$tabKey][$game['game_date']][] = $game;
     }
+}
+
+$mobileSpecialDatesByDate = [];
+foreach ($specialDates as $sd) {
+    $mobileSpecialDatesByDate[$sd['date']][] = $sd;
 }
 
 // Mobile chips built from ALL games across all tabs
@@ -359,7 +400,7 @@ $pageTitle = "Schedule - " . APP_NAME;
 
             <?php
             // Helper: render mobile cards for one tab's grouped-by-date data
-            function renderMobilePane($tabKey, $gamesByDate, $today, $tabCounts) {
+            function renderMobilePane($tabKey, $gamesByDate, $today, $tabCounts, $mobileSpecialDatesByDate) {
                 $isActive = true; // visibility controlled by JS; all panes emitted to DOM
                 $display = 'block'; // JS will set display:none on inactive panes on ready
                 ?>
@@ -370,6 +411,13 @@ $pageTitle = "Schedule - " . APP_NAME;
                         <?php foreach ($gamesByDate as $gameDate => $dateGames): ?>
                             <div class="date-group">
                                 <div class="mobile-date-label"><?php echo htmlspecialchars(date('l, F j, Y', strtotime($gameDate)), ENT_QUOTES, 'UTF-8'); ?></div>
+                                <?php if (!empty($mobileSpecialDatesByDate[$gameDate])): ?>
+                                    <?php foreach ($mobileSpecialDatesByDate[$gameDate] as $sd): ?>
+                                        <div class="mobile-special-date-marker">
+                                            <i class="fas fa-star"></i> <?php echo htmlspecialchars($sd['label'], ENT_QUOTES, 'UTF-8'); ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
                                 <?php foreach ($dateGames as $mg):
                                     $mgProgram = htmlspecialchars(trim((string) ($mg['program_name'] ?? '')), ENT_QUOTES, 'UTF-8');
                                     $mgSeason  = htmlspecialchars(trim((string) (($mg['season_name'] ?? '') . ' ' . ($mg['season_year'] ?? ''))), ENT_QUOTES, 'UTF-8');
@@ -434,10 +482,10 @@ $pageTitle = "Schedule - " . APP_NAME;
                 <?php
             }
 
-            renderMobilePane('upcoming',  $mobileByTab['upcoming'],  $today, $tabCounts);
-            renderMobilePane('completed', $mobileByTab['completed'], $today, $tabCounts);
-            renderMobilePane('awaiting',  $mobileByTab['awaiting'],  $today, $tabCounts);
-            renderMobilePane('postponed', $mobileByTab['postponed'], $today, $tabCounts);
+            renderMobilePane('upcoming',  $mobileByTab['upcoming'],  $today, $tabCounts, $mobileSpecialDatesByDate);
+            renderMobilePane('completed', $mobileByTab['completed'], $today, $tabCounts, $mobileSpecialDatesByDate);
+            renderMobilePane('awaiting',  $mobileByTab['awaiting'],  $today, $tabCounts, $mobileSpecialDatesByDate);
+            renderMobilePane('postponed', $mobileByTab['postponed'], $today, $tabCounts, $mobileSpecialDatesByDate);
             ?>
         </div><!-- /#mobileSchedule -->
 
@@ -686,6 +734,16 @@ $pageTitle = "Schedule - " . APP_NAME;
                 <p id="calendarEmptyNote" class="text-muted mt-2 small" style="display:none;">
                     No games match your current filters.
                 </p>
+                <!-- Calendar legend -->
+                <div class="cal-legend mt-2 d-flex flex-wrap gap-2 align-items-center">
+                    <span class="cal-legend-chip cal-legend-upcoming">&#9632; Upcoming</span>
+                    <span class="cal-legend-chip cal-legend-completed">&#9632; Completed</span>
+                    <span class="cal-legend-chip cal-legend-awaiting">&#9632; Awaiting Result</span>
+                    <span class="cal-legend-chip cal-legend-postponed">&#9632; Postponed</span>
+                    <?php if (!empty($specialDateEvents)): ?>
+                    <span class="cal-legend-chip cal-legend-special">&#9733; Special Date</span>
+                    <?php endif; ?>
+                </div>
             </div>
 
         </div><!-- /#desktopSchedule -->
@@ -714,7 +772,10 @@ $pageTitle = "Schedule - " . APP_NAME;
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
 
     <script>
-    var calendarEvents = <?php echo json_encode($calendarEvents, JSON_HEX_TAG | JSON_HEX_AMP); ?>;
+    var calendarEvents = <?php echo json_encode(
+        array_merge($calendarEvents, $specialDateEvents),
+        JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_QUOT
+    ); ?>;
 
     $(document).ready(function() {
 
@@ -754,6 +815,7 @@ $pageTitle = "Schedule - " . APP_NAME;
 
         // ── Event popover ─────────────────────────────────────────────────
         function showEventPopover(el, event) {
+            if (event.extendedProps && event.extendedProps.isSpecialDate) return;
             if (currentPopover) { currentPopover.dispose(); currentPopover = null; }
 
             var p = event.extendedProps;
@@ -798,6 +860,7 @@ $pageTitle = "Schedule - " . APP_NAME;
             var term = this.value.trim().toLowerCase();
             var eventsToShow = term
                 ? allCalendarEvents.filter(function(ev) {
+                    if (ev.extendedProps && ev.extendedProps.isSpecialDate) return true;
                     return ev.title.toLowerCase().indexOf(term) !== -1;
                   })
                 : allCalendarEvents;
