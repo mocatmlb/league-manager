@@ -857,3 +857,130 @@ a.hero-stat.hero-stat-alert:hover {
 .standings-detail-row span:last-child {
     font-weight: 600;
 }
+
+/* Schedule view toggle (Table | Calendar) */
+.schedule-view-toggle {
+    gap: 0;
+    margin-bottom: 0.75rem;
+}
+.view-toggle-btn {
+    padding: 0.3rem 0.85rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: #fff;
+    color: #6c757d;
+    border: 1.5px solid #dee2e6;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+.view-toggle-btn:first-child {
+    border-radius: 6px 0 0 6px;
+}
+.view-toggle-btn:last-child {
+    border-radius: 0 6px 6px 0;
+    border-left: none;
+}
+.view-toggle-btn.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+}
+.view-toggle-btn:hover:not(.active) {
+    background: #f8f9fa;
+    color: #495057;
+}
+
+/* Calendar container */
+#calendarEl {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 0.75rem;
+}
+/* FullCalendar overrides */
+.fc .fc-toolbar-title {
+    font-size: 1rem;
+    font-weight: 700;
+}
+.fc .fc-button {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.6rem;
+}
+.fc .fc-daygrid-event {
+    font-size: 0.72rem;
+    border-radius: 3px;
+    padding: 1px 3px;
+    cursor: pointer;
+}
+
+/* Calendar team search */
+.cal-search-wrap {
+    max-width: 300px;
+}
+.cal-search-wrap .form-control-sm {
+    font-size: 0.82rem;
+}
+
+/* Special date background events */
+.fc-special-date .fc-bg-event {
+    opacity: 0.25;
+}
+.fc .fc-bg-event .fc-event-title {
+    font-size: 0.65rem;
+    font-weight: 700;
+    opacity: 1;
+    padding: 1px 4px;
+    color: #1e293b; /* Darker text for better contrast on tinted backgrounds */
+}
+
+/* Calendar legend */
+.cal-legend-chip {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.cal-legend-upcoming { background: #2563eb; color: #fff; }
+.cal-legend-completed { background: #6c757d; color: #fff; }
+.cal-legend-awaiting { background: #f59e0b; color: #000; }
+.cal-legend-postponed { background: #6f42c1; color: #fff; }
+.cal-legend-special { background: #e2e8f0; color: #475569; }
+
+/* Mobile Special Date Cards */
+.mobile-special-date-card {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    border-radius: 0.5rem;
+    padding: 0.6rem 0.75rem;
+    margin-bottom: 0.5rem;
+    border-left-width: 3px;
+    border-left-style: solid;
+}
+.mobile-special-date-card .sd-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    color: #fff;
+}
+.mobile-special-date-card .sd-body { flex: 1; min-width: 0; }
+.mobile-special-date-card .sd-label {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #1e293b;
+}
+.mobile-special-date-card .sd-type {
+    font-size: 0.72rem;
+    color: #64748b;
+    margin-top: 1px;
+}
+/* keep the old marker class name as an alias just in case */
+.mobile-special-date-marker {
+    display: none; /* replaced by .mobile-special-date-card */
+}

@@ -97,6 +97,86 @@ $tabCounts = [
     'postponed' => count($gamesPostponed),
 ];
 
+// Build calendar events array for FullCalendar
+$calendarEvents = [];
+
+$categoryMap = [
+    'upcoming'  => ['color' => '#2563eb', 'textColor' => '#ffffff'],
+    'completed' => ['color' => '#6c757d', 'textColor' => '#ffffff'],
+    'awaiting'  => ['color' => '#f59e0b', 'textColor' => '#000000'],
+    'postponed' => ['color' => '#6f42c1', 'textColor' => '#ffffff'],
+];
+
+foreach (['upcoming' => $gamesUpcoming, 'completed' => $gamesCompleted,
+           'awaiting' => $gamesAwaiting, 'postponed' => $gamesPostponed] as $cat => $catGames) {
+    foreach ($catGames as $g) {
+        $away = htmlspecialchars(strtoupper($g['away_team'] ?: $g['away_league']), ENT_QUOTES, 'UTF-8');
+        $home = htmlspecialchars(strtoupper($g['home_team'] ?: $g['home_league']), ENT_QUOTES, 'UTF-8');
+        $timeStr = !empty($g['game_time']) ? date('g:i A', strtotime($g['game_time'])) : '';
+        $locDisplay = $g['loc_name'] ?: ($g['location'] ?? '');
+        [$statusClass, $statusLabel] = getStatusInfo($g['game_status']);
+        $mapsUrl = buildMapsUrl($g);
+
+        $calendarEvents[] = [
+            'title'       => $away . ' @ ' . $home,
+            'start'       => $g['game_date'] . (!empty($g['game_time']) ? 'T' . $g['game_time'] : ''),
+            'color'       => $categoryMap[$cat]['color'],
+            'textColor'   => $categoryMap[$cat]['textColor'],
+            'extendedProps' => [
+                'gameNumber'  => $g['game_number'],
+                'gameDate'    => formatDate($g['game_date']),
+                'gameTime'    => $timeStr,
+                'away'        => $away,
+                'home'        => $home,
+                'location'    => htmlspecialchars($locDisplay, ENT_QUOTES, 'UTF-8'),
+                'mapsUrl'     => $mapsUrl,
+                'statusClass' => $statusClass,
+                'statusLabel' => $statusLabel,
+                'category'    => $cat,
+            ],
+        ];
+    }
+}
+
+// Query special dates filtered by active season and global
+$specialDateScopeId = (int)($filters['season_id'] ?? 0);
+if ($specialDateScopeId > 0) {
+    $specialDates = $db->fetchAll(
+        "SELECT sd.id, sd.date, sd.label, sd.date_type, sd.display_color, sd.season_id,
+                s.season_name, s.season_year
+         FROM league_special_dates sd
+         LEFT JOIN seasons s ON sd.season_id = s.season_id
+         WHERE sd.season_id IS NULL
+            OR sd.season_id = ?
+         ORDER BY sd.date ASC",
+        [$specialDateScopeId]
+    );
+} else {
+    $specialDates = $db->fetchAll(
+        "SELECT id, date, label, date_type, display_color, season_id,
+                NULL AS season_name, NULL AS season_year
+         FROM league_special_dates
+         WHERE season_id IS NULL
+         ORDER BY date ASC"
+    );
+}
+
+$specialDateEvents = [];
+foreach ($specialDates as $sd) {
+    $specialDateEvents[] = [
+        'title'      => $sd['label'],
+        'start'      => $sd['date'],
+        'allDay'     => true,
+        'display'    => 'background',
+        'color'      => $sd['display_color'],
+        'classNames' => ['fc-special-date'],
+        'extendedProps' => [
+            'isSpecialDate' => true,
+            'dateType'      => $sd['date_type'],
+        ],
+    ];
+}
+
 // Days Late for awaiting games
 foreach ($gamesAwaiting as &$g) {
     $g['days_late'] = (int)floor((strtotime($today) - strtotime($g['game_date'])) / 86400);
@@ -114,6 +194,13 @@ foreach (['upcoming' => $gamesUpcoming, 'completed' => $gamesCompleted,
            'awaiting' => $gamesAwaiting, 'postponed' => $gamesPostponed] as $tabKey => $tabGames) {
     foreach ($tabGames as $game) {
         $mobileByTab[$tabKey][$game['game_date']][] = $game;
+    }
+}
+
+$mobileSpecialDatesByDate = [];
+foreach ($specialDates as $sd) {
+    if ($sd['date'] >= $today) {
+        $mobileSpecialDatesByDate[$sd['date']][] = $sd;
     }
 }
 
@@ -183,6 +270,7 @@ $pageTitle = "Schedule - " . APP_NAME;
     <link href="assets/css/style.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
 </head>
 <body>
     <?php
@@ -317,17 +405,72 @@ $pageTitle = "Schedule - " . APP_NAME;
 
             <?php
             // Helper: render mobile cards for one tab's grouped-by-date data
-            function renderMobilePane($tabKey, $gamesByDate, $today, $tabCounts) {
+            function renderMobileSpecialDateCard($sd) {
+                $typeIcons = [
+                    'milestone' => 'fas fa-star',
+                    'holiday'   => 'fas fa-flag',
+                    'deadline'  => 'fas fa-exclamation',
+                    'other'     => 'fas fa-calendar-day',
+                ];
+                $typeLabels = [
+                    'milestone' => 'Milestone',
+                    'holiday'   => 'Holiday',
+                    'deadline'  => 'Deadline',
+                    'other'     => 'Other',
+                ];
+                $icon  = $typeIcons[$sd['date_type']] ?? 'fas fa-calendar-day';
+                $tl    = $typeLabels[$sd['date_type']] ?? 'Special Date';
+                $scope = $sd['season_id']
+                    ? htmlspecialchars(trim(($sd['season_name'] ?? '') . ' ' . ($sd['season_year'] ?? '')), ENT_QUOTES, 'UTF-8')
+                    : 'All Seasons';
+                $color = htmlspecialchars($sd['display_color'], ENT_QUOTES, 'UTF-8');
+                // Append hex alpha 18 (~10% opacity) for the tinted background
+                $bgColor = $color . '1a';
+                ?>
+                <div class="mobile-special-date-card" style="background:<?php echo $bgColor; ?>;border-color:<?php echo $color; ?>;">
+                    <div class="sd-icon" style="background:<?php echo $color; ?>;">
+                        <i class="<?php echo $icon; ?>"></i>
+                    </div>
+                    <div class="sd-body">
+                        <div class="sd-label"><?php echo htmlspecialchars($sd['label'], ENT_QUOTES, 'UTF-8'); ?></div>
+                        <div class="sd-type"><?php echo $tl; ?> &bull; <?php echo $scope; ?></div>
+                    </div>
+                </div>
+                <?php
+            }
+
+            function renderMobilePane($tabKey, $gamesByDate, $today, $tabCounts, $mobileSpecialDatesByDate) {
+                // Standalone special-date placeholders only make sense in the upcoming tab
+                $showStandalone = ($tabKey === 'upcoming');
+
+                // Build the full set of dates to render
+                if ($showStandalone) {
+                    $allDates = array_unique(array_merge(
+                        array_keys($gamesByDate),
+                        array_keys($mobileSpecialDatesByDate)
+                    ));
+                    sort($allDates);
+                } else {
+                    $allDates = array_keys($gamesByDate);
+                }
+
                 $isActive = true; // visibility controlled by JS; all panes emitted to DOM
                 $display = 'block'; // JS will set display:none on inactive panes on ready
                 ?>
                 <div id="mobilePane-<?php echo $tabKey; ?>" class="mobile-tab-pane">
-                    <?php if (empty($gamesByDate)): ?>
+                    <?php if (empty($allDates)): ?>
                         <div class="alert alert-info">No games in this category. Try adjusting your filters.</div>
                     <?php else: ?>
-                        <?php foreach ($gamesByDate as $gameDate => $dateGames): ?>
+                        <?php foreach ($allDates as $gameDate):
+                            $dateGames = $gamesByDate[$gameDate] ?? [];
+                        ?>
                             <div class="date-group">
                                 <div class="mobile-date-label"><?php echo htmlspecialchars(date('l, F j, Y', strtotime($gameDate)), ENT_QUOTES, 'UTF-8'); ?></div>
+                                <?php if (!empty($mobileSpecialDatesByDate[$gameDate])): ?>
+                                    <?php foreach ($mobileSpecialDatesByDate[$gameDate] as $sd): ?>
+                                        <?php renderMobileSpecialDateCard($sd); ?>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
                                 <?php foreach ($dateGames as $mg):
                                     $mgProgram = htmlspecialchars(trim((string) ($mg['program_name'] ?? '')), ENT_QUOTES, 'UTF-8');
                                     $mgSeason  = htmlspecialchars(trim((string) (($mg['season_name'] ?? '') . ' ' . ($mg['season_year'] ?? ''))), ENT_QUOTES, 'UTF-8');
@@ -392,10 +535,10 @@ $pageTitle = "Schedule - " . APP_NAME;
                 <?php
             }
 
-            renderMobilePane('upcoming',  $mobileByTab['upcoming'],  $today, $tabCounts);
-            renderMobilePane('completed', $mobileByTab['completed'], $today, $tabCounts);
-            renderMobilePane('awaiting',  $mobileByTab['awaiting'],  $today, $tabCounts);
-            renderMobilePane('postponed', $mobileByTab['postponed'], $today, $tabCounts);
+            renderMobilePane('upcoming',  $mobileByTab['upcoming'],  $today, $tabCounts, $mobileSpecialDatesByDate);
+            renderMobilePane('completed', $mobileByTab['completed'], $today, $tabCounts, $mobileSpecialDatesByDate);
+            renderMobilePane('awaiting',  $mobileByTab['awaiting'],  $today, $tabCounts, $mobileSpecialDatesByDate);
+            renderMobilePane('postponed', $mobileByTab['postponed'], $today, $tabCounts, $mobileSpecialDatesByDate);
             ?>
         </div><!-- /#mobileSchedule -->
 
@@ -405,8 +548,18 @@ $pageTitle = "Schedule - " . APP_NAME;
              ====================================================== -->
         <div id="desktopSchedule" class="d-none d-lg-block">
 
+            <!-- View toggle — desktop only -->
+            <div class="schedule-view-toggle d-none d-lg-flex mb-3">
+                <button class="view-toggle-btn <?php echo $activeTab !== 'calendar' ? 'active' : ''; ?>" id="btnTableView" data-view="table">
+                    <i class="fas fa-table me-1"></i> Table
+                </button>
+                <button class="view-toggle-btn <?php echo $activeTab === 'calendar' ? 'active' : ''; ?>" id="btnCalendarView" data-view="calendar">
+                    <i class="fas fa-calendar-alt me-1"></i> Calendar
+                </button>
+            </div>
+
             <!-- Tab strip — underline style -->
-            <div class="schedule-tab-strip" id="scheduleTabs">
+            <div class="schedule-tab-strip" id="scheduleTabs"<?php echo $activeTab === 'calendar' ? ' style="display:none;"' : ''; ?>>
                 <?php
                 $desktopTabDefs = [
                     ['key' => 'upcoming',  'label' => 'Upcoming',        'extra' => ''],
@@ -624,21 +777,29 @@ $pageTitle = "Schedule - " . APP_NAME;
                 <?php endif; ?>
             </div>
 
-        </div><!-- /#desktopSchedule -->
-
-        <!-- Calendar View stub (hidden; preserved for future story) -->
-        <!--
-        <div id="calendarView">
-            <div class="card">
-                <div class="card-body">
-                    <div class="alert alert-info">
-                        <h4>Calendar View</h4>
-                        <p>Calendar view will be implemented in a future update.</p>
-                    </div>
+            <!-- Calendar view -->
+            <div id="calendarView"<?php echo $activeTab !== 'calendar' ? ' style="display:none;"' : ''; ?>>
+                <div class="cal-search-wrap mb-2">
+                    <input type="text" id="calSearchInput" class="form-control form-control-sm"
+                           placeholder="Search teams…" autocomplete="off">
+                </div>
+                <div id="calendarEl"></div>
+                <p id="calendarEmptyNote" class="text-muted mt-2 small" style="display:none;">
+                    No games match your current filters.
+                </p>
+                <!-- Calendar legend -->
+                <div class="cal-legend mt-2 d-flex flex-wrap gap-2 align-items-center">
+                    <span class="cal-legend-chip cal-legend-upcoming">&#9632; Upcoming</span>
+                    <span class="cal-legend-chip cal-legend-completed">&#9632; Completed</span>
+                    <span class="cal-legend-chip cal-legend-awaiting">&#9632; Awaiting Result</span>
+                    <span class="cal-legend-chip cal-legend-postponed">&#9632; Postponed</span>
+                    <?php if (!empty($specialDateEvents)): ?>
+                    <span class="cal-legend-chip cal-legend-special">&#9733; Special Date</span>
+                    <?php endif; ?>
                 </div>
             </div>
-        </div>
-        -->
+
+        </div><!-- /#desktopSchedule -->
     </div>
 
     <!-- Footer -->
@@ -661,9 +822,151 @@ $pageTitle = "Schedule - " . APP_NAME;
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
 
     <script>
+    var calendarEvents = <?php echo json_encode(
+        array_merge($calendarEvents, $specialDateEvents),
+        JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_QUOT
+    ); ?>;
+
     $(document).ready(function() {
+
+        // ── FullCalendar init ─────────────────────────────────────────────
+        var calendar = null;
+        var calendarInitialized = false;
+        var currentPopover = null;
+        var allCalendarEvents = calendarEvents;
+
+        function initCalendar() {
+            if (calendarInitialized) return;
+            calendarInitialized = true;
+            var calEl = document.getElementById('calendarEl');
+            calendar = new FullCalendar.Calendar(calEl, {
+                initialView: 'dayGridMonth',
+                height: 'auto',
+                headerToolbar: {
+                    start: 'prev,next today',
+                    center: 'title',
+                    end: ''
+                },
+                events: calendarEvents,
+                eventClick: function(info) {
+                    showEventPopover(info.el, info.event);
+                },
+                eventDisplay: 'block',
+                datesSet: function() {
+                    if (currentPopover) { currentPopover.dispose(); currentPopover = null; }
+                },
+            });
+            calendar.render();
+
+            if (calendarEvents.length === 0) {
+                document.getElementById('calendarEmptyNote').style.display = 'block';
+            }
+        }
+
+        // ── Event popover ─────────────────────────────────────────────────
+        function showEventPopover(el, event) {
+            if (event.extendedProps && event.extendedProps.isSpecialDate) return;
+            if (currentPopover) { currentPopover.dispose(); currentPopover = null; }
+
+            var p = event.extendedProps;
+            var locHtml = p.mapsUrl
+                ? '<a href="' + p.mapsUrl + '" target="_blank" rel="noopener noreferrer">' + p.location + '</a>'
+                : (p.location || '—');
+
+            var content = '<div style="font-size:0.8rem;min-width:180px;">'
+                + '<div class="mb-1"><strong>#' + p.gameNumber + '</strong> &nbsp;'
+                + '<span class="badge ' + p.statusClass + '" style="font-size:0.65rem;">' + p.statusLabel + '</span></div>'
+                + '<div class="mb-1">' + p.gameDate + (p.gameTime ? ' &middot; ' + p.gameTime : '') + '</div>'
+                + '<div class="mb-1"><strong>' + p.away + '</strong> @ <strong>' + p.home + '</strong></div>'
+                + '<div class="text-muted">' + locHtml + '</div>'
+                + '</div>';
+
+            currentPopover = new bootstrap.Popover(el, {
+                content: content,
+                html: true,
+                trigger: 'manual',
+                placement: 'top',
+                fallbackPlacements: ['bottom', 'auto'],
+                container: 'body',
+            });
+            currentPopover.show();
+        }
+
+        document.addEventListener('click', function(e) {
+            if (currentPopover && !e.target.closest('.fc-event') && !e.target.closest('.popover')) {
+                currentPopover.dispose();
+                currentPopover = null;
+            }
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && currentPopover) {
+                currentPopover.dispose();
+                currentPopover = null;
+            }
+        });
+
+        // ── Team search ───────────────────────────────────────────────────
+        document.getElementById('calSearchInput').addEventListener('input', function() {
+            var term = this.value.trim().toLowerCase();
+            var eventsToShow = term
+                ? allCalendarEvents.filter(function(ev) {
+                    if (ev.extendedProps && ev.extendedProps.isSpecialDate) return true;
+                    return ev.title.toLowerCase().indexOf(term) !== -1;
+                  })
+                : allCalendarEvents;
+            calendar.removeAllEvents();
+            calendar.addEventSource(eventsToShow);
+            document.getElementById('calendarEmptyNote').style.display =
+                eventsToShow.length === 0 ? 'block' : 'none';
+        });
+
+        // ── View toggle ───────────────────────────────────────────────────
+        var activeTableTab = '<?php echo $activeTab === 'calendar' ? 'upcoming' : $activeTab; ?>';
+
+        function showTableView() {
+            document.getElementById('calendarView').style.display = 'none';
+            document.getElementById('scheduleTabs').style.display = '';
+            switchTab(activeTableTab);
+            document.getElementById('btnTableView').classList.add('active');
+            document.getElementById('btnCalendarView').classList.remove('active');
+            var url = new URL(window.location);
+            url.searchParams.set('tab', activeTableTab);
+            history.replaceState(null, '', url);
+            document.getElementById('hiddenTab').value = activeTableTab;
+            if (currentPopover) { currentPopover.dispose(); currentPopover = null; }
+            document.getElementById('calSearchInput').value = '';
+            if (calendar) {
+                calendar.removeAllEvents();
+                calendar.addEventSource(allCalendarEvents);
+            }
+        }
+
+        function showCalendarView() {
+            document.getElementById('scheduleTabs').style.display = 'none';
+            document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
+            document.getElementById('calendarView').style.display = 'block';
+            initCalendar();
+            document.getElementById('btnCalendarView').classList.add('active');
+            document.getElementById('btnTableView').classList.remove('active');
+            var url = new URL(window.location);
+            url.searchParams.set('tab', 'calendar');
+            history.replaceState(null, '', url);
+            document.getElementById('hiddenTab').value = 'calendar';
+            if (calendar) {
+                calendar.updateSize();
+                setTimeout(function() { calendar.updateSize(); }, 50);
+            }
+        }
+
+        document.getElementById('btnTableView').addEventListener('click', showTableView);
+        document.getElementById('btnCalendarView').addEventListener('click', showCalendarView);
+
+        if ('<?php echo $activeTab; ?>' === 'calendar') {
+            showCalendarView();
+        }
 
         // ── Desktop: initialize four DataTables ──────────────────────────
         var dtBase = { pageLength: 25, responsive: false };
@@ -677,6 +980,7 @@ $pageTitle = "Schedule - " . APP_NAME;
 
         // ── Desktop: tab switching ────────────────────────────────────────
         function switchTab(name) {
+            activeTableTab = name;
             // Update pane visibility
             document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
             var pane = document.getElementById('pane-' + name);
@@ -764,8 +1068,9 @@ $pageTitle = "Schedule - " . APP_NAME;
                 card.classList.toggle('is-filtered-out', !show);
             });
             activePane.querySelectorAll('.date-group').forEach(function(group) {
-                var visible = group.querySelectorAll('.mobile-game-card:not(.is-filtered-out)').length;
-                group.classList.toggle('is-empty', visible === 0);
+                var visibleGames = group.querySelectorAll('.mobile-game-card:not(.is-filtered-out)').length;
+                var hasSpecialDates = group.querySelectorAll('.mobile-special-date-card').length > 0;
+                group.classList.toggle('is-empty', visibleGames === 0 && !hasSpecialDates);
             });
         }
 

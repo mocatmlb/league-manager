@@ -1,0 +1,194 @@
+diff --git a/_bmad-output/planning-artifacts/epics.md b/_bmad-output/planning-artifacts/epics.md
+index a6cf2b1..2f8cdd8 100644
+--- a/_bmad-output/planning-artifacts/epics.md
++++ b/_bmad-output/planning-artifacts/epics.md
+@@ -2054,3 +2054,18 @@ As an admin, I want to configure blackout date ranges during which coaches canno
+ 
+ **Status:** ready-for-dev
+ **Story Key:** 21-4-reschedule-blackout-dates
++
++### Story 21.5: Calendar View — Show Score for Completed Games
++
++As a league participant, I want to see the final score when I click a completed game on the calendar, so that I can quickly check results without switching to the table view.
++
++**Status:** ready-for-dev
++**Story Key:** 21-5-calendar-score-display
++
++### Story 21.6: Calendar View — Awaiting Results Badge and Days Late
++
++As a league participant, I want awaiting-results games on the calendar to clearly show their status and how overdue they are, so that I can tell at a glance which games still need scores submitted without switching to the table view.
++
++**Status:** ready-for-dev
++**Depends on:** Story 21.5
++**Story Key:** 21-6-calendar-awaiting-badge
+diff --git a/assets/css/style.css b/assets/css/style.css
+index 388c735..b789a76 100644
+--- a/assets/css/style.css
++++ b/assets/css/style.css
+@@ -920,3 +920,23 @@ a.hero-stat.hero-stat-alert:hover {
+ .cal-search-wrap .form-control-sm {
+     font-size: 0.82rem;
+ }
++
++/* Special date background events */
++.fc-special-date .fc-bg-event {
++    opacity: 0.18;
++}
++.fc .fc-bg-event .fc-event-title {
++    font-size: 0.65rem;
++    font-weight: 700;
++    opacity: 1;
++    padding: 1px 3px;
++}
++
++/* Calendar legend */
++.cal-legend-chip {
++    display: inline-block;
++    padding: 2px 8px;
++    border-radius: 4px;
++    font-size: 0.75rem;
++    font-weight: 600;
++}
+diff --git a/includes/nav.php b/includes/nav.php
+index d3a0d2c..bb36bd7 100644
+--- a/includes/nav.php
++++ b/includes/nav.php
+@@ -88,11 +88,17 @@ $rootPath = getPathToRoot();
+                                     </a>
+                                 </li>
+                                 <li>
+-                                    <a class="dropdown-item <?php echo isActiveNav('index', 'schedules'); ?>" 
++                                    <a class="dropdown-item <?php echo isActiveNav('index', 'schedules'); ?>"
+                                        href="<?php echo $rootPath; ?>admin/schedules/">
+                                         <i class="fas fa-calendar-check"></i> Schedules
+                                     </a>
+                                 </li>
++                                <li>
++                                    <a class="dropdown-item <?php echo isActiveNav('special-dates', 'schedules'); ?>"
++                                       href="<?php echo $rootPath; ?>admin/schedules/special-dates.php">
++                                        <i class="fas fa-star me-1"></i> Special Dates
++                                    </a>
++                                </li>
+                                 <li>
+                                     <a class="dropdown-item <?php echo isActiveNav('index', 'teams'); ?>" 
+                                        href="<?php echo $rootPath; ?>admin/teams/">
+diff --git a/public/assets/css/style.css b/public/assets/css/style.css
+index 388c735..b789a76 100644
+--- a/public/assets/css/style.css
++++ b/public/assets/css/style.css
+@@ -920,3 +920,23 @@ a.hero-stat.hero-stat-alert:hover {
+ .cal-search-wrap .form-control-sm {
+     font-size: 0.82rem;
+ }
++
++/* Special date background events */
++.fc-special-date .fc-bg-event {
++    opacity: 0.18;
++}
++.fc .fc-bg-event .fc-event-title {
++    font-size: 0.65rem;
++    font-weight: 700;
++    opacity: 1;
++    padding: 1px 3px;
++}
++
++/* Calendar legend */
++.cal-legend-chip {
++    display: inline-block;
++    padding: 2px 8px;
++    border-radius: 4px;
++    font-size: 0.75rem;
++    font-weight: 600;
++}
+diff --git a/public/schedule.php b/public/schedule.php
+index 31ac495..15ae530 100644
+--- a/public/schedule.php
++++ b/public/schedule.php
+@@ -138,6 +138,42 @@ foreach (['upcoming' => $gamesUpcoming, 'completed' => $gamesCompleted,
+     }
+ }
+ 
++// Query special dates filtered by active season and global
++$specialDateScopeId = (int)($filters['season_id'] ?? 0);
++if ($specialDateScopeId > 0) {
++    $specialDates = $db->fetchAll(
++        "SELECT id, date, label, date_type, display_color
++         FROM league_special_dates
++         WHERE season_id IS NULL
++            OR season_id = ?
++         ORDER BY date ASC",
++        [$specialDateScopeId]
++    );
++} else {
++    $specialDates = $db->fetchAll(
++        "SELECT id, date, label, date_type, display_color
++         FROM league_special_dates
++         WHERE season_id IS NULL
++         ORDER BY date ASC"
++    );
++}
++
++$specialDateEvents = [];
++foreach ($specialDates as $sd) {
++    $specialDateEvents[] = [
++        'title'      => $sd['label'],
++        'start'      => $sd['date'],
++        'allDay'     => true,
++        'display'    => 'background',
++        'color'      => $sd['display_color'],
++        'classNames' => ['fc-special-date'],
++        'extendedProps' => [
++            'isSpecialDate' => true,
++            'dateType'      => $sd['date_type'],
++        ],
++    ];
++}
++
+ // Days Late for awaiting games
+ foreach ($gamesAwaiting as &$g) {
+     $g['days_late'] = (int)floor((strtotime($today) - strtotime($g['game_date'])) / 86400);
+@@ -686,6 +722,16 @@ $pageTitle = "Schedule - " . APP_NAME;
+                 <p id="calendarEmptyNote" class="text-muted mt-2 small" style="display:none;">
+                     No games match your current filters.
+                 </p>
++                <!-- Calendar legend -->
++                <div class="cal-legend mt-2 d-flex flex-wrap gap-2 align-items-center">
++                    <span class="cal-legend-chip" style="background:#2563eb;color:#fff;">&#9632; Upcoming</span>
++                    <span class="cal-legend-chip" style="background:#6c757d;color:#fff;">&#9632; Completed</span>
++                    <span class="cal-legend-chip" style="background:#f59e0b;color:#000;">&#9632; Awaiting Result</span>
++                    <span class="cal-legend-chip" style="background:#6f42c1;color:#fff;">&#9632; Postponed</span>
++                    <?php if (!empty($specialDateEvents)): ?>
++                    <span class="cal-legend-chip" style="background:#e2e8f0;color:#475569;">&#9733; Special Date</span>
++                    <?php endif; ?>
++                </div>
+             </div>
+ 
+         </div><!-- /#desktopSchedule -->
+@@ -714,7 +760,10 @@ $pageTitle = "Schedule - " . APP_NAME;
+     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
+ 
+     <script>
+-    var calendarEvents = <?php echo json_encode($calendarEvents, JSON_HEX_TAG | JSON_HEX_AMP); ?>;
++    var calendarEvents = <?php echo json_encode(
++        array_merge($calendarEvents, $specialDateEvents),
++        JSON_HEX_TAG | JSON_HEX_AMP
++    ); ?>;
+ 
+     $(document).ready(function() {
+ 
+@@ -754,6 +803,7 @@ $pageTitle = "Schedule - " . APP_NAME;
+ 
+         // ── Event popover ─────────────────────────────────────────────────
+         function showEventPopover(el, event) {
++            if (event.extendedProps && event.extendedProps.isSpecialDate) return;
+             if (currentPopover) { currentPopover.dispose(); currentPopover = null; }
+ 
+             var p = event.extendedProps;
+@@ -798,6 +848,7 @@ $pageTitle = "Schedule - " . APP_NAME;
+             var term = this.value.trim().toLowerCase();
+             var eventsToShow = term
+                 ? allCalendarEvents.filter(function(ev) {
++                    if (ev.extendedProps && ev.extendedProps.isSpecialDate) return true;
+                     return ev.title.toLowerCase().indexOf(term) !== -1;
+                   })
+                 : allCalendarEvents;

@@ -1827,3 +1827,245 @@ so that I can easily get turn-by-turn directions to the field.
 - `public/schedule.php`
 - `public/coaches/schedule.php`
 
+---
+
+## Epic 11: Story 11.8 — Allow Invitation-Registered Users to Self-Register a Team
+
+*(Added to Epic 11 — Team Registration Rework)*
+
+### Story 11.8: Allow Invitation-Registered Users to Self-Register a Team
+
+As an invitation-registered coach,
+I want to be able to register a team through the self-registration path,
+so that coaches onboarded via invitation are not blocked from team registration.
+
+**Status:** done
+**Story Key:** 11-8-allow-invitation-users-self-register-team
+
+---
+
+## Epic 12: Auth / Login UX
+
+**Epic Goal:** Unify coach and admin login under a single entry point, automatically routing users to the correct dashboard based on role.
+
+**Stories:**
+
+### Story 12.1: Unified Login Page
+
+As a product owner, I want coaches and admins to use the same login page (`/login.php`) so the app presents a single entry point and routes users based on their role.
+
+**Status:** done
+**Story Key:** 12-1-unified-login-page
+
+---
+
+## Epic 13: Admin Tools & Schedule Management
+
+**Epic Goal:** Give admins additional power tools — user impersonation for support, admin-initiated account creation, and a batch of schedule management quality-of-life bug fixes.
+
+**Stories:**
+
+### Story 13.1: Admin User Impersonation
+
+As an admin, I want to impersonate any coach account to see the app exactly as that user sees it, for troubleshooting and verification without credential sharing.
+
+**Status:** done
+**Story Key:** 13-1-admin-user-impersonation
+
+### Story 13.2: Admin Create User Account
+
+As an admin, I want to create a user account directly from the admin panel (without requiring the coach to self-register), so I can onboard coaches who skip the self-registration flow.
+
+**Status:** done
+**Story Key:** 13-2-admin-create-user-account
+
+### Story 13.3: Schedule Management Bug Fixes
+
+A batch of schedule management quality-of-life fixes: reschedule history display, postponement admin flow, SCR original date/time/location tracking, and notification accuracy improvements.
+
+**Status:** done
+**Story Key:** 13-3-schedule-management-bugfixes
+
+---
+
+## Epic 15: Game & Location Data Quality
+
+**Epic Goal:** Improve data quality and admin efficiency for game entry — auto-generate game numbers, enhance location management with deduplication and map preview, and support bulk game import via CSV.
+
+**Stories:**
+
+### Story 15.1: Game Number Auto-Generation
+
+As an admin, I want game numbers auto-generated in `YYYYNNNN` format so every game has a unique, consistent identifier without manual entry.
+
+**Status:** done
+**Story Key:** 15-1-game-number-auto-generation
+
+### Story 15.2: Enhanced Location Management
+
+Admin location management improvements: deduplication detection, location status management, and a cleaner admin locations page.
+
+**Status:** done
+**Story Key:** 15-2-enhanced-location-management
+
+### Story 15.3: Bulk Game Import (CSV)
+
+As an admin, I want to import multiple games at once via a CSV upload so I can populate a full season schedule without entering games one by one.
+
+**Status:** done
+**Story Key:** 15-3-bulk-game-import
+
+---
+
+## Epic 16: Twilio SMS Notifications
+
+**Epic Goal:** Add optional SMS text message notifications for reschedule events so coaches receive timely alerts on their phones.
+
+**Stories:**
+
+### Story 16.1: Twilio SMS Notifications for Reschedule Events (Coach Opt-In)
+
+As a coach, I want to opt in to SMS notifications for reschedule events so I receive timely alerts on my phone without checking email.
+
+**Status:** ready-for-dev
+**Story Key:** 16-1-twilio-sms-reschedule-notifications
+
+---
+
+## Epic 17: Mobile Responsiveness & UX Polish
+
+**Epic Goal:** Make the entire league manager web app fully usable on mobile phones — coaches, admins, and public visitors can use every feature without horizontal scrolling or broken layouts.
+
+**Stories:**
+
+### Story 17.1: Mobile Responsive UI
+
+As a coach or league participant, I want the app to be fully usable on a mobile phone so I can check schedules, submit scores, and manage my team from any device.
+
+**Status:** done
+**Story Key:** 17-1-mobile-responsive-ui
+
+---
+
+## Epic 18: Coach-Initiated Game Postponement
+
+**Epic Goal:** Give coaches a self-service way to flag that a game isn't happening as scheduled without needing a proposed reschedule date. Includes email/SMS notifications on postponement and cancellation events.
+
+**Stories:**
+
+### Story 18.1: Coach-Initiated Game Postponement
+
+As a coach, I want to postpone a game (no reschedule date yet) so I can communicate a cancellation without knowing when it will be rescheduled.
+
+**Status:** review
+**Story Key:** 18-1-coach-game-postponement
+
+### Story 18.2: Postponement & Cancellation Notifications
+
+As a coach or admin, I want email (and SMS) notifications sent when a game is postponed or cancelled so all parties are informed automatically.
+
+**Status:** review
+**Story Key:** 18-2-postponement-cancellation-notifications
+
+---
+
+## Epic 19: Communications Center
+
+**Epic Goal:** Consolidate all email/SMS communication management into a single admin Communications Center — send logs, notification groups, and a compose-and-send interface for admin-initiated messages.
+
+**Stories:**
+
+### Story 19.1: Communications Center
+
+As an admin, I want a centralized Communications page showing all sent email logs, message history, and communication settings in one place.
+
+**Status:** ready-for-dev
+**Story Key:** 19-1-communications-center
+
+### Story 19.2: Notification Groups
+
+As an admin, I want to define named notification groups (e.g., "All Team Owners", "Division A Coaches") so I can target communications to a subset of users without building a new recipient list each time.
+
+**Status:** ready-for-dev
+**Story Key:** 19-2-notification-groups
+
+### Story 19.3: Admin Compose & Send Email
+
+As an admin, I want to compose and send an email from the Communications Center to a notification group or all coaches, so I can send announcements and important updates directly from the app.
+
+**Status:** ready-for-dev
+**Story Key:** 19-3-admin-compose-send
+
+---
+
+## Epic 20: Schedule Conflict Detection
+
+**Epic Goal:** Automatically detect and surface scheduling conflicts — team double-bookings and location overlaps — so admins and coaches catch problems before they cause issues on game day.
+
+**Stories:**
+
+### Story 20.1: Conflict Detection Service & Admin Game Badges
+
+As an admin, I want the Games Management page to flag potential scheduling conflicts (team double-bookings, location overlaps) directly on each game row so I can spot them at a glance.
+
+**Status:** ready-for-dev
+**Story Key:** 20-1-game-scr-conflict-detection
+
+### Story 20.2: SCR Conflict Warnings on Coach Schedule-Change Page
+
+As a coach, I want the schedule change request form to warn me when my proposed date/time/location conflicts with an existing game, so I can flag it for the admin rather than submitting an obviously-rejected request.
+
+**Status:** ready-for-dev
+**Depends on:** Story 20.1
+**Story Key:** 20-2-scr-conflict-warnings
+
+---
+
+## Epic 21: Public Schedule UX
+
+**Epic Goal:** Redesign the public schedule page with tabs, a calendar view, special date marking, and reschedule blackout date enforcement — making it easier for coaches and fans to find the games they care about.
+
+**Stories:**
+
+### Story 21.1: Public Schedule UX Enhancements (4-Tab Layout)
+
+As a league participant, I want the public schedule page to organize games into four tabs (Upcoming, Completed, Awaiting Results, Postponed) so I can immediately find what I'm looking for.
+
+**Status:** done
+**Story Key:** 21-1-public-schedule-enhancements
+
+### Story 21.2: Calendar View for Schedule Page
+
+As a league participant, I want to view the game schedule in a monthly calendar layout so I can see which days have games and plan around them.
+
+**Status:** ready-for-dev
+**Story Key:** 21-2-calendar-view
+
+### Story 21.3: Special Date Marking on Calendar
+
+As an admin, I want to mark special dates (e.g., holidays, league events) on the public calendar so participants are aware of non-game days that affect scheduling.
+
+**Status:** ready-for-dev
+**Story Key:** 21-3-special-date-marking
+
+### Story 21.4: Reschedule Blackout Dates
+
+As an admin, I want to configure blackout date ranges during which coaches cannot submit reschedule requests, so the league can enforce scheduling windows around holidays and season boundaries.
+
+**Status:** ready-for-dev
+**Story Key:** 21-4-reschedule-blackout-dates
+
+### Story 21.5: Calendar View — Show Score for Completed Games
+
+As a league participant, I want to see the final score when I click a completed game on the calendar, so that I can quickly check results without switching to the table view.
+
+**Status:** ready-for-dev
+**Story Key:** 21-5-calendar-score-display
+
+### Story 21.6: Calendar View — Awaiting Results Badge and Days Late
+
+As a league participant, I want awaiting-results games on the calendar to clearly show their status and how overdue they are, so that I can tell at a glance which games still need scores submitted without switching to the table view.
+
+**Status:** ready-for-dev
+**Depends on:** Story 21.5
+**Story Key:** 21-6-calendar-awaiting-badge

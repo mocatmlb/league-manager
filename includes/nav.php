@@ -88,9 +88,15 @@ $rootPath = getPathToRoot();
                                     </a>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item <?php echo isActiveNav('index', 'schedules'); ?>" 
+                                    <a class="dropdown-item <?php echo isActiveNav('index', 'schedules'); ?>"
                                        href="<?php echo $rootPath; ?>admin/schedules/">
                                         <i class="fas fa-calendar-check"></i> Schedules
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item <?php echo isActiveNav('special-dates', 'schedules'); ?>"
+                                       href="<?php echo $rootPath; ?>admin/schedules/special-dates.php">
+                                        <i class="fas fa-star me-1"></i> Special Dates
                                     </a>
                                 </li>
                                 <li>

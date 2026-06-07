@@ -1,6 +1,6 @@
 # Story 5.2: Score Submission Page
 
-**Status:** in-progress
+**Status:** done
 **Epic:** 5 — Team-Scoped Score Submission
 **Story Key:** 5-2-score-submission-page
 

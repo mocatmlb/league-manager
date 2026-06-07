@@ -1,6 +1,6 @@
 # Story 4.4: Coach Dashboard with Team Identity Hero
 
-**Status:** review
+**Status:** done
 **Epic:** 4 — Team Registration & Coach Assignment
 **Story Key:** 4-4-coach-dashboard-team-identity-hero
 

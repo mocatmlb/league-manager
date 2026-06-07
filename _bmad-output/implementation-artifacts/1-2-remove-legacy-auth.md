@@ -1,6 +1,6 @@
 # Story 1.2: Remove Legacy Auth
 
-Status: review
+Status: done
 
 ## Story
 

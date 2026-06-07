@@ -1,6 +1,6 @@
 # Story 3.5: Password Reset Flow
 
-**Status:** review
+**Status:** done
 **Epic:** 3 — Coach Registration & Authentication
 **Story Key:** 3-5-password-reset-flow
 
