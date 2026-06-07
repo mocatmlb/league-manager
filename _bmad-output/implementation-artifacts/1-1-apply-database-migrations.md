@@ -1,6 +1,6 @@
 # Story 1.1: Apply Database Migrations
 
-Status: review
+Status: done
 
 ## Story
 

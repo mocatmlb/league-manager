@@ -1,6 +1,6 @@
 # Story 3.6: Registration Toggle & QR Code Display
 
-**Status:** review
+**Status:** done
 **Epic:** 3 — Coach Registration & Authentication
 **Story Key:** 3-6-registration-toggle-qr-code-display
 

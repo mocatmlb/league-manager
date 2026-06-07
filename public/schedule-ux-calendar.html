@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schedule — Calendar View Mockup</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #0f172a;
+  color: #f1f5f9;
+  min-height: 100vh;
+  padding-bottom: 4rem;
+}
+
+.page-header {
+  text-align: center;
+  padding: 2.5rem 1rem 1.5rem;
+}
+.page-header h1 { font-size: 1.4rem; font-weight: 700; color: #fff; }
+.page-header p  { color: #94a3b8; margin-top: 0.4rem; font-size: 0.82rem; }
+
+.section-label {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin: 2.5rem 0 1rem;
+}
+
+/* ── Frames ── */
+.frame-wrap {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+.frame-wrap-mobile {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.browser {
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px #1e293b, 0 24px 64px rgba(0,0,0,0.6);
+}
+.browser-chrome {
+  background: #e2e8f0;
+  padding: 0.55rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+.dot-r { background: #ef4444; }
+.dot-y { background: #f59e0b; }
+.dot-g { background: #22c55e; }
+.url-bar {
+  flex: 1;
+  background: #fff;
+  border-radius: 5px;
+  padding: 0.22rem 0.6rem;
+  font-size: 0.7rem;
+  color: #64748b;
+  margin-left: 0.5rem;
+}
+
+/* ── App shell ── */
+.app-shell {
+  background: #f8f9fa;
+}
+.app-nav {
+  background: #fff;
+  border-bottom: 2px solid #e9ecef;
+  padding: 0.55rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.nav-brand { font-weight: 700; font-size: 0.9rem; color: #007bff; }
+.nav-links { display: flex; gap: 1.1rem; font-size: 0.75rem; color: #6c757d; }
+.nav-links .active { color: #007bff; font-weight: 600; }
+
+.page-content { padding: 1.1rem 1.25rem 1.5rem; }
+
+.page-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.9rem;
+}
+.page-title { font-size: 1.15rem; font-weight: 700; color: #212529; }
+
+/* View toggle */
+.view-toggle { display: flex; }
+.vt-btn {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.28rem 0.7rem;
+  border: 1.5px solid #dee2e6;
+  background: #fff;
+  color: #6c757d;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.vt-btn:first-child { border-radius: 5px 0 0 5px; }
+.vt-btn:last-child  { border-radius: 0 5px 5px 0; border-left: none; }
+.vt-btn.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+
+/* Filter bar */
+.filter-bar {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+}
+.fg { display: flex; flex-direction: column; gap: 0.15rem; }
+.fl { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; color: #6c757d; letter-spacing: 0.04em; }
+.fs {
+  font-size: 0.7rem;
+  padding: 0.22rem 0.45rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background: #fff;
+  color: #212529;
+  min-width: 110px;
+}
+
+/* Underline tab strip */
+.tab-strip {
+  display: flex;
+  border-bottom: 2px solid #dee2e6;
+  margin-bottom: 0.85rem;
+}
+.tab {
+  padding: 0.45rem 1rem;
+  font-size: 0.77rem;
+  font-weight: 600;
+  color: #6c757d;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  white-space: nowrap;
+}
+.tab.active { color: #2563eb; border-bottom-color: #2563eb; }
+.tab.tab-warn.active { color: #d97706; border-bottom-color: #f59e0b; }
+.tab.tab-ppd.active  { color: #6f42c1; border-bottom-color: #6f42c1; }
+.badge-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  background: #e9ecef;
+  color: #495057;
+}
+.tab.active .badge-count { background: #dbeafe; color: #1d4ed8; }
+.badge-count.warn-count { background: #fef3c7; color: #92400e; }
+.badge-count.ppd-count  { background: #ede9fe; color: #5b21b6; }
+
+/* ── Calendar ── */
+.cal-wrap {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.cal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid #dee2e6;
+}
+.cal-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #212529;
+}
+.cal-nav {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+.cal-nav-btn {
+  padding: 0.2rem 0.5rem;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  background: #fff;
+  color: #495057;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+.cal-nav-btn.today-btn {
+  font-weight: 600;
+}
+
+/* Day-of-week header */
+.cal-dow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+.cal-dow-cell {
+  text-align: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6c757d;
+  padding: 0.35rem 0;
+}
+
+/* Day grid */
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+.cal-day {
+  min-height: 70px;
+  border-right: 1px solid #f1f3f5;
+  border-bottom: 1px solid #f1f3f5;
+  padding: 0.25rem 0.3rem;
+  vertical-align: top;
+  position: relative;
+}
+.cal-day:nth-child(7n) { border-right: none; }
+.cal-day.other-month .cal-day-num { color: #ced4da; }
+.cal-day.is-today {
+  background: #eff6ff;
+}
+.cal-day-num {
+  font-size: 0.67rem;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 0.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+}
+.cal-day.is-today .cal-day-num {
+  background: #2563eb;
+  color: #fff;
+}
+
+/* Events */
+.cal-event {
+  display: block;
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin-bottom: 2px;
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  line-height: 1.5;
+}
+.cal-event.upcoming  { background: #2563eb; }
+.cal-event.completed { background: #6c757d; }
+.cal-event.awaiting  { background: #f59e0b; color: #000; }
+.cal-event.postponed { background: #6f42c1; }
+.cal-event.more      { background: #e9ecef; color: #495057; font-weight: 500; }
+
+/* Legend */
+.cal-legend {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.55rem 1rem;
+  border-top: 1px solid #e9ecef;
+  background: #fafafa;
+}
+.leg-item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.65rem;
+  color: #495057;
+}
+.leg-dot {
+  width: 10px; height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* Popover */
+.cal-popover {
+  position: absolute;
+  top: 4px;
+  left: calc(100% + 6px);
+  z-index: 100;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 0.65rem 0.75rem;
+  min-width: 180px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  font-size: 0.72rem;
+  color: #212529;
+  line-height: 1.5;
+}
+.cal-popover .pop-game { font-weight: 700; font-size: 0.78rem; margin-bottom: 0.25rem; }
+.cal-popover .pop-row  { margin-bottom: 0.15rem; color: #495057; }
+.cal-popover .pop-loc  { color: #2563eb; text-decoration: underline; cursor: pointer; }
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.b-scheduled { background: #2563eb; color: #fff; }
+.b-completed { background: #6c757d; color: #fff; }
+.b-awaiting  { background: #f59e0b; color: #000; }
+
+/* Empty note */
+.cal-empty-note {
+  font-size: 0.72rem;
+  color: #6c757d;
+  text-align: center;
+  padding: 0.5rem 0 0;
+  font-style: italic;
+}
+
+/* ── Mobile ── */
+.mobile-nav {
+  background: #fff;
+  border-bottom: 2px solid #e9ecef;
+  padding: 0.45rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.mobile-nav-brand { font-weight: 700; font-size: 0.85rem; color: #007bff; }
+.hamburger { font-size: 1rem; color: #6c757d; }
+
+.mobile-page-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #212529;
+  padding: 0.85rem 1rem 0.5rem;
+}
+
+/* Mobile tab chips */
+.mobile-tab-chips {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  padding: 0 1rem 0.5rem;
+  scrollbar-width: none;
+}
+.mobile-tab-chips::-webkit-scrollbar { display: none; }
+.m-chip {
+  flex-shrink: 0;
+  padding: 0.26rem 0.6rem;
+  border-radius: 999px;
+  border: 1.5px solid #2563eb;
+  background: #fff;
+  color: #2563eb;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.m-chip.active { background: #2563eb; color: #fff; }
+.m-chip.warn   { border-color: #f59e0b; color: #92400e; }
+.m-chip.warn.active { background: #f59e0b; color: #fff; }
+.m-chip.ppd    { border-color: #6f42c1; color: #5b21b6; }
+.m-chip.ppd.active  { background: #6f42c1; color: #fff; }
+
+/* Mobile filter chips */
+.filter-chips-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  padding: 0.5rem 1rem 0.2rem;
+}
+.filter-chips {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  padding: 0 1rem 0.5rem;
+  scrollbar-width: none;
+}
+.filter-chips::-webkit-scrollbar { display: none; }
+.f-chip {
+  flex-shrink: 0;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  border: 1.5px solid #2563eb;
+  background: #fff;
+  color: #2563eb;
+  font-size: 0.67rem;
+  font-weight: 600;
+}
+.f-chip.active { background: #2563eb; color: #fff; }
+
+/* Mobile game cards */
+.mobile-cards { padding: 0 1rem 1rem; }
+.m-date-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.6rem 0 0.25rem;
+  border-bottom: 1px solid #e9ecef;
+  margin-bottom: 0.4rem;
+}
+.m-card {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.m-card.today { background: #fffbeb; border-color: #fde68a; }
+.m-team-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #212529;
+}
+.m-score { font-size: 0.8rem; font-weight: 700; color: #2563eb; }
+.m-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.35rem;
+  font-size: 0.67rem;
+  color: #6c757d;
+}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Schedule — Calendar View Mockup</h1>
+  <p>Story 21.2 &nbsp;·&nbsp; Desktop left, mobile right &nbsp;·&nbsp; June 2026</p>
+</div>
+
+<p class="section-label">Desktop — Calendar View Active</p>
+
+<div class="frame-wrap">
+  <div class="browser">
+    <div class="browser-chrome">
+      <span class="dot dot-r"></span>
+      <span class="dot dot-y"></span>
+      <span class="dot dot-g"></span>
+      <span class="url-bar">district8travelleague.com/schedule.php?tab=calendar</span>
+    </div>
+
+    <div class="app-shell">
+      <div class="app-nav">
+        <span class="nav-brand">District 8 Travel League</span>
+        <div class="nav-links">
+          <span>Home</span>
+          <span class="active">Schedule</span>
+          <span>Standings</span>
+          <span>Login</span>
+        </div>
+      </div>
+
+      <div class="page-content">
+
+        <div class="page-top">
+          <span class="page-title">Game Schedule</span>
+          <!-- View toggle — Calendar active -->
+          <div class="view-toggle">
+            <button class="vt-btn">&#9783; Table</button>
+            <button class="vt-btn active">&#128197; Calendar</button>
+          </div>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="filter-bar">
+          <div class="fg">
+            <span class="fl">Program</span>
+            <select class="fs"><option>Travel Baseball</option></select>
+          </div>
+          <div class="fg">
+            <span class="fl">Season</span>
+            <select class="fs"><option>Summer 2026</option></select>
+          </div>
+          <div class="fg">
+            <span class="fl">Division</span>
+            <select class="fs"><option>All Divisions</option></select>
+          </div>
+        </div>
+
+        <!-- Team search -->
+        <div style="max-width:300px; margin-bottom:0.6rem;">
+          <input type="text" placeholder="Search teams…"
+                 style="width:100%; padding:0.3rem 0.6rem; font-size:0.82rem;
+                        border:1px solid #ced4da; border-radius:4px; outline:none;">
+        </div>
+
+        <!-- Calendar -->
+        <div class="cal-wrap" style="position:relative;">
+          <div class="cal-header">
+            <div class="cal-nav">
+              <button class="cal-nav-btn">&lsaquo;</button>
+              <button class="cal-nav-btn today-btn">Today</button>
+              <button class="cal-nav-btn">&rsaquo;</button>
+            </div>
+            <div class="cal-title">June 2026</div>
+            <div style="width:90px;"></div><!-- spacer for centering -->
+          </div>
+
+          <div class="cal-dow">
+            <div class="cal-dow-cell">Sun</div>
+            <div class="cal-dow-cell">Mon</div>
+            <div class="cal-dow-cell">Tue</div>
+            <div class="cal-dow-cell">Wed</div>
+            <div class="cal-dow-cell">Thu</div>
+            <div class="cal-dow-cell">Fri</div>
+            <div class="cal-dow-cell">Sat</div>
+          </div>
+
+          <div class="cal-grid">
+            <!-- Row 1: Sun=May 31, Mon=Jun 1 … Sat=Jun 6 (today) -->
+            <div class="cal-day other-month"><span class="cal-day-num">31</span></div><!-- May 31 -->
+            <div class="cal-day"><span class="cal-day-num">1</span></div>
+            <div class="cal-day"><span class="cal-day-num">2</span></div>
+            <div class="cal-day"><span class="cal-day-num">3</span></div>
+            <div class="cal-day"><span class="cal-day-num">4</span></div>
+            <div class="cal-day"><span class="cal-day-num">5</span>
+              <span class="cal-event awaiting">STRIKERS @ LIGHTNING</span>
+              <span class="cal-event awaiting">HAWKS @ EAGLES</span>
+            </div>
+            <div class="cal-day is-today"><span class="cal-day-num">6</span>
+              <span class="cal-event upcoming">THUNDER @ WOLVES</span>
+              <span class="cal-event upcoming">JETS @ HAWKS</span>
+            </div>
+
+            <!-- Row 2 — today is June 6 shown above; this row Jun 7–13 -->
+            <div class="cal-day"><span class="cal-day-num">7</span></div>
+            <div class="cal-day"><span class="cal-day-num">8</span></div>
+            <div class="cal-day"><span class="cal-day-num">9</span></div>
+            <div class="cal-day"><span class="cal-day-num">10</span></div>
+            <div class="cal-day"><span class="cal-day-num">11</span></div>
+            <div class="cal-day"><span class="cal-day-num">12</span>
+              <span class="cal-event upcoming">EAGLES @ THUNDER</span>
+            </div>
+            <div class="cal-day"><span class="cal-day-num">13</span>
+              <span class="cal-event upcoming">WOLVES @ STRIKERS</span>
+              <span class="cal-event upcoming">LIGHTNING @ JETS</span>
+              <span class="cal-event upcoming">HAWKS @ THUNDER</span>
+            </div>
+
+            <!-- Row 3 -->
+            <div class="cal-day"><span class="cal-day-num">14</span></div>
+            <div class="cal-day"><span class="cal-day-num">15</span></div>
+            <div class="cal-day"><span class="cal-day-num">16</span></div>
+            <div class="cal-day"><span class="cal-day-num">17</span></div>
+            <div class="cal-day"><span class="cal-day-num">18</span></div>
+            <div class="cal-day"><span class="cal-day-num">19</span>
+              <span class="cal-event upcoming">STRIKERS @ EAGLES</span>
+            </div>
+            <div class="cal-day" style="position:relative;">
+              <span class="cal-day-num">20</span>
+              <span class="cal-event upcoming" style="outline:2px solid #1d4ed8;">N.SYRACUSE @ SRS-OSWALD</span>
+              <!-- Popover shown on this event -->
+              <div class="cal-popover">
+                <div class="pop-game">Game #20260008</div>
+                <div class="pop-row">Jun 20, 2026 &nbsp;·&nbsp; 6:00 PM</div>
+                <div class="pop-row"><strong>N. SYRACUSE-TEST</strong> @ <strong>SRS-OSWALD</strong></div>
+                <div class="pop-row">
+                  <span class="pop-loc">Onondaga Park Field 2</span>
+                </div>
+                <div class="pop-row" style="margin-top:0.3rem;">
+                  <span class="badge b-scheduled">Scheduled</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Row 4 -->
+            <div class="cal-day"><span class="cal-day-num">21</span></div>
+            <div class="cal-day"><span class="cal-day-num">22</span></div>
+            <div class="cal-day"><span class="cal-day-num">23</span></div>
+            <div class="cal-day"><span class="cal-day-num">24</span></div>
+            <div class="cal-day"><span class="cal-day-num">25</span></div>
+            <div class="cal-day"><span class="cal-day-num">26</span>
+              <span class="cal-event upcoming">THUNDER @ JETS</span>
+              <span class="cal-event postponed">HAWKS @ WOLVES (PPD)</span>
+            </div>
+            <div class="cal-day"><span class="cal-day-num">27</span>
+              <span class="cal-event upcoming">EAGLES @ LIGHTNING</span>
+              <span class="cal-event upcoming">WOLVES @ JETS</span>
+              <span class="cal-event more">+1 more</span>
+            </div>
+
+            <!-- Row 5 -->
+            <div class="cal-day"><span class="cal-day-num">28</span></div>
+            <div class="cal-day"><span class="cal-day-num">29</span></div>
+            <div class="cal-day"><span class="cal-day-num">30</span></div>
+            <div class="cal-day other-month"><span class="cal-day-num">1</span></div>
+            <div class="cal-day other-month"><span class="cal-day-num">2</span></div>
+            <div class="cal-day other-month"><span class="cal-day-num">3</span></div>
+            <div class="cal-day other-month"><span class="cal-day-num">4</span></div>
+          </div><!-- /.cal-grid -->
+
+          <!-- Legend -->
+          <div class="cal-legend">
+            <div class="leg-item">
+              <div class="leg-dot" style="background:#2563eb;"></div>
+              Upcoming
+            </div>
+            <div class="leg-item">
+              <div class="leg-dot" style="background:#6c757d;"></div>
+              Completed
+            </div>
+            <div class="leg-item">
+              <div class="leg-dot" style="background:#f59e0b;"></div>
+              Awaiting Results
+            </div>
+            <div class="leg-item">
+              <div class="leg-dot" style="background:#6f42c1;"></div>
+              Postponed
+            </div>
+          </div>
+        </div><!-- /.cal-wrap -->
+
+      </div><!-- /.page-content -->
+    </div><!-- /.app-shell -->
+  </div><!-- /.browser -->
+</div><!-- /.frame-wrap -->
+
+
+<!-- ════════════════════════════════════════════
+     DESKTOP — Table View (for comparison)
+     ════════════════════════════════════════════ -->
+<p class="section-label">Desktop — Table View (tabs unchanged, toggle shows "Table" active)</p>
+
+<div class="frame-wrap">
+  <div class="browser">
+    <div class="browser-chrome">
+      <span class="dot dot-r"></span>
+      <span class="dot dot-y"></span>
+      <span class="dot dot-g"></span>
+      <span class="url-bar">district8travelleague.com/schedule.php?tab=upcoming</span>
+    </div>
+    <div class="app-shell">
+      <div class="app-nav">
+        <span class="nav-brand">District 8 Travel League</span>
+        <div class="nav-links">
+          <span>Home</span><span class="active">Schedule</span><span>Standings</span><span>Login</span>
+        </div>
+      </div>
+      <div class="page-content">
+        <div class="page-top">
+          <span class="page-title">Game Schedule</span>
+          <div class="view-toggle">
+            <button class="vt-btn active">&#9783; Table</button>
+            <button class="vt-btn">&#128197; Calendar</button>
+          </div>
+        </div>
+        <div class="filter-bar">
+          <div class="fg"><span class="fl">Program</span><select class="fs"><option>Travel Baseball</option></select></div>
+          <div class="fg"><span class="fl">Season</span><select class="fs"><option>Summer 2026</option></select></div>
+          <div class="fg"><span class="fl">Division</span><select class="fs"><option>All Divisions</option></select></div>
+        </div>
+        <div class="tab-strip">
+          <div class="tab active">Upcoming <span class="badge-count">8</span></div>
+          <div class="tab">Completed <span class="badge-count">5</span></div>
+          <div class="tab tab-warn">Awaiting Results <span class="badge-count warn-count">2</span></div>
+          <div class="tab tab-ppd">Postponed <span class="badge-count ppd-count">1</span></div>
+        </div>
+        <div style="background:#fff;border:1px solid #dee2e6;border-radius:6px;padding:0.75rem;font-size:0.72rem;color:#6c757d;text-align:center;">
+          … DataTable pane (unchanged from Story 21.1) …
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════
+     MOBILE — Upcoming tab (no calendar on mobile)
+     ════════════════════════════════════════════ -->
+<p class="section-label">Mobile — No Calendar (chip tabs unchanged from 21.1)</p>
+
+<div class="frame-wrap-mobile">
+  <div class="browser">
+    <div class="browser-chrome">
+      <span class="dot dot-r"></span>
+      <span class="dot dot-y"></span>
+      <span class="dot dot-g"></span>
+      <span class="url-bar" style="font-size:0.62rem;">…/schedule.php</span>
+    </div>
+    <div class="app-shell">
+
+      <div class="mobile-nav">
+        <span class="mobile-nav-brand">District 8</span>
+        <span class="hamburger">☰</span>
+      </div>
+
+      <div class="mobile-page-title">Game Schedule</div>
+
+      <!-- Tab chips (no Calendar chip) -->
+      <div class="mobile-tab-chips">
+        <button class="m-chip active">Upcoming <span style="margin-left:2px;">8</span></button>
+        <button class="m-chip">Results <span style="margin-left:2px;">5</span></button>
+        <button class="m-chip warn">Awaiting <span style="margin-left:2px;">2</span></button>
+        <button class="m-chip ppd">PPD <span style="margin-left:2px;">1</span></button>
+      </div>
+
+      <!-- Program filter chips -->
+      <div class="filter-chips-label">Program</div>
+      <div class="filter-chips">
+        <button class="f-chip active">All</button>
+        <button class="f-chip">Travel Baseball</button>
+      </div>
+
+      <!-- Game cards — Upcoming pane -->
+      <div class="mobile-cards">
+
+        <div class="m-date-label">Friday, June 6, 2026</div>
+        <div class="m-card today">
+          <div class="m-team-row">
+            <span>THUNDER</span>
+            <span class="m-score">vs</span>
+          </div>
+          <div class="m-team-row" style="margin-top:0.2rem;">
+            <span>WOLVES</span>
+            <span class="m-score">—</span>
+          </div>
+          <div class="m-meta">
+            <span>6:00 PM · Memorial Park</span>
+            <span class="badge b-scheduled">Scheduled</span>
+          </div>
+        </div>
+        <div class="m-card today">
+          <div class="m-team-row"><span>JETS</span><span class="m-score">vs</span></div>
+          <div class="m-team-row" style="margin-top:0.2rem;"><span>HAWKS</span><span class="m-score">—</span></div>
+          <div class="m-meta"><span>7:30 PM · Onondaga Park</span><span class="badge b-scheduled">Scheduled</span></div>
+        </div>
+
+        <div class="m-date-label">Saturday, June 13, 2026</div>
+        <div class="m-card">
+          <div class="m-team-row"><span>WOLVES</span><span class="m-score">vs</span></div>
+          <div class="m-team-row" style="margin-top:0.2rem;"><span>STRIKERS</span><span class="m-score">—</span></div>
+          <div class="m-meta"><span>10:00 AM · DeWitt Park</span><span class="badge b-scheduled">Scheduled</span></div>
+        </div>
+
+        <div class="m-date-label">Saturday, June 20, 2026</div>
+        <div class="m-card">
+          <div class="m-team-row"><span>N. SYRACUSE-TEST</span><span class="m-score">vs</span></div>
+          <div class="m-team-row" style="margin-top:0.2rem;"><span>SRS-OSWALD</span><span class="m-score">—</span></div>
+          <div class="m-meta"><span>6:00 PM · Onondaga Park</span><span class="badge b-scheduled">Scheduled</span></div>
+        </div>
+
+      </div><!-- /.mobile-cards -->
+    </div><!-- /.app-shell -->
+  </div><!-- /.browser -->
+</div><!-- /.frame-wrap-mobile -->
+
+<div style="text-align:center;padding:2rem;color:#475569;font-size:0.75rem;">
+  Story 21.2 · Calendar View · Mockup only — not functional
+</div>
+
+</body>
+</html>

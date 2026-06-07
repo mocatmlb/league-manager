@@ -1,6 +1,6 @@
 # Story 1.3: Implement Cross-Cutting Utility Classes
 
-**Status:** review
+**Status:** done
 **Epic:** 1 — Foundation — Database, Migrations & Cross-Cutting Utilities
 **Story Key:** 1-3-implement-cross-cutting-utility-classes
 

@@ -1,6 +1,6 @@
 # Story 3.2: Coach Registration Page (Open Self-Registration)
 
-**Status:** review
+**Status:** done
 **Epic:** 3 — Coach Registration & Authentication
 **Story Key:** 3-2-coach-registration-page-open-self-registration
 **Dependency:** Requires Story 2.1 (LeagueListManager Service) to be complete before implementation — the league dropdown is populated from `LeagueListManager::getActiveList()`

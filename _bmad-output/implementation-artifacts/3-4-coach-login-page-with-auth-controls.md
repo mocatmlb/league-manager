@@ -1,6 +1,6 @@
 # Story 3.4: Coach Login Page with Auth Controls
 
-**Status:** review
+**Status:** done
 **Epic:** 3 — Coach Registration & Authentication
 **Story Key:** 3-4-coach-login-page-with-auth-controls
 

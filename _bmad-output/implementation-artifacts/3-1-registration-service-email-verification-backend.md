@@ -1,6 +1,6 @@
 # Story 3.1: Registration Service & Email Verification Backend
 
-**Status:** review
+**Status:** done
 **Epic:** 3 — Coach Registration & Authentication
 **Story Key:** 3-1-registration-service-email-verification-backend
 

@@ -1,6 +1,6 @@
 # Story 3.3: Invitation Service & Admin Invitation Management
 
-**Status:** review
+**Status:** done
 **Epic:** 3 — Coach Registration & Authentication
 **Story Key:** 3-3-invitation-service-admin-invitation-management
 

@@ -110,8 +110,8 @@ $categoryMap = [
 foreach (['upcoming' => $gamesUpcoming, 'completed' => $gamesCompleted,
            'awaiting' => $gamesAwaiting, 'postponed' => $gamesPostponed] as $cat => $catGames) {
     foreach ($catGames as $g) {
-        $away = strtoupper($g['away_team'] ?: $g['away_league']);
-        $home = strtoupper($g['home_team'] ?: $g['home_league']);
+        $away = htmlspecialchars(strtoupper($g['away_team'] ?: $g['away_league']), ENT_QUOTES, 'UTF-8');
+        $home = htmlspecialchars(strtoupper($g['home_team'] ?: $g['home_league']), ENT_QUOTES, 'UTF-8');
         $timeStr = !empty($g['game_time']) ? date('g:i A', strtotime($g['game_time'])) : '';
         $locDisplay = $g['loc_name'] ?: ($g['location'] ?? '');
         [$statusClass, $statusLabel] = getStatusInfo($g['game_status']);
@@ -773,7 +773,8 @@ $pageTitle = "Schedule - " . APP_NAME;
                 content: content,
                 html: true,
                 trigger: 'manual',
-                placement: 'auto',
+                placement: 'top',
+                fallbackPlacements: ['bottom', 'auto'],
                 container: 'body',
             });
             currentPopover.show();
@@ -838,7 +839,10 @@ $pageTitle = "Schedule - " . APP_NAME;
             url.searchParams.set('tab', 'calendar');
             history.replaceState(null, '', url);
             document.getElementById('hiddenTab').value = 'calendar';
-            if (calendar) calendar.updateSize();
+            if (calendar) {
+                calendar.updateSize();
+                setTimeout(function() { calendar.updateSize(); }, 50);
+            }
         }
 
         document.getElementById('btnTableView').addEventListener('click', showTableView);

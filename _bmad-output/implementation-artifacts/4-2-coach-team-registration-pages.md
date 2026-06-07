@@ -1,6 +1,6 @@
 # Story 4.2: Coach Team Registration Pages (Step 2 of Self-Registration)
 
-**Status:** review
+**Status:** done
 **Epic:** 4 — Team Registration & Coach Assignment
 **Story Key:** 4-2-coach-team-registration-pages
 

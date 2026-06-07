@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mobile Hybrid Proposal — Story 17.1</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #111827;
+  color: #f3f4f6;
+  min-height: 100vh;
+}
+
+.page-header { text-align: center; padding: 2.5rem 1rem 0.75rem; }
+.page-header h1 { font-size: 1.5rem; font-weight: 700; color: #fff; }
+.page-header p  { color: #9ca3af; margin-top: 0.35rem; font-size: 0.85rem; }
+
+.dna { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; padding: 0.75rem 2rem 1.5rem; }
+.dna-pill {
+  padding: 0.3rem 0.85rem; border-radius: 99px; font-size: 0.72rem; font-weight: 600;
+}
+.from-a { background: #1d4ed8; color: #bfdbfe; border: 1px solid #3b82f6; }
+.from-b { background: #065f46; color: #a7f3d0; border: 1px solid #10b981; }
+
+.phones {
+  display: flex; flex-wrap: wrap; gap: 2rem;
+  justify-content: center; padding: 0.5rem 2rem 4rem;
+}
+
+/* ─── Phone shell ─── */
+.phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
+.phone-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280; font-weight: 600; }
+
+.phone {
+  width: 375px; height: 760px;
+  border-radius: 42px;
+  box-shadow: 0 0 0 8px #1f2937, 0 0 0 10px #374151, 0 30px 80px rgba(0,0,0,0.6);
+  background: #fff;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  position: relative;
+}
+.notch {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  width: 90px; height: 7px; background: #1f2937; border-radius: 4px; z-index: 100;
+}
+.screen {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.screen::-webkit-scrollbar { display: none; }
+
+/* tab switcher above phone */
+.tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: center; }
+.tab {
+  padding: 0.3rem 0.85rem; border-radius: 99px; font-size: 0.75rem;
+  border: 1px solid #374151; background: transparent; color: #9ca3af; cursor: pointer; transition: all .15s;
+}
+.tab.on { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+.tab:hover:not(.on) { border-color: #6b7280; color: #d1d5db; }
+
+/* ────────────────────────────────────────────
+   SHARED: Bootstrap-flavored nav (from A)
+   ─────────────────────────────────────────── */
+.nav {
+  background: #2563eb; padding: 0 1rem;
+  height: 52px; display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 50; flex-shrink: 0;
+}
+.nav-brand { color: #fff; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; }
+.nav-badge { background: rgba(255,255,255,0.2); color: #fff; font-size: 0.6rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 99px; }
+.nav-right { display: flex; align-items: center; gap: 0.5rem; }
+.nav-user { font-size: 0.75rem; color: rgba(255,255,255,0.75); }
+.burger {
+  background: none; border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 5px; padding: 0.28rem 0.45rem; cursor: pointer; display: flex; flex-direction: column; gap: 3px;
+}
+.burger span { display: block; width: 17px; height: 2px; background: #fff; border-radius: 1px; }
+
+/* Coach dark nav */
+.nav-dark { background: #212529; }
+.nav-dark .nav-badge { background: #495057; }
+
+/* ────────────────────────────────────────────
+   SCHEDULE: Card layout (from B) in Bootstrap blue (from A)
+   ─────────────────────────────────────────── */
+.page { padding: 0.75rem; background: #f8f9fa; }
+
+/* Search bar */
+.search-bar {
+  background: #fff; border: 1px solid #dee2e6; border-radius: 8px;
+  padding: 0.55rem 0.85rem; display: flex; align-items: center; gap: 0.5rem;
+  margin-bottom: 0.6rem; color: #adb5bd; font-size: 0.85rem;
+}
+
+/* Filter chips — from B, Bootstrap blue accent */
+.chips { display: flex; gap: 0.4rem; margin-bottom: 0.75rem; overflow-x: auto; padding-bottom: 2px; }
+.chips::-webkit-scrollbar { display: none; }
+.chip {
+  white-space: nowrap; padding: 0.28rem 0.75rem; border-radius: 99px;
+  font-size: 0.72rem; font-weight: 500; border: 1px solid #dee2e6;
+  background: #fff; color: #6c757d; cursor: pointer; flex-shrink: 0;
+}
+.chip.on { background: #2563eb; color: #fff; border-color: #2563eb; }
+
+/* Date section header */
+.date-head { font-size: 0.68rem; font-weight: 700; color: #6c757d; text-transform: uppercase; letter-spacing: 0.07em; padding: 0.5rem 0 0.3rem; }
+
+/* Game card — from B shape, Bootstrap palette */
+.game-card {
+  background: #fff; border-radius: 10px; padding: 0.8rem 0.9rem;
+  margin-bottom: 0.5rem; border: 1px solid #e9ecef;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.gc-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.55rem; }
+.gc-time { font-size: 0.72rem; color: #6c757d; }
+.gc-num  { font-size: 0.65rem; color: #adb5bd; font-family: monospace; }
+
+.gc-teams { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 0.5rem; margin-bottom: 0.55rem; }
+.gc-team-away .gc-role { text-align: left; }
+.gc-team-home .gc-role { text-align: right; }
+.gc-team-home .gc-name { text-align: right; }
+.gc-role { font-size: 0.6rem; color: #adb5bd; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.1rem; }
+.gc-name { font-size: 0.9rem; font-weight: 700; color: #212529; }
+.gc-vs   { font-size: 1rem; font-weight: 700; color: #ced4da; text-align: center; }
+.gc-score-vs { font-size: 1.1rem; font-weight: 800; color: #212529; text-align: center; line-height: 1; }
+
+.gc-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 0.5rem; border-top: 1px solid #f3f4f6; }
+.gc-loc { font-size: 0.7rem; color: #6c757d; display: flex; align-items: center; gap: 0.3rem; }
+.badge { display: inline-block; padding: 0.15rem 0.55rem; border-radius: 99px; font-size: 0.65rem; font-weight: 600; }
+.badge-sched { background: #dbeafe; color: #1d4ed8; }
+.badge-done  { background: #d1fae5; color: #065f46; }
+.badge-pend  { background: #fef9c3; color: #854d0e; }
+
+/* ────────────────────────────────────────────
+   SCORE INPUT: Per-team rows (from B), Bootstrap blue submit (from A)
+   ─────────────────────────────────────────── */
+.score-game-info {
+  background: #2563eb; padding: 0.85rem 1rem; color: #fff;
+}
+.sgi-title { font-weight: 700; font-size: 0.95rem; }
+.sgi-meta  { font-size: 0.75rem; color: rgba(255,255,255,0.7); margin-top: 0.2rem; }
+
+.score-page { padding: 0.85rem; background: #f8f9fa; }
+
+.score-row-card {
+  background: #fff; border: 1px solid #e9ecef; border-radius: 10px;
+  padding: 0.85rem 1rem; margin-bottom: 0.6rem;
+  display: flex; align-items: center; justify-content: space-between;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.score-team-info .role { font-size: 0.65rem; color: #adb5bd; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.15rem; }
+.score-team-info .name { font-size: 1rem; font-weight: 700; color: #212529; }
+.score-num {
+  width: 76px; height: 68px; text-align: center;
+  font-size: 2.1rem; font-weight: 800; color: #212529;
+  border: 2px solid #dee2e6; border-radius: 10px; background: #f8f9fa;
+}
+.score-num:focus { border-color: #2563eb; background: #fff; outline: none; }
+
+.score-divider { text-align: center; font-size: 0.72rem; color: #adb5bd; font-weight: 600; letter-spacing: 0.08em; margin: 0.25rem 0 0.6rem; }
+
+.score-submit {
+  width: 100%; padding: 0.9rem; background: #2563eb; color: #fff;
+  border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 700; cursor: pointer;
+  margin-top: 0.25rem;
+}
+
+/* ────────────────────────────────────────────
+   COACH NAV: Hamburger open — same pattern as A
+   but with cleaner full-screen overlay style
+   ─────────────────────────────────────────── */
+.menu-overlay { background: #212529; }
+.menu-item {
+  display: flex; align-items: center; gap: 0.8rem;
+  padding: 0.9rem 1.25rem; color: #adb5bd; font-size: 0.88rem;
+  border-bottom: 1px solid #2c3036;
+}
+.menu-item.on { color: #fff; background: #2c3036; border-left: 3px solid #2563eb; }
+.menu-item-icon { width: 18px; text-align: center; font-size: 0.95rem; }
+
+/* ────────────────────────────────────────────
+   DASHBOARD: Hero from B, cards from A/B hybrid
+   ─────────────────────────────────────────── */
+.hero {
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 60%, #3b82f6 100%);
+  padding: 1.1rem 1rem 1rem;
+}
+.hero-label { font-size: 0.65rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 0.07em; }
+.hero-team  { font-size: 1.5rem; font-weight: 800; color: #fff; line-height: 1.1; margin: 0.15rem 0 0.1rem; }
+.hero-meta  { font-size: 0.75rem; color: rgba(255,255,255,0.7); }
+.hero-stats { display: flex; gap: 0.6rem; margin-top: 0.85rem; }
+.hero-stat  { flex: 1; background: rgba(255,255,255,0.12); border-radius: 8px; padding: 0.5rem 0.5rem 0.45rem; text-align: center; }
+.hero-stat-n { font-size: 1.25rem; font-weight: 800; color: #fff; }
+.hero-stat-l { font-size: 0.6rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.05rem; }
+
+.action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem; padding: 0.75rem; }
+.action-card {
+  background: #fff; border: 1px solid #e9ecef; border-radius: 10px;
+  padding: 0.9rem 0.85rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.action-icon  { font-size: 1.3rem; margin-bottom: 0.35rem; }
+.action-title { font-size: 0.82rem; font-weight: 700; color: #212529; }
+.action-sub   { font-size: 0.67rem; color: #6c757d; margin-top: 0.1rem; }
+
+.next-section { padding: 0 0.75rem 0.75rem; }
+.next-label   { font-size: 0.68rem; font-weight: 700; color: #6c757d; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.4rem; }
+
+/* ────────────────────────────────────────────
+   PUBLIC SCHEDULE toggle: table vs card
+   ─────────────────────────────────────────── */
+.view-toggle { display: flex; gap: 0.4rem; margin-bottom: 0.75rem; }
+.vt-btn {
+  flex: 1; padding: 0.45rem; border-radius: 6px; font-size: 0.78rem; font-weight: 600;
+  border: 1px solid #dee2e6; background: #fff; color: #6c757d; cursor: pointer; text-align: center;
+}
+.vt-btn.on { background: #2563eb; color: #fff; border-color: #2563eb; }
+
+/* A-style table (for desktop fallback shown inside phone) */
+.tbl-wrap { overflow-x: auto; margin: 0 -0.75rem; padding: 0 0.75rem 0.5rem; }
+.tbl { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+.tbl th { background: #f8f9fa; padding: 0.45rem 0.55rem; text-align: left; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6; white-space: nowrap; }
+.tbl td { padding: 0.45rem 0.55rem; border-bottom: 1px solid #f3f4f6; white-space: nowrap; color: #212529; vertical-align: middle; }
+.tbl-hint { font-size: 0.68rem; color: #adb5bd; text-align: center; margin-top: 0.35rem; }
+
+.hidden { display: none; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Hybrid Proposal &nbsp;·&nbsp; A + B</h1>
+  <p>Bootstrap nav &amp; palette from A · Card layouts, search, hero stats from B</p>
+</div>
+
+<div class="dna">
+  <span class="from-a">A · Bootstrap hamburger nav</span>
+  <span class="from-a">A · Blue brand color</span>
+  <span class="from-a">A · Existing page structure</span>
+  <span class="from-b">B · Game cards (no horiz scroll)</span>
+  <span class="from-b">B · Filter chips</span>
+  <span class="from-b">B · Score input row layout</span>
+  <span class="from-b">B · Dashboard hero stats</span>
+</div>
+
+<div class="phones">
+
+  <!-- ═══ PUBLIC SCHEDULE ═══ -->
+  <div class="phone-wrap">
+    <div class="phone-label">Public Schedule</div>
+    <div class="tabs" id="tabs-sched">
+      <button class="tab on"  onclick="sw('sched','cards')">Card View</button>
+      <button class="tab"     onclick="sw('sched','table')">Table View</button>
+    </div>
+    <div class="phone">
+      <div class="notch"></div>
+      <nav class="nav">
+        <div class="nav-brand">District 8 Travel League</div>
+        <button class="burger"><span></span><span></span><span></span></button>
+      </nav>
+      <div class="screen">
+        <div class="page">
+
+          <div id="sched-cards">
+            <div class="search-bar">🔍 &nbsp;Search games…</div>
+            <div class="chips">
+              <div class="chip on">All</div>
+              <div class="chip">Division A</div>
+              <div class="chip">Division B</div>
+              <div class="chip">Scheduled</div>
+              <div class="chip">Completed</div>
+            </div>
+
+            <div class="date-head">May 30, 2026</div>
+            <div class="game-card">
+              <div class="gc-meta">
+                <span class="gc-time">1:46 PM · Central Park Field 1</span>
+                <span class="gc-num">#20260001</span>
+              </div>
+              <div class="gc-teams">
+                <div class="gc-team-away">
+                  <div class="gc-role">Away</div>
+                  <div class="gc-name">Lake Lions</div>
+                </div>
+                <div class="gc-vs">vs</div>
+                <div class="gc-team-home">
+                  <div class="gc-role" style="text-align:right;">Home</div>
+                  <div class="gc-name" style="text-align:right;">River Bats</div>
+                </div>
+              </div>
+              <div class="gc-footer">
+                <span class="gc-loc">📍 Central Park Field 1</span>
+                <span class="badge badge-sched">Scheduled</span>
+              </div>
+            </div>
+
+            <div class="date-head">June 7, 2026</div>
+            <div class="game-card">
+              <div class="gc-meta">
+                <span class="gc-time">10:00 AM · Riverside Complex A</span>
+                <span class="gc-num">#20260002</span>
+              </div>
+              <div class="gc-teams">
+                <div class="gc-team-away">
+                  <div class="gc-role">Away</div>
+                  <div class="gc-name">Vale Vipers</div>
+                </div>
+                <div class="gc-vs">vs</div>
+                <div class="gc-team-home">
+                  <div class="gc-role" style="text-align:right;">Home</div>
+                  <div class="gc-name" style="text-align:right;">Hill Hawks</div>
+                </div>
+              </div>
+              <div class="gc-footer">
+                <span class="gc-loc">📍 Riverside Complex A</span>
+                <span class="badge badge-sched">Scheduled</span>
+              </div>
+            </div>
+
+            <div class="date-head">June 14, 2026</div>
+            <div class="game-card">
+              <div class="gc-meta">
+                <span class="gc-time">9:00 AM · North Field</span>
+                <span class="gc-num">#20260003</span>
+              </div>
+              <div class="gc-teams">
+                <div class="gc-team-away">
+                  <div class="gc-role">Away</div>
+                  <div class="gc-name">Lake Lions</div>
+                </div>
+                <div class="gc-score-vs">2&nbsp;&nbsp;–&nbsp;&nbsp;4</div>
+                <div class="gc-team-home">
+                  <div class="gc-role" style="text-align:right;">Home</div>
+                  <div class="gc-name" style="text-align:right;">Hill Hawks</div>
+                </div>
+              </div>
+              <div class="gc-footer">
+                <span class="gc-loc">📍 North Field</span>
+                <span class="badge badge-done">Completed</span>
+              </div>
+            </div>
+          </div>
+
+          <div id="sched-table" class="hidden">
+            <div class="view-toggle">
+              <div class="vt-btn" onclick="sw('sched','cards')">🃏 Cards</div>
+              <div class="vt-btn on">📊 Table</div>
+            </div>
+            <div class="tbl-wrap">
+              <table class="tbl">
+                <thead><tr>
+                  <th>Game #</th><th>Date</th><th>Away</th><th>Home</th><th>Score</th><th>Status</th>
+                </tr></thead>
+                <tbody>
+                  <tr><td>20260001</td><td>May 30</td><td>Lake Lions</td><td>River Bats</td><td>—</td><td><span class="badge badge-sched">Sched</span></td></tr>
+                  <tr><td>20260002</td><td>Jun 7</td><td>Vale Vipers</td><td>Hill Hawks</td><td>—</td><td><span class="badge badge-sched">Sched</span></td></tr>
+                  <tr><td>20260003</td><td>Jun 14</td><td>Lake Lions</td><td>Hill Hawks</td><td>2–4</td><td><span class="badge badge-done">Done</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="tbl-hint">← Swipe to see all columns</div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SCORE INPUT ═══ -->
+  <div class="phone-wrap">
+    <div class="phone-label">Score Input</div>
+    <div class="tabs" style="visibility:hidden;"><button class="tab on">–</button></div>
+    <div class="phone">
+      <div class="notch"></div>
+      <nav class="nav nav-dark">
+        <div class="nav-brand">
+          D8TL
+          <span class="nav-badge">LAKE LIONS</span>
+        </div>
+        <div class="nav-right">
+          <span class="nav-user">J. Smith</span>
+          <button class="burger"><span></span><span></span><span></span></button>
+        </div>
+      </nav>
+      <div class="screen">
+        <div class="score-game-info">
+          <div class="sgi-title">Submit Score</div>
+          <div class="sgi-meta">Jun 7, 2026 · 10:00 AM · Riverside Complex A &nbsp;·&nbsp; #20260002</div>
+        </div>
+        <div class="score-page">
+
+          <div class="score-row-card">
+            <div class="score-team-info">
+              <div class="role">Away Team</div>
+              <div class="name">Vale Vipers</div>
+            </div>
+            <input type="number" class="score-num" placeholder="0" min="0">
+          </div>
+
+          <div class="score-divider">— VS —</div>
+
+          <div class="score-row-card">
+            <div class="score-team-info">
+              <div class="role">Home Team</div>
+              <div class="name">Hill Hawks</div>
+            </div>
+            <input type="number" class="score-num" placeholder="0" min="0">
+          </div>
+
+          <button class="score-submit">Submit Score</button>
+
+          <p style="font-size:0.72rem;color:#adb5bd;text-align:center;margin-top:0.85rem;">
+            Score submission is available for 48 hours after game time
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ COACH DASHBOARD ═══ -->
+  <div class="phone-wrap">
+    <div class="phone-label">Coach Dashboard</div>
+    <div class="tabs" id="tabs-dash">
+      <button class="tab on"  onclick="sw('dash','home')">Dashboard</button>
+      <button class="tab"     onclick="sw('dash','menu')">Nav Open</button>
+    </div>
+    <div class="phone">
+      <div class="notch"></div>
+      <nav class="nav nav-dark">
+        <div class="nav-brand">
+          D8TL
+          <span class="nav-badge">LAKE LIONS</span>
+        </div>
+        <div class="nav-right">
+          <span class="nav-user">J. Smith</span>
+          <button class="burger"><span></span><span></span><span></span></button>
+        </div>
+      </nav>
+      <div class="screen">
+
+        <!-- Dashboard home -->
+        <div id="dash-home">
+          <div class="hero">
+            <div class="hero-label">Your Team</div>
+            <div class="hero-team">Lake Lions</div>
+            <div class="hero-meta">Division A &nbsp;·&nbsp; Spring 2026</div>
+            <div class="hero-stats">
+              <div class="hero-stat"><div class="hero-stat-n">6</div><div class="hero-stat-l">Games</div></div>
+              <div class="hero-stat"><div class="hero-stat-n">3</div><div class="hero-stat-l">Wins</div></div>
+              <div class="hero-stat"><div class="hero-stat-n">2</div><div class="hero-stat-l">Losses</div></div>
+              <div class="hero-stat"><div class="hero-stat-n">1</div><div class="hero-stat-l">Tied</div></div>
+            </div>
+          </div>
+
+          <div class="action-grid">
+            <div class="action-card">
+              <div class="action-icon">⚾</div>
+              <div class="action-title">Score Input</div>
+              <div class="action-sub">Submit game results</div>
+            </div>
+            <div class="action-card">
+              <div class="action-icon">🗓</div>
+              <div class="action-title">Request Reschedule</div>
+              <div class="action-sub">Move a game</div>
+            </div>
+            <div class="action-card">
+              <div class="action-icon">📅</div>
+              <div class="action-title">My Schedule</div>
+              <div class="action-sub">Upcoming games</div>
+            </div>
+            <div class="action-card">
+              <div class="action-icon">📖</div>
+              <div class="action-title">Contacts</div>
+              <div class="action-sub">League directory</div>
+            </div>
+          </div>
+
+          <div class="next-section">
+            <div class="next-label">Next Game</div>
+            <div class="game-card">
+              <div class="gc-meta">
+                <span class="gc-time">Jun 7 · 10:00 AM · Riverside A</span>
+                <span class="badge badge-sched">Scheduled</span>
+              </div>
+              <div class="gc-teams">
+                <div class="gc-team-away">
+                  <div class="gc-role">Away</div>
+                  <div class="gc-name">Vale Vipers</div>
+                </div>
+                <div class="gc-vs">vs</div>
+                <div class="gc-team-home">
+                  <div class="gc-role" style="text-align:right;">Home</div>
+                  <div class="gc-name" style="text-align:right;">Hill Hawks</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Nav open -->
+        <div id="dash-menu" class="hidden">
+          <div class="menu-overlay">
+            <div class="menu-item on"><span class="menu-item-icon">📊</span> Dashboard</div>
+            <div class="menu-item"><span class="menu-item-icon">📅</span> My Schedule</div>
+            <div class="menu-item"><span class="menu-item-icon">⚾</span> Score Input</div>
+            <div class="menu-item"><span class="menu-item-icon">🗓</span> Schedule Change</div>
+            <div class="menu-item"><span class="menu-item-icon">📖</span> Contacts</div>
+            <div class="menu-item"><span class="menu-item-icon">📋</span> Rules</div>
+            <div class="menu-item"><span class="menu-item-icon">📆</span> Full Schedule</div>
+            <div class="menu-item"><span class="menu-item-icon">🏆</span> Standings</div>
+            <div class="menu-item" style="border-top:1px solid #3a3f45;color:#6c757d;"><span class="menu-item-icon">👤</span> J. Smith — My Profile</div>
+            <div class="menu-item" style="color:#6c757d;"><span class="menu-item-icon">🚪</span> Logout</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div style="text-align:center;padding:0 1rem 4rem;color:#6b7280;font-size:0.8rem;max-width:800px;margin:0 auto;line-height:1.6;">
+  <strong style="color:#9ca3af;">Implementation scope:</strong>
+  Bootstrap nav stays as-is (hamburger already works).
+  Schedule/admin tables get a card layout on mobile via CSS <code>@media</code> + minor PHP.
+  Score input rows swap to vertical-team-card pattern.
+  Dashboard hero stats added.
+  Estimated ~3–4 days.
+</div>
+
+<script>
+function sw(group, screen) {
+  // hide all siblings
+  if (group === 'sched') {
+    document.getElementById('sched-cards').classList.add('hidden');
+    document.getElementById('sched-table').classList.add('hidden');
+    document.getElementById('sched-' + screen).classList.remove('hidden');
+    document.querySelectorAll('#tabs-sched .tab').forEach(b => b.classList.remove('on'));
+    event.target.classList.add('on');
+  } else if (group === 'dash') {
+    document.getElementById('dash-home').classList.add('hidden');
+    document.getElementById('dash-menu').classList.add('hidden');
+    document.getElementById('dash-' + screen).classList.remove('hidden');
+    document.querySelectorAll('#tabs-dash .tab').forEach(b => b.classList.remove('on'));
+    event.target.classList.add('on');
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,1108 @@
+diff --git a/includes/RescheduleService.php b/includes/RescheduleService.php
+index e915a1d..0eaccde 100644
+--- a/includes/RescheduleService.php
++++ b/includes/RescheduleService.php
+@@ -337,6 +337,203 @@ class RescheduleService {
+         }));
+     }
+ 
++    /**
++     * Return games eligible for coach-initiated postponement for the coach's assigned teams.
++     * Excludes Completed, Cancelled, already-Postponed, scored games, and games with an
++     * existing Pending postponement submitted by the same coach.
++     *
++     * @return array
++     */
++    public function getEligiblePostponementGames(int $userId): array {
++        $teams = TeamScope::getScopedTeams($userId);
++        if (empty($teams)) {
++            return [];
++        }
++
++        $teamIds    = array_map('intval', array_column($teams, 'team_id'));
++        $homeParams = [];
++        $awayParams = [];
++        foreach ($teamIds as $i => $id) {
++            $homeParams['h' . $i] = $id;
++            $awayParams['a' . $i] = $id;
++        }
++        $homePlaceholders = implode(',', array_map(fn($k) => ':' . $k, array_keys($homeParams)));
++        $awayPlaceholders = implode(',', array_map(fn($k) => ':' . $k, array_keys($awayParams)));
++
++        $games = $this->db->fetchAll(
++            "SELECT g.*, s.game_date, s.game_time, s.location,
++                    ht.team_name AS home_team_name, at.team_name AS away_team_name
++             FROM games g
++             LEFT JOIN schedules s ON g.game_id = s.game_id
++             JOIN teams ht ON g.home_team_id = ht.team_id
++             JOIN teams at ON g.away_team_id = at.team_id
++             WHERE (g.home_team_id IN ({$homePlaceholders}) OR g.away_team_id IN ({$awayPlaceholders}))
++               AND g.game_status NOT IN ('Completed', 'Cancelled', 'Postponed')
++               AND g.home_score IS NULL AND g.away_score IS NULL
++               AND NOT EXISTS (
++                 SELECT 1 FROM schedule_change_requests scr
++                 WHERE scr.game_id = g.game_id
++                   AND scr.submitted_by_user_id = :uid
++                   AND scr.request_type = 'Postponement'
++                   AND scr.request_status = 'Pending'
++               )",
++            array_merge(['uid' => $userId], $homeParams, $awayParams)
++        );
++
++        return array_values(array_filter($games, function ($g) {
++            return isset($g['game_date']) && $g['game_date'] !== null && $g['game_date'] !== '';
++        }));
++    }
++
++    /**
++     * Submit a coach-initiated postponement for a game owned by the coach's team.
++     *
++     * @return int  New SCR request ID
++     * @throws TeamScopeViolationException  Game not found, wrong team, or ineligible status
++     * @throws InvalidArgumentException    Blank reason
++     */
++    public function submitPostponement(int $userId, int $gameId, string $reason): int {
++        if ($userId <= 0 || $gameId <= 0) {
++            throw new TeamScopeViolationException('Invalid user or game');
++        }
++        if (trim($reason) === '') {
++            throw new InvalidArgumentException('Reason is required');
++        }
++
++        $teams   = TeamScope::getScopedTeams($userId);
++        $teamIds = array_map('intval', array_column($teams, 'team_id'));
++
++        $game = $this->db->fetchOne(
++            'SELECT g.*, s.game_date, s.game_time, s.location
++             FROM games g
++             LEFT JOIN schedules s ON g.game_id = s.game_id
++             WHERE g.game_id = :game_id',
++            ['game_id' => $gameId]
++        );
++
++        if (empty($game)) {
++            throw new TeamScopeViolationException('Game not found');
++        }
++
++        $homeId = (int) $game['home_team_id'];
++        $awayId = (int) $game['away_team_id'];
++        if (!in_array($homeId, $teamIds, true) && !in_array($awayId, $teamIds, true)) {
++            throw new TeamScopeViolationException('Game does not involve a team owned by user');
++        }
++
++        if (in_array($game['game_status'], ['Completed', 'Cancelled', 'Postponed', 'Pending Change'], true)
++            || (($game['home_score'] ?? null) !== null || ($game['away_score'] ?? null) !== null)) {
++            throw new TeamScopeViolationException('Game is not eligible for postponement');
++        }
++
++        $user = $this->db->fetchOne(
++            'SELECT first_name, last_name, phone FROM users WHERE id = :id',
++            ['id' => $userId]
++        );
++        $requestedBy = '';
++        if (!empty($user)) {
++            $phone = !empty($user['phone']) ? $user['phone'] : 'no phone';
++            $requestedBy = trim($user['first_name'] . ' ' . $user['last_name'])
++                . ' (' . $phone . ')';
++        }
++
++        $autoApprove = (bool) getSetting('postponement_auto_approve', '1');
++
++        // Check for existing Pending postponement from this user
++        $existing = $this->db->fetchOne(
++            "SELECT request_id FROM schedule_change_requests
++             WHERE game_id = :gid AND submitted_by_user_id = :uid
++               AND request_type = 'Postponement' AND request_status = 'Pending'",
++            ['gid' => $gameId, 'uid' => $userId]
++        );
++        if (!empty($existing)) {
++            throw new TeamScopeViolationException('A pending postponement already exists for this game');
++        }
++
++        $requestId = 0;
++        $this->db->beginTransaction();
++        try {
++            if ($autoApprove) {
++                $requestId = (int) $this->db->insert('schedule_change_requests', [
++                    'game_id'              => $gameId,
++                    'submitted_by_user_id' => $userId,
++                    'requested_by'         => $requestedBy,
++                    'request_type'         => 'Postponement',
++                    'request_status'       => 'Approved',
++                    'original_date'        => $game['game_date'] ?? null,
++                    'original_time'        => $game['game_time'] ?? null,
++                    'original_location'    => $game['location'] ?? null,
++                    'requested_date'       => null,
++                    'requested_time'       => null,
++                    'requested_location'   => null,
++                    'reason'               => $reason,
++                ]);
++
++                $this->db->update('games', [
++                    'game_status'   => 'Postponed',
++                    'modified_date' => date('Y-m-d H:i:s'),
++                ], 'game_id = :gid AND game_status != \'Postponed\'', ['gid' => $gameId]);
++
++                $this->db->update('schedule_history', ['is_current' => 0],
++                    'game_id = :gid AND is_current = 1', ['gid' => $gameId]);
++
++                $maxVersion  = $this->db->fetchOne(
++                    'SELECT MAX(version_number) AS max_ver FROM schedule_history WHERE game_id = ?',
++                    [$gameId]
++                );
++                $nextVersion = ($maxVersion['max_ver'] ?? 0) + 1;
++
++                $this->db->insert('schedule_history', [
++                    'game_id'           => $gameId,
++                    'version_number'    => $nextVersion,
++                    'schedule_type'     => 'Changed',
++                    'game_date'         => $game['game_date'] ?? null,
++                    'game_time'         => $game['game_time'] ?? null,
++                    'location'          => $game['location'] ?? null,
++                    'change_request_id' => $requestId,
++                    'is_current'        => 1,
++                    'notes'             => 'Game postponed by coach: ' . $reason,
++                ]);
++
++                ActivityLogger::log('game.postponed', [
++                    'user_id'    => $userId,
++                    'game_id'    => $gameId,
++                    'request_id' => $requestId,
++                ]);
++            } else {
++                $requestId = (int) $this->db->insert('schedule_change_requests', [
++                    'game_id'              => $gameId,
++                    'submitted_by_user_id' => $userId,
++                    'requested_by'         => $requestedBy,
++                    'request_type'         => 'Postponement',
++                    'request_status'       => 'Pending',
++                    'original_date'        => $game['game_date'] ?? null,
++                    'original_time'        => $game['game_time'] ?? null,
++                    'original_location'    => $game['location'] ?? null,
++                    'requested_date'       => null,
++                    'requested_time'       => null,
++                    'requested_location'   => null,
++                    'reason'               => $reason,
++                ]);
++
++                ActivityLogger::log('game.postponement_requested', [
++                    'user_id'    => $userId,
++                    'game_id'    => $gameId,
++                    'request_id' => $requestId,
++                ]);
++            }
++
++            $this->db->commit();
++        } catch (Throwable $e) {
++            $this->db->rollback();
++            throw $e;
++        }
++
++        // Story 18-2: sendNotification('onSchedulePostponed') fires here for auto-approve path
++
++        return $requestId;
++    }
++
+     /**
+      * Return all reschedule requests submitted by the given coach, newest first.
+      *
+diff --git a/public/admin/schedules/index.php b/public/admin/schedules/index.php
+index a1be651..68aa07d 100644
+--- a/public/admin/schedules/index.php
++++ b/public/admin/schedules/index.php
+@@ -50,15 +50,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+             case 'edit_request':
+                 try {
+                     $requestId = (int)$_POST['request_id'];
++                    $existingRequest = $db->fetchOne("SELECT request_type FROM schedule_change_requests WHERE request_id = ?", [$requestId]);
++                    $isPostponement = $existingRequest && ($existingRequest['request_type'] ?? '') === 'Postponement';
+                     
+-                    // Update the schedule change request
+-                    $updateData = [
+-                        'requested_date' => sanitize($_POST['requested_date']),
+-                        'requested_time' => sanitize($_POST['requested_time']),
+-                        'requested_location' => sanitize($_POST['requested_location']),
+-                        'reason' => sanitize($_POST['reason']),
+-                        'modified_date' => date('Y-m-d H:i:s')
+-                    ];
++                    $updateData = ['reason' => sanitize($_POST['reason']), 'modified_date' => date('Y-m-d H:i:s')];
++                    if (!$isPostponement) {
++                        $updateData['requested_date'] = sanitize($_POST['requested_date']);
++                        $updateData['requested_time'] = sanitize($_POST['requested_time']);
++                        $updateData['requested_location'] = sanitize($_POST['requested_location']);
++                    }
+                     
+                     $db->update('schedule_change_requests', $updateData, 'request_id = :request_id', ['request_id' => $requestId]);
+                     
+@@ -81,71 +81,105 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+             case 'approve_change':
+                 try {
+                     $requestId = (int)$_POST['request_id'];
+-                    
++
+                     // Get the change request details
+                     $request = $db->fetchOne("SELECT * FROM schedule_change_requests WHERE request_id = ?", [$requestId]);
+-                    
++
+                     if ($request) {
+                         $db->beginTransaction();
+-                        
+-                        // Mark current schedule version as no longer current
+-                        $db->update('schedule_history', [
+-                            'is_current' => 0
+-                        ], 'game_id = :game_id AND is_current = 1', ['game_id' => $request['game_id']]);
+-                        
+-                        // Get the next version number
+-                        $maxVersion = $db->fetchOne("SELECT MAX(version_number) as max_ver FROM schedule_history WHERE game_id = ?", [$request['game_id']]);
+-                        $nextVersion = ($maxVersion['max_ver'] ?? 0) + 1;
+-                        
+-                        // Create new schedule history entry
+-                        $db->insert('schedule_history', [
+-                            'game_id' => $request['game_id'],
+-                            'version_number' => $nextVersion,
+-                            'schedule_type' => 'Changed',
+-                            'game_date' => $request['requested_date'],
+-                            'game_time' => $request['requested_time'],
+-                            'location' => $request['requested_location'],
+-                            'change_request_id' => $requestId,
+-                            'created_by_type' => 'Admin',
+-                            'created_by_id' => $currentUser['id'],
+-                            'is_current' => 1,
+-                            'notes' => 'Schedule changed via request #' . $requestId . 
+-                                      (($_POST['admin_notes'] ?? '') ? '. Admin notes: ' . sanitize($_POST['admin_notes']) : '')
+-                        ]);
+-                        
+-                        // Update the main schedules table for backward compatibility
+-                        $db->update('schedules', [
+-                            'game_date' => $request['requested_date'],
+-                            'game_time' => $request['requested_time'],
+-                            'location' => $request['requested_location'],
+-                            'modified_date' => date('Y-m-d H:i:s')
+-                        ], 'game_id = :game_id', ['game_id' => $request['game_id']]);
+-                        
+-                        // Update request status
+-                        $db->update('schedule_change_requests', [
+-                            'request_status' => 'Approved',
+-                            'reviewed_by' => $currentUser['id'],
+-                            'reviewed_at' => date('Y-m-d H:i:s'),
+-                            'review_notes' => sanitize($_POST['admin_notes'] ?? '')
+-                        ], 'request_id = :request_id', ['request_id' => $requestId]);
+-                        
+-                        // Update game status to Scheduled (if not Cancelled or Completed)
+-                        $gameStatus = $db->fetchOne("SELECT game_status FROM games WHERE game_id = ?", [$request['game_id']]);
+-                        if ($gameStatus && $gameStatus['game_status'] === 'Pending Change') {
++
++                        if ($request['request_type'] === 'Postponement') {
++                            // Postponement approval — mark game Postponed, no date/schedule change
++                            $db->update('games', [
++                                'game_status'   => 'Postponed',
++                                'modified_date' => date('Y-m-d H:i:s'),
++                            ], 'game_id = ? AND game_status != \'Postponed\'', [$request['game_id']]);
++
++                            $db->update('schedule_history', ['is_current' => 0],
++                                'game_id = :gid AND is_current = 1', ['gid' => $request['game_id']]);
++
++                            $maxVersion  = $db->fetchOne("SELECT MAX(version_number) as max_ver FROM schedule_history WHERE game_id = ?", [$request['game_id']]);
++                            $nextVersion = ($maxVersion['max_ver'] ?? 0) + 1;
++
++                            $db->insert('schedule_history', [
++                                'game_id'           => $request['game_id'],
++                                'version_number'    => $nextVersion,
++                                'schedule_type'     => 'Changed',
++                                'game_date'         => $request['original_date'],
++                                'game_time'         => $request['original_time'],
++                                'location'          => $request['original_location'],
++                                'change_request_id' => $requestId,
++                                'created_by_type'   => 'Admin',
++                                'created_by_id'     => $currentUser['id'],
++                                'is_current'        => 1,
++                                'notes'             => 'Postponement approved via request #' . $requestId .
++                                                       (($_POST['admin_notes'] ?? '') ? '. Admin notes: ' . sanitize($_POST['admin_notes']) : ''),
++                            ]);
++
++                            $db->update('schedule_change_requests', [
++                                'request_status' => 'Approved',
++                                'reviewed_by'    => $currentUser['id'],
++                                'reviewed_at'    => date('Y-m-d H:i:s'),
++                                'review_notes'   => sanitize($_POST['admin_notes'] ?? ''),
++                            ], 'request_id = :rid', ['rid' => $requestId]);
++
++                            $db->commit();
++
++                            logActivity('postponement_approved', "Postponement request #{$requestId} approved", $currentUser['id']);
++                            // Story 18-2: sendNotification('onSchedulePostponed') fires here
++                            $message = 'Postponement approved. Game is now marked Postponed.';
++
++                        } else {
++                            // Reschedule approval — existing logic unchanged
++                            $db->update('schedule_history', [
++                                'is_current' => 0
++                            ], 'game_id = :game_id AND is_current = 1', ['game_id' => $request['game_id']]);
++
++                            $maxVersion = $db->fetchOne("SELECT MAX(version_number) as max_ver FROM schedule_history WHERE game_id = ?", [$request['game_id']]);
++                            $nextVersion = ($maxVersion['max_ver'] ?? 0) + 1;
++
++                            $db->insert('schedule_history', [
++                                'game_id' => $request['game_id'],
++                                'version_number' => $nextVersion,
++                                'schedule_type' => 'Changed',
++                                'game_date' => $request['requested_date'],
++                                'game_time' => $request['requested_time'],
++                                'location' => $request['requested_location'],
++                                'change_request_id' => $requestId,
++                                'created_by_type' => 'Admin',
++                                'created_by_id' => $currentUser['id'],
++                                'is_current' => 1,
++                                'notes' => 'Schedule changed via request #' . $requestId .
++                                          (($_POST['admin_notes'] ?? '') ? '. Admin notes: ' . sanitize($_POST['admin_notes']) : '')
++                            ]);
++
++                            $db->update('schedules', [
++                                'game_date' => $request['requested_date'],
++                                'game_time' => $request['requested_time'],
++                                'location' => $request['requested_location'],
++                                'modified_date' => date('Y-m-d H:i:s')
++                            ], 'game_id = :game_id', ['game_id' => $request['game_id']]);
++
++                            $db->update('schedule_change_requests', [
++                                'request_status' => 'Approved',
++                                'reviewed_by' => $currentUser['id'],
++                                'reviewed_at' => date('Y-m-d H:i:s'),
++                                'review_notes' => sanitize($_POST['admin_notes'] ?? '')
++                            ], 'request_id = :request_id', ['request_id' => $requestId]);
++
+                             $db->update('games', [
+                                 'game_status' => 'Scheduled',
+                                 'modified_date' => date('Y-m-d H:i:s')
+                             ], 'game_id = ?', [$request['game_id']]);
++
++                            $db->commit();
++
++                            logActivity('schedule_change_approved', "Schedule change request #{$requestId} approved - Version {$nextVersion} created", $currentUser['id']);
++
++                            sendNotification('onScheduleChangeApprove', $request['game_id'], $requestId);
++
++                            $message = 'Schedule change approved successfully! New schedule version created.';
+                         }
+-                        
+-                        $db->commit();
+-                        
+-                        logActivity('schedule_change_approved', "Schedule change request #{$requestId} approved - Version {$nextVersion} created", $currentUser['id']);
+-                        
+-                        // Send email notification for schedule change approval
+-                        sendNotification('onScheduleChangeApprove', $request['game_id'], $requestId);
+-                        
+-                        $message = 'Schedule change approved successfully! New schedule version created.';
+                     }
+                 } catch (Exception $e) {
+                     $db->rollback();
+@@ -394,16 +428,21 @@ $pageTitle = "Schedule Management - " . APP_NAME;
+                     </div>
+                     <div class="card-body">
+                         <?php foreach ($pendingRequests as $request): ?>
+-                        <div class="border rounded p-3 mb-3">
++                        <?php $isPostponement = ($request['request_type'] ?? '') === 'Postponement'; ?>
++                        <div class="card mb-3 <?php echo $isPostponement ? 'border-warning' : ''; ?>">
++                            <div class="card-body p-3">
+                             <div class="row">
+                                 <div class="col-md-8">
+                                     <h5>Game #<?php echo sanitize($request['game_number']); ?>:
+                                         <?php echo sanitize($request['away_team_name']); ?> @ <?php echo sanitize($request['home_team_name']); ?>
++                                        <span class="badge <?php echo $isPostponement ? 'bg-warning text-dark' : 'bg-secondary'; ?> ms-2">
++                                            <?php echo sanitize($request['request_type'] ?? 'Reschedule'); ?>
++                                        </span>
+                                         <?php if (!empty($request['has_notes'])): ?>
+                                             <i class="fas fa-sticky-note text-warning ms-1" title="This game has notes — view in Games"></i>
+                                         <?php endif; ?>
+                                     </h5>
+-                                    
++
+                                     <div class="row">
+                                         <div class="col-md-6">
+                                             <strong>Current:</strong><br>
+@@ -413,23 +452,32 @@ $pageTitle = "Schedule Management - " . APP_NAME;
+                                         </div>
+                                         <div class="col-md-6">
+                                             <strong>Requested:</strong><br>
++                                            <?php if (!$isPostponement): ?>
+                                             Date: <?php echo formatDate($request['requested_date']); ?><br>
+                                             Time: <?php echo formatTime($request['requested_time']); ?><br>
+                                             Location: <?php echo sanitize($request['requested_location']); ?>
++                                            <?php else: ?>
++                                            <em class="text-muted">Postponement — no new date requested</em>
++                                            <?php endif; ?>
+                                         </div>
+                                     </div>
+-                                    
++
+                                     <?php if ($request['reason']): ?>
+                                     <div class="mt-2">
+                                         <strong>Reason:</strong> <?php echo sanitize($request['reason']); ?>
+                                     </div>
+                                     <?php endif; ?>
+-                                    
++
+                                     <small class="text-muted">
+                                         Requested on <?php echo formatDate($request['created_date'], 'M j, Y g:i A'); ?>
+                                     </small>
+                                 </div>
+                                 <div class="col-md-4 text-end">
++                                    <?php if ($isPostponement): ?>
++                                    <p class="text-warning-emphasis small mb-2">
++                                        <i class="fas fa-clock"></i> Approving will mark this game as <strong>Postponed</strong> — no date or schedule change will be made.
++                                    </p>
++                                    <?php endif; ?>
+                                     <button class="btn btn-success btn-sm mb-2" onclick="approveRequest(<?php echo $request['request_id']; ?>)">
+                                         <i class="fas fa-check"></i> Approve
+                                     </button>
+@@ -438,6 +486,7 @@ $pageTitle = "Schedule Management - " . APP_NAME;
+                                     </button>
+                                 </div>
+                             </div>
++                            </div>
+                         </div>
+                         <?php endforeach; ?>
+                     </div>
+@@ -561,7 +610,7 @@ $pageTitle = "Schedule Management - " . APP_NAME;
+                         
+                         <hr>
+                         
+-                        <div class="row">
++                        <div class="row" id="editRequestDateFields">
+                             <div class="col-md-4">
+                                 <div class="mb-3">
+                                     <label class="form-label">Requested Date *</label>
+@@ -610,7 +659,7 @@ $pageTitle = "Schedule Management - " . APP_NAME;
+                         <input type="hidden" name="csrf_token" value="<?php echo Auth::generateCSRFToken(); ?>">
+                         <input type="hidden" name="request_id" id="approveRequestId">
+                         
+-                        <p>Are you sure you want to approve this schedule change? The game schedule will be updated immediately.</p>
++                        <p>Are you sure you want to approve this request? For reschedule requests the game schedule will be updated; for postponement requests the game will be marked Postponed.</p>
+                         
+                         <div class="mb-3">
+                             <label class="form-label">Admin Notes (Optional)</label>
+@@ -794,6 +843,13 @@ $pageTitle = "Schedule Management - " . APP_NAME;
+                 hour: 'numeric', minute: '2-digit', hour12: true
+             });
+             
++            // Hide date fields for postponement requests (no date change involved)
++            var isPostponement = (request.request_type || '') === 'Postponement';
++            var dateFields = document.getElementById('editRequestDateFields');
++            if (dateFields) {
++                dateFields.style.display = isPostponement ? 'none' : '';
++            }
++            
+             // Set form fields
+             document.getElementById('editRequestedDate').value = request.requested_date;
+             document.getElementById('editRequestedTime').value = request.requested_time;
+diff --git a/public/admin/settings/index.php b/public/admin/settings/index.php
+index cfb6a10..a123f5d 100644
+--- a/public/admin/settings/index.php
++++ b/public/admin/settings/index.php
+@@ -237,6 +237,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                     updateSetting('reschedule_pre_game_hours',      (string) $preHours);
+                     updateSetting('reschedule_post_game_hours',     (string) $postHours);
+                     updateSetting('reschedule_min_new_game_hours',  (string) $minNewHours);
++                    $autoApprove = isset($_POST['postponement_auto_approve']) && $_POST['postponement_auto_approve'] === '1' ? '1' : '0';
++                    updateSetting('postponement_auto_approve', $autoApprove);
+                     logActivity('schedule_change_settings_updated', 'Schedule change window settings updated');
+                     $message = 'Schedule change settings saved successfully!';
+                 } catch (Exception $e) {
+diff --git a/public/admin/settings/sections/schedule-changes.php b/public/admin/settings/sections/schedule-changes.php
+index 9708cb8..ddd0d7b 100644
+--- a/public/admin/settings/sections/schedule-changes.php
++++ b/public/admin/settings/sections/schedule-changes.php
+@@ -2,6 +2,7 @@
+ /**
+  * Schedule Changes Settings Section
+  */
++$postponeAutoApprove = (bool) getSetting('postponement_auto_approve', '1');
+ ?>
+ 
+ <div class="card">
+@@ -46,6 +47,22 @@
+                 </div>
+             </div>
+ 
++            <div class="mb-3">
++                <label class="form-label">Coach Postponement Approval</label>
++                <select name="postponement_auto_approve" class="form-select" style="max-width:360px;">
++                    <option value="1" <?php echo $postponeAutoApprove ? 'selected' : ''; ?>>
++                        Auto-approve (game marked Postponed immediately)
++                    </option>
++                    <option value="0" <?php echo !$postponeAutoApprove ? 'selected' : ''; ?>>
++                        Require admin approval (request goes to pending queue)
++                    </option>
++                </select>
++                <div class="form-text">
++                    Auto-approve: coach submission immediately marks the game Postponed.
++                    Require approval: submission appears as Pending in the schedule change queue until an admin acts.
++                </div>
++            </div>
++
+             <button type="submit" class="btn btn-primary">
+                 <i class="fas fa-save"></i> Save Changes
+             </button>
+diff --git a/public/coaches/schedule-change.php b/public/coaches/schedule-change.php
+index 1a0ee01..1a216e9 100644
+--- a/public/coaches/schedule-change.php
++++ b/public/coaches/schedule-change.php
+@@ -132,6 +132,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                 }
+             }
+         }
++    } elseif ($action === 'postpone') {
++        if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
++            $error = 'Invalid form submission. Please try again.';
++        } else {
++            $gameId = (int) ($_POST['game_id'] ?? 0);
++            $reason = trim($_POST['postpone_reason'] ?? '');
++            if ($gameId <= 0) {
++                $error = 'Please select a game.';
++            } elseif ($reason === '') {
++                $error = 'Please provide a reason for the postponement.';
++            } else {
++                $autoApprove = (bool) getSetting('postponement_auto_approve', '1');
++                try {
++                    $service->submitPostponement($userId, $gameId, $reason);
++                    $_SESSION['flash_success'] = $autoApprove
++                        ? 'Game has been marked as postponed.'
++                        : 'Your postponement request has been submitted and is pending admin review.';
++                    header('Location: schedule-change.php');
++                    exit;
++                } catch (TeamScopeViolationException $e) {
++                    http_response_code(403);
++                    $error = 'Not authorized — you are not permitted to postpone this game.';
++                } catch (Throwable $e) {
++                    $error = 'Postponement not submitted — please check your connection and try again.';
++                }
++            }
++        }
+     } elseif ($action === 'cancel') {
+         if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+             $error = 'Invalid form submission. Please try again.';
+@@ -157,8 +184,9 @@ if (isset($_SESSION['flash_success'])) {
+     unset($_SESSION['flash_success']);
+ }
+ 
+-$eligibleGames  = $service->getEligibleGames($userId);
+-$coachRequests  = $service->getCoachRequests($userId);
++$eligibleGames    = $service->getEligibleGames($userId);
++$postponableGames = $service->getEligiblePostponementGames($userId);
++$coachRequests    = $service->getCoachRequests($userId);
+ $locations      = $db->fetchAll('SELECT location_name, city, state FROM locations WHERE active_status = \'Active\' ORDER BY location_name');
+ $minNewGameHours = (int) getSetting('reschedule_min_new_game_hours', '0');
+ 
+@@ -243,6 +271,61 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
+                 </div>
+                 <?php endif; ?>
+ 
++                <!-- =========================================================
++                     POSTPONE A GAME SECTION
++                     ========================================================= -->
++
++                <div class="card mb-4">
++                    <div class="card-header">
++                        <h3 class="mb-0"><i class="fas fa-ban"></i> Postpone a Game</h3>
++                    </div>
++                    <div class="card-body">
++                        <p class="text-muted">Use this when a game cannot be played as scheduled and no new date is available yet.
++                            The game will be marked Postponed (or submitted for admin review).
++                            You can request a reschedule once a new date is known.</p>
++
++                        <?php if (empty($postponableGames)): ?>
++                        <div class="alert alert-info" role="alert">
++                            <i class="fas fa-info-circle"></i>
++                            No games are available to postpone — scored, cancelled, and already-postponed games are not eligible.
++                        </div>
++                        <?php else: ?>
++                        <form method="POST">
++                            <input type="hidden" name="csrf_token"
++                                   value="<?php echo htmlspecialchars(Auth::generateCSRFToken(), ENT_QUOTES, 'UTF-8'); ?>">
++                            <input type="hidden" name="action" value="postpone">
++
++                            <div class="mb-3">
++                                <label class="form-label fw-bold">Select a game *</label>
++                                <select name="game_id" class="form-select form-select-lg" required>
++                                    <option value="">— choose a game —</option>
++                                    <?php foreach ($postponableGames as $g): ?>
++                                    <option value="<?php echo (int) $g['game_id']; ?>">
++                                        Game #<?php echo htmlspecialchars((string) ($g['game_number'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
++                                        &mdash; <?php echo htmlspecialchars(formatDate($g['game_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
++                                        &mdash; <?php echo htmlspecialchars(strtoupper($g['away_team_name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
++                                        @ <?php echo htmlspecialchars(strtoupper($g['home_team_name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
++                                    </option>
++                                    <?php endforeach; ?>
++                                </select>
++                            </div>
++
++                            <div class="mb-3">
++                                <label class="form-label fw-bold">Reason *</label>
++                                <textarea name="postpone_reason" class="form-control" rows="3" required
++                                          placeholder="Explain why this game needs to be postponed..."></textarea>
++                            </div>
++
++                            <div class="text-center">
++                                <button type="submit" class="btn btn-warning btn-lg">
++                                    <i class="fas fa-ban"></i> Mark as Postponed
++                                </button>
++                            </div>
++                        </form>
++                        <?php endif; ?>
++                    </div>
++                </div>
++
+                 <!-- =========================================================
+                      SUBMIT REQUEST SECTION
+                      ========================================================= -->
+@@ -413,7 +496,7 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
+                 <?php if (!empty($coachRequests)): ?>
+                 <div class="card mb-4">
+                     <div class="card-header">
+-                        <h5 class="mb-0"><i class="fas fa-list"></i> Your Reschedule Requests</h5>
++                        <h5 class="mb-0"><i class="fas fa-list"></i> Your Requests</h5>
+                     </div>
+                     <div class="card-body">
+                         <div class="table-responsive">
+@@ -423,6 +506,7 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
+                                     <th>Req ID</th>
+                                     <th>Game ID</th>
+                                     <th>Game #</th>
++                                    <th>Type</th>
+                                     <th>Original Date</th>
+                                     <th>Requested Date</th>
+                                     <th>Reason</th>
+@@ -432,20 +516,34 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
+                             </thead>
+                             <tbody>
+                             <?php foreach ($coachRequests as $req): ?>
++                            <?php $isPostponement = ($req['request_type'] ?? '') === 'Postponement'; ?>
+                             <tr>
+                                 <td><?php echo (int) $req['request_id']; ?></td>
+                                 <td><?php echo (int) $req['game_id']; ?></td>
+                                 <td><?php echo htmlspecialchars((string) ($req['game_number'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
++                                <td><?php echo htmlspecialchars((string) ($req['request_type'] ?? 'Reschedule'), ENT_QUOTES, 'UTF-8'); ?></td>
+                                 <td><?php echo htmlspecialchars(formatDate($req['original_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+-                                <td><?php echo htmlspecialchars(formatDate($req['requested_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
++                                <td><?php echo $isPostponement
++                                        ? '<em class="text-muted">N/A</em>'
++                                        : htmlspecialchars(formatDate($req['requested_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                                 <td><?php echo htmlspecialchars((string) ($req['reason'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                                 <td>
+-                                    <?php if ($req['request_status'] === 'Pending'): ?>
+-                                        <span class="badge bg-warning text-dark">Pending</span>
+-                                    <?php elseif ($req['request_status'] === 'Approved'): ?>
+-                                        <span class="badge bg-success">Approved</span>
++                                    <?php if ($isPostponement): ?>
++                                        <?php if ($req['request_status'] === 'Pending'): ?>
++                                            <span class="badge bg-warning text-dark">Pending Review</span>
++                                        <?php elseif ($req['request_status'] === 'Approved'): ?>
++                                            <span class="badge bg-secondary">Postponed</span>
++                                        <?php else: ?>
++                                            <span class="badge bg-danger">Denied</span>
++                                        <?php endif; ?>
+                                     <?php else: ?>
+-                                        <span class="badge bg-danger">Denied</span>
++                                        <?php if ($req['request_status'] === 'Pending'): ?>
++                                            <span class="badge bg-warning text-dark">Pending</span>
++                                        <?php elseif ($req['request_status'] === 'Approved'): ?>
++                                            <span class="badge bg-success">Approved</span>
++                                        <?php else: ?>
++                                            <span class="badge bg-danger">Denied</span>
++                                        <?php endif; ?>
+                                     <?php endif; ?>
+                                 </td>
+                                 <td>
+@@ -495,7 +593,7 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
+                 order: [[0, 'desc']],
+                 columnDefs: [
+                     { type: 'num', targets: 0 },
+-                    { orderable: false, searchable: false, targets: 7 }
++                    { orderable: false, searchable: false, targets: 8 }
+                 ],
+                 pageLength: 25,
+                 language: { search: 'Filter requests:' }
+diff --git a/tests/unit/RescheduleServiceTest.php b/tests/unit/RescheduleServiceTest.php
+index 498df6c..1b88616 100644
+--- a/tests/unit/RescheduleServiceTest.php
++++ b/tests/unit/RescheduleServiceTest.php
+@@ -76,9 +76,9 @@ class RSMockDatabase extends Database {
+     public function rollback(): bool         { $this->rolledBack = true; return true; }
+ 
+     public function fetchOne($sql, $params = []) {
+-        // Game lookup (submit)
+-        if (stripos($sql, 'FROM games g') !== false && stripos($sql, 'WHERE g.game_id') !== false) {
+-            $id = (int) ($params['game_id'] ?? -1);
++        // Game lookup (submit + submitPostponement)
++        if (stripos($sql, 'FROM games g') !== false && stripos($sql, 'game_id') !== false) {
++            $id = (int) ($params['game_id'] ?? $params[0] ?? -1);
+             foreach ($this->games as $g) {
+                 if ((int) $g['game_id'] === $id) {
+                     return $g;
+@@ -87,7 +87,12 @@ class RSMockDatabase extends Database {
+             return false;
+         }
+ 
+-        // User lookup (submit — requested_by)
++        // MAX(version_number) for schedule_history (submitPostponement)
++        if (stripos($sql, 'MAX(version_number)') !== false) {
++            return ['max_ver' => 1];
++        }
++
++        // User lookup (submit + submitPostponement — requested_by)
+         if (stripos($sql, 'FROM users') !== false && stripos($sql, 'WHERE id') !== false) {
+             $id = (int) ($params['id'] ?? -1);
+             foreach ($this->users as $u) {
+@@ -122,6 +127,42 @@ class RSMockDatabase extends Database {
+             );
+         }
+ 
++        // getEligiblePostponementGames (must check before getEligibleGames — same base pattern)
++        if (stripos($sql, 'FROM games g') !== false
++            && stripos($sql, 'game_status NOT IN') !== false
++            && stripos($sql, "request_type = 'Postponement'") !== false) {
++            $teamIds = [];
++            foreach ($params as $k => $v) {
++                if (is_string($k) && preg_match('/^[ha]\d+$/', $k)) {
++                    $teamIds[] = (int) $v;
++                }
++            }
++            $teamIds = array_unique($teamIds);
++            $uid = (int) ($params['uid'] ?? -1);
++
++            // Pending postponement SCRs from this user exclude the game
++            $pendingPostponementGameIds = [];
++            foreach ($this->requests as $r) {
++                if ($r['request_status'] === 'Pending'
++                    && ($r['request_type'] ?? '') === 'Postponement'
++                    && (int) ($r['submitted_by_user_id'] ?? -1) === $uid) {
++                    $pendingPostponementGameIds[] = (int) $r['game_id'];
++                }
++            }
++
++            return array_values(array_filter(
++                $this->games,
++                fn($g) => $g['game_status'] !== 'Completed'
++                    && $g['game_status'] !== 'Cancelled'
++                    && $g['game_status'] !== 'Postponed'
++                    && ($g['home_score'] ?? null) === null
++                    && ($g['away_score'] ?? null) === null
++                    && !in_array((int) $g['game_id'], $pendingPostponementGameIds, true)
++                    && (in_array((int) $g['home_team_id'], $teamIds, true)
++                        || in_array((int) $g['away_team_id'], $teamIds, true))
++            ));
++        }
++
+         // getEligibleGames
+         if (stripos($sql, 'FROM games g') !== false
+             && stripos($sql, 'game_status NOT IN') !== false) {
+@@ -231,9 +272,27 @@ function rsRequest(int $requestId, int $submittedByUserId, string $status = 'Pen
+         'game_id'              => 1,
+         'submitted_by_user_id' => $submittedByUserId,
+         'request_status'       => $status,
++        'request_type'         => 'Reschedule',
++    ];
++}
++
++function rsPostponementRequest(int $requestId, int $gameId, int $submittedByUserId, string $status = 'Pending'): array {
++    return [
++        'request_id'           => $requestId,
++        'game_id'              => $gameId,
++        'submitted_by_user_id' => $submittedByUserId,
++        'request_status'       => $status,
++        'request_type'         => 'Postponement',
+     ];
+ }
+ 
++function rsScoredGame(int $gameId, int $homeTeamId = 10, int $awayTeamId = 20): array {
++    $g = rsGame($gameId, $homeTeamId, $awayTeamId);
++    $g['home_score'] = 3;
++    $g['away_score'] = 2;
++    return $g;
++}
++
+ function rsRequestData(string $requestedDate = '2099-01-15'): array {
+     return [
+         'requested_date'     => $requestedDate,
+@@ -771,3 +830,281 @@ register_test('Window: getEligibleGames excludes game inside pre-game blackout',
+     Database::setInstance(null);
+     unset($GLOBALS['_test_settings']);
+ });
++
++// ---------------------------------------------------------------------------
++// Story 18-1: getEligiblePostponementGames tests
++// ---------------------------------------------------------------------------
++
++register_test('Postpone: getEligiblePostponementGames excludes Completed, Cancelled, Postponed', function () {
++    $db = new RSMockDatabase();
++    $db->teams[] = rsTeam(10, 5);
++    $db->games[] = rsGame(1, 10, 20, 'Active');
++    $db->games[] = rsGame(2, 10, 20, 'Completed');
++    $db->games[] = rsGame(3, 10, 20, 'Cancelled');
++    $db->games[] = rsGame(4, 10, 20, 'Postponed');
++    Database::setInstance($db);
++    $service = new RescheduleService($db);
++
++    $result = $service->getEligiblePostponementGames(5);
++    $ids = array_column($result, 'game_id');
++
++    assert_true(in_array(1, $ids, true), 'Active game must be eligible');
++    assert_true(!in_array(2, $ids, true), 'Completed game must be excluded');
++    assert_true(!in_array(3, $ids, true), 'Cancelled game must be excluded');
++    assert_true(!in_array(4, $ids, true), 'Already-Postponed game must be excluded');
++
++    Database::setInstance(null);
++});
++
++register_test('Postpone: getEligiblePostponementGames excludes scored games', function () {
++    $db = new RSMockDatabase();
++    $db->teams[] = rsTeam(10, 5);
++    $db->games[] = rsGame(1, 10, 20, 'Active');
++    $db->games[] = rsScoredGame(2, 10, 20);
++    Database::setInstance($db);
++    $service = new RescheduleService($db);
++
++    $result = $service->getEligiblePostponementGames(5);
++    $ids = array_column($result, 'game_id');
++
++    assert_true(in_array(1, $ids, true), 'Unscored game must be eligible');
++    assert_true(!in_array(2, $ids, true), 'Scored game must be excluded');
++
++    Database::setInstance(null);
++});
++
++register_test('Postpone: getEligiblePostponementGames excludes game with Pending postponement from same user', function () {
++    $db = new RSMockDatabase();
++    $db->teams[] = rsTeam(10, 5);
++    $db->games[] = rsGame(1, 10, 20, 'Active');
++    $db->games[] = rsGame(2, 10, 20, 'Active');
++    // Game 1 has a pending postponement from user 5
++    $db->requests[] = rsPostponementRequest(99, 1, 5, 'Pending');
++    Database::setInstance($db);
++    $service = new RescheduleService($db);
++
++    $result = $service->getEligiblePostponementGames(5);
++    $ids = array_column($result, 'game_id');
++
++    assert_true(!in_array(1, $ids, true), 'Game with pending postponement from same user must be excluded');
++    assert_true(in_array(2, $ids, true), 'Game without pending postponement must remain eligible');
++
++    Database::setInstance(null);
++});
++
++// ---------------------------------------------------------------------------
++// Story 18-1: submitPostponement tests
++// ---------------------------------------------------------------------------
++
++register_test('Postpone: submitPostponement auto-approve updates game_status to Postponed', function () {
++    $GLOBALS['_test_settings'] = ['postponement_auto_approve' => '1'];
++    $db = new RSMockDatabase();
++    $db->teams[] = rsTeam(10, 5);
++    $db->games[] = rsGame(1, 10, 20, 'Active');
++    $db->users[] = rsUser(5);
++    $db->nextInsertId = 77;
++    Database::setInstance($db);
++    $service = new RescheduleService($db);
++
++    $service->submitPostponement(5, 1, 'Field flooded');
++
++    $gameUpdate = null;
++    foreach ($db->queryCalls as $c) {
++        if (stripos($c['sql'], 'UPDATE games') !== false && stripos($c['sql'], 'game_status') !== false) {
++            $gameUpdate = $c;
++            break;
++        }
++    }
++    assert_not_null($gameUpdate, 'submitPostponement auto-approve must UPDATE games table');
++
++    Database::setInstance(null);
++    unset($GLOBALS['_test_settings']);
++});
++
++register_test('Postpone: submitPostponement auto-approve creates Approved SCR with Postponement type', function () {
++    $GLOBALS['_test_settings'] = ['postponement_auto_approve' => '1'];
++    $db = new RSMockDatabase();
++    $db->teams[] = rsTeam(10, 5);
++    $db->games[] = rsGame(1, 10, 20, 'Active');
++    $db->users[] = rsUser(5);
++    $db->nextInsertId = 77;
++    Database::setInstance($db);
++    $service = new RescheduleService($db);
++
++    $id = $service->submitPostponement(5, 1, 'Field flooded');
++
++    assert_equals($id, 77, 'submitPostponement must return the new request ID');
++
++    $scrInsert = null;
++    foreach ($db->insertCalls as $c) {
++        if ($c['table'] === 'schedule_change_requests') {
++            $scrInsert = $c;
++            break;
++        }
++    }
++    assert_not_null($scrInsert, 'submitPostponement must INSERT into schedule_change_requests');
++    assert_equals($scrInsert['data']['request_type'], 'Postponement', 'request_type must be Postponement');
++    assert_equals($scrInsert['data']['request_status'], 'Approved', 'auto-approve path must set Approved');
++
++    Database::setInstance(null);
++    unset($GLOBALS['_test_settings']);
++});
++
++register_test('Postpone: submitPostponement pending does NOT update game_status', function () {
++    $GLOBALS['_test_settings'] = ['postponement_auto_approve' => '0'];
++    $db = new RSMockDatabase();
++    $db->teams[] = rsTeam(10, 5);
++    $db->games[] = rsGame(1, 10, 20, 'Active');
++    $db->users[] = rsUser(5);
++    Database::setInstance($db);
++    $service = new RescheduleService($db);
++
++    $service->submitPostponement(5, 1, 'Rain forecast');
++
++    $gameUpdate = null;
++    foreach ($db->queryCalls as $c) {
++        if (stripos($c['sql'], 'UPDATE games') !== false && stripos($c['sql'], 'game_status') !== false) {
++            $gameUpdate = $c;
++            break;
++        }
++    }
++    assert_true($gameUpdate === null, 'pending path must NOT update games table');
++
++    Database::setInstance(null);
++    unset($GLOBALS['_test_settings']);
++});
++
++register_test('Postpone: submitPostponement pending creates Pending SCR', function () {
++    $GLOBALS['_test_settings'] = ['postponement_auto_approve' => '0'];
++    $db = new RSMockDatabase();
++    $db->teams[] = rsTeam(10, 5);
++    $db->games[] = rsGame(1, 10, 20, 'Active');
++    $db->users[] = rsUser(5);
++    Database::setInstance($db);
++    $service = new RescheduleService($db);
++
++    $service->submitPostponement(5, 1, 'Rain forecast');
++
++    $scrInsert = null;
++    foreach ($db->insertCalls as $c) {
++        if ($c['table'] === 'schedule_change_requests') {
++            $scrInsert = $c;
++            break;
++        }
++    }
++    assert_not_null($scrInsert, 'submitPostponement pending must INSERT into schedule_change_requests');
++    assert_equals($scrInsert['data']['request_type'], 'Postponement', 'request_type must be Postponement');
++    assert_equals($scrInsert['data']['request_status'], 'Pending', 'pending path must set Pending');
++
++    Database::setInstance(null);
++    unset($GLOBALS['_test_settings']);
++});
++
++register_test('Postpone: submitPostponement throws TeamScopeViolationException on wrong team', function () {
++    $GLOBALS['_test_settings'] = ['postponement_auto_approve' => '1'];
++    $db = new RSMockDatabase();
++    $db->teams[] = rsTeam(10, 5);  // user 5 owns team 10
++    $db->games[] = rsGame(1, 20, 30, 'Active');  // game involves teams 20 and 30, not 10
++    $db->users[] = rsUser(5);
++    Database::setInstance($db);
++    $service = new RescheduleService($db);
++
++    $thrown = false;
++    try {
++        $service->submitPostponement(5, 1, 'Rain forecast');
++    } catch (TeamScopeViolationException $e) {
++        $thrown = true;
++    }
++    assert_true($thrown, 'submitPostponement must throw TeamScopeViolationException for wrong team');
++
++    Database::setInstance(null);
++    unset($GLOBALS['_test_settings']);
++});
++
++register_test('Postpone: submitPostponement throws InvalidArgumentException on blank reason', function () {
++    $GLOBALS['_test_settings'] = ['postponement_auto_approve' => '1'];
++    $db = new RSMockDatabase();
++    $db->teams[] = rsTeam(10, 5);
++    $db->games[] = rsGame(1, 10, 20, 'Active');
++    $db->users[] = rsUser(5);
++    Database::setInstance($db);
++    $service = new RescheduleService($db);
++
++    $thrown = false;
++    try {
++        $service->submitPostponement(5, 1, '   ');
++    } catch (InvalidArgumentException $e) {
++        $thrown = true;
++    }
++    assert_true($thrown, 'submitPostponement must throw InvalidArgumentException for blank reason');
++
++    Database::setInstance(null);
++    unset($GLOBALS['_test_settings']);
++});
++
++register_test('Postpone: submitPostponement throws on Pending Change game status', function () {
++    $GLOBALS['_test_settings'] = ['postponement_auto_approve' => '1'];
++    $db = new RSMockDatabase();
++    $db->teams[] = rsTeam(10, 5);
++    $db->games[] = rsGame(1, 10, 20, 'Pending Change');
++    $db->users[] = rsUser(5);
++    Database::setInstance($db);
++    $service = new RescheduleService($db);
++
++    $thrown = false;
++    try {
++        $service->submitPostponement(5, 1, 'Field flooded');
++    } catch (TeamScopeViolationException $e) {
++        $thrown = true;
++    }
++    assert_true($thrown, 'submitPostponement must reject Pending Change games');
++
++    Database::setInstance(null);
++    unset($GLOBALS['_test_settings']);
++});
++
++register_test('Postpone: submitPostponement throws on duplicate Pending postponement', function () {
++    $GLOBALS['_test_settings'] = ['postponement_auto_approve' => '1'];
++    $db = new RSMockDatabase();
++    $db->teams[] = rsTeam(10, 5);
++    $db->games[] = rsGame(1, 10, 20, 'Active');
++    $db->users[] = rsUser(5);
++    $db->requests[] = rsPostponementRequest(99, 1, 5, 'Pending');
++    Database::setInstance($db);
++    $service = new RescheduleService($db);
++
++    $thrown = false;
++    try {
++        $service->submitPostponement(5, 1, 'Field flooded');
++    } catch (TeamScopeViolationException $e) {
++        $thrown = true;
++    }
++    assert_true($thrown, 'submitPostponement must reject duplicate Pending postponement');
++
++    Database::setInstance(null);
++    unset($GLOBALS['_test_settings']);
++});
++
++register_test('Postpone: submitPostponement throws on partially-scored game', function () {
++    $GLOBALS['_test_settings'] = ['postponement_auto_approve' => '1'];
++    $db = new RSMockDatabase();
++    $db->teams[] = rsTeam(10, 5);
++    $g = rsGame(1, 10, 20, 'Active');
++    $g['home_score'] = 3;
++    $g['away_score'] = null;
++    $db->games[] = $g;
++    $db->users[] = rsUser(5);
++    Database::setInstance($db);
++    $service = new RescheduleService($db);
++
++    $thrown = false;
++    try {
++        $service->submitPostponement(5, 1, 'Field flooded');
++    } catch (TeamScopeViolationException $e) {
++        $thrown = true;
++    }
++    assert_true($thrown, 'submitPostponement must reject game with one score set');
++
++    Database::setInstance(null);
++    unset($GLOBALS['_test_settings']);
++});
