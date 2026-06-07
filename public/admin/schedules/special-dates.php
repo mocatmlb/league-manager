@@ -223,9 +223,12 @@ $rootPath  = '../../';
                                     <?php endforeach; ?>
                                 </select>
                             </div>
-                            <div class="col-md-1">
+                            <div class="col-md-2">
                                 <label class="form-label">Color</label>
-                                <input type="color" name="display_color" id="display_color" class="form-control form-control-color" value="#475569">
+                                <div class="input-group">
+                                    <input type="color" id="display_color_picker" class="form-control form-control-color flex-shrink-0" value="#475569" style="width:2.8rem;" title="Pick a color">
+                                    <input type="text" name="display_color" id="display_color" class="form-control font-monospace" value="#475569" maxlength="7" placeholder="#475569" pattern="#[0-9a-fA-F]{6}">
+                                </div>
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label">Season</label>
@@ -348,7 +351,10 @@ $rootPath  = '../../';
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Color</label>
-                        <input type="color" name="display_color" id="edit_display_color" class="form-control form-control-color">
+                        <div class="input-group">
+                            <input type="color" id="edit_display_color_picker" class="form-control form-control-color flex-shrink-0" style="width:2.8rem;" title="Pick a color">
+                            <input type="text" name="display_color" id="edit_display_color" class="form-control font-monospace" maxlength="7" placeholder="#475569" pattern="#[0-9a-fA-F]{6}">
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Season</label>
@@ -380,25 +386,45 @@ var TYPE_COLORS = {
     other:     '#475569',
 };
 
+function isValidHex(v) { return /^#[0-9a-fA-F]{6}$/.test(v); }
+
+// Add form — keep picker and text in sync
+var addPicker = document.getElementById('display_color_picker');
+var addText   = document.getElementById('display_color');
+addPicker.addEventListener('input', function() { addText.value = this.value; });
+addText.addEventListener('input', function() {
+    if (isValidHex(this.value)) addPicker.value = this.value;
+});
+
 document.getElementById('date_type').addEventListener('change', function() {
-    var colorInput = document.getElementById('display_color');
-    if (TYPE_COLORS[this.value]) colorInput.value = TYPE_COLORS[this.value];
+    var c = TYPE_COLORS[this.value];
+    if (c) { addPicker.value = c; addText.value = c; }
+});
+
+// Edit modal — keep picker and text in sync
+var editPicker = document.getElementById('edit_display_color_picker');
+var editText   = document.getElementById('edit_display_color');
+editPicker.addEventListener('input', function() { editText.value = this.value; });
+editText.addEventListener('input', function() {
+    if (isValidHex(this.value)) editPicker.value = this.value;
+});
+
+document.getElementById('edit_date_type').addEventListener('change', function() {
+    var c = TYPE_COLORS[this.value];
+    if (c) { editPicker.value = c; editText.value = c; }
 });
 
 var editModal = document.getElementById('editModal');
 editModal.addEventListener('show.bs.modal', function(event) {
     var btn = event.relatedTarget;
+    var color = btn.dataset.color;
     document.getElementById('edit_id').value        = btn.dataset.id;
     document.getElementById('edit_date').value      = btn.dataset.date;
     document.getElementById('edit_label').value     = btn.dataset.label;
     document.getElementById('edit_date_type').value = btn.dataset.type;
-    document.getElementById('edit_display_color').value = btn.dataset.color;
+    editText.value   = color;
+    editPicker.value = isValidHex(color) ? color : '#475569';
     document.getElementById('edit_season_id').value = btn.dataset.season;
-});
-
-document.getElementById('edit_date_type').addEventListener('change', function() {
-    var colorInput = document.getElementById('edit_display_color');
-    if (TYPE_COLORS[this.value]) colorInput.value = TYPE_COLORS[this.value];
 });
 </script>
 </body>
