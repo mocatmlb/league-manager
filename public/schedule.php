@@ -199,7 +199,9 @@ foreach (['upcoming' => $gamesUpcoming, 'completed' => $gamesCompleted,
 
 $mobileSpecialDatesByDate = [];
 foreach ($specialDates as $sd) {
-    $mobileSpecialDatesByDate[$sd['date']][] = $sd;
+    if ($sd['date'] >= $today) {
+        $mobileSpecialDatesByDate[$sd['date']][] = $sd;
+    }
 }
 
 // Mobile chips built from ALL games across all tabs
