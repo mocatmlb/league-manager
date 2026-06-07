@@ -84,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'label'         => $label,
                         'date_type'     => $dateType,
                         'display_color' => $color,
-                        'created_by'    => Auth::getCurrentUser()['id'] ?? null,
+                        'created_by'    => null,
                     ]);
 
                     $_SESSION['flash_message'] = 'Special date added successfully.';
