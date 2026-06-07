@@ -142,16 +142,19 @@ foreach (['upcoming' => $gamesUpcoming, 'completed' => $gamesCompleted,
 $specialDateScopeId = (int)($filters['season_id'] ?? 0);
 if ($specialDateScopeId > 0) {
     $specialDates = $db->fetchAll(
-        "SELECT id, date, label, date_type, display_color
-         FROM league_special_dates
-         WHERE season_id IS NULL
-            OR season_id = ?
-         ORDER BY date ASC",
+        "SELECT sd.id, sd.date, sd.label, sd.date_type, sd.display_color, sd.season_id,
+                s.season_name, s.season_year
+         FROM league_special_dates sd
+         LEFT JOIN seasons s ON sd.season_id = s.season_id
+         WHERE sd.season_id IS NULL
+            OR sd.season_id = ?
+         ORDER BY sd.date ASC",
         [$specialDateScopeId]
     );
 } else {
     $specialDates = $db->fetchAll(
-        "SELECT id, date, label, date_type, display_color
+        "SELECT id, date, label, date_type, display_color, season_id,
+                NULL AS season_name, NULL AS season_year
          FROM league_special_dates
          WHERE season_id IS NULL
          ORDER BY date ASC"
@@ -400,22 +403,70 @@ $pageTitle = "Schedule - " . APP_NAME;
 
             <?php
             // Helper: render mobile cards for one tab's grouped-by-date data
+            function renderMobileSpecialDateCard($sd) {
+                $typeIcons = [
+                    'milestone' => 'fas fa-star',
+                    'holiday'   => 'fas fa-flag',
+                    'deadline'  => 'fas fa-exclamation',
+                    'other'     => 'fas fa-calendar-day',
+                ];
+                $typeLabels = [
+                    'milestone' => 'Milestone',
+                    'holiday'   => 'Holiday',
+                    'deadline'  => 'Deadline',
+                    'other'     => 'Other',
+                ];
+                $icon  = $typeIcons[$sd['date_type']] ?? 'fas fa-calendar-day';
+                $tl    = $typeLabels[$sd['date_type']] ?? 'Special Date';
+                $scope = $sd['season_id']
+                    ? htmlspecialchars(trim(($sd['season_name'] ?? '') . ' ' . ($sd['season_year'] ?? '')), ENT_QUOTES, 'UTF-8')
+                    : 'All Seasons';
+                $color = htmlspecialchars($sd['display_color'], ENT_QUOTES, 'UTF-8');
+                // Append hex alpha 18 (~10% opacity) for the tinted background
+                $bgColor = $color . '1a';
+                ?>
+                <div class="mobile-special-date-card" style="background:<?php echo $bgColor; ?>;border-color:<?php echo $color; ?>;">
+                    <div class="sd-icon" style="background:<?php echo $color; ?>;">
+                        <i class="<?php echo $icon; ?>"></i>
+                    </div>
+                    <div class="sd-body">
+                        <div class="sd-label"><?php echo htmlspecialchars($sd['label'], ENT_QUOTES, 'UTF-8'); ?></div>
+                        <div class="sd-type"><?php echo $tl; ?> &bull; <?php echo $scope; ?></div>
+                    </div>
+                </div>
+                <?php
+            }
+
             function renderMobilePane($tabKey, $gamesByDate, $today, $tabCounts, $mobileSpecialDatesByDate) {
+                // Standalone special-date placeholders only make sense in the upcoming tab
+                $showStandalone = ($tabKey === 'upcoming');
+
+                // Build the full set of dates to render
+                if ($showStandalone) {
+                    $allDates = array_unique(array_merge(
+                        array_keys($gamesByDate),
+                        array_keys($mobileSpecialDatesByDate)
+                    ));
+                    sort($allDates);
+                } else {
+                    $allDates = array_keys($gamesByDate);
+                }
+
                 $isActive = true; // visibility controlled by JS; all panes emitted to DOM
                 $display = 'block'; // JS will set display:none on inactive panes on ready
                 ?>
                 <div id="mobilePane-<?php echo $tabKey; ?>" class="mobile-tab-pane">
-                    <?php if (empty($gamesByDate)): ?>
+                    <?php if (empty($allDates)): ?>
                         <div class="alert alert-info">No games in this category. Try adjusting your filters.</div>
                     <?php else: ?>
-                        <?php foreach ($gamesByDate as $gameDate => $dateGames): ?>
+                        <?php foreach ($allDates as $gameDate):
+                            $dateGames = $gamesByDate[$gameDate] ?? [];
+                        ?>
                             <div class="date-group">
                                 <div class="mobile-date-label"><?php echo htmlspecialchars(date('l, F j, Y', strtotime($gameDate)), ENT_QUOTES, 'UTF-8'); ?></div>
                                 <?php if (!empty($mobileSpecialDatesByDate[$gameDate])): ?>
                                     <?php foreach ($mobileSpecialDatesByDate[$gameDate] as $sd): ?>
-                                        <div class="mobile-special-date-marker">
-                                            <i class="fas fa-star"></i> <?php echo htmlspecialchars($sd['label'], ENT_QUOTES, 'UTF-8'); ?>
-                                        </div>
+                                        <?php renderMobileSpecialDateCard($sd); ?>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
                                 <?php foreach ($dateGames as $mg):

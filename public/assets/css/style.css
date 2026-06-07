@@ -947,19 +947,40 @@ a.hero-stat.hero-stat-alert:hover {
 .cal-legend-postponed { background: #6f42c1; color: #fff; }
 .cal-legend-special { background: #e2e8f0; color: #475569; }
 
-/* Mobile Special Date Markers */
-.mobile-special-date-marker {
-    display: block;
-    background: #f1f5f9;
-    border-left: 3px solid #cbd5e1;
-    padding: 6px 10px;
-    margin-bottom: 8px;
-    border-radius: 0 4px 4px 0;
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #475569;
+/* Mobile Special Date Cards */
+.mobile-special-date-card {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    border-radius: 0.5rem;
+    padding: 0.6rem 0.75rem;
+    margin-bottom: 0.5rem;
+    border-left-width: 3px;
+    border-left-style: solid;
 }
-.mobile-special-date-marker i {
+.mobile-special-date-card .sd-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    color: #fff;
+}
+.mobile-special-date-card .sd-body { flex: 1; min-width: 0; }
+.mobile-special-date-card .sd-label {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #1e293b;
+}
+.mobile-special-date-card .sd-type {
+    font-size: 0.72rem;
     color: #64748b;
-    margin-right: 4px;
+    margin-top: 1px;
+}
+/* keep the old marker class name as an alias just in case */
+.mobile-special-date-marker {
+    display: none; /* replaced by .mobile-special-date-card */
 }
