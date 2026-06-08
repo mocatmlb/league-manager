@@ -24,6 +24,8 @@ class CDSMockDatabase extends Database {
     public array $locationConflictRows = [];
     /** @var array[]  Captured fetchAll calls */
     public array $fetchAllCalls = [];
+    /** @var array|null  Row returned for location_id lookup (null = not found in locations table) */
+    public ?array $locationRow = null;
 
     public function __construct() {
         // Bypass real PDO connection
@@ -31,7 +33,7 @@ class CDSMockDatabase extends Database {
 
     public function fetchAll($sql, $params = []): array {
         $this->fetchAllCalls[] = ['sql' => $sql, 'params' => $params];
-        // Distinguish between team and location bulk queries
+        // Distinguish between team and location bulk queries by unique column aliases
         if (stripos($sql, 'conflict_team_name') !== false) {
             return $this->teamConflictRows;
         }
@@ -41,8 +43,13 @@ class CDSMockDatabase extends Database {
         return [];
     }
 
-    // Unused by this service, but required to satisfy any base-class abstract methods
-    public function fetchOne($sql, $params = []) { return null; }
+    public function fetchOne($sql, $params = []) {
+        // Return location row when performing location_id lookup
+        if ($this->locationRow !== null && stripos($sql, 'location_name') !== false) {
+            return $this->locationRow;
+        }
+        return null;
+    }
     public function query($sql, $params = []) { return null; }
     public function insert($sql, $params = []) { return 0; }
 }
@@ -173,11 +180,107 @@ register_test('getGameConflicts: NULL game time flagged as conflict (message sho
     assert_true(str_contains($result[30][0]['message'], '(Time TBD)'), 'NULL conflict_time should produce (Time TBD) in message');
 });
 
-register_test('checkScrConflicts: stub returns empty array', function () {
+register_test('checkScrConflicts: no conflicts returns empty array', function () {
     $db = new CDSMockDatabase();
     $svc = new ConflictDetectionService($db);
     $result = $svc->checkScrConflicts('2026-06-15', '10:00', 'Some Field', 1, 2);
-    assert_equals($result, [], 'Stub should return empty array');
+    assert_equals($result, [], 'No conflicts should return empty array');
+});
+
+register_test('checkScrConflicts: team conflict returns warning with team name', function () {
+    $db = new CDSMockDatabase();
+    $db->teamConflictRows = [
+        [
+            'conflict_time'      => '10:00:00',
+            'conflict_date'      => '2026-07-20',
+            'conflict_team_name' => 'Red Sox',
+        ],
+    ];
+    $svc = new ConflictDetectionService($db);
+    $result = $svc->checkScrConflicts('2026-07-20', '10:00', '', 5, 6);
+
+    assert_equals(count($result), 1, 'Should return one warning');
+    assert_true(str_contains($result[0], 'Red Sox'), 'Warning should contain team name');
+    assert_true(str_contains($result[0], 'Potential Team Conflict'), 'Warning should indicate team conflict type');
+});
+
+register_test('checkScrConflicts: location conflict returns warning with location name', function () {
+    $db = new CDSMockDatabase();
+    $db->locationRow = ['location_id' => 5];
+    $db->locationConflictRows = [
+        [
+            'conflict_time' => '14:00:00',
+            'conflict_date' => '2026-07-20',
+            'location_name' => 'Riverside Park',
+        ],
+    ];
+    $svc = new ConflictDetectionService($db);
+    $result = $svc->checkScrConflicts('2026-07-20', '14:00', 'Riverside Park', 5, 6);
+
+    assert_equals(count($result), 1, 'Should return one warning');
+    assert_true(str_contains($result[0], 'Riverside Park'), 'Warning should contain location name');
+    assert_true(str_contains($result[0], 'Location Conflict'), 'Warning should indicate location conflict type');
+});
+
+register_test('checkScrConflicts: both conflicts returns two warnings', function () {
+    $db = new CDSMockDatabase();
+    $db->teamConflictRows = [
+        [
+            'conflict_time'      => '10:00:00',
+            'conflict_date'      => '2026-07-20',
+            'conflict_team_name' => 'Yankees',
+        ],
+    ];
+    $db->locationRow = ['location_id' => 7];
+    $db->locationConflictRows = [
+        [
+            'conflict_time' => '10:00:00',
+            'conflict_date' => '2026-07-20',
+            'location_name' => 'Yankee Field',
+        ],
+    ];
+    $svc = new ConflictDetectionService($db);
+    $result = $svc->checkScrConflicts('2026-07-20', '10:00', 'Yankee Field', 5, 6);
+
+    assert_equals(count($result), 2, 'Should return two warnings when both conflicts exist');
+    $combined = implode(' ', $result);
+    assert_true(str_contains($combined, 'Yankees'), 'Warnings should include team name');
+    assert_true(str_contains($combined, 'Yankee Field'), 'Warnings should include location name');
+});
+
+register_test('checkScrConflicts: empty proposed time still runs conflict check', function () {
+    $db = new CDSMockDatabase();
+    $db->teamConflictRows = [
+        [
+            'conflict_time'      => null,
+            'conflict_date'      => '2026-07-20',
+            'conflict_team_name' => 'Tigers',
+        ],
+    ];
+    $svc = new ConflictDetectionService($db);
+    $result = $svc->checkScrConflicts('2026-07-20', '', '', 5, 6);
+
+    assert_equals(count($result), 1, 'Empty time should still produce warning for NULL-time games');
+    assert_true(str_contains($result[0], 'TBD'), 'NULL conflict time should show TBD in warning');
+});
+
+register_test('checkScrConflicts: location not in locations table skips location check', function () {
+    $db = new CDSMockDatabase();
+    // locationRow stays null — location not found in DB
+    $db->locationConflictRows = [
+        ['conflict_time' => '10:00:00', 'conflict_date' => '2026-07-20', 'location_name' => 'Ghost Field'],
+    ];
+    $svc = new ConflictDetectionService($db);
+    $result = $svc->checkScrConflicts('2026-07-20', '10:00', 'Unknown Location', 5, 6);
+
+    assert_equals($result, [], 'Unknown location should skip location check and return no location warnings');
+    $locationFetchAllCalled = false;
+    foreach ($db->fetchAllCalls as $call) {
+        if (stripos($call['sql'], 'location_name') !== false) {
+            $locationFetchAllCalled = true;
+        }
+    }
+    assert_equals($locationFetchAllCalled, false, 'Location fetchAll should not be called when location_id lookup fails');
 });
 
 register_test('getGameConflicts: honors custom conflict window', function () {

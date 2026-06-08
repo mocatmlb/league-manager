@@ -34,6 +34,7 @@ require_once EnvLoader::getPath('includes/PermissionGuard.php');
 require_once EnvLoader::getPath('includes/ActivityLogger.php');
 require_once EnvLoader::getPath('includes/TeamScope.php');
 require_once EnvLoader::getPath('includes/RescheduleService.php');
+require_once EnvLoader::getPath('includes/ConflictDetectionService.php');
 require_once EnvLoader::getPath('includes/TeamRegistrationService.php');
 
 PermissionGuard::requireRole('team_owner', '/coaches/login.php');
@@ -41,6 +42,7 @@ PermissionGuard::requireRole('team_owner', '/coaches/login.php');
 $db     = Database::getInstance();
 $userId = (int) ($_SESSION['coach_user_id'] ?? 0);
 $service = new RescheduleService($db);
+$conflictSvc = new ConflictDetectionService($db);
 $scrPostponeReasons   = json_decode(getSetting('scr_postpone_reasons',  '[]'), true) ?? [];
 $scrRescheduleReasons = json_decode(getSetting('scr_reschedule_reasons', '[]'), true) ?? [];
 
@@ -56,6 +58,7 @@ $coachContact = $db->fetchOne(
 $error        = '';
 $postValues   = [];
 $dupCandidates = [];
+$scrWarnings  = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
@@ -129,6 +132,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($gameId <= 0) {
                         $error = 'Please select a game to reschedule.';
                     } else {
+                        // Conflict check — $gameId is now resolved
+                        $gameRow = $db->fetchOne(
+                            'SELECT home_team_id, away_team_id FROM games WHERE game_id = ?',
+                            [$gameId]
+                        );
+                        if ($gameRow) {
+                            $scrWarnings = $conflictSvc->checkScrConflicts(
+                                $postValues['requested_date'],
+                                $postValues['requested_time'],
+                                $resolvedLocation,
+                                (int)$gameRow['home_team_id'],
+                                (int)$gameRow['away_team_id']
+                            );
+                        }
                         $service->submit($userId, $gameId, $requestData);
                         $coachNote = trim($postValues['game_notes'] ?? '');
                         if ($coachNote !== '') {
@@ -138,6 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 error_log('[schedule-change] Failed to save game note: ' . $noteEx->getMessage());
                             }
                         }
+                        $_SESSION['scr_warnings'] = $scrWarnings;
                         $_SESSION['flash_success'] =
                             'Request submitted. You will receive an email when your request is reviewed.';
                         header('Location: schedule-change.php');
@@ -208,6 +226,10 @@ if (isset($_SESSION['flash_success'])) {
     $message = (string) $_SESSION['flash_success'];
     unset($_SESSION['flash_success']);
 }
+if (!empty($_SESSION['scr_warnings'])) {
+    $scrWarnings = $_SESSION['scr_warnings'];
+    unset($_SESSION['scr_warnings']);
+}
 
 $eligibleGames    = $service->getEligibleGames($userId);
 $postponableGames = $service->getEligiblePostponementGames($userId);
@@ -260,6 +282,13 @@ $preservedGameId = !empty($postValues['game_id']) ? (int) $postValues['game_id']
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
                 <?php endif; ?>
+
+                <?php foreach ($scrWarnings as $w): ?>
+                <div class="alert alert-warning" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <?php echo htmlspecialchars($w); ?>
+                </div>
+                <?php endforeach; ?>
 
                 <?php if (!empty($dupCandidates)): ?>
                 <div class="alert alert-warning" role="alert">

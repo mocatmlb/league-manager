@@ -59,7 +59,8 @@ class ConflictDetectionService {
     }
 
     /**
-     * Stub for SCR-time conflict checking — implemented in Story 20-2.
+     * Check team and location conflicts for a proposed SCR date/time/location.
+     * Returns an array of plain-English warning strings (empty = no conflicts).
      */
     public function checkScrConflicts(
         string $proposedDate,
@@ -68,7 +69,65 @@ class ConflictDetectionService {
         int $homeTeamId,
         int $awayTeamId
     ): array {
-        return [];
+        $warnings = [];
+
+        // Team conflict: any game on the proposed date that involves either team
+        $teamSql = "
+            SELECT s.game_time AS conflict_time, s.game_date AS conflict_date,
+                   t.team_name AS conflict_team_name
+            FROM schedules s
+            JOIN games g ON g.game_id = s.game_id
+            JOIN teams t ON t.team_id IN (?, ?)
+                         AND (t.team_id = g.home_team_id OR t.team_id = g.away_team_id)
+            WHERE s.game_date = ?
+              AND g.game_status NOT IN ('Cancelled', 'Postponed')
+              AND (s.game_time IS NULL OR ? = '' OR ABS(TIME_TO_SEC(s.game_time) - TIME_TO_SEC(?)) <= " . $this->conflictWindow . "
+        ";
+        $teamRows = $this->db->fetchAll($teamSql, [
+            $homeTeamId, $awayTeamId,
+            $proposedDate,
+            $proposedTime, $proposedTime,
+        ]);
+        foreach ($teamRows as $row) {
+            $timeLabel = $row['conflict_time'] ? date('g:i A', strtotime($row['conflict_time'])) : 'TBD';
+            $dateLabel = date('M j, Y', strtotime($row['conflict_date']));
+            $warnings[] = "⚠ Potential Team Conflict: {$row['conflict_team_name']} already has a game on {$dateLabel} at {$timeLabel}. You may still submit, but an admin will need to review.";
+        }
+
+        // Location conflict: resolve location_id, then check for same slot
+        if ($proposedLocation !== '') {
+            $locRow = $this->db->fetchOne(
+                'SELECT location_id FROM locations WHERE location_name = ? LIMIT 1',
+                [$proposedLocation]
+            );
+            if ($locRow) {
+                $locSql = "
+                    SELECT s.game_time AS conflict_time, s.game_date AS conflict_date,
+                           l.location_name AS location_name
+                    FROM schedules s
+                    JOIN games g ON g.game_id = s.game_id
+                    JOIN locations l ON l.location_id = s.location_id
+                    WHERE s.location_id = ?
+                      AND s.game_date = ?
+                      AND g.game_status NOT IN ('Cancelled', 'Postponed')
+                      AND (s.game_time IS NULL OR ? = '' OR ABS(TIME_TO_SEC(s.game_time) - TIME_TO_SEC(?)) <= " . $this->conflictWindow . "
+                ";
+                $locRows = $this->db->fetchAll($locSql, [
+                    (int)$locRow['location_id'],
+                    $proposedDate,
+                    $proposedTime,
+                    $proposedTime,
+                ]);
+                foreach ($locRows as $row) {
+                    $timeLabel = $row['conflict_time'] ? date('g:i A', strtotime($row['conflict_time'])) : 'TBD';
+                    $dateLabel = date('M j, Y', strtotime($row['conflict_date']));
+                    $locationName = $row['location_name'] ?? $proposedLocation;
+                    $warnings[] = "⚠ Location Conflict: {$locationName} already has a game scheduled on {$dateLabel} at {$timeLabel}. You may still submit, but an admin will need to review.";
+                }
+            }
+        }
+
+        return $warnings;
     }
 
     // -------------------------------------------------------------------------
