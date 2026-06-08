@@ -138,13 +138,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             [$gameId]
                         );
                         if ($gameRow) {
-                            $scrWarnings = $conflictSvc->checkScrConflicts(
-                                $postValues['requested_date'],
-                                $postValues['requested_time'],
-                                $resolvedLocation,
-                                (int)$gameRow['home_team_id'],
-                                (int)$gameRow['away_team_id']
-                            );
+                            $reqDate = $postValues['requested_date'] ?? '';
+                            $reqTime = $postValues['requested_time'] ?? '';
+
+                            // Basic format check to avoid junk data triggering weird query behavior
+                            if ($reqDate !== '' && strtotime($reqDate) !== false) {
+                                $scrWarnings = $conflictSvc->checkScrConflicts(
+                                    $reqDate,
+                                    $reqTime,
+                                    $resolvedLocation,
+                                    (int)$gameRow['home_team_id'],
+                                    (int)$gameRow['away_team_id']
+                                );
+                            }
                         }
                         $service->submit($userId, $gameId, $requestData);
                         $coachNote = trim($postValues['game_notes'] ?? '');

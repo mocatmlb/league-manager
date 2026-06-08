@@ -49,7 +49,7 @@ $pageTitle = "Home - " . APP_NAME;
         <!-- Welcome Section -->
         <div class="row">
             <div class="col-12">
-                <div class="jumbotron bg-light p-4 rounded">
+                <div class="jumbotron p-4">
                     <h1 class="display-4">Welcome to <?php echo APP_NAME; ?></h1>
                     <p class="lead"><?php echo htmlspecialchars(getSetting('league_tagline', 'Your source for schedules, standings, and league information.'), ENT_COMPAT, 'UTF-8'); ?></p>
                 </div>

@@ -81,12 +81,12 @@ class ConflictDetectionService {
                          AND (t.team_id = g.home_team_id OR t.team_id = g.away_team_id)
             WHERE s.game_date = ?
               AND g.game_status NOT IN ('Cancelled', 'Postponed')
-              AND (s.game_time IS NULL OR ? = '' OR ABS(TIME_TO_SEC(s.game_time) - TIME_TO_SEC(?)) <= " . $this->conflictWindow . "
+              AND (s.game_time IS NULL OR ? = '' OR ABS(TIME_TO_SEC(s.game_time) - TIME_TO_SEC(?)) <= ?)
         ";
         $teamRows = $this->db->fetchAll($teamSql, [
             $homeTeamId, $awayTeamId,
             $proposedDate,
-            $proposedTime, $proposedTime,
+            $proposedTime, $proposedTime, $this->conflictWindow
         ]);
         foreach ($teamRows as $row) {
             $timeLabel = $row['conflict_time'] ? date('g:i A', strtotime($row['conflict_time'])) : 'TBD';
@@ -98,7 +98,7 @@ class ConflictDetectionService {
         if ($proposedLocation !== '') {
             $locRow = $this->db->fetchOne(
                 'SELECT location_id FROM locations WHERE location_name = ? LIMIT 1',
-                [$proposedLocation]
+                [trim($proposedLocation)]
             );
             if ($locRow) {
                 $locSql = "
@@ -110,13 +110,14 @@ class ConflictDetectionService {
                     WHERE s.location_id = ?
                       AND s.game_date = ?
                       AND g.game_status NOT IN ('Cancelled', 'Postponed')
-                      AND (s.game_time IS NULL OR ? = '' OR ABS(TIME_TO_SEC(s.game_time) - TIME_TO_SEC(?)) <= " . $this->conflictWindow . "
+                      AND (s.game_time IS NULL OR ? = '' OR ABS(TIME_TO_SEC(s.game_time) - TIME_TO_SEC(?)) <= ?)
                 ";
                 $locRows = $this->db->fetchAll($locSql, [
                     (int)$locRow['location_id'],
                     $proposedDate,
                     $proposedTime,
                     $proposedTime,
+                    $this->conflictWindow
                 ]);
                 foreach ($locRows as $row) {
                     $timeLabel = $row['conflict_time'] ? date('g:i A', strtotime($row['conflict_time'])) : 'TBD';

@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>District 8 Travel League — Baseball Theme Mockup</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* ============================================================
+           BASEBALL THEME — Stadium Modern
+           Palette:
+             Navy    #0d1f3c   (dugout, scoreboard background)
+             Red     #c8102e   (MLB red, CTAs, accents)
+             Green   #2d6a4f   (field, hero sections)
+             Cream   #f5f2eb   (baseball leather, page background)
+             Gold    #f59e0b   (first place, highlights)
+           ============================================================ */
+
+        :root {
+            --bb-navy:   #0d1f3c;
+            --bb-navy-2: #162844;
+            --bb-red:    #c8102e;
+            --bb-green:  #2d6a4f;
+            --bb-green-2:#1e4d2b;
+            --bb-cream:  #f5f2eb;
+            --bb-gold:   #f59e0b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bb-cream);
+        }
+
+        /* ── Oswald headings ── */
+        h1, h2, h3, h4, .navbar-brand, .coach-hero-team, .card-header-title {
+            font-family: 'Oswald', sans-serif;
+        }
+
+        /* ── Navbar ── */
+        #main-navbar {
+            background: linear-gradient(135deg, var(--bb-navy) 0%, var(--bb-navy-2) 100%) !important;
+            border-bottom: 3px solid var(--bb-red);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+        }
+        #main-navbar .navbar-brand {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 700;
+            font-size: 1.25rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #fff !important;
+        }
+        #main-navbar .navbar-brand .brand-icon {
+            font-size: 1.1rem;
+            margin-right: 0.3rem;
+        }
+        #main-navbar .nav-link {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 500;
+            letter-spacing: 0.03em;
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.85) !important;
+            transition: color 0.15s;
+            padding: 0.5rem 0.9rem !important;
+        }
+        #main-navbar .nav-link:hover,
+        #main-navbar .nav-link.active {
+            color: #fff !important;
+        }
+        #main-navbar .nav-link.active {
+            border-bottom: 2px solid var(--bb-red);
+        }
+        #main-navbar .dropdown-menu {
+            border: none;
+            border-top: 3px solid var(--bb-red);
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+        #main-navbar .dropdown-item {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 400;
+            letter-spacing: 0.02em;
+        }
+        #main-navbar .dropdown-item:hover {
+            background: var(--bb-cream);
+            color: var(--bb-navy);
+        }
+        #main-navbar .dropdown-header {
+            font-family: 'Oswald', sans-serif;
+            color: var(--bb-red);
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .navbar-toggler {
+            border-color: rgba(255,255,255,0.3);
+        }
+
+        /* ── Hero / Jumbotron ── */
+        .jumbotron {
+            background: linear-gradient(160deg, var(--bb-green-2) 0%, var(--bb-green) 55%, var(--bb-navy) 100%);
+            color: white;
+            padding: 3rem 2rem;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(13,31,60,0.25);
+        }
+        .jumbotron::before {
+            content: '⚾';
+            position: absolute;
+            right: -30px;
+            top: -30px;
+            font-size: 11rem;
+            opacity: 0.07;
+            transform: rotate(-20deg);
+            pointer-events: none;
+        }
+        .jumbotron::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--bb-red) 0%, var(--bb-gold) 50%, var(--bb-red) 100%);
+        }
+        .jumbotron h1 {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 700;
+            font-size: 2.4rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .jumbotron .lead {
+            opacity: 0.9;
+            font-size: 1rem;
+            max-width: 480px;
+        }
+        .jumbotron .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 999px;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.75rem;
+            font-family: 'Oswald', sans-serif;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 0.75rem;
+        }
+
+        /* ── Card headers ── */
+        .card {
+            border: 1px solid rgba(13,31,60,0.1);
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+            overflow: hidden;
+        }
+        .card-header {
+            background: var(--bb-navy);
+            color: #fff;
+            border-bottom: 2px solid var(--bb-red);
+            font-family: 'Oswald', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            padding: 0.7rem 1rem;
+        }
+        .card-header .card-icon {
+            color: var(--bb-red);
+            margin-right: 0.4rem;
+        }
+        .card-header .header-badge {
+            background: var(--bb-red);
+            color: #fff;
+            border-radius: 999px;
+            padding: 0.1rem 0.5rem;
+            font-size: 0.7rem;
+        }
+
+        /* ── Game cards ── */
+        .mobile-game-card {
+            background: #fff;
+            border: 1px solid rgba(13,31,60,0.1);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+            border-left: 3px solid var(--bb-navy);
+        }
+        .mobile-game-card:hover {
+            border-left-color: var(--bb-red);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+        .mobile-game-card .team-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 700;
+            font-family: 'Oswald', sans-serif;
+            font-size: 0.95rem;
+            letter-spacing: 0.02em;
+            color: var(--bb-navy);
+        }
+        .mobile-game-card .score-or-vs {
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--bb-red);
+            font-family: 'Oswald', sans-serif;
+        }
+        .mobile-game-card .game-meta {
+            font-size: 0.78rem;
+            color: #6c757d;
+            margin-top: 0.35rem;
+        }
+        .mobile-date-label {
+            font-size: 0.72rem;
+            font-family: 'Oswald', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--bb-green);
+            padding: 0.5rem 0 0.3rem;
+            border-bottom: 1px solid rgba(45,106,79,0.2);
+            margin-bottom: 0.5rem;
+        }
+
+        /* ── Standings table ── */
+        .standings-table thead th {
+            background: var(--bb-navy);
+            color: #fff;
+            font-family: 'Oswald', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            font-size: 0.78rem;
+            border: none;
+            padding: 0.65rem 0.75rem;
+        }
+        .standings-table tbody tr {
+            transition: background 0.12s;
+        }
+        .standings-table tbody tr:hover {
+            background: rgba(13,31,60,0.04);
+        }
+        .standings-table tbody td {
+            font-size: 0.875rem;
+            vertical-align: middle;
+            border-color: rgba(0,0,0,0.05);
+        }
+        .standings-table .place-1 td {
+            background: linear-gradient(90deg, #fffbeb, #fff9f0);
+            font-weight: 700;
+            color: var(--bb-navy);
+        }
+        .standings-table .place-1 td:first-child {
+            border-left: 3px solid var(--bb-gold);
+        }
+        .standings-table .place-2 td:first-child {
+            border-left: 3px solid #adb5bd;
+        }
+        .standings-table .place-3 td:first-child {
+            border-left: 3px solid #cd7f32;
+        }
+        .rank-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            font-size: 0.72rem;
+            font-weight: 700;
+            font-family: 'Oswald', sans-serif;
+        }
+        .rank-1 { background: var(--bb-gold); color: #7c4a00; }
+        .rank-2 { background: #e2e8f0; color: #475569; }
+        .rank-3 { background: #f0e6da; color: #7c4a00; }
+
+        /* ── Buttons ── */
+        .btn-primary {
+            background: var(--bb-navy);
+            border-color: var(--bb-navy);
+            font-family: 'Oswald', sans-serif;
+            font-weight: 500;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+        }
+        .btn-primary:hover {
+            background: var(--bb-navy-2);
+            border-color: var(--bb-navy-2);
+        }
+        .btn-danger {
+            background: var(--bb-red);
+            border-color: var(--bb-red);
+            font-family: 'Oswald', sans-serif;
+            font-weight: 500;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+        }
+        .btn-success {
+            background: var(--bb-green);
+            border-color: var(--bb-green);
+            font-family: 'Oswald', sans-serif;
+            font-weight: 500;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+        }
+        .btn-outline-primary {
+            color: var(--bb-navy);
+            border-color: var(--bb-navy);
+            font-family: 'Oswald', sans-serif;
+            font-weight: 500;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+        }
+        .btn-outline-primary:hover {
+            background: var(--bb-navy);
+            border-color: var(--bb-navy);
+        }
+
+        /* ── Status badges ── */
+        .status-scheduled  { background: var(--bb-navy)  !important; color: #fff !important; }
+        .status-completed  { background: var(--bb-green) !important; color: #fff !important; }
+        .status-cancelled  { background: var(--bb-red)   !important; color: #fff !important; }
+        .status-postponed  { background: #6f42c1         !important; color: #fff !important; }
+        .status-pending    { background: var(--bb-gold)  !important; color: #1a1a1a !important; }
+
+        /* ── Coach action cards ── */
+        .coach-hero {
+            background: linear-gradient(135deg, var(--bb-navy) 0%, var(--bb-navy-2) 60%, var(--bb-green-2) 100%);
+            color: #fff;
+            padding: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+        .coach-hero::before {
+            content: '⚾';
+            position: absolute;
+            right: 10%;
+            top: 50%;
+            transform: translateY(-50%) rotate(-15deg);
+            font-size: 9rem;
+            opacity: 0.05;
+            pointer-events: none;
+        }
+        .coach-hero-team {
+            font-size: 1.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .hero-stat {
+            flex: 1 1 60px;
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 8px;
+            padding: 0.5rem 0.6rem;
+            text-align: center;
+            min-width: 60px;
+        }
+        .hero-stat-value {
+            display: block;
+            font-size: 1.4rem;
+            font-weight: 700;
+            font-family: 'Oswald', sans-serif;
+            color: #fff;
+            line-height: 1.2;
+        }
+        .hero-stat-label {
+            display: block;
+            font-size: 0.63rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: rgba(255,255,255,0.65);
+            margin-top: 0.1rem;
+        }
+
+        .coach-action-card {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 14px rgba(13,31,60,0.12);
+            padding: 1.5rem 1rem;
+            text-align: center;
+            text-decoration: none;
+            color: inherit;
+            transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s;
+            border: 1px solid rgba(13,31,60,0.08);
+            border-top: 3px solid transparent;
+        }
+        .coach-action-card:hover {
+            box-shadow: 0 8px 28px rgba(13,31,60,0.18);
+            transform: translateY(-3px);
+            border-top-color: var(--bb-red);
+            color: inherit;
+        }
+        .coach-action-card .card-label {
+            font-family: 'Oswald', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            color: var(--bb-navy);
+        }
+        .coach-action-card .card-sub {
+            font-size: 0.78rem;
+            color: #6c757d;
+            margin-top: 0.2rem;
+        }
+        .coach-action-card .card-icon {
+            width: 54px;
+            height: 54px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            color: #fff;
+            margin: 0 auto 0.75rem;
+        }
+        .coach-action-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+            margin-top: -1.25rem;
+            padding-bottom: 2rem;
+        }
+
+        /* ── Weather ── */
+        .weather-card .card-header {
+            background: linear-gradient(90deg, #0b3d6e, #1558a0);
+            border-bottom-color: #1e90ff;
+        }
+
+        /* ── Schedule tabs ── */
+        .schedule-tab-strip {
+            display: flex;
+            border-bottom: 2px solid rgba(13,31,60,0.15);
+            margin-bottom: 1rem;
+        }
+        .sch-tab {
+            padding: 0.5rem 1rem;
+            font-family: 'Oswald', sans-serif;
+            font-weight: 500;
+            font-size: 0.85rem;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            color: #6c757d;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            cursor: pointer;
+            transition: color 0.12s;
+        }
+        .sch-tab:hover { color: var(--bb-navy); }
+        .sch-tab.active {
+            color: var(--bb-navy);
+            border-bottom-color: var(--bb-red);
+        }
+
+        /* ── Chip buttons ── */
+        .chip-btn {
+            flex-shrink: 0;
+            min-height: 40px;
+            padding: 0.25rem 0.85rem;
+            border-radius: 999px;
+            border: 1.5px solid var(--bb-navy);
+            background: #fff;
+            color: var(--bb-navy);
+            font-family: 'Oswald', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 500;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.15s, color 0.15s;
+        }
+        .chip-btn.active, .chip-btn:hover {
+            background: var(--bb-navy);
+            color: #fff;
+        }
+
+        /* ── Admin metric cards ── */
+        .metric-card-navy {
+            background: linear-gradient(135deg, var(--bb-navy) 0%, var(--bb-navy-2) 100%);
+            color: white;
+        }
+        .metric-card-red {
+            background: linear-gradient(135deg, var(--bb-red) 0%, #9b0c22 100%);
+            color: white;
+        }
+        .metric-card-green {
+            background: linear-gradient(135deg, var(--bb-green) 0%, var(--bb-green-2) 100%);
+            color: white;
+        }
+        .metric-card-gold {
+            background: linear-gradient(135deg, var(--bb-gold) 0%, #d97706 100%);
+            color: #1a1a1a;
+        }
+        .metric-card-navy, .metric-card-red, .metric-card-green, .metric-card-gold {
+            border-radius: 10px;
+            padding: 1.25rem 1rem;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+        }
+        .metric-number {
+            font-family: 'Oswald', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+        .metric-label {
+            font-family: 'Oswald', sans-serif;
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            opacity: 0.85;
+            margin-top: 0.15rem;
+        }
+
+        /* ── Section dividers ── */
+        .section-divider {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin: 1.5rem 0 1rem;
+            font-family: 'Oswald', sans-serif;
+            font-weight: 600;
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--bb-navy);
+        }
+        .section-divider::before,
+        .section-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(13,31,60,0.15);
+        }
+
+        /* ── Footer ── */
+        footer.footer-dark {
+            background: var(--bb-navy) !important;
+            color: rgba(255,255,255,0.7);
+            border-top: 3px solid var(--bb-red);
+            margin-top: auto;
+        }
+        footer.footer-dark a {
+            color: rgba(255,255,255,0.55);
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+        footer.footer-dark a:hover {
+            color: rgba(255,255,255,0.9);
+        }
+        footer.footer-dark .footer-brand {
+            font-family: 'Oswald', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            color: #fff;
+            text-transform: uppercase;
+        }
+
+        /* ── Misc helpers ── */
+        .home-games-cards { max-height: 420px; overflow-y: auto; }
+
+        /* Login card */
+        .login-container { max-width: 420px; margin: 2rem auto; }
+        .login-card { border: none; box-shadow: 0 8px 32px rgba(13,31,60,0.18); border-radius: 12px; overflow: hidden; }
+        .login-header {
+            background: linear-gradient(160deg, var(--bb-navy) 0%, var(--bb-green-2) 100%);
+            color: white;
+            text-align: center;
+            padding: 2rem 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .login-header::before {
+            content: '⚾';
+            position: absolute;
+            right: -15px;
+            bottom: -15px;
+            font-size: 5rem;
+            opacity: 0.08;
+            transform: rotate(-10deg);
+        }
+        .login-header h2 {
+            font-family: 'Oswald', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .form-control:focus {
+            border-color: var(--bb-navy);
+            box-shadow: 0 0 0 0.2rem rgba(13,31,60,0.15);
+        }
+        .form-label {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 500;
+            font-size: 0.85rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--bb-navy);
+        }
+
+        /* ── Demo layout helpers ── */
+        .demo-section {
+            background: #fff;
+            border: 2px dashed rgba(200,16,46,0.2);
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+        .demo-label {
+            background: var(--bb-red);
+            color: #fff;
+            font-family: 'Oswald', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 0.25rem 0.75rem;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ================================================================
+     SECTION 1: NAVBAR
+     ================================================================ -->
+<div class="demo-section">
+    <div class="demo-label">⚾ Component: Navbar</div>
+    <nav class="navbar navbar-expand-lg navbar-dark" id="main-navbar">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <span class="brand-icon">⚾</span> District 8 Travel League
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMockup">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMockup">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#"><i class="fas fa-home me-1"></i> Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#"><i class="fas fa-calendar me-1"></i> Schedule</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#"><i class="fas fa-trophy me-1"></i> Standings</a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-cogs me-1"></i> Management
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><h6 class="dropdown-header">Game Management</h6></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-gamepad me-2"></i>Games</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-calendar-check me-2"></i>Schedules</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-users me-2"></i>Teams</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">League Setup</h6></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-sitemap me-2"></i>Divisions</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-map-marker-alt me-2"></i>Locations</a></li>
+                        </ul>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#"><i class="fas fa-sign-in-alt me-1"></i> Login</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+</div>
+
+<!-- ================================================================
+     SECTION 2: HERO / JUMBOTRON
+     ================================================================ -->
+<div class="container-fluid px-4">
+<div class="demo-section">
+    <div class="demo-label">⚾ Component: Hero / Jumbotron</div>
+    <div class="p-3">
+        <div class="jumbotron">
+            <div class="hero-badge"><i class="fas fa-circle me-1" style="font-size:0.5rem;color:var(--bb-gold)"></i> 2025 Season — In Progress</div>
+            <h1 class="display-5 mb-2">Welcome to District 8 Travel League</h1>
+            <p class="lead">Your source for schedules, standings, and everything happening on the diamond this season.</p>
+            <div class="mt-3 d-flex gap-2 flex-wrap">
+                <a href="#" class="btn btn-danger">View Schedule <i class="fas fa-arrow-right ms-1"></i></a>
+                <a href="#" class="btn btn-outline-light" style="font-family:'Oswald',sans-serif;font-size:0.85rem;letter-spacing:0.04em;text-transform:uppercase">Standings</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================
+     SECTION 3: HOME PAGE CARDS (Today's Games + Next 7 Days)
+     ================================================================ -->
+<div class="demo-section">
+    <div class="demo-label">⚾ Component: Home — Game Cards</div>
+    <div class="p-3">
+        <div class="row">
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header d-flex align-items-center justify-content-between">
+                        <span><i class="fas fa-baseball-ball card-icon"></i> Today's Games</span>
+                        <span class="header-badge">3 Games</span>
+                    </div>
+                    <div class="card-body p-2 home-games-cards">
+                        <div class="mobile-game-card">
+                            <div class="team-row">
+                                <span>EAGLES 12U</span>
+                                <span class="score-or-vs">@</span>
+                            </div>
+                            <div class="team-row mt-1">
+                                <span>HAWKS 12U</span>
+                            </div>
+                            <div class="game-meta mt-2"><i class="fas fa-clock me-1"></i> 9:00 AM &nbsp;·&nbsp; <i class="fas fa-map-marker-alt me-1"></i> Fowler Field</div>
+                        </div>
+                        <div class="mobile-game-card">
+                            <div class="team-row">
+                                <span>CARDINALS 14U</span>
+                                <span class="score-or-vs">@</span>
+                            </div>
+                            <div class="team-row mt-1">
+                                <span>TIGERS 14U</span>
+                            </div>
+                            <div class="game-meta mt-2"><i class="fas fa-clock me-1"></i> 11:00 AM &nbsp;·&nbsp; <i class="fas fa-map-marker-alt me-1"></i> Heritage Park — Diamond 2</div>
+                        </div>
+                        <div class="mobile-game-card">
+                            <div class="team-row">
+                                <span>LIGHTNING 10U</span>
+                                <span class="score-or-vs">@</span>
+                            </div>
+                            <div class="team-row mt-1">
+                                <span>FALCONS 10U</span>
+                            </div>
+                            <div class="game-meta mt-2"><i class="fas fa-clock me-1"></i> 1:00 PM &nbsp;·&nbsp; <i class="fas fa-map-marker-alt me-1"></i> Sunrise Complex</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header d-flex align-items-center justify-content-between">
+                        <span><i class="fas fa-calendar-week card-icon"></i> Next 7 Days</span>
+                    </div>
+                    <div class="card-body p-2 home-games-cards">
+                        <div class="mobile-date-label"><i class="fas fa-calendar-day me-1"></i> Saturday, June 8</div>
+                        <div class="mobile-game-card">
+                            <div class="team-row">
+                                <span>ROYALS 12U</span>
+                                <span class="score-or-vs">@</span>
+                            </div>
+                            <div class="team-row mt-1"><span>BULLS 12U</span></div>
+                            <div class="game-meta mt-2"><i class="fas fa-clock me-1"></i> 10:00 AM &nbsp;·&nbsp; Memorial Fields</div>
+                        </div>
+                        <div class="mobile-date-label mt-2"><i class="fas fa-calendar-day me-1"></i> Sunday, June 9</div>
+                        <div class="mobile-game-card">
+                            <div class="team-row">
+                                <span>BEARS 10U</span>
+                                <span class="score-or-vs">@</span>
+                            </div>
+                            <div class="team-row mt-1"><span>WOLVES 10U</span></div>
+                            <div class="game-meta mt-2"><i class="fas fa-clock me-1"></i> 9:00 AM &nbsp;·&nbsp; Riverside Park</div>
+                        </div>
+                        <div class="mobile-game-card">
+                            <div class="team-row">
+                                <span>STORM 14U</span>
+                                <span class="score-or-vs">@</span>
+                            </div>
+                            <div class="team-row mt-1"><span>PIRATES 14U</span></div>
+                            <div class="game-meta mt-2"><i class="fas fa-clock me-1"></i> 11:30 AM &nbsp;·&nbsp; Fowler Field</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================
+     SECTION 4: STANDINGS TABLE
+     ================================================================ -->
+<div class="demo-section">
+    <div class="demo-label">⚾ Component: Standings Table</div>
+    <div class="p-3">
+        <div class="card">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <span><i class="fas fa-trophy card-icon"></i> Standings — 12U Division</span>
+                <span style="font-size:0.72rem;font-weight:400;text-transform:none;letter-spacing:0;opacity:0.75">Updated Jun 6</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0 standings-table">
+                        <thead>
+                            <tr>
+                                <th style="width:40px">#</th>
+                                <th>Team</th>
+                                <th class="text-center">W</th>
+                                <th class="text-center">L</th>
+                                <th class="text-center">T</th>
+                                <th class="text-center">PCT</th>
+                                <th class="text-center">RS</th>
+                                <th class="text-center">RA</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="place-1">
+                                <td><span class="rank-badge rank-1">1</span></td>
+                                <td><strong>Eagles</strong> <i class="fas fa-fire text-warning" style="font-size:0.75rem" title="Hot streak"></i></td>
+                                <td class="text-center fw-bold">12</td>
+                                <td class="text-center">2</td>
+                                <td class="text-center">1</td>
+                                <td class="text-center fw-bold">.857</td>
+                                <td class="text-center">98</td>
+                                <td class="text-center">54</td>
+                            </tr>
+                            <tr class="place-2">
+                                <td><span class="rank-badge rank-2">2</span></td>
+                                <td>Cardinals</td>
+                                <td class="text-center fw-bold">10</td>
+                                <td class="text-center">4</td>
+                                <td class="text-center">0</td>
+                                <td class="text-center">.714</td>
+                                <td class="text-center">82</td>
+                                <td class="text-center">61</td>
+                            </tr>
+                            <tr class="place-3">
+                                <td><span class="rank-badge rank-3">3</span></td>
+                                <td>Hawks</td>
+                                <td class="text-center fw-bold">9</td>
+                                <td class="text-center">5</td>
+                                <td class="text-center">0</td>
+                                <td class="text-center">.643</td>
+                                <td class="text-center">75</td>
+                                <td class="text-center">68</td>
+                            </tr>
+                            <tr>
+                                <td><span class="text-muted" style="font-size:0.82rem;font-weight:600;font-family:'Oswald',sans-serif">4</span></td>
+                                <td>Tigers</td>
+                                <td class="text-center">7</td>
+                                <td class="text-center">7</td>
+                                <td class="text-center">0</td>
+                                <td class="text-center">.500</td>
+                                <td class="text-center">66</td>
+                                <td class="text-center">70</td>
+                            </tr>
+                            <tr>
+                                <td><span class="text-muted" style="font-size:0.82rem;font-weight:600;font-family:'Oswald',sans-serif">5</span></td>
+                                <td>Falcons</td>
+                                <td class="text-center">4</td>
+                                <td class="text-center">10</td>
+                                <td class="text-center">0</td>
+                                <td class="text-center">.286</td>
+                                <td class="text-center">50</td>
+                                <td class="text-center">88</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================
+     SECTION 5: ADMIN METRIC CARDS
+     ================================================================ -->
+<div class="demo-section">
+    <div class="demo-label">⚾ Component: Admin Dashboard — Metric Cards</div>
+    <div class="p-3">
+        <div class="row g-3">
+            <div class="col-6 col-md-3">
+                <div class="metric-card-navy">
+                    <div class="metric-number">24</div>
+                    <div class="metric-label">Total Games</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="metric-card-green">
+                    <div class="metric-number">18</div>
+                    <div class="metric-label">Active Teams</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="metric-card-red">
+                    <div class="metric-number">3</div>
+                    <div class="metric-label">Pending Changes</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="metric-card-gold">
+                    <div class="metric-number">7</div>
+                    <div class="metric-label">This Week</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================
+     SECTION 6: SCHEDULE TABS + STATUS BADGES
+     ================================================================ -->
+<div class="demo-section">
+    <div class="demo-label">⚾ Component: Schedule Tabs + Status Badges</div>
+    <div class="p-3">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-calendar card-icon"></i> Game Schedule
+            </div>
+            <div class="card-body">
+                <div class="schedule-tab-strip">
+                    <button class="sch-tab active">Upcoming <span class="sch-tab-badge ms-1" style="background:rgba(13,31,60,0.1);color:var(--bb-navy)">12</span></button>
+                    <button class="sch-tab">Completed <span class="sch-tab-badge ms-1">31</span></button>
+                    <button class="sch-tab" style="color:#92400e">Postponed <span class="sch-tab-badge ms-1" style="background:#fef3c7;color:#92400e">2</span></button>
+                </div>
+                <div class="d-flex gap-2 flex-wrap align-items-center mb-3">
+                    <button class="chip-btn active">All Teams</button>
+                    <button class="chip-btn">Eagles 12U</button>
+                    <button class="chip-btn">Cardinals 14U</button>
+                    <button class="chip-btn">Hawks 12U</button>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <span class="badge status-scheduled">Scheduled</span>
+                    <span class="badge status-completed">Completed</span>
+                    <span class="badge status-cancelled">Cancelled</span>
+                    <span class="badge status-postponed">Postponed</span>
+                    <span class="badge status-pending">Pending</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================
+     SECTION 7: COACH DASHBOARD HERO
+     ================================================================ -->
+<div class="demo-section">
+    <div class="demo-label">⚾ Component: Coach Dashboard</div>
+    <div class="coach-hero">
+        <div class="container">
+            <div class="d-flex align-items-start justify-content-between mb-3">
+                <div>
+                    <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;opacity:0.65;font-family:'Oswald',sans-serif">Welcome back</div>
+                    <div class="coach-hero-team">Eagles 12U</div>
+                    <div style="font-size:0.875rem;opacity:0.8">Coach Mike O'Connell &nbsp;·&nbsp; 2025 Spring Season</div>
+                </div>
+                <span class="badge" style="background:rgba(245,158,11,0.25);color:#fbbf24;border:1px solid rgba(245,158,11,0.4);font-family:'Oswald',sans-serif;font-size:0.72rem;letter-spacing:0.05em">
+                    <i class="fas fa-circle me-1" style="font-size:0.5rem"></i> Active
+                </span>
+            </div>
+            <div class="d-flex gap-2 hero-stats">
+                <div class="hero-stat">
+                    <span class="hero-stat-value">12</span>
+                    <span class="hero-stat-label">Wins</span>
+                </div>
+                <div class="hero-stat">
+                    <span class="hero-stat-value">2</span>
+                    <span class="hero-stat-label">Losses</span>
+                </div>
+                <div class="hero-stat">
+                    <span class="hero-stat-value">3</span>
+                    <span class="hero-stat-label">This Week</span>
+                </div>
+                <a class="hero-stat" style="text-decoration:none;cursor:pointer" href="#">
+                    <span class="hero-stat-value" style="color:#fbbf24">1</span>
+                    <span class="hero-stat-label">Pending</span>
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="container">
+        <div class="coach-action-grid">
+            <a href="#" class="coach-action-card">
+                <div class="card-icon" style="background:linear-gradient(135deg,var(--bb-navy),var(--bb-navy-2))"><i class="fas fa-calendar-alt"></i></div>
+                <div class="card-label">My Schedule</div>
+                <div class="card-sub">View upcoming games</div>
+            </a>
+            <a href="#" class="coach-action-card">
+                <div class="card-icon" style="background:linear-gradient(135deg,var(--bb-red),#9b0c22)"><i class="fas fa-baseball-ball"></i></div>
+                <div class="card-label">Score Entry</div>
+                <div class="card-sub">Submit game results</div>
+            </a>
+            <a href="#" class="coach-action-card">
+                <div class="card-icon" style="background:linear-gradient(135deg,var(--bb-green),var(--bb-green-2))"><i class="fas fa-calendar-check"></i></div>
+                <div class="card-label">Reschedule</div>
+                <div class="card-sub">Request a change</div>
+            </a>
+            <a href="#" class="coach-action-card">
+                <div class="card-icon" style="background:linear-gradient(135deg,var(--bb-gold),#d97706)"><i class="fas fa-address-book"></i></div>
+                <div class="card-label">Contacts</div>
+                <div class="card-sub">League directory</div>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================
+     SECTION 8: LOGIN
+     ================================================================ -->
+<div class="demo-section">
+    <div class="demo-label">⚾ Component: Login Card</div>
+    <div class="py-4" style="background:var(--bb-cream)">
+        <div class="login-container">
+            <div class="login-card card">
+                <div class="login-header">
+                    <div style="font-size:2rem;margin-bottom:0.5rem">⚾</div>
+                    <h2>District 8 Travel League</h2>
+                    <div style="font-size:0.82rem;opacity:0.8;margin-top:0.25rem">Coach &amp; Admin Portal</div>
+                </div>
+                <div class="card-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <input type="text" class="form-control" placeholder="Enter your username">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Password</label>
+                        <input type="password" class="form-control" placeholder="Enter your password">
+                    </div>
+                    <button class="btn btn-primary w-100 py-2">
+                        <i class="fas fa-sign-in-alt me-2"></i> Sign In
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================
+     SECTION 9: BUTTONS
+     ================================================================ -->
+<div class="demo-section">
+    <div class="demo-label">⚾ Component: Buttons &amp; Controls</div>
+    <div class="p-4 d-flex gap-3 flex-wrap align-items-center">
+        <button class="btn btn-primary"><i class="fas fa-plus me-2"></i>Add Game</button>
+        <button class="btn btn-danger"><i class="fas fa-times me-2"></i>Cancel</button>
+        <button class="btn btn-success"><i class="fas fa-check me-2"></i>Approve</button>
+        <button class="btn btn-outline-primary"><i class="fas fa-edit me-2"></i>Edit</button>
+        <button class="btn btn-sm btn-primary">Small Action</button>
+        <button class="btn btn-sm btn-outline-primary">Secondary</button>
+    </div>
+</div>
+
+<!-- ================================================================
+     FOOTER
+     ================================================================ -->
+<footer class="footer-dark mt-3 py-4">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-6 mb-2">
+                <div class="footer-brand mb-1">⚾ District 8 Travel League</div>
+                <div style="font-size:0.78rem">Syracuse, NY — 2025 Season</div>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <div style="font-size:0.82rem">
+                    <a href="#">About</a>
+                    <span class="mx-2" style="opacity:0.3">|</span>
+                    <a href="#">Privacy Policy</a>
+                    <span class="mx-2" style="opacity:0.3">|</span>
+                    <a href="#">Terms</a>
+                </div>
+                <div style="font-size:0.72rem;margin-top:0.35rem;opacity:0.5">
+                    &copy; 2025 District 8 Travel League. All rights reserved.
+                </div>
+            </div>
+        </div>
+    </div>
+</footer>
+
+</div><!-- /container-fluid -->
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

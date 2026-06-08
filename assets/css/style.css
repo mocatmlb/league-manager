@@ -1,10 +1,38 @@
 /* District 8 Travel League - MVP Styles */
 
+/* ============================================================
+   BASEBALL THEME — Stadium Modern
+   Palette:
+     Navy    #0d1f3c   (dugout / primary)
+     Red     #c8102e   (accent / CTAs)
+     Green   #2d6a4f   (field / hero)
+     Cream   #f5f2eb   (background)
+     Gold    #f59e0b   (first place / highlights)
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&display=swap');
+
+:root {
+    --bb-navy:   #0d1f3c;
+    --bb-navy-2: #162844;
+    --bb-red:    #c8102e;
+    --bb-green:  #2d6a4f;
+    --bb-green-2:#1e4d2b;
+    --bb-cream:  #f5f2eb;
+    --bb-gold:   #f59e0b;
+}
+
 /* Custom styles for the MVP application */
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f8f9fa;
+    background-color: var(--bb-cream);
+}
+
+h1, h2, h3, h4,
+.navbar-brand,
+.coach-hero-team,
+.card-header {
+    font-family: 'Oswald', sans-serif;
 }
 
 .navbar-brand {
@@ -983,4 +1011,319 @@ a.hero-stat.hero-stat-alert:hover {
 /* keep the old marker class name as an alias just in case */
 .mobile-special-date-marker {
     display: none; /* replaced by .mobile-special-date-card */
+}
+
+/* ==========================================================================
+   BASEBALL THEME OVERRIDES
+   ========================================================================== */
+
+/* ── Navbar ── */
+#main-navbar {
+    background: linear-gradient(135deg, var(--bb-navy) 0%, var(--bb-navy-2) 100%) !important;
+    border-bottom: 3px solid var(--bb-red);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+#main-navbar .navbar-brand {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    font-size: 1.25rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+#main-navbar .nav-link {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    font-size: 0.95rem;
+}
+#main-navbar .nav-link.active {
+    border-bottom: 2px solid var(--bb-red);
+}
+#main-navbar .dropdown-menu {
+    border: none;
+    border-top: 3px solid var(--bb-red);
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+}
+#main-navbar .dropdown-item {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+}
+#main-navbar .dropdown-item:hover {
+    background: var(--bb-cream);
+    color: var(--bb-navy);
+}
+#main-navbar .dropdown-header {
+    font-family: 'Oswald', sans-serif;
+    color: var(--bb-red);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+/* ── Jumbotron / Hero ── */
+.jumbotron {
+    background: linear-gradient(160deg, var(--bb-green-2) 0%, var(--bb-green) 55%, var(--bb-navy) 100%);
+    color: white;
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(13,31,60,0.25);
+}
+.jumbotron::before {
+    content: '⚾';
+    position: absolute;
+    right: -30px;
+    top: -30px;
+    font-size: 11rem;
+    opacity: 0.07;
+    transform: rotate(-20deg);
+    pointer-events: none;
+}
+.jumbotron::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--bb-red) 0%, var(--bb-gold) 50%, var(--bb-red) 100%);
+}
+.jumbotron h1 {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.jumbotron .lead {
+    opacity: 0.9;
+}
+
+/* ── Cards ── */
+.card {
+    border: 1px solid rgba(13,31,60,0.1);
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+}
+.card-header {
+    background: var(--bb-navy) !important;
+    color: #fff !important;
+    border-bottom: 2px solid var(--bb-red) !important;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+}
+
+/* ── Buttons ── */
+.btn-primary {
+    background-color: var(--bb-navy);
+    border-color: var(--bb-navy);
+    font-family: 'Oswald', sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.btn-primary:hover, .btn-primary:focus {
+    background-color: var(--bb-navy-2);
+    border-color: var(--bb-navy-2);
+}
+.btn-danger {
+    background-color: var(--bb-red);
+    border-color: var(--bb-red);
+    font-family: 'Oswald', sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.btn-success {
+    background-color: var(--bb-green);
+    border-color: var(--bb-green);
+    font-family: 'Oswald', sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.btn-outline-primary {
+    color: var(--bb-navy);
+    border-color: var(--bb-navy);
+    font-family: 'Oswald', sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.btn-outline-primary:hover {
+    background-color: var(--bb-navy);
+    border-color: var(--bb-navy);
+}
+.btn-outline-light {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+/* ── Form controls ── */
+.form-label {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 500;
+    font-size: 0.85rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--bb-navy);
+}
+.form-control:focus {
+    border-color: var(--bb-navy);
+    box-shadow: 0 0 0 0.2rem rgba(13,31,60,0.15);
+}
+
+/* ── Game cards ── */
+.mobile-game-card {
+    border-left: 3px solid var(--bb-navy);
+    transition: border-left-color 0.15s, box-shadow 0.15s;
+}
+.mobile-game-card:hover {
+    border-left-color: var(--bb-red);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+.mobile-game-card .team-row {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--bb-navy);
+}
+.mobile-game-card .score-or-vs {
+    color: var(--bb-red);
+    font-family: 'Oswald', sans-serif;
+}
+.mobile-date-label {
+    font-family: 'Oswald', sans-serif;
+    color: var(--bb-green);
+    border-bottom-color: rgba(45,106,79,0.2);
+}
+
+/* ── Standings ── */
+.standings-table th {
+    background-color: var(--bb-navy) !important;
+    color: #fff !important;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-size: 0.78rem;
+    border: none;
+}
+.standings-table .place-1 {
+    border-left: 3px solid var(--bb-gold);
+}
+
+/* ── Coach hero ── */
+.coach-hero {
+    background: linear-gradient(135deg, var(--bb-navy) 0%, var(--bb-navy-2) 60%, var(--bb-green-2) 100%);
+    position: relative;
+    overflow: hidden;
+}
+.coach-hero::before {
+    content: '⚾';
+    position: absolute;
+    right: 8%;
+    top: 50%;
+    transform: translateY(-50%) rotate(-15deg);
+    font-size: 9rem;
+    opacity: 0.05;
+    pointer-events: none;
+}
+.coach-hero-team {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ── Coach action cards ── */
+.coach-action-card {
+    border: 1px solid rgba(13,31,60,0.08);
+    border-top: 3px solid transparent;
+    transition: box-shadow 0.15s ease, transform 0.15s ease, border-top-color 0.15s;
+}
+.coach-action-card:hover {
+    border-top-color: var(--bb-red);
+    box-shadow: 0 8px 28px rgba(13,31,60,0.18);
+}
+.coach-action-card .card-label {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--bb-navy);
+}
+
+/* ── Schedule tabs ── */
+.sch-tab {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+.sch-tab.active {
+    color: var(--bb-navy);
+    border-bottom-color: var(--bb-red);
+}
+
+/* ── Chip buttons ── */
+.chip-btn {
+    border-color: var(--bb-navy);
+    color: var(--bb-navy);
+    font-family: 'Oswald', sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+.chip-btn.active, .chip-btn:hover {
+    background: var(--bb-navy);
+    color: #fff;
+}
+
+/* ── Login ── */
+.login-header {
+    background: linear-gradient(160deg, var(--bb-navy) 0%, var(--bb-green-2) 100%);
+    position: relative;
+    overflow: hidden;
+}
+.login-header::before {
+    content: '⚾';
+    position: absolute;
+    right: -15px;
+    bottom: -15px;
+    font-size: 5rem;
+    opacity: 0.08;
+    transform: rotate(-10deg);
+    pointer-events: none;
+}
+.login-header h2, .login-header h3 {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ── Footer ── */
+footer {
+    background: var(--bb-navy) !important;
+    color: rgba(255,255,255,0.7) !important;
+    border-top: 3px solid var(--bb-red) !important;
+}
+footer a {
+    color: rgba(255,255,255,0.55) !important;
+    text-decoration: none;
+    transition: color 0.15s;
+}
+footer a:hover {
+    color: rgba(255,255,255,0.9) !important;
+}
+footer p {
+    color: rgba(255,255,255,0.7);
 }

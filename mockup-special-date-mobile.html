@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mobile Special Date Mockup</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<style>
+  body { background: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
+  .phone-frame {
+    max-width: 390px;
+    margin: 2rem auto;
+    background: #fff;
+    border-radius: 1rem;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    overflow: hidden;
+    border: 1px solid #dee2e6;
+  }
+  .phone-header {
+    background: #007bff;
+    color: #fff;
+    padding: 0.75rem 1rem;
+    font-weight: 700;
+    font-size: 1rem;
+  }
+  .pane-body { padding: 0.75rem; }
+
+  .mobile-date-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.5rem 0 0.35rem;
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Existing game card */
+  .mobile-game-card {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    padding: 0.6rem 0.75rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+  }
+  .team-row { display: flex; justify-content: space-between; align-items: center; }
+  .meta-row { font-size: 0.75rem; color: #6c757d; margin-top: 0.25rem; }
+
+  /* Option A — Subtle inline banner (current behavior, enhanced) */
+  .mobile-special-date-marker {
+    background: #f0fdf4;
+    border-left: 3px solid #16a34a;
+    border-radius: 0 0.35rem 0.35rem 0;
+    padding: 0.35rem 0.6rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #15803d;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  /* Option B — Standalone card (proposed) */
+  .mobile-special-date-card {
+    border-radius: 0.5rem;
+    padding: 0.6rem 0.75rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    border: 1px solid transparent;
+  }
+  .mobile-special-date-card .sd-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    color: #fff;
+  }
+  .mobile-special-date-card .sd-body { flex: 1; min-width: 0; }
+  .mobile-special-date-card .sd-label { font-weight: 700; font-size: 0.85rem; }
+  .mobile-special-date-card .sd-type { font-size: 0.72rem; opacity: 0.75; }
+
+  /* milestone */
+  .sd-milestone { background: #f0fdf4; border-color: #bbf7d0; }
+  .sd-milestone .sd-icon { background: #16a34a; }
+  .sd-milestone .sd-label { color: #14532d; }
+  .sd-milestone .sd-type { color: #15803d; }
+
+  /* holiday */
+  .sd-holiday { background: #fff7ed; border-color: #fed7aa; }
+  .sd-holiday .sd-icon { background: #ea580c; }
+  .sd-holiday .sd-label { color: #7c2d12; }
+  .sd-holiday .sd-type { color: #c2410c; }
+
+  /* deadline */
+  .sd-deadline { background: #fef2f2; border-color: #fecaca; }
+  .sd-deadline .sd-icon { background: #dc2626; }
+  .sd-deadline .sd-label { color: #7f1d1d; }
+  .sd-deadline .sd-type { color: #b91c1c; }
+
+  .section-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #adb5bd;
+    padding: 0.5rem 0 0.25rem;
+  }
+</style>
+</head>
+<body>
+
+<div class="phone-frame">
+  <div class="phone-header">
+    <i class="fas fa-calendar-alt me-2"></i>Upcoming Games
+  </div>
+  <div class="pane-body">
+
+    <!-- Date with both special date + games (current behavior) -->
+    <div class="mobile-date-label">Saturday, May 24, 2025</div>
+
+    <div class="mobile-special-date-card sd-milestone">
+      <div class="sd-icon"><i class="fas fa-star"></i></div>
+      <div class="sd-body">
+        <div class="sd-label">Opening Day</div>
+        <div class="sd-type">Milestone &bull; All Seasons</div>
+      </div>
+    </div>
+
+    <div class="mobile-game-card">
+      <div class="team-row">
+        <span><strong>EAGLES</strong></span>
+        <span style="color:#6c757d;font-size:0.8rem;">—</span>
+        <span><strong>HAWKS</strong></span>
+      </div>
+      <div class="meta-row"><i class="fas fa-clock fa-xs me-1"></i>10:00 AM &bull; <i class="fas fa-map-marker-alt fa-xs me-1"></i>Riverside Field 1</div>
+    </div>
+
+    <div class="mobile-game-card">
+      <div class="team-row">
+        <span><strong>TIGERS</strong></span>
+        <span style="color:#6c757d;font-size:0.8rem;">—</span>
+        <span><strong>BEARS</strong></span>
+      </div>
+      <div class="meta-row"><i class="fas fa-clock fa-xs me-1"></i>12:00 PM &bull; <i class="fas fa-map-marker-alt fa-xs me-1"></i>Riverside Field 2</div>
+    </div>
+
+    <!-- Date with ONLY a special date — currently hidden, proposed to show -->
+    <div class="mobile-date-label">Monday, May 26, 2025</div>
+
+    <div class="mobile-special-date-card sd-holiday">
+      <div class="sd-icon"><i class="fas fa-flag"></i></div>
+      <div class="sd-body">
+        <div class="sd-label">Memorial Day — No Games</div>
+        <div class="sd-type">Holiday &bull; All Seasons</div>
+      </div>
+    </div>
+
+    <!-- Another standalone special date -->
+    <div class="mobile-date-label">Friday, June 20, 2025</div>
+
+    <div class="mobile-special-date-card sd-deadline">
+      <div class="sd-icon"><i class="fas fa-exclamation"></i></div>
+      <div class="sd-body">
+        <div class="sd-label">Final Reschedule Deadline</div>
+        <div class="sd-type">Deadline &bull; Spring 2025</div>
+      </div>
+    </div>
+
+    <!-- Regular date with games, no special date -->
+    <div class="mobile-date-label">Saturday, June 21, 2025</div>
+
+    <div class="mobile-game-card">
+      <div class="team-row">
+        <span><strong>EAGLES</strong></span>
+        <span style="color:#6c757d;font-size:0.8rem;">—</span>
+        <span><strong>BEARS</strong></span>
+      </div>
+      <div class="meta-row"><i class="fas fa-clock fa-xs me-1"></i>9:00 AM &bull; <i class="fas fa-map-marker-alt fa-xs me-1"></i>Riverside Field 1</div>
+    </div>
+
+  </div>
+</div>
+
+<p class="text-center text-muted" style="font-size:0.8rem;">Mockup — standalone special date cards on mobile</p>
+</body>
+</html>
