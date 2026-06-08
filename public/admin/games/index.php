@@ -675,7 +675,8 @@ $sql = "SELECT g.*, sch.game_date, sch.game_time, sch.location, sch.location_id,
 
 $games = $db->fetchAll($sql, $params);
 
-$conflictSvc = new ConflictDetectionService($db);
+$conflictWindowSeconds = (int) getSetting('conflict_window_hours', '3') * 3600;
+$conflictSvc = new ConflictDetectionService($db, $conflictWindowSeconds);
 $gameConflicts = $conflictSvc->getGameConflicts($games);
 
 // Get data for dropdowns

@@ -5,6 +5,38 @@
 $postponeAutoApprove = (bool) getSetting('postponement_auto_approve', '1');
 ?>
 
+<!-- Conflict Detection -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Conflict Detection</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST">
+            <input type="hidden" name="action" value="update_conflict_settings">
+            <input type="hidden" name="csrf_token" value="<?php echo Auth::generateCSRFToken(); ?>">
+
+            <div class="mb-3">
+                <label class="form-label">Conflict detection window (hours)</label>
+                <div class="input-group" style="max-width: 200px;">
+                    <input type="number" name="conflict_window_hours" class="form-control"
+                           min="1" max="24"
+                           value="<?php echo (int) $conflictWindowHours; ?>">
+                    <span class="input-group-text">hrs</span>
+                </div>
+                <div class="form-text">
+                    Two games involving the same team or location are flagged as a conflict when
+                    their start times are within this many hours of each other on the same day.
+                    Games with no time set are always flagged. Default: <strong>3 hours</strong>.
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Save
+            </button>
+        </form>
+    </div>
+</div>
+
 <div class="card">
     <div class="card-header">
         <h5 class="mb-0">Schedule Change Request Windows</h5>
