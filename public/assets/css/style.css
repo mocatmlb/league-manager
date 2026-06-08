@@ -1311,19 +1311,26 @@ a.hero-stat.hero-stat-alert:hover {
 }
 
 /* ── Footer ── */
-footer {
+/* Use footer.bg-light to match Bootstrap's class-level specificity and win */
+footer,
+footer.bg-light {
     background: var(--bb-navy) !important;
     color: rgba(255,255,255,0.7) !important;
     border-top: 3px solid var(--bb-red) !important;
 }
-footer a {
+footer p,
+footer small {
+    color: rgba(255,255,255,0.7) !important;
+}
+/* .text-muted uses !important at class specificity — match it with footer .text-muted */
+footer a,
+footer .text-muted,
+footer a.text-muted {
     color: rgba(255,255,255,0.55) !important;
     text-decoration: none;
     transition: color 0.15s;
 }
-footer a:hover {
+footer a:hover,
+footer a.text-muted:hover {
     color: rgba(255,255,255,0.9) !important;
-}
-footer p {
-    color: rgba(255,255,255,0.7);
 }
