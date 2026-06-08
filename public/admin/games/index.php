@@ -675,7 +675,7 @@ $sql = "SELECT g.*, sch.game_date, sch.game_time, sch.location, sch.location_id,
 
 $games = $db->fetchAll($sql, $params);
 
-$conflictWindowSeconds = (int) getSetting('conflict_window_hours', '3') * 3600;
+$conflictWindowSeconds = (int) getSetting('conflict_window_minutes', '180') * 60;
 $conflictSvc = new ConflictDetectionService($db, $conflictWindowSeconds);
 $gameConflicts = $conflictSvc->getGameConflicts($games);
 

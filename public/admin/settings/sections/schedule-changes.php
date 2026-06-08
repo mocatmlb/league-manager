@@ -16,17 +16,17 @@ $postponeAutoApprove = (bool) getSetting('postponement_auto_approve', '1');
             <input type="hidden" name="csrf_token" value="<?php echo Auth::generateCSRFToken(); ?>">
 
             <div class="mb-3">
-                <label class="form-label">Conflict detection window (hours)</label>
+                <label class="form-label">Conflict detection window (minutes)</label>
                 <div class="input-group" style="max-width: 200px;">
-                    <input type="number" name="conflict_window_hours" class="form-control"
-                           min="1" max="24"
-                           value="<?php echo (int) $conflictWindowHours; ?>">
-                    <span class="input-group-text">hrs</span>
+                    <input type="number" name="conflict_window_minutes" class="form-control"
+                           min="1" max="1440"
+                           value="<?php echo (int) $conflictWindowMinutes; ?>">
+                    <span class="input-group-text">min</span>
                 </div>
                 <div class="form-text">
                     Two games involving the same team or location are flagged as a conflict when
-                    their start times are within this many hours of each other on the same day.
-                    Games with no time set are always flagged. Default: <strong>3 hours</strong>.
+                    their start times are within this many minutes of each other on the same day.
+                    Games with no time set are always flagged. Default: <strong>180 minutes (3 hours)</strong>.
                 </div>
             </div>
 
