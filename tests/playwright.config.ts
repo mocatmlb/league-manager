@@ -161,7 +161,7 @@ export default defineConfig({
 
   /* Run local dev server before starting the tests */
   webServer: {
-    command: 'php -S localhost:8080 -t mvp-app/public/',
+    command: 'TEST_AUTH_SECRET=d8tl-playwright-test-secret php -S localhost:8080 -t public/',
     url: 'http://localhost:8080',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,

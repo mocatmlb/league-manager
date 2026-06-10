@@ -10,14 +10,18 @@
     "grep": {},
     "grepInvert": null,
     "maxFailures": 0,
-    "metadata": {},
+    "metadata": {
+      "actualWorkers": 7
+    },
     "preserveOutput": "always",
     "projects": [
       {
         "outputDir": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/reports/artifacts",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {},
+        "metadata": {
+          "actualWorkers": 7
+        },
         "id": "chromium",
         "name": "chromium",
         "testDir": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e",
@@ -75,191 +79,560 @@
   },
   "suites": [
     {
-      "title": "database-migrations.spec.ts",
-      "file": "database-migrations.spec.ts",
+      "title": "admin-schedule-conflict-prompt.spec.ts",
+      "file": "admin-schedule-conflict-prompt.spec.ts",
       "column": 0,
       "line": 0,
       "specs": [],
       "suites": [
         {
-          "title": "Story 1.1: Database Migrations — Application-Level Smoke Tests (ATDD)",
-          "file": "database-migrations.spec.ts",
-          "line": 23,
+          "title": "Admin Schedule Change — Conflict Prompt (Story 20.3)",
+          "file": "admin-schedule-conflict-prompt.spec.ts",
+          "line": 25,
           "column": 6,
           "specs": [
             {
-              "title": "[P0] public schedule page still loads after migrations applied",
-              "ok": true,
-              "tags": [],
+              "title": "AC3 — Schedule Management page loads without errors @smoke @functional",
+              "ok": false,
+              "tags": [
+                "smoke",
+                "functional"
+              ],
               "tests": [
                 {
                   "timeout": 90000,
-                  "annotations": [
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
                     {
-                      "type": "skip",
-                      "location": {
-                        "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/database-migrations.spec.ts",
-                        "line": 31,
-                        "column": 8
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 21993,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).not.\u001b[22mtoHaveURL\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nExpected pattern: not \u001b[32m/login/\u001b[39m\nReceived string: \u001b[31m\"http://localhost:8080/public/\u001b[7mlogin\u001b[27m.php\"\u001b[39m\nTimeout: 15000ms\n\nCall log:\n\u001b[2m  - Expect \"not toHaveURL\" with timeout 15000ms\u001b[22m\n\u001b[2m    19 × unexpected value \"http://localhost:8080/public/login.php\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).not.\u001b[22mtoHaveURL\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nExpected pattern: not \u001b[32m/login/\u001b[39m\nReceived string: \u001b[31m\"http://localhost:8080/public/\u001b[7mlogin\u001b[27m.php\"\u001b[39m\nTimeout: 15000ms\n\nCall log:\n\u001b[2m  - Expect \"not toHaveURL\" with timeout 15000ms\u001b[22m\n\u001b[2m    19 × unexpected value \"http://localhost:8080/public/login.php\"\u001b[22m\n\n    at /Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts:37:28",
+                        "location": {
+                          "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts",
+                          "column": 28,
+                          "line": 37
+                        },
+                        "snippet": "  35 |\n  36 |   test('AC3 — Schedule Management page loads without errors @smoke @functional', async ({ page }) => {\n> 37 |     await expect(page).not.toHaveURL(/login/);\n     |                            ^\n  38 |     await expect(page.locator('h1')).toContainText('Schedule Management');\n  39 |     await expect(page.locator('.alert-danger')).toHaveCount(0);\n  40 |   });"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts",
+                            "column": 28,
+                            "line": 37
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).not.\u001b[22mtoHaveURL\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nExpected pattern: not \u001b[32m/login/\u001b[39m\nReceived string: \u001b[31m\"http://localhost:8080/public/\u001b[7mlogin\u001b[27m.php\"\u001b[39m\nTimeout: 15000ms\n\nCall log:\n\u001b[2m  - Expect \"not toHaveURL\" with timeout 15000ms\u001b[22m\n\u001b[2m    19 × unexpected value \"http://localhost:8080/public/login.php\"\u001b[22m\n\n\n  35 |\n  36 |   test('AC3 — Schedule Management page loads without errors @smoke @functional', async ({ page }) => {\n> 37 |     await expect(page).not.toHaveURL(/login/);\n     |                            ^\n  38 |     await expect(page.locator('h1')).toContainText('Schedule Management');\n  39 |     await expect(page.locator('.alert-danger')).toHaveCount(0);\n  40 |   });\n    at /Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts:37:28"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-10T01:51:15.506Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/reports/artifacts/admin-schedule-conflict-pr-d0b66-out-errors-smoke-functional-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/reports/artifacts/admin-schedule-conflict-pr-d0b66-out-errors-smoke-functional-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/reports/artifacts/admin-schedule-conflict-pr-d0b66-out-errors-smoke-functional-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts",
+                        "column": 28,
+                        "line": 37
                       }
                     }
                   ],
-                  "expectedStatus": "skipped",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [],
-                  "status": "skipped"
+                  "status": "unexpected"
                 }
               ],
-              "id": "a5a624be5f61d73dc53a-2b6432c4b28051c22cf4",
-              "file": "database-migrations.spec.ts",
-              "line": 31,
-              "column": 8
+              "id": "a339e37520c6d1335dea-bb3e7434e58cfcbfa7b5",
+              "file": "admin-schedule-conflict-prompt.spec.ts",
+              "line": 36,
+              "column": 7
             },
             {
-              "title": "[P0] public standings page still loads after migrations applied",
-              "ok": true,
-              "tags": [],
+              "title": "AC3 — Process Schedule Change button opens the direct-change modal @smoke @functional",
+              "ok": false,
+              "tags": [
+                "smoke",
+                "functional"
+              ],
               "tests": [
                 {
                   "timeout": 90000,
-                  "annotations": [
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
                     {
-                      "type": "skip",
-                      "location": {
-                        "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/database-migrations.spec.ts",
-                        "line": 45,
-                        "column": 8
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "failed",
+                      "duration": 21380,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('button').filter({ hasText: 'Process Schedule Change' })\nExpected: visible\nTimeout: 15000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('button').filter({ hasText: 'Process Schedule Change' })\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('button').filter({ hasText: 'Process Schedule Change' })\nExpected: visible\nTimeout: 15000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('button').filter({ hasText: 'Process Schedule Change' })\u001b[22m\n\n    at /Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts:44:23",
+                        "location": {
+                          "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts",
+                          "column": 23,
+                          "line": 44
+                        },
+                        "snippet": "  42 |   test('AC3 — Process Schedule Change button opens the direct-change modal @smoke @functional', async ({ page }) => {\n  43 |     const btn = page.locator('button', { hasText: 'Process Schedule Change' });\n> 44 |     await expect(btn).toBeVisible();\n     |                       ^\n  45 |     await btn.click();\n  46 |\n  47 |     // Wait for the modal to become visible"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts",
+                            "column": 23,
+                            "line": 44
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('button').filter({ hasText: 'Process Schedule Change' })\nExpected: visible\nTimeout: 15000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('button').filter({ hasText: 'Process Schedule Change' })\u001b[22m\n\n\n  42 |   test('AC3 — Process Schedule Change button opens the direct-change modal @smoke @functional', async ({ page }) => {\n  43 |     const btn = page.locator('button', { hasText: 'Process Schedule Change' });\n> 44 |     await expect(btn).toBeVisible();\n     |                       ^\n  45 |     await btn.click();\n  46 |\n  47 |     // Wait for the modal to become visible\n    at /Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts:44:23"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-10T01:51:15.510Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/reports/artifacts/admin-schedule-conflict-pr-b8336-ange-modal-smoke-functional-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/reports/artifacts/admin-schedule-conflict-pr-b8336-ange-modal-smoke-functional-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/reports/artifacts/admin-schedule-conflict-pr-b8336-ange-modal-smoke-functional-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts",
+                        "column": 23,
+                        "line": 44
                       }
                     }
                   ],
-                  "expectedStatus": "skipped",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [],
-                  "status": "skipped"
+                  "status": "unexpected"
                 }
               ],
-              "id": "a5a624be5f61d73dc53a-7c97732955b95bd6e62e",
-              "file": "database-migrations.spec.ts",
-              "line": 45,
-              "column": 8
+              "id": "a339e37520c6d1335dea-3812b6d8258ff137bb42",
+              "file": "admin-schedule-conflict-prompt.spec.ts",
+              "line": 42,
+              "column": 7
             },
             {
-              "title": "[P1] coach login page still loads after migrations applied",
+              "title": "AC1/AC2 — Conflict warning block contains required elements when visible @functional",
               "ok": true,
-              "tags": [],
+              "tags": [
+                "functional"
+              ],
               "tests": [
                 {
                   "timeout": 90000,
-                  "annotations": [
-                    {
-                      "type": "skip",
-                      "location": {
-                        "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/database-migrations.spec.ts",
-                        "line": 56,
-                        "column": 8
-                      }
-                    }
-                  ],
-                  "expectedStatus": "skipped",
+                  "annotations": [],
+                  "expectedStatus": "passed",
                   "projectId": "chromium",
                   "projectName": "chromium",
-                  "results": [],
-                  "status": "skipped"
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 2,
+                      "status": "passed",
+                      "duration": 6923,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "ℹ️  No conflict warning on page — test data may not have conflicting games. Skipping assertion.\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-10T01:51:15.522Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
                 }
               ],
-              "id": "a5a624be5f61d73dc53a-8cfaf1edc5bab68b9eca",
-              "file": "database-migrations.spec.ts",
-              "line": 56,
-              "column": 8
+              "id": "a339e37520c6d1335dea-26758bfe57c531af174d",
+              "file": "admin-schedule-conflict-prompt.spec.ts",
+              "line": 58,
+              "column": 7
             },
             {
-              "title": "[P1] admin login page still loads after migrations applied",
+              "title": "AC2 — Direct change confirm form contains conflict_confirmed=1 hidden field @functional",
               "ok": true,
-              "tags": [],
+              "tags": [
+                "functional"
+              ],
               "tests": [
                 {
                   "timeout": 90000,
-                  "annotations": [
-                    {
-                      "type": "skip",
-                      "location": {
-                        "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/database-migrations.spec.ts",
-                        "line": 71,
-                        "column": 8
-                      }
-                    }
-                  ],
-                  "expectedStatus": "skipped",
+                  "annotations": [],
+                  "expectedStatus": "passed",
                   "projectId": "chromium",
                   "projectName": "chromium",
-                  "results": [],
-                  "status": "skipped"
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 3,
+                      "status": "passed",
+                      "duration": 7817,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "ℹ️  Conflict warning not present — skipping confirm-form structure assertion.\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-10T01:51:15.528Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
                 }
               ],
-              "id": "a5a624be5f61d73dc53a-461b25b58ba5502b0959",
-              "file": "database-migrations.spec.ts",
-              "line": 71,
-              "column": 8
+              "id": "a339e37520c6d1335dea-1c58a8a4e6a8f49aff54",
+              "file": "admin-schedule-conflict-prompt.spec.ts",
+              "line": 85,
+              "column": 7
             },
             {
-              "title": "[P1] teams-related page loads without DB column error after migration 003",
+              "title": "AC4 — Page renders without conflict warning on a clean GET @functional",
               "ok": true,
-              "tags": [],
+              "tags": [
+                "functional"
+              ],
               "tests": [
                 {
                   "timeout": 90000,
-                  "annotations": [
-                    {
-                      "type": "skip",
-                      "location": {
-                        "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/database-migrations.spec.ts",
-                        "line": 86,
-                        "column": 8
-                      }
-                    }
-                  ],
-                  "expectedStatus": "skipped",
+                  "annotations": [],
+                  "expectedStatus": "passed",
                   "projectId": "chromium",
                   "projectName": "chromium",
-                  "results": [],
-                  "status": "skipped"
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 4,
+                      "status": "passed",
+                      "duration": 7523,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-10T01:51:15.526Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
                 }
               ],
-              "id": "a5a624be5f61d73dc53a-3a8e7def57b88c9c8763",
-              "file": "database-migrations.spec.ts",
-              "line": 86,
-              "column": 8
+              "id": "a339e37520c6d1335dea-30e7743dfbfd8320ed70",
+              "file": "admin-schedule-conflict-prompt.spec.ts",
+              "line": 106,
+              "column": 7
             },
             {
-              "title": "[P2] application remains fully functional after migrations are applied twice (idempotency regression)",
+              "title": "AC5 — Go Back link returns to a clean Schedule Management page @functional",
               "ok": true,
-              "tags": [],
+              "tags": [
+                "functional"
+              ],
               "tests": [
                 {
                   "timeout": 90000,
-                  "annotations": [
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
                     {
-                      "type": "skip",
-                      "location": {
-                        "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/database-migrations.spec.ts",
-                        "line": 115,
-                        "column": 8
+                      "workerIndex": 5,
+                      "parallelIndex": 5,
+                      "status": "passed",
+                      "duration": 7211,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "ℹ️  No warning block to test Go Back from — skipping.\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-10T01:51:15.527Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a339e37520c6d1335dea-03dbd6d5992864d3b62f",
+              "file": "admin-schedule-conflict-prompt.spec.ts",
+              "line": 116,
+              "column": 7
+            },
+            {
+              "title": "AC6 — Multiple conflicts render as separate bullet points @functional",
+              "ok": true,
+              "tags": [
+                "functional"
+              ],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 6,
+                      "parallelIndex": 6,
+                      "status": "passed",
+                      "duration": 6308,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "ℹ️  No conflict warning present — AC6 multi-bullet check skipped.\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-10T01:51:15.520Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a339e37520c6d1335dea-60bde595d61cef889859",
+              "file": "admin-schedule-conflict-prompt.spec.ts",
+              "line": 134,
+              "column": 7
+            },
+            {
+              "title": "Warning text does not contain the coach-facing review suffix @security @functional",
+              "ok": true,
+              "tags": [
+                "security",
+                "functional"
+              ],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 6,
+                      "parallelIndex": 6,
+                      "status": "passed",
+                      "duration": 2696,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "ℹ️  No conflict warning — coach suffix check skipped.\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-10T01:51:22.450Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "a339e37520c6d1335dea-a7195dd498a3843ab12e",
+              "file": "admin-schedule-conflict-prompt.spec.ts",
+              "line": 157,
+              "column": 7
+            },
+            {
+              "title": "conflict_confirmed in querystring does not trigger a save on GET @security",
+              "ok": false,
+              "tags": [
+                "security"
+              ],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 2,
+                      "status": "failed",
+                      "duration": 19831,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('h1')\nExpected substring: \u001b[32m\"Schedule Management\"\u001b[39m\nReceived string:    \u001b[31m\"Welcome to District 8 Travel League\"\u001b[39m\nTimeout: 15000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('h1')\u001b[22m\n\u001b[2m    19 × locator resolved to <h1 class=\"display-4\">Welcome to District 8 Travel League</h1>\u001b[22m\n\u001b[2m       - unexpected value \"Welcome to District 8 Travel League\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('h1')\nExpected substring: \u001b[32m\"Schedule Management\"\u001b[39m\nReceived string:    \u001b[31m\"Welcome to District 8 Travel League\"\u001b[39m\nTimeout: 15000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('h1')\u001b[22m\n\u001b[2m    19 × locator resolved to <h1 class=\"display-4\">Welcome to District 8 Travel League</h1>\u001b[22m\n\u001b[2m       - unexpected value \"Welcome to District 8 Travel League\"\u001b[22m\n\n    at /Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts:175:38",
+                        "location": {
+                          "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts",
+                          "column": 38,
+                          "line": 175
+                        },
+                        "snippet": "  173 |     await page.goto('/admin/schedules/index.php?conflict_confirmed=1');\n  174 |     await page.waitForLoadState('networkidle');\n> 175 |     await expect(page.locator('h1')).toContainText('Schedule Management');\n      |                                      ^\n  176 |     await expect(page.locator('.alert-success')).toHaveCount(0);\n  177 |   });\n  178 |"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts",
+                            "column": 38,
+                            "line": 175
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('h1')\nExpected substring: \u001b[32m\"Schedule Management\"\u001b[39m\nReceived string:    \u001b[31m\"Welcome to District 8 Travel League\"\u001b[39m\nTimeout: 15000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('h1')\u001b[22m\n\u001b[2m    19 × locator resolved to <h1 class=\"display-4\">Welcome to District 8 Travel League</h1>\u001b[22m\n\u001b[2m       - unexpected value \"Welcome to District 8 Travel League\"\u001b[22m\n\n\n  173 |     await page.goto('/admin/schedules/index.php?conflict_confirmed=1');\n  174 |     await page.waitForLoadState('networkidle');\n> 175 |     await expect(page.locator('h1')).toContainText('Schedule Management');\n      |                                      ^\n  176 |     await expect(page.locator('.alert-success')).toHaveCount(0);\n  177 |   });\n  178 |\n    at /Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts:175:38"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-10T01:51:23.071Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/reports/artifacts/admin-schedule-conflict-pr-a6375-gger-a-save-on-GET-security-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/reports/artifacts/admin-schedule-conflict-pr-a6375-gger-a-save-on-GET-security-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/reports/artifacts/admin-schedule-conflict-pr-a6375-gger-a-save-on-GET-security-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts",
+                        "column": 38,
+                        "line": 175
                       }
                     }
                   ],
-                  "expectedStatus": "skipped",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [],
-                  "status": "skipped"
+                  "status": "unexpected"
                 }
               ],
-              "id": "a5a624be5f61d73dc53a-3f00290b5e164b5c72a1",
-              "file": "database-migrations.spec.ts",
-              "line": 115,
-              "column": 8
+              "id": "a339e37520c6d1335dea-057da1547b9ca2eaa5f8",
+              "file": "admin-schedule-conflict-prompt.spec.ts",
+              "line": 172,
+              "column": 7
+            },
+            {
+              "title": "Regression — Page layout is intact, no PHP errors @regression",
+              "ok": false,
+              "tags": [
+                "regression"
+              ],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 5,
+                      "parallelIndex": 5,
+                      "status": "failed",
+                      "duration": 18840,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('h1')\nExpected substring: \u001b[32m\"Schedule Management\"\u001b[39m\nReceived string:    \u001b[31m\"Welcome to District 8 Travel League\"\u001b[39m\nTimeout: 15000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('h1')\u001b[22m\n\u001b[2m    19 × locator resolved to <h1 class=\"display-4\">Welcome to District 8 Travel League</h1>\u001b[22m\n\u001b[2m       - unexpected value \"Welcome to District 8 Travel League\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('h1')\nExpected substring: \u001b[32m\"Schedule Management\"\u001b[39m\nReceived string:    \u001b[31m\"Welcome to District 8 Travel League\"\u001b[39m\nTimeout: 15000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('h1')\u001b[22m\n\u001b[2m    19 × locator resolved to <h1 class=\"display-4\">Welcome to District 8 Travel League</h1>\u001b[22m\n\u001b[2m       - unexpected value \"Welcome to District 8 Travel League\"\u001b[22m\n\n    at /Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts:186:38",
+                        "location": {
+                          "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts",
+                          "column": 38,
+                          "line": 186
+                        },
+                        "snippet": "  184 |     await expect(page.locator('.alert-danger')).toHaveCount(0);\n  185 |     // The \"Process Schedule Change\" button and page heading must still be present\n> 186 |     await expect(page.locator('h1')).toContainText('Schedule Management');\n      |                                      ^\n  187 |     await expect(page.locator('button', { hasText: 'Process Schedule Change' })).toBeVisible();\n  188 |   });\n  189 | });"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts",
+                            "column": 38,
+                            "line": 186
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('h1')\nExpected substring: \u001b[32m\"Schedule Management\"\u001b[39m\nReceived string:    \u001b[31m\"Welcome to District 8 Travel League\"\u001b[39m\nTimeout: 15000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('h1')\u001b[22m\n\u001b[2m    19 × locator resolved to <h1 class=\"display-4\">Welcome to District 8 Travel League</h1>\u001b[22m\n\u001b[2m       - unexpected value \"Welcome to District 8 Travel League\"\u001b[22m\n\n\n  184 |     await expect(page.locator('.alert-danger')).toHaveCount(0);\n  185 |     // The \"Process Schedule Change\" button and page heading must still be present\n> 186 |     await expect(page.locator('h1')).toContainText('Schedule Management');\n      |                                      ^\n  187 |     await expect(page.locator('button', { hasText: 'Process Schedule Change' })).toBeVisible();\n  188 |   });\n  189 | });\n    at /Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts:186:38"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-10T01:51:23.353Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/reports/artifacts/admin-schedule-conflict-pr-b5749-ct-no-PHP-errors-regression-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/reports/artifacts/admin-schedule-conflict-pr-b5749-ct-no-PHP-errors-regression-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/reports/artifacts/admin-schedule-conflict-pr-b5749-ct-no-PHP-errors-regression-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts",
+                        "column": 38,
+                        "line": 186
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "a339e37520c6d1335dea-2c4d97952ed48b63a66f",
+              "file": "admin-schedule-conflict-prompt.spec.ts",
+              "line": 183,
+              "column": 7
             }
           ]
         }
@@ -268,11 +641,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-05-05T02:51:39.589Z",
-    "duration": 160.699,
-    "expected": 0,
-    "skipped": 6,
-    "unexpected": 0,
+    "startTime": "2026-06-10T01:51:13.944Z",
+    "duration": 29004.969,
+    "expected": 6,
+    "skipped": 0,
+    "unexpected": 4,
     "flaky": 0
   }
 }

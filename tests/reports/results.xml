@@ -1,52 +1,223 @@
-<testsuites id="" name="" tests="6" failures="0" skipped="6" errors="0" time="0.160699">
-<testsuite name="database-migrations.spec.ts" timestamp="2026-05-05T02:51:39.750Z" hostname="chromium" tests="6" failures="0" skipped="6" time="0" errors="0">
-<testcase name="Story 1.1: Database Migrations — Application-Level Smoke Tests (ATDD) › [P0] public schedule page still loads after migrations applied" classname="database-migrations.spec.ts">
-<properties>
-<property name="skip" value="">
-</property>
-</properties>
-<skipped>
-</skipped>
+<testsuites id="" name="" tests="10" failures="4" skipped="0" errors="0" time="29.004969000000003">
+<testsuite name="admin-schedule-conflict-prompt.spec.ts" timestamp="2026-06-10T01:51:14.905Z" hostname="chromium" tests="10" failures="4" skipped="0" time="120.522" errors="0">
+<testcase name="Admin Schedule Change — Conflict Prompt (Story 20.3) › AC3 — Schedule Management page loads without errors @smoke @functional" classname="admin-schedule-conflict-prompt.spec.ts" time="21.993">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|artifacts/admin-schedule-conflict-pr-d0b66-out-errors-smoke-functional-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|artifacts/admin-schedule-conflict-pr-d0b66-out-errors-smoke-functional-chromium/video.webm]]
+
+[[ATTACHMENT|artifacts/admin-schedule-conflict-pr-d0b66-out-errors-smoke-functional-chromium/error-context.md]]
+]]>
+</system-out>
+<failure message="expect(page).not.toHaveURL(expected) failed" type="expect.not.toHaveURL">
+<![CDATA[  [chromium] › admin-schedule-conflict-prompt.spec.ts:36:7 › Admin Schedule Change — Conflict Prompt (Story 20.3) › AC3 — Schedule Management page loads without errors @smoke @functional 
+
+    Error: expect(page).not.toHaveURL(expected) failed
+
+    Expected pattern: not /login/
+    Received string: "http://localhost:8080/public/login.php"
+    Timeout: 15000ms
+
+    Call log:
+      - Expect "not toHaveURL" with timeout 15000ms
+        19 × unexpected value "http://localhost:8080/public/login.php"
+
+
+      35 |
+      36 |   test('AC3 — Schedule Management page loads without errors @smoke @functional', async ({ page }) => {
+    > 37 |     await expect(page).not.toHaveURL(/login/);
+         |                            ^
+      38 |     await expect(page.locator('h1')).toContainText('Schedule Management');
+      39 |     await expect(page.locator('.alert-danger')).toHaveCount(0);
+      40 |   });
+        at /Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts:37:28
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../reports/artifacts/admin-schedule-conflict-pr-d0b66-out-errors-smoke-functional-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../reports/artifacts/admin-schedule-conflict-pr-d0b66-out-errors-smoke-functional-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../reports/artifacts/admin-schedule-conflict-pr-d0b66-out-errors-smoke-functional-chromium/error-context.md
+]]>
+</failure>
 </testcase>
-<testcase name="Story 1.1: Database Migrations — Application-Level Smoke Tests (ATDD) › [P0] public standings page still loads after migrations applied" classname="database-migrations.spec.ts">
-<properties>
-<property name="skip" value="">
-</property>
-</properties>
-<skipped>
-</skipped>
+<testcase name="Admin Schedule Change — Conflict Prompt (Story 20.3) › AC3 — Process Schedule Change button opens the direct-change modal @smoke @functional" classname="admin-schedule-conflict-prompt.spec.ts" time="21.38">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|artifacts/admin-schedule-conflict-pr-b8336-ange-modal-smoke-functional-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|artifacts/admin-schedule-conflict-pr-b8336-ange-modal-smoke-functional-chromium/video.webm]]
+
+[[ATTACHMENT|artifacts/admin-schedule-conflict-pr-b8336-ange-modal-smoke-functional-chromium/error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeVisible() failed" type="expect.toBeVisible">
+<![CDATA[  [chromium] › admin-schedule-conflict-prompt.spec.ts:42:7 › Admin Schedule Change — Conflict Prompt (Story 20.3) › AC3 — Process Schedule Change button opens the direct-change modal @smoke @functional 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('button').filter({ hasText: 'Process Schedule Change' })
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 15000ms
+      - waiting for locator('button').filter({ hasText: 'Process Schedule Change' })
+
+
+      42 |   test('AC3 — Process Schedule Change button opens the direct-change modal @smoke @functional', async ({ page }) => {
+      43 |     const btn = page.locator('button', { hasText: 'Process Schedule Change' });
+    > 44 |     await expect(btn).toBeVisible();
+         |                       ^
+      45 |     await btn.click();
+      46 |
+      47 |     // Wait for the modal to become visible
+        at /Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts:44:23
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../reports/artifacts/admin-schedule-conflict-pr-b8336-ange-modal-smoke-functional-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../reports/artifacts/admin-schedule-conflict-pr-b8336-ange-modal-smoke-functional-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../reports/artifacts/admin-schedule-conflict-pr-b8336-ange-modal-smoke-functional-chromium/error-context.md
+]]>
+</failure>
 </testcase>
-<testcase name="Story 1.1: Database Migrations — Application-Level Smoke Tests (ATDD) › [P1] coach login page still loads after migrations applied" classname="database-migrations.spec.ts">
-<properties>
-<property name="skip" value="">
-</property>
-</properties>
-<skipped>
-</skipped>
+<testcase name="Admin Schedule Change — Conflict Prompt (Story 20.3) › AC1/AC2 — Conflict warning block contains required elements when visible @functional" classname="admin-schedule-conflict-prompt.spec.ts" time="6.923">
+<system-out>
+<![CDATA[ℹ️  No conflict warning on page — test data may not have conflicting games. Skipping assertion.
+]]>
+</system-out>
 </testcase>
-<testcase name="Story 1.1: Database Migrations — Application-Level Smoke Tests (ATDD) › [P1] admin login page still loads after migrations applied" classname="database-migrations.spec.ts">
-<properties>
-<property name="skip" value="">
-</property>
-</properties>
-<skipped>
-</skipped>
+<testcase name="Admin Schedule Change — Conflict Prompt (Story 20.3) › AC2 — Direct change confirm form contains conflict_confirmed=1 hidden field @functional" classname="admin-schedule-conflict-prompt.spec.ts" time="7.817">
+<system-out>
+<![CDATA[ℹ️  Conflict warning not present — skipping confirm-form structure assertion.
+]]>
+</system-out>
 </testcase>
-<testcase name="Story 1.1: Database Migrations — Application-Level Smoke Tests (ATDD) › [P1] teams-related page loads without DB column error after migration 003" classname="database-migrations.spec.ts">
-<properties>
-<property name="skip" value="">
-</property>
-</properties>
-<skipped>
-</skipped>
+<testcase name="Admin Schedule Change — Conflict Prompt (Story 20.3) › AC4 — Page renders without conflict warning on a clean GET @functional" classname="admin-schedule-conflict-prompt.spec.ts" time="7.523">
 </testcase>
-<testcase name="Story 1.1: Database Migrations — Application-Level Smoke Tests (ATDD) › [P2] application remains fully functional after migrations are applied twice (idempotency regression)" classname="database-migrations.spec.ts">
-<properties>
-<property name="skip" value="">
-</property>
-</properties>
-<skipped>
-</skipped>
+<testcase name="Admin Schedule Change — Conflict Prompt (Story 20.3) › AC5 — Go Back link returns to a clean Schedule Management page @functional" classname="admin-schedule-conflict-prompt.spec.ts" time="7.211">
+<system-out>
+<![CDATA[ℹ️  No warning block to test Go Back from — skipping.
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Schedule Change — Conflict Prompt (Story 20.3) › AC6 — Multiple conflicts render as separate bullet points @functional" classname="admin-schedule-conflict-prompt.spec.ts" time="6.308">
+<system-out>
+<![CDATA[ℹ️  No conflict warning present — AC6 multi-bullet check skipped.
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Schedule Change — Conflict Prompt (Story 20.3) › Warning text does not contain the coach-facing review suffix @security @functional" classname="admin-schedule-conflict-prompt.spec.ts" time="2.696">
+<system-out>
+<![CDATA[ℹ️  No conflict warning — coach suffix check skipped.
+]]>
+</system-out>
+</testcase>
+<testcase name="Admin Schedule Change — Conflict Prompt (Story 20.3) › conflict_confirmed in querystring does not trigger a save on GET @security" classname="admin-schedule-conflict-prompt.spec.ts" time="19.831">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|artifacts/admin-schedule-conflict-pr-a6375-gger-a-save-on-GET-security-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|artifacts/admin-schedule-conflict-pr-a6375-gger-a-save-on-GET-security-chromium/video.webm]]
+
+[[ATTACHMENT|artifacts/admin-schedule-conflict-pr-a6375-gger-a-save-on-GET-security-chromium/error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).toContainText(expected) failed" type="expect.toContainText">
+<![CDATA[  [chromium] › admin-schedule-conflict-prompt.spec.ts:172:7 › Admin Schedule Change — Conflict Prompt (Story 20.3) › conflict_confirmed in querystring does not trigger a save on GET @security 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('h1')
+    Expected substring: "Schedule Management"
+    Received string:    "Welcome to District 8 Travel League"
+    Timeout: 15000ms
+
+    Call log:
+      - Expect "toContainText" with timeout 15000ms
+      - waiting for locator('h1')
+        19 × locator resolved to <h1 class="display-4">Welcome to District 8 Travel League</h1>
+           - unexpected value "Welcome to District 8 Travel League"
+
+
+      173 |     await page.goto('/admin/schedules/index.php?conflict_confirmed=1');
+      174 |     await page.waitForLoadState('networkidle');
+    > 175 |     await expect(page.locator('h1')).toContainText('Schedule Management');
+          |                                      ^
+      176 |     await expect(page.locator('.alert-success')).toHaveCount(0);
+      177 |   });
+      178 |
+        at /Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts:175:38
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../reports/artifacts/admin-schedule-conflict-pr-a6375-gger-a-save-on-GET-security-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../reports/artifacts/admin-schedule-conflict-pr-a6375-gger-a-save-on-GET-security-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../reports/artifacts/admin-schedule-conflict-pr-a6375-gger-a-save-on-GET-security-chromium/error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="Admin Schedule Change — Conflict Prompt (Story 20.3) › Regression — Page layout is intact, no PHP errors @regression" classname="admin-schedule-conflict-prompt.spec.ts" time="18.84">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|artifacts/admin-schedule-conflict-pr-b5749-ct-no-PHP-errors-regression-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|artifacts/admin-schedule-conflict-pr-b5749-ct-no-PHP-errors-regression-chromium/video.webm]]
+
+[[ATTACHMENT|artifacts/admin-schedule-conflict-pr-b5749-ct-no-PHP-errors-regression-chromium/error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).toContainText(expected) failed" type="expect.toContainText">
+<![CDATA[  [chromium] › admin-schedule-conflict-prompt.spec.ts:183:7 › Admin Schedule Change — Conflict Prompt (Story 20.3) › Regression — Page layout is intact, no PHP errors @regression 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('h1')
+    Expected substring: "Schedule Management"
+    Received string:    "Welcome to District 8 Travel League"
+    Timeout: 15000ms
+
+    Call log:
+      - Expect "toContainText" with timeout 15000ms
+      - waiting for locator('h1')
+        19 × locator resolved to <h1 class="display-4">Welcome to District 8 Travel League</h1>
+           - unexpected value "Welcome to District 8 Travel League"
+
+
+      184 |     await expect(page.locator('.alert-danger')).toHaveCount(0);
+      185 |     // The "Process Schedule Change" button and page heading must still be present
+    > 186 |     await expect(page.locator('h1')).toContainText('Schedule Management');
+          |                                      ^
+      187 |     await expect(page.locator('button', { hasText: 'Process Schedule Change' })).toBeVisible();
+      188 |   });
+      189 | });
+        at /Users/Mike.Oconnell/IdeaProjects/league-manager/tests/e2e/admin-schedule-conflict-prompt.spec.ts:186:38
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../reports/artifacts/admin-schedule-conflict-pr-b5749-ct-no-PHP-errors-regression-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../reports/artifacts/admin-schedule-conflict-pr-b5749-ct-no-PHP-errors-regression-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../reports/artifacts/admin-schedule-conflict-pr-b5749-ct-no-PHP-errors-regression-chromium/error-context.md
+]]>
+</failure>
 </testcase>
 </testsuite>
 </testsuites>

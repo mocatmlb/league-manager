@@ -1,524 +1,201 @@
-diff --git a/_bmad-output/implementation-artifacts/deferred-work.md b/_bmad-output/implementation-artifacts/deferred-work.md
-index 483792b..da87f4b 100644
---- a/_bmad-output/implementation-artifacts/deferred-work.md
-+++ b/_bmad-output/implementation-artifacts/deferred-work.md
-@@ -8,6 +8,15 @@ Items deferred from code reviews — triaged 2026-05-09.
+diff --git a/includes/ConflictDetectionService.php b/includes/ConflictDetectionService.php
+index f7f4406..b747144 100644
+--- a/includes/ConflictDetectionService.php
++++ b/includes/ConflictDetectionService.php
+@@ -67,11 +67,13 @@ class ConflictDetectionService {
+         string $proposedTime,
+         string $proposedLocation,
+         int $homeTeamId,
+-        int $awayTeamId
++        int $awayTeamId,
++        ?int $excludeGameId = null
+     ): array {
+         $warnings = [];
  
- - `public/index.prod.php` is missing the weather widget that `index.php` has — this is a pre-existing divergence, not caused by the mobile card change. The prod copy should be brought in sync with the dev home page's weather widget feature.
+         // Team conflict: any game on the proposed date that involves either team
++        $teamExclude = $excludeGameId !== null ? ' AND g.game_id != ?' : '';
+         $teamSql = "
+             SELECT s.game_time AS conflict_time, s.game_date AS conflict_date,
+                    t.team_name AS conflict_team_name
+@@ -82,12 +84,13 @@ class ConflictDetectionService {
+             WHERE s.game_date = ?
+               AND g.game_status NOT IN ('Cancelled', 'Postponed')
+               AND (s.game_time IS NULL OR ? = '' OR ABS(TIME_TO_SEC(s.game_time) - TIME_TO_SEC(?)) <= ?)
++              {$teamExclude}
+         ";
+-        $teamRows = $this->db->fetchAll($teamSql, [
+-            $homeTeamId, $awayTeamId,
+-            $proposedDate,
+-            $proposedTime, $proposedTime, $this->conflictWindow
+-        ]);
++        $teamParams = [$homeTeamId, $awayTeamId, $proposedDate, $proposedTime, $proposedTime, $this->conflictWindow];
++        if ($excludeGameId !== null) {
++            $teamParams[] = $excludeGameId;
++        }
++        $teamRows = $this->db->fetchAll($teamSql, $teamParams);
+         foreach ($teamRows as $row) {
+             $timeLabel = $row['conflict_time'] ? date('g:i A', strtotime($row['conflict_time'])) : 'TBD';
+             $dateLabel = date('M j, Y', strtotime($row['conflict_date']));
+@@ -101,6 +104,7 @@ class ConflictDetectionService {
+                 [trim($proposedLocation)]
+             );
+             if ($locRow) {
++                $locExclude = $excludeGameId !== null ? ' AND g.game_id != ?' : '';
+                 $locSql = "
+                     SELECT s.game_time AS conflict_time, s.game_date AS conflict_date,
+                            l.location_name AS location_name
+@@ -111,14 +115,13 @@ class ConflictDetectionService {
+                       AND s.game_date = ?
+                       AND g.game_status NOT IN ('Cancelled', 'Postponed')
+                       AND (s.game_time IS NULL OR ? = '' OR ABS(TIME_TO_SEC(s.game_time) - TIME_TO_SEC(?)) <= ?)
++                      {$locExclude}
+                 ";
+-                $locRows = $this->db->fetchAll($locSql, [
+-                    (int)$locRow['location_id'],
+-                    $proposedDate,
+-                    $proposedTime,
+-                    $proposedTime,
+-                    $this->conflictWindow
+-                ]);
++                $locParams = [(int)$locRow['location_id'], $proposedDate, $proposedTime, $proposedTime, $this->conflictWindow];
++                if ($excludeGameId !== null) {
++                    $locParams[] = $excludeGameId;
++                }
++                $locRows = $this->db->fetchAll($locSql, $locParams);
+                 foreach ($locRows as $row) {
+                     $timeLabel = $row['conflict_time'] ? date('g:i A', strtotime($row['conflict_time'])) : 'TBD';
+                     $dateLabel = date('M j, Y', strtotime($row['conflict_date']));
+diff --git a/public/admin/schedules/index.php b/public/admin/schedules/index.php
+index 42a44b7..46e2361 100644
+--- a/public/admin/schedules/index.php
++++ b/public/admin/schedules/index.php
+@@ -29,16 +29,21 @@ if (!$__found) {
+ unset($__dir, $__found, $__i, $__candidate);
  
-+## From spec-admin-schedules-submitted-reviewed-dates (2026-06-07)
-+
-+- `public/admin/schedules/index.php` pending request accordion items use `data-bs-parent` which enforces single-open behavior — may want to remove it if admins want to compare multiple requests side by side.
-+- `public/admin/schedules/index.php` pending requests serialized as full JSON into onclick attributes (exposes `reviewed_by` ID and `review_notes` in HTML source) — pre-existing in the desktop table, now also in the mobile accordion. Consider passing only the fields the edit modal needs.
-+
-+## Deferred from: code review of 20-1-game-scr-conflict-detection.md (2026-06-07)
-+- Pre-existing DB divergence between dev and prod environments.
-+- Missing indices on several legacy tables in `database/schema.sql`.
-+
- ---
+ @include_once EnvLoader::getPath('includes/admin_bootstrap.php');
++require_once EnvLoader::getPath('includes/ConflictDetectionService.php');
  
- ## Routed to Story 9-1 (Cutover Service Backend)
-diff --git a/blind_hunter_input.diff b/blind_hunter_input.diff
-index fe0d40e..4c646f4 100644
---- a/blind_hunter_input.diff
-+++ b/blind_hunter_input.diff
-@@ -1,194 +1,271 @@
--diff --git a/_bmad-output/planning-artifacts/epics.md b/_bmad-output/planning-artifacts/epics.md
--index a6cf2b1..2f8cdd8 100644
----- a/_bmad-output/planning-artifacts/epics.md
--+++ b/_bmad-output/planning-artifacts/epics.md
--@@ -2054,3 +2054,18 @@ As an admin, I want to configure blackout date ranges during which coaches canno
-+diff --git a/_bmad-output/implementation-artifacts/deferred-work.md b/_bmad-output/implementation-artifacts/deferred-work.md
-+index 483792b..f975b4b 100644
-+--- a/_bmad-output/implementation-artifacts/deferred-work.md
-++++ b/_bmad-output/implementation-artifacts/deferred-work.md
-+@@ -8,6 +8,11 @@ Items deferred from code reviews — triaged 2026-05-09.
-  
-- **Status:** ready-for-dev
-- **Story Key:** 21-4-reschedule-blackout-dates
--+
--+### Story 21.5: Calendar View — Show Score for Completed Games
--+
--+As a league participant, I want to see the final score when I click a completed game on the calendar, so that I can quickly check results without switching to the table view.
--+
--+**Status:** ready-for-dev
--+**Story Key:** 21-5-calendar-score-display
--+
--+### Story 21.6: Calendar View — Awaiting Results Badge and Days Late
--+
--+As a league participant, I want awaiting-results games on the calendar to clearly show their status and how overdue they are, so that I can tell at a glance which games still need scores submitted without switching to the table view.
--+
--+**Status:** ready-for-dev
--+**Depends on:** Story 21.5
--+**Story Key:** 21-6-calendar-awaiting-badge
--diff --git a/assets/css/style.css b/assets/css/style.css
--index 388c735..b789a76 100644
----- a/assets/css/style.css
--+++ b/assets/css/style.css
--@@ -920,3 +920,23 @@ a.hero-stat.hero-stat-alert:hover {
-- .cal-search-wrap .form-control-sm {
--     font-size: 0.82rem;
-- }
--+
--+/* Special date background events */
--+.fc-special-date .fc-bg-event {
--+    opacity: 0.18;
--+}
--+.fc .fc-bg-event .fc-event-title {
--+    font-size: 0.65rem;
--+    font-weight: 700;
--+    opacity: 1;
--+    padding: 1px 3px;
--+}
--+
--+/* Calendar legend */
--+.cal-legend-chip {
--+    display: inline-block;
--+    padding: 2px 8px;
--+    border-radius: 4px;
--+    font-size: 0.75rem;
--+    font-weight: 600;
--+}
--diff --git a/includes/nav.php b/includes/nav.php
--index d3a0d2c..bb36bd7 100644
----- a/includes/nav.php
--+++ b/includes/nav.php
--@@ -88,11 +88,17 @@ $rootPath = getPathToRoot();
--                                     </a>
--                                 </li>
--                                 <li>
---                                    <a class="dropdown-item <?php echo isActiveNav('index', 'schedules'); ?>" 
--+                                    <a class="dropdown-item <?php echo isActiveNav('index', 'schedules'); ?>"
--                                        href="<?php echo $rootPath; ?>admin/schedules/">
--                                         <i class="fas fa-calendar-check"></i> Schedules
--                                     </a>
--                                 </li>
--+                                <li>
--+                                    <a class="dropdown-item <?php echo isActiveNav('special-dates', 'schedules'); ?>"
--+                                       href="<?php echo $rootPath; ?>admin/schedules/special-dates.php">
--+                                        <i class="fas fa-star me-1"></i> Special Dates
--+                                    </a>
--+                                </li>
--                                 <li>
--                                     <a class="dropdown-item <?php echo isActiveNav('index', 'teams'); ?>" 
--                                        href="<?php echo $rootPath; ?>admin/teams/">
--diff --git a/public/assets/css/style.css b/public/assets/css/style.css
--index 388c735..b789a76 100644
----- a/public/assets/css/style.css
--+++ b/public/assets/css/style.css
--@@ -920,3 +920,23 @@ a.hero-stat.hero-stat-alert:hover {
-- .cal-search-wrap .form-control-sm {
--     font-size: 0.82rem;
-- }
--+
--+/* Special date background events */
--+.fc-special-date .fc-bg-event {
--+    opacity: 0.18;
--+}
--+.fc .fc-bg-event .fc-event-title {
--+    font-size: 0.65rem;
--+    font-weight: 700;
--+    opacity: 1;
--+    padding: 1px 3px;
--+}
--+
--+/* Calendar legend */
--+.cal-legend-chip {
--+    display: inline-block;
--+    padding: 2px 8px;
--+    border-radius: 4px;
--+    font-size: 0.75rem;
--+    font-weight: 600;
--+}
--diff --git a/public/schedule.php b/public/schedule.php
--index 31ac495..15ae530 100644
----- a/public/schedule.php
--+++ b/public/schedule.php
--@@ -138,6 +138,42 @@ foreach (['upcoming' => $gamesUpcoming, 'completed' => $gamesCompleted,
--     }
-- }
-+ - `public/index.prod.php` is missing the weather widget that `index.php` has — this is a pre-existing divergence, not caused by the mobile card change. The prod copy should be brought in sync with the dev home page's weather widget feature.
-  
--+// Query special dates filtered by active season and global
--+$specialDateScopeId = (int)($filters['season_id'] ?? 0);
--+if ($specialDateScopeId > 0) {
--+    $specialDates = $db->fetchAll(
--+        "SELECT id, date, label, date_type, display_color
--+         FROM league_special_dates
--+         WHERE season_id IS NULL
--+            OR season_id = ?
--+         ORDER BY date ASC",
--+        [$specialDateScopeId]
--+    );
--+} else {
--+    $specialDates = $db->fetchAll(
--+        "SELECT id, date, label, date_type, display_color
--+         FROM league_special_dates
--+         WHERE season_id IS NULL
--+         ORDER BY date ASC"
--+    );
--+}
-++## From spec-admin-schedules-submitted-reviewed-dates (2026-06-07)
- +
--+$specialDateEvents = [];
--+foreach ($specialDates as $sd) {
--+    $specialDateEvents[] = [
--+        'title'      => $sd['label'],
--+        'start'      => $sd['date'],
--+        'allDay'     => true,
--+        'display'    => 'background',
--+        'color'      => $sd['display_color'],
--+        'classNames' => ['fc-special-date'],
--+        'extendedProps' => [
--+            'isSpecialDate' => true,
--+            'dateType'      => $sd['date_type'],
--+        ],
--+    ];
--+}
-++- `public/admin/schedules/index.php` pending request accordion items use `data-bs-parent` which enforces single-open behavior — may want to remove it if admins want to compare multiple requests side by side.
-++- `public/admin/schedules/index.php` pending requests serialized as full JSON into onclick attributes (exposes `reviewed_by` ID and `review_notes` in HTML source) — pre-existing in the desktop table, now also in the mobile accordion. Consider passing only the fields the edit modal needs.
- +
-- // Days Late for awaiting games
-- foreach ($gamesAwaiting as &$g) {
--     $g['days_late'] = (int)floor((strtotime($today) - strtotime($g['game_date'])) / 86400);
--@@ -686,6 +722,16 @@ $pageTitle = "Schedule - " . APP_NAME;
--                 <p id="calendarEmptyNote" class="text-muted mt-2 small" style="display:none;">
--                     No games match your current filters.
--                 </p>
--+                <!-- Calendar legend -->
--+                <div class="cal-legend mt-2 d-flex flex-wrap gap-2 align-items-center">
--+                    <span class="cal-legend-chip" style="background:#2563eb;color:#fff;">&#9632; Upcoming</span>
--+                    <span class="cal-legend-chip" style="background:#6c757d;color:#fff;">&#9632; Completed</span>
--+                    <span class="cal-legend-chip" style="background:#f59e0b;color:#000;">&#9632; Awaiting Result</span>
--+                    <span class="cal-legend-chip" style="background:#6f42c1;color:#fff;">&#9632; Postponed</span>
--+                    <?php if (!empty($specialDateEvents)): ?>
--+                    <span class="cal-legend-chip" style="background:#e2e8f0;color:#475569;">&#9733; Special Date</span>
--+                    <?php endif; ?>
--+                </div>
--             </div>
-+ ---
-  
--         </div><!-- /#desktopSchedule -->
--@@ -714,7 +760,10 @@ $pageTitle = "Schedule - " . APP_NAME;
--     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
-+ ## Routed to Story 9-1 (Cutover Service Backend)
-+diff --git a/blind_hunter_input.diff b/blind_hunter_input.diff
-+index fe0d40e..e69de29 100644
-+--- a/blind_hunter_input.diff
-++++ b/blind_hunter_input.diff
-+@@ -1,194 +0,0 @@
-+-diff --git a/_bmad-output/planning-artifacts/epics.md b/_bmad-output/planning-artifacts/epics.md
-+-index a6cf2b1..2f8cdd8 100644
-+---- a/_bmad-output/planning-artifacts/epics.md
-+-+++ b/_bmad-output/planning-artifacts/epics.md
-+-@@ -2054,3 +2054,18 @@ As an admin, I want to configure blackout date ranges during which coaches canno
-+- 
-+- **Status:** ready-for-dev
-+- **Story Key:** 21-4-reschedule-blackout-dates
-+-+
-+-+### Story 21.5: Calendar View — Show Score for Completed Games
-+-+
-+-+As a league participant, I want to see the final score when I click a completed game on the calendar, so that I can quickly check results without switching to the table view.
-+-+
-+-+**Status:** ready-for-dev
-+-+**Story Key:** 21-5-calendar-score-display
-+-+
-+-+### Story 21.6: Calendar View — Awaiting Results Badge and Days Late
-+-+
-+-+As a league participant, I want awaiting-results games on the calendar to clearly show their status and how overdue they are, so that I can tell at a glance which games still need scores submitted without switching to the table view.
-+-+
-+-+**Status:** ready-for-dev
-+-+**Depends on:** Story 21.5
-+-+**Story Key:** 21-6-calendar-awaiting-badge
-+-diff --git a/assets/css/style.css b/assets/css/style.css
-+-index 388c735..b789a76 100644
-+---- a/assets/css/style.css
-+-+++ b/assets/css/style.css
-+-@@ -920,3 +920,23 @@ a.hero-stat.hero-stat-alert:hover {
-+- .cal-search-wrap .form-control-sm {
-+-     font-size: 0.82rem;
-+- }
-+-+
-+-+/* Special date background events */
-+-+.fc-special-date .fc-bg-event {
-+-+    opacity: 0.18;
-+-+}
-+-+.fc .fc-bg-event .fc-event-title {
-+-+    font-size: 0.65rem;
-+-+    font-weight: 700;
-+-+    opacity: 1;
-+-+    padding: 1px 3px;
-+-+}
-+-+
-+-+/* Calendar legend */
-+-+.cal-legend-chip {
-+-+    display: inline-block;
-+-+    padding: 2px 8px;
-+-+    border-radius: 4px;
-+-+    font-size: 0.75rem;
-+-+    font-weight: 600;
-+-+}
-+-diff --git a/includes/nav.php b/includes/nav.php
-+-index d3a0d2c..bb36bd7 100644
-+---- a/includes/nav.php
-+-+++ b/includes/nav.php
-+-@@ -88,11 +88,17 @@ $rootPath = getPathToRoot();
-+-                                     </a>
-+-                                 </li>
-+-                                 <li>
-+--                                    <a class="dropdown-item <?php echo isActiveNav('index', 'schedules'); ?>" 
-+-+                                    <a class="dropdown-item <?php echo isActiveNav('index', 'schedules'); ?>"
-+-                                        href="<?php echo $rootPath; ?>admin/schedules/">
-+-                                         <i class="fas fa-calendar-check"></i> Schedules
-+-                                     </a>
-+-                                 </li>
-+-+                                <li>
-+-+                                    <a class="dropdown-item <?php echo isActiveNav('special-dates', 'schedules'); ?>"
-+-+                                       href="<?php echo $rootPath; ?>admin/schedules/special-dates.php">
-+-+                                        <i class="fas fa-star me-1"></i> Special Dates
-+-+                                    </a>
-+-+                                </li>
-+-                                 <li>
-+-                                     <a class="dropdown-item <?php echo isActiveNav('index', 'teams'); ?>" 
-+-                                        href="<?php echo $rootPath; ?>admin/teams/">
-+-diff --git a/public/assets/css/style.css b/public/assets/css/style.css
-+-index 388c735..b789a76 100644
-+---- a/public/assets/css/style.css
-+-+++ b/public/assets/css/style.css
-+-@@ -920,3 +920,23 @@ a.hero-stat.hero-stat-alert:hover {
-+- .cal-search-wrap .form-control-sm {
-+-     font-size: 0.82rem;
-+- }
-+-+
-+-+/* Special date background events */
-+-+.fc-special-date .fc-bg-event {
-+-+    opacity: 0.18;
-+-+}
-+-+.fc .fc-bg-event .fc-event-title {
-+-+    font-size: 0.65rem;
-+-+    font-weight: 700;
-+-+    opacity: 1;
-+-+    padding: 1px 3px;
-+-+}
-+-+
-+-+/* Calendar legend */
-+-+.cal-legend-chip {
-+-+    display: inline-block;
-+-+    padding: 2px 8px;
-+-+    border-radius: 4px;
-+-+    font-size: 0.75rem;
-+-+    font-weight: 600;
-+-+}
-+-diff --git a/public/schedule.php b/public/schedule.php
-+-index 31ac495..15ae530 100644
-+---- a/public/schedule.php
-+-+++ b/public/schedule.php
-+-@@ -138,6 +138,42 @@ foreach (['upcoming' => $gamesUpcoming, 'completed' => $gamesCompleted,
-+-     }
-+- }
-+- 
-+-+// Query special dates filtered by active season and global
-+-+$specialDateScopeId = (int)($filters['season_id'] ?? 0);
-+-+if ($specialDateScopeId > 0) {
-+-+    $specialDates = $db->fetchAll(
-+-+        "SELECT id, date, label, date_type, display_color
-+-+         FROM league_special_dates
-+-+         WHERE season_id IS NULL
-+-+            OR season_id = ?
-+-+         ORDER BY date ASC",
-+-+        [$specialDateScopeId]
-+-+    );
-+-+} else {
-+-+    $specialDates = $db->fetchAll(
-+-+        "SELECT id, date, label, date_type, display_color
-+-+         FROM league_special_dates
-+-+         WHERE season_id IS NULL
-+-+         ORDER BY date ASC"
-+-+    );
-+-+}
-+-+
-+-+$specialDateEvents = [];
-+-+foreach ($specialDates as $sd) {
-+-+    $specialDateEvents[] = [
-+-+        'title'      => $sd['label'],
-+-+        'start'      => $sd['date'],
-+-+        'allDay'     => true,
-+-+        'display'    => 'background',
-+-+        'color'      => $sd['display_color'],
-+-+        'classNames' => ['fc-special-date'],
-+-+        'extendedProps' => [
-+-+            'isSpecialDate' => true,
-+-+            'dateType'      => $sd['date_type'],
-+-+        ],
-+-+    ];
-+-+}
-+-+
-+- // Days Late for awaiting games
-+- foreach ($gamesAwaiting as &$g) {
-+-     $g['days_late'] = (int)floor((strtotime($today) - strtotime($g['game_date'])) / 86400);
-+-@@ -686,6 +722,16 @@ $pageTitle = "Schedule - " . APP_NAME;
-+-                 <p id="calendarEmptyNote" class="text-muted mt-2 small" style="display:none;">
-+-                     No games match your current filters.
-+-                 </p>
-+-+                <!-- Calendar legend -->
-+-+                <div class="cal-legend mt-2 d-flex flex-wrap gap-2 align-items-center">
-+-+                    <span class="cal-legend-chip" style="background:#2563eb;color:#fff;">&#9632; Upcoming</span>
-+-+                    <span class="cal-legend-chip" style="background:#6c757d;color:#fff;">&#9632; Completed</span>
-+-+                    <span class="cal-legend-chip" style="background:#f59e0b;color:#000;">&#9632; Awaiting Result</span>
-+-+                    <span class="cal-legend-chip" style="background:#6f42c1;color:#fff;">&#9632; Postponed</span>
-+-+                    <?php if (!empty($specialDateEvents)): ?>
-+-+                    <span class="cal-legend-chip" style="background:#e2e8f0;color:#475569;">&#9733; Special Date</span>
-+-+                    <?php endif; ?>
-+-+                </div>
-+-             </div>
-+- 
-+-         </div><!-- /#desktopSchedule -->
-+-@@ -714,7 +760,10 @@ $pageTitle = "Schedule - " . APP_NAME;
-+-     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
-+- 
-+-     <script>
-+--    var calendarEvents = <?php echo json_encode($calendarEvents, JSON_HEX_TAG | JSON_HEX_AMP); ?>;
-+-+    var calendarEvents = <?php echo json_encode(
-+-+        array_merge($calendarEvents, $specialDateEvents),
-+-+        JSON_HEX_TAG | JSON_HEX_AMP
-+-+    ); ?>;
-+- 
-+-     $(document).ready(function() {
-+- 
-+-@@ -754,6 +803,7 @@ $pageTitle = "Schedule - " . APP_NAME;
-+- 
-+-         // ── Event popover ─────────────────────────────────────────────────
-+-         function showEventPopover(el, event) {
-+-+            if (event.extendedProps && event.extendedProps.isSpecialDate) return;
-+-             if (currentPopover) { currentPopover.dispose(); currentPopover = null; }
-+- 
-+-             var p = event.extendedProps;
-+-@@ -798,6 +848,7 @@ $pageTitle = "Schedule - " . APP_NAME;
-+-             var term = this.value.trim().toLowerCase();
-+-             var eventsToShow = term
-+-                 ? allCalendarEvents.filter(function(ev) {
-+-+                    if (ev.extendedProps && ev.extendedProps.isSpecialDate) return true;
-+-                     return ev.title.toLowerCase().indexOf(term) !== -1;
-+-                   })
-+-                 : allCalendarEvents;
-+diff --git a/public/admin/games/index.php b/public/admin/games/index.php
-+index 4e2c312..d7f5b4c 100644
-+--- a/public/admin/games/index.php
-++++ b/public/admin/games/index.php
-+@@ -29,6 +29,7 @@ if (!$__found) {
-+ unset($__dir, $__found, $__i, $__candidate);
-  
--     <script>
---    var calendarEvents = <?php echo json_encode($calendarEvents, JSON_HEX_TAG | JSON_HEX_AMP); ?>;
--+    var calendarEvents = <?php echo json_encode(
--+        array_merge($calendarEvents, $specialDateEvents),
--+        JSON_HEX_TAG | JSON_HEX_AMP
--+    ); ?>;
-+ @include_once EnvLoader::getPath('includes/admin_bootstrap.php');
-++require_once EnvLoader::getPath('includes/ConflictDetectionService.php');
-  
--     $(document).ready(function() {
-+ // Require admin authentication
-+ Auth::requireAdmin();
-+@@ -647,7 +648,7 @@ if (!$showInactive) {
-+ }
-+ 
-+ // Get games with team names, schedule info, and change counts
-+-$sql = "SELECT g.*, sch.game_date, sch.game_time, sch.location,
-++$sql = "SELECT g.*, sch.game_date, sch.game_time, sch.location, sch.location_id,
-+            CASE 
-+                WHEN ht.team_name IS NOT NULL AND ht.team_name != '' THEN ht.team_name 
-+                ELSE CONCAT(ht.league_name, '-', ht.manager_last_name) 
-+@@ -674,6 +675,9 @@ $sql = "SELECT g.*, sch.game_date, sch.game_time, sch.location,
-  
--@@ -754,6 +803,7 @@ $pageTitle = "Schedule - " . APP_NAME;
-+ $games = $db->fetchAll($sql, $params);
-  
--         // ── Event popover ─────────────────────────────────────────────────
--         function showEventPopover(el, event) {
--+            if (event.extendedProps && event.extendedProps.isSpecialDate) return;
--             if (currentPopover) { currentPopover.dispose(); currentPopover = null; }
-++$conflictSvc = new ConflictDetectionService($db);
-++$gameConflicts = $conflictSvc->getGameConflicts($games);
-++
-+ // Get data for dropdowns
-+ $seasons = $db->fetchAll("SELECT * FROM seasons ORDER BY season_year DESC");
-+ $divisions = $db->fetchAll("SELECT * FROM divisions ORDER BY division_name");
-+@@ -860,6 +864,15 @@ $pageTitle = "Games Management - " . APP_NAME;
-+                                             <span class="badge bg-<?php echo $game['game_status'] === 'Completed' ? 'success' : ($game['game_status'] === 'Cancelled' ? 'danger' : ($game['game_status'] === 'Postponed' ? 'warning' : 'primary')); ?>">
-+                                                 <?php echo $game['game_status']; ?>
-+                                             </span>
-++                                            <?php if (!empty($gameConflicts[$game['game_id']])): ?>
-++                                                <?php foreach ($gameConflicts[$game['game_id']] as $conflict): ?>
-++                                                    <?php if ($conflict['type'] === 'team'): ?>
-++                                                        <span class="badge bg-warning text-dark ms-1" data-bs-toggle="tooltip" title="<?= sanitize($conflict['message']) ?>">⚠ Team Conflict</span>
-++                                                    <?php else: ?>
-++                                                        <span class="badge ms-1 text-white" style="background-color:#fd7e14" data-bs-toggle="tooltip" title="<?= sanitize($conflict['message']) ?>">⚠ Location Conflict</span>
-++                                                    <?php endif; ?>
-++                                                <?php endforeach; ?>
-++                                            <?php endif; ?>
-+                                         </td>
-+                                         <td onclick="event.stopPropagation();">
-+                                             <div class="btn-group" role="group">
-+@@ -1459,6 +1472,8 @@ $pageTitle = "Games Management - " . APP_NAME;
-  
--             var p = event.extendedProps;
--@@ -798,6 +848,7 @@ $pageTitle = "Schedule - " . APP_NAME;
--             var term = this.value.trim().toLowerCase();
--             var eventsToShow = term
--                 ? allCalendarEvents.filter(function(ev) {
--+                    if (ev.extendedProps && ev.extendedProps.isSpecialDate) return true;
--                     return ev.title.toLowerCase().indexOf(term) !== -1;
--                   })
--                 : allCalendarEvents;
-+         // Native fallback: bind location toggle independently of jQuery/DataTable init
-+         document.addEventListener('DOMContentLoaded', function() {
-++            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
-++
-+             var addSel = document.getElementById('addLocationSelect');
-+             if (addSel) {
-+                 addSel.addEventListener('change', function() {
-diff --git a/public/assets/css/style.css b/public/assets/css/style.css
-index d2ce46f..d39c11c 100644
---- a/public/assets/css/style.css
-+++ b/public/assets/css/style.css
-@@ -1,10 +1,38 @@
- /* District 8 Travel League - MVP Styles */
+ // Require admin authentication
+ Auth::requireAdmin();
  
-+/* ============================================================
-+   BASEBALL THEME — Stadium Modern
-+   Palette:
-+     Navy    #0d1f3c   (dugout / primary)
-+     Red     #c8102e   (accent / CTAs)
-+     Green   #2d6a4f   (field / hero)
-+     Cream   #f5f2eb   (background)
-+     Gold    #f59e0b   (first place / highlights)
-+   ============================================================ */
-+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&display=swap');
-+
-+:root {
-+    --bb-navy:   #0d1f3c;
-+    --bb-navy-2: #162844;
-+    --bb-red:    #c8102e;
-+    --bb-green:  #2d6a4f;
-+    --bb-green-2:#1e4d2b;
-+    --bb-cream:  #f5f2eb;
-+    --bb-gold:   #f59e0b;
-+}
-+
- /* Custom styles for the MVP application */
+ $db = Database::getInstance();
++$conflictSvc = new ConflictDetectionService($db);
+ $currentUser = Auth::getCurrentUser();
  
- body {
-     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
--    background-color: #f8f9fa;
-+    background-color: var(--bb-cream);
-+}
-+
-+h1, h2, h3, h4,
-+.navbar-brand,
-+.coach-hero-team,
-+.card-header {
-+    font-family: 'Oswald', sans-serif;
- }
+ // Handle form submissions
+ $message = '';
+ $error = '';
++$pendingConflicts = [];
++$pendingAction = '';
++$pendingPost = [];
  
- .navbar-brand {
+ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+     if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+@@ -86,6 +91,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                     $request = $db->fetchOne("SELECT * FROM schedule_change_requests WHERE request_id = ?", [$requestId]);
+ 
+                     if ($request) {
++                        // Conflict gate — must be inside here because $request is needed (AC4 postponement check)
++                        if ($request['request_type'] !== 'Postponement' && empty($_POST['conflict_confirmed'])) {
++                            $gameRow = $db->fetchOne(
++                                'SELECT home_team_id, away_team_id FROM games WHERE game_id = ?',
++                                [$request['game_id']]
++                            );
++                            if ($gameRow) {
++                                $warnings = $conflictSvc->checkScrConflicts(
++                                    $request['requested_date'],
++                                    $request['requested_time'],
++                                    $request['requested_location'],
++                                    (int)$gameRow['home_team_id'],
++                                    (int)$gameRow['away_team_id'],
++                                    (int)$request['game_id']
++                                );
++                                if (!empty($warnings)) {
++                                    $pendingConflicts = $warnings;
++                                    $pendingAction = 'approve_change';
++                                    $pendingPost = [
++                                        'request_id'  => (int)$_POST['request_id'],
++                                        'admin_notes' => sanitize($_POST['admin_notes'] ?? ''),
++                                    ];
++                                    break;
++                                }
++                            }
++                        }
++
+                         $db->beginTransaction();
+ 
+                         if ($request['request_type'] === 'Postponement') {
+@@ -268,6 +300,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                         throw new Exception('All fields are required.');
+                     }
+ 
++                    if (empty($_POST['conflict_confirmed'])) {
++                        $gameRow = $db->fetchOne(
++                            'SELECT home_team_id, away_team_id FROM games WHERE game_id = ?',
++                            [$gameId]
++                        );
++                        if ($gameRow) {
++                            $warnings = $conflictSvc->checkScrConflicts(
++                                $newDate,
++                                $newTime,
++                                $newLocation,
++                                (int)$gameRow['home_team_id'],
++                                (int)$gameRow['away_team_id'],
++                                $gameId
++                            );
++                            if (!empty($warnings)) {
++                                $pendingConflicts = $warnings;
++                                $pendingAction = 'admin_direct_change';
++                                $pendingPost = [
++                                    'game_id'       => $gameId,
++                                    'new_date'      => $newDate,
++                                    'new_time'      => $newTime,
++                                    'new_location'  => $newLocation,
++                                    'change_reason' => $changeReason,
++                                    'game_notes'    => $gameNotes ?? '',
++                                ];
++                                break;
++                            }
++                        }
++                    }
++
+                     $db->beginTransaction();
+ 
+                     $originalSchedule = $db->fetchOne("SELECT game_date, game_time, location FROM schedules WHERE game_id = ?", [$gameId]);
+@@ -433,6 +495,36 @@ $pageTitle = "Schedule Management - " . APP_NAME;
+                     </div>
+                 <?php endif; ?>
+ 
++                <?php if (!empty($pendingConflicts)): ?>
++                <div class="alert alert-warning border border-warning shadow-sm" role="alert">
++                    <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Potential Scheduling Conflict</h5>
++                    <p class="mb-2">The proposed change would create the following conflict(s):</p>
++                    <ul class="mb-3">
++                        <?php foreach ($pendingConflicts as $c): ?>
++                            <li><?php echo htmlspecialchars(
++                                str_replace(' You may still submit, but an admin will need to review.', '', $c)
++                            ); ?></li>
++                        <?php endforeach; ?>
++                    </ul>
++                    <p class="mb-3">You may confirm to proceed anyway, or go back and choose a different date/time/location.</p>
++                    <form method="POST" class="d-inline me-2">
++                        <input type="hidden" name="action"             value="<?php echo htmlspecialchars($pendingAction); ?>">
++                        <input type="hidden" name="csrf_token"         value="<?php echo Auth::generateCSRFToken(); ?>">
++                        <input type="hidden" name="conflict_confirmed" value="1">
++                        <?php foreach ($pendingPost as $k => $v): ?>
++                            <input type="hidden" name="<?php echo htmlspecialchars($k); ?>"
++                                                value="<?php echo htmlspecialchars((string)$v); ?>">
++                        <?php endforeach; ?>
++                        <button type="submit" class="btn btn-warning">
++                            <i class="fas fa-check me-1"></i>Confirm &amp; Proceed
++                        </button>
++                    </form>
++                    <a href="<?php echo $_SERVER['REQUEST_URI']; ?>" class="btn btn-secondary">
++                        <i class="fas fa-arrow-left me-1"></i>Go Back
++                    </a>
++                </div>
++                <?php endif; ?>
++
+                 <!-- Pending Requests -->
+                 <?php if (!empty($pendingRequests)): ?>
+                 <div class="card mb-4">
