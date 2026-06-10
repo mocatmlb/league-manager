@@ -28,6 +28,8 @@ $formData = [
     'phone_type' => 'mobile',
 ];
 $fieldErrors = [];
+$smsOptIn = false;
+$acceptTerms = false;
 
 $captchaSiteKey = defined('RECAPTCHA_SITE_KEY')
     ? (string) RECAPTCHA_SITE_KEY
@@ -41,6 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $password = (string) ($_POST['password'] ?? '');
     $confirmPassword = (string) ($_POST['confirm_password'] ?? '');
+    $smsOptIn = !empty($_POST['sms_opt_in']);
+    $acceptTerms = !empty($_POST['accept_terms']);
 
     // Abort early on CSRF failure
     if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
@@ -66,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($formData['phone'] === '') $fieldErrors['phone'] = 'Phone is required.';
         if ($password === '') $fieldErrors['password'] = 'Password is required.';
         if ($confirmPassword === '' || $password !== $confirmPassword) $fieldErrors['confirm_password'] = 'Passwords must match.';
+        if (!$acceptTerms) $fieldErrors['accept_terms'] = 'You must accept the Terms of Service and Privacy Policy.';
 
         if ($globalError === '' && empty($fieldErrors)) {
             try {
@@ -76,6 +81,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'first_name' => $formData['first_name'],
                     'last_name' => $formData['last_name'],
                     'phone' => $formData['phone'],
+                    'sms_opt_in' => $smsOptIn,
+                    'terms_accepted' => $acceptTerms,
                 ]);
 
                 $_SESSION['registered_email'] = $formData['email'];
@@ -191,6 +198,23 @@ $cssPath = file_exists(__DIR__ . '/../assets/css/style.css') ? '../assets/css/st
                             <input class="form-control form-control-lg" id="confirm_password" type="password" name="confirm_password" aria-describedby="confirm_password_error confirm_password_match" required>
                             <div id="confirm_password_error" class="text-danger small"><?php echo sanitize($fieldErrors['confirm_password'] ?? ''); ?></div>
                             <div id="confirm_password_match" class="small mt-1" aria-live="polite" style="display:none;"></div>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="sms_opt_in" name="sms_opt_in" value="1" <?php echo $smsOptIn ? 'checked' : ''; ?>>
+                                <label class="form-check-label" for="sms_opt_in">
+                                    By checking, you consent to receive SMS messages from District 8 Travel League. Message frequency may vary. Message and data rates may apply, reply HELP for help or STOP to opt-out.
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="accept_terms" name="accept_terms" value="1" <?php echo $acceptTerms ? 'checked' : ''; ?> aria-describedby="accept_terms_error" required>
+                                <label class="form-check-label" for="accept_terms">
+                                    I agree to the <a href="../terms.php" target="_blank" rel="noopener noreferrer">Terms of Service</a> and <a href="../privacy-policy.php" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
+                                </label>
+                                <div id="accept_terms_error" class="text-danger small"><?php echo sanitize($fieldErrors['accept_terms'] ?? ''); ?></div>
+                            </div>
                         </div>
                         <div class="col-12">
                             <?php if ($captchaSiteKey !== '' && $captchaSecretConfigured): ?>
