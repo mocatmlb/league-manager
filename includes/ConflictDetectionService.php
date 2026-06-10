@@ -67,7 +67,8 @@ class ConflictDetectionService {
         string $proposedTime,
         string $proposedLocation,
         int $homeTeamId,
-        int $awayTeamId
+        int $awayTeamId,
+        ?int $excludeGameId = null
     ): array {
         $warnings = [];
 
@@ -83,11 +84,12 @@ class ConflictDetectionService {
               AND g.game_status NOT IN ('Cancelled', 'Postponed')
               AND (s.game_time IS NULL OR ? = '' OR ABS(TIME_TO_SEC(s.game_time) - TIME_TO_SEC(?)) <= ?)
         ";
-        $teamRows = $this->db->fetchAll($teamSql, [
-            $homeTeamId, $awayTeamId,
-            $proposedDate,
-            $proposedTime, $proposedTime, $this->conflictWindow
-        ]);
+        $teamParams = [$homeTeamId, $awayTeamId, $proposedDate, $proposedTime, $proposedTime, $this->conflictWindow];
+        if ($excludeGameId !== null) {
+            $teamSql .= " AND g.game_id != ?";
+            $teamParams[] = (int)$excludeGameId;
+        }
+        $teamRows = $this->db->fetchAll($teamSql, $teamParams);
         foreach ($teamRows as $row) {
             $timeLabel = $row['conflict_time'] ? date('g:i A', strtotime($row['conflict_time'])) : 'TBD';
             $dateLabel = date('M j, Y', strtotime($row['conflict_date']));
@@ -112,13 +114,12 @@ class ConflictDetectionService {
                       AND g.game_status NOT IN ('Cancelled', 'Postponed')
                       AND (s.game_time IS NULL OR ? = '' OR ABS(TIME_TO_SEC(s.game_time) - TIME_TO_SEC(?)) <= ?)
                 ";
-                $locRows = $this->db->fetchAll($locSql, [
-                    (int)$locRow['location_id'],
-                    $proposedDate,
-                    $proposedTime,
-                    $proposedTime,
-                    $this->conflictWindow
-                ]);
+                $locParams = [(int)$locRow['location_id'], $proposedDate, $proposedTime, $proposedTime, $this->conflictWindow];
+                if ($excludeGameId !== null) {
+                    $locSql .= " AND g.game_id != ?";
+                    $locParams[] = (int)$excludeGameId;
+                }
+                $locRows = $this->db->fetchAll($locSql, $locParams);
                 foreach ($locRows as $row) {
                     $timeLabel = $row['conflict_time'] ? date('g:i A', strtotime($row['conflict_time'])) : 'TBD';
                     $dateLabel = date('M j, Y', strtotime($row['conflict_date']));

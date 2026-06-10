@@ -145,3 +145,6 @@ These are race conditions, missing transactions, and performance issues. See [10
 - **`INSERT IGNORE` can't reset canned reason defaults** — `database/migrations/036_add_scr_canned_reasons.sql`. An admin who accidentally clears all reasons via the UI cannot recover defaults from a migration re-run. Could add a separate "reset to defaults" button in the settings UI if needed.
 ## Deferred from: code review (2026-06-07) story 21.3
 - [Review][Defer] Missing mobile support for special dates [public/schedule.php] — deferred, pre-existing (mobile lacks calendar)
+
+## Deferred from: code review of 20-3-admin-schedule-change-conflict-prompt.md (2026-06-09)
+- Pre-existing tech debt: `getGameConflicts` doesn't use the new exclusion logic [includes/ConflictDetectionService.php:33] — deferred, pre-existing

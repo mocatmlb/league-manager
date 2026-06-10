@@ -29,16 +29,21 @@ if (!$__found) {
 unset($__dir, $__found, $__i, $__candidate);
 
 @include_once EnvLoader::getPath('includes/admin_bootstrap.php');
+require_once EnvLoader::getPath('includes/ConflictDetectionService.php');
 
 // Require admin authentication
 Auth::requireAdmin();
 
 $db = Database::getInstance();
+$conflictSvc = new ConflictDetectionService($db);
 $currentUser = Auth::getCurrentUser();
 
 // Handle form submissions
 $message = '';
 $error = '';
+$pendingConflicts = [];
+$pendingAction = '';
+$pendingPost = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
@@ -86,6 +91,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $request = $db->fetchOne("SELECT * FROM schedule_change_requests WHERE request_id = ?", [$requestId]);
 
                     if ($request) {
+                        // Conflict gate — must be inside here because $request is needed (AC4 postponement check)
+                        if ($request['request_type'] !== 'Postponement' && empty($_POST['conflict_confirmed'])) {
+                            $gameRow = $db->fetchOne(
+                                'SELECT home_team_id, away_team_id FROM games WHERE game_id = ?',
+                                [$request['game_id']]
+                            );
+                            if ($gameRow) {
+                                $warnings = $conflictSvc->checkScrConflicts(
+                                    $request['requested_date'],
+                                    $request['requested_time'],
+                                    $request['requested_location'],
+                                    (int)$gameRow['home_team_id'],
+                                    (int)$gameRow['away_team_id'],
+                                    (int)$request['game_id']
+                                );
+                                if (!empty($warnings)) {
+                                    $pendingConflicts = $warnings;
+                                    $pendingAction = 'approve_change';
+                                    $pendingPost = [
+                                        'request_id'  => (int)$_POST['request_id'],
+                                        'admin_notes' => sanitize($_POST['admin_notes'] ?? ''),
+                                    ];
+                                    $conflictInterrupted = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (!empty($conflictInterrupted)) {
+                            break;
+                        }
+
                         $db->beginTransaction();
 
                         if ($request['request_type'] === 'Postponement') {
@@ -268,6 +305,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         throw new Exception('All fields are required.');
                     }
 
+                    if (empty($_POST['conflict_confirmed'])) {
+                        $gameRow = $db->fetchOne(
+                            'SELECT home_team_id, away_team_id FROM games WHERE game_id = ?',
+                            [$gameId]
+                        );
+                        if ($gameRow) {
+                            $warnings = $conflictSvc->checkScrConflicts(
+                                $newDate,
+                                $newTime,
+                                $newLocation,
+                                (int)$gameRow['home_team_id'],
+                                (int)$gameRow['away_team_id'],
+                                $gameId
+                            );
+                            if (!empty($warnings)) {
+                                $pendingConflicts = $warnings;
+                                $pendingAction = 'admin_direct_change';
+                                $pendingPost = [
+                                    'game_id'       => (int)$gameId,
+                                    'new_date'      => sanitize($newDate),
+                                    'new_time'      => sanitize($newTime),
+                                    'new_location'  => sanitize($newLocation),
+                                    'change_reason' => sanitize($changeReason),
+                                    'game_notes'    => sanitize($gameNotes ?? ''),
+                                ];
+                                $conflictInterrupted = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!empty($conflictInterrupted)) {
+                        break;
+                    }
+
                     $db->beginTransaction();
 
                     $originalSchedule = $db->fetchOne("SELECT game_date, game_time, location FROM schedules WHERE game_id = ?", [$gameId]);
@@ -431,6 +503,36 @@ $pageTitle = "Schedule Management - " . APP_NAME;
                         <i class="fas fa-exclamation-triangle"></i> <?php echo $error; ?>
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
+                <?php endif; ?>
+
+                <?php if (!empty($pendingConflicts)): ?>
+                <div class="alert alert-warning border border-warning shadow-sm" role="alert">
+                    <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Potential Scheduling Conflict</h5>
+                    <p class="mb-2">The proposed change would create the following conflict(s):</p>
+                    <ul class="mb-3">
+                        <?php foreach ($pendingConflicts as $c): ?>
+                            <li><?php echo htmlspecialchars(
+                                str_replace(' You may still submit, but an admin will need to review.', '', $c)
+                            ); ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                    <p class="mb-3">You may confirm to proceed anyway, or go back and choose a different date/time/location.</p>
+                    <form method="POST" class="d-inline me-2">
+                        <input type="hidden" name="action"             value="<?php echo htmlspecialchars($pendingAction); ?>">
+                        <input type="hidden" name="csrf_token"         value="<?php echo Auth::generateCSRFToken(); ?>">
+                        <input type="hidden" name="conflict_confirmed" value="1">
+                        <?php foreach ($pendingPost as $k => $v): ?>
+                            <input type="hidden" name="<?php echo htmlspecialchars($k); ?>"
+                                                value="<?php echo htmlspecialchars((string)$v); ?>">
+                        <?php endforeach; ?>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-check me-1"></i>Confirm &amp; Proceed
+                        </button>
+                    </form>
+                    <a href="<?php echo $_SERVER['REQUEST_URI']; ?>" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Go Back
+                    </a>
+                </div>
                 <?php endif; ?>
 
                 <!-- Pending Requests -->
