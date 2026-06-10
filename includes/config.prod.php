@@ -56,6 +56,7 @@ define('UPLOAD_MAX_SIZE', 5242880); // 5MB
 define('ALLOWED_FILE_TYPES', '["pdf","doc","docx","txt"]');
 
 // Timezone
+define('CONFLICT_WINDOW_SECONDS', EnvLoader::getInt('CONFLICT_WINDOW_SECONDS', 10800));
 date_default_timezone_set('America/New_York');
 
 // Error Reporting - Production (disabled for security)

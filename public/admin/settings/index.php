@@ -229,6 +229,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 break;
 
+            case 'update_conflict_settings':
+                try {
+                    $minutes = max(1, min(1440, (int) ($_POST['conflict_window_minutes'] ?? 180)));
+                    updateSetting('conflict_window_minutes', (string) $minutes);
+                    logActivity('conflict_settings_updated', "Conflict detection window set to {$minutes} min");
+                    $message = 'Conflict detection settings saved successfully!';
+                } catch (Exception $e) {
+                    $error = 'Error saving conflict settings: ' . $e->getMessage();
+                }
+                break;
+
             case 'update_schedule_changes':
                 try {
                     $preHours    = max(0, (int) ($_POST['reschedule_pre_game_hours']      ?? 0));
@@ -301,6 +312,7 @@ $fieldMaintenancePhone = getSetting('field_maintenance_phone', '');
 
 $availableTimezones = getAvailableTimezones();
 
+$conflictWindowMinutes     = getSetting('conflict_window_minutes',       '180');
 $reschedulePreGameHours    = getSetting('reschedule_pre_game_hours',     '0');
 $reschedulePostGameHours   = getSetting('reschedule_post_game_hours',    '0');
 $rescheduleMinNewGameHours = getSetting('reschedule_min_new_game_hours', '0');

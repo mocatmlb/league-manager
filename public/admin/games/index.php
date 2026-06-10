@@ -29,6 +29,7 @@ if (!$__found) {
 unset($__dir, $__found, $__i, $__candidate);
 
 @include_once EnvLoader::getPath('includes/admin_bootstrap.php');
+require_once EnvLoader::getPath('includes/ConflictDetectionService.php');
 
 // Require admin authentication
 Auth::requireAdmin();
@@ -647,7 +648,7 @@ if (!$showInactive) {
 }
 
 // Get games with team names, schedule info, and change counts
-$sql = "SELECT g.*, sch.game_date, sch.game_time, sch.location,
+$sql = "SELECT g.*, sch.game_date, sch.game_time, sch.location, sch.location_id,
            CASE 
                WHEN ht.team_name IS NOT NULL AND ht.team_name != '' THEN ht.team_name 
                ELSE CONCAT(ht.league_name, '-', ht.manager_last_name) 
@@ -673,6 +674,10 @@ $sql = "SELECT g.*, sch.game_date, sch.game_time, sch.location,
     ORDER BY sch.game_date ASC, sch.game_time ASC, sch.location ASC";
 
 $games = $db->fetchAll($sql, $params);
+
+$conflictWindowSeconds = (int) getSetting('conflict_window_minutes', '180') * 60;
+$conflictSvc = new ConflictDetectionService($db, $conflictWindowSeconds);
+$gameConflicts = $conflictSvc->getGameConflicts($games);
 
 // Get data for dropdowns
 $seasons = $db->fetchAll("SELECT * FROM seasons ORDER BY season_year DESC");
@@ -860,6 +865,15 @@ $pageTitle = "Games Management - " . APP_NAME;
                                             <span class="badge bg-<?php echo $game['game_status'] === 'Completed' ? 'success' : ($game['game_status'] === 'Cancelled' ? 'danger' : ($game['game_status'] === 'Postponed' ? 'warning' : 'primary')); ?>">
                                                 <?php echo $game['game_status']; ?>
                                             </span>
+                                            <?php if (!empty($gameConflicts[$game['game_id']])): ?>
+                                                <?php foreach ($gameConflicts[$game['game_id']] as $conflict): ?>
+                                                    <?php if ($conflict['type'] === 'team'): ?>
+                                                        <span class="badge bg-warning text-dark ms-1" data-bs-toggle="tooltip" title="<?= sanitize($conflict['message']) ?>">⚠ Team Conflict</span>
+                                                    <?php else: ?>
+                                                        <span class="badge ms-1 text-white" style="background-color:#fd7e14" data-bs-toggle="tooltip" title="<?= sanitize($conflict['message']) ?>">⚠ Location Conflict</span>
+                                                    <?php endif; ?>
+                                                <?php endforeach; ?>
+                                            <?php endif; ?>
                                         </td>
                                         <td onclick="event.stopPropagation();">
                                             <div class="btn-group" role="group">
@@ -1459,6 +1473,8 @@ $pageTitle = "Games Management - " . APP_NAME;
 
         // Native fallback: bind location toggle independently of jQuery/DataTable init
         document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+
             var addSel = document.getElementById('addLocationSelect');
             if (addSel) {
                 addSel.addEventListener('change', function() {

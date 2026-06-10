@@ -8,6 +8,20 @@ Items deferred from code reviews — triaged 2026-05-09.
 
 - `public/index.prod.php` is missing the weather widget that `index.php` has — this is a pre-existing divergence, not caused by the mobile card change. The prod copy should be brought in sync with the dev home page's weather widget feature.
 
+## From spec-admin-schedules-submitted-reviewed-dates (2026-06-07)
+
+- `public/admin/schedules/index.php` pending request accordion items use `data-bs-parent` which enforces single-open behavior — may want to remove it if admins want to compare multiple requests side by side.
+- `public/admin/schedules/index.php` pending requests serialized as full JSON into onclick attributes (exposes `reviewed_by` ID and `review_notes` in HTML source) — pre-existing in the desktop table, now also in the mobile accordion. Consider passing only the fields the edit modal needs.
+
+## Deferred from: code review of 20-1-game-scr-conflict-detection.md (2026-06-07)
+- Pre-existing DB divergence between dev and prod environments.
+- Missing indices on several legacy tables in `database/schema.sql`.
+
+## Deferred from: code review of 20-2-scr-conflict-warnings.md (2026-06-07)
+- User impersonation impact: Should conflict warnings differentiate between coach-led and admin-led submissions? (Reason: feature will be removed)
+- Pre-existing DB divergence between dev and prod environments.
+- Missing indices on several legacy tables in `database/schema.sql`.
+
 ---
 
 ## Routed to Story 9-1 (Cutover Service Backend)
@@ -131,3 +145,6 @@ These are race conditions, missing transactions, and performance issues. See [10
 - **`INSERT IGNORE` can't reset canned reason defaults** — `database/migrations/036_add_scr_canned_reasons.sql`. An admin who accidentally clears all reasons via the UI cannot recover defaults from a migration re-run. Could add a separate "reset to defaults" button in the settings UI if needed.
 ## Deferred from: code review (2026-06-07) story 21.3
 - [Review][Defer] Missing mobile support for special dates [public/schedule.php] — deferred, pre-existing (mobile lacks calendar)
+
+## Deferred from: code review of 20-3-admin-schedule-change-conflict-prompt.md (2026-06-09)
+- Pre-existing tech debt: `getGameConflicts` doesn't use the new exclusion logic [includes/ConflictDetectionService.php:33] — deferred, pre-existing

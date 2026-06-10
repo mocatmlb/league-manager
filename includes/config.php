@@ -54,6 +54,7 @@ define('UPLOAD_MAX_SIZE', 5242880); // 5MB
 define('ALLOWED_FILE_TYPES', '["pdf","doc","docx","txt"]');
 
 // Timezone
+define('CONFLICT_WINDOW_SECONDS', 10800); // 3-hour window for game conflicts
 date_default_timezone_set('America/New_York');
 
 // Error Reporting (disable in production)
