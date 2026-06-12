@@ -195,7 +195,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 'schedule_type' => 'Changed',
                                 'game_date' => $request['requested_date'],
                                 'game_time' => $request['requested_time'],
-                                'location' => $request['requested_location'],
                                 'location_id' => $resolvedLocationId,
                                 'change_request_id' => $requestId,
                                 'created_by_type' => 'Admin',
@@ -208,7 +207,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $db->update('schedules', [
                                 'game_date' => $request['requested_date'],
                                 'game_time' => $request['requested_time'],
-                                'location' => $request['requested_location'],
                                 'location_id' => $resolvedLocationId,
                                 'modified_date' => date('Y-m-d H:i:s')
                             ], 'game_id = :game_id', ['game_id' => $request['game_id']]);
@@ -348,7 +346,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     $db->beginTransaction();
 
-                    $originalSchedule = $db->fetchOne("SELECT game_date, game_time, location FROM schedules WHERE game_id = ?", [$gameId]);
+                    $originalSchedule = $db->fetchOne(
+                        "SELECT s.game_date, s.game_time, l.location_name AS location FROM schedules s LEFT JOIN locations l ON s.location_id = l.location_id WHERE s.game_id = ?",
+                        [$gameId]
+                    );
 
                     $db->update('schedule_history', [
                         'is_current' => 0
@@ -363,7 +364,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'schedule_type' => 'Changed',
                         'game_date' => $newDate,
                         'game_time' => $newTime,
-                        'location' => $newLocation,
                         'location_id' => $resolvedLocationId,
                         'created_by_type' => 'Admin',
                         'created_by_id' => $currentUser['id'],
@@ -391,7 +391,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $db->update('schedules', [
                         'game_date' => $newDate,
                         'game_time' => $newTime,
-                        'location' => $newLocation,
                         'location_id' => $resolvedLocationId,
                         'modified_date' => date('Y-m-d H:i:s')
                     ], 'game_id = :game_id', ['game_id' => $gameId]);
@@ -422,13 +421,14 @@ $allGames = $db->fetchAll("
     SELECT g.game_id, g.game_number,
            ht.team_name as home_team_name,
            at.team_name as away_team_name,
-           s.game_date, s.game_time, s.location
+           s.game_date, s.game_time, l.location_name AS location
     FROM games g
     JOIN teams ht ON g.home_team_id = ht.team_id
     JOIN teams at ON g.away_team_id = at.team_id
     LEFT JOIN schedules s ON g.game_id = s.game_id
+    LEFT JOIN locations l ON s.location_id = l.location_id
     WHERE g.game_status NOT IN ('Cancelled', 'Completed')
-    ORDER BY s.game_date ASC, s.game_time ASC, s.location ASC
+    ORDER BY s.game_date ASC, s.game_time ASC, l.location_name ASC
 ");
 
 // Get locations for admin direct change
@@ -436,7 +436,7 @@ $locations = $db->fetchAll("SELECT location_name FROM locations WHERE active_sta
 
 // Get pending schedule change requests
 $pendingRequests = $db->fetchAll("
-    SELECT scr.*, g.game_number, g.game_status, s.game_date, s.game_time, s.location,
+    SELECT scr.*, g.game_number, g.game_status, s.game_date, s.game_time, l.location_name AS location,
            ht.team_name as home_team_name,
            at.team_name as away_team_name,
            (SELECT COUNT(*) FROM schedule_history sh WHERE sh.game_id = g.game_id AND sh.user_notes IS NOT NULL AND sh.user_notes != '') as has_notes
@@ -445,13 +445,14 @@ $pendingRequests = $db->fetchAll("
     JOIN teams ht ON g.home_team_id = ht.team_id
     JOIN teams at ON g.away_team_id = at.team_id
     LEFT JOIN schedules s ON g.game_id = s.game_id
+    LEFT JOIN locations l ON s.location_id = l.location_id
     WHERE scr.request_status = 'Pending'
     ORDER BY scr.created_date DESC
 ");
 
 // Get all schedule change requests (for history)
 $allRequests = $db->fetchAll("
-    SELECT scr.*, g.game_number, s.game_date, s.game_time, s.location,
+    SELECT scr.*, g.game_number, s.game_date, s.game_time, l.location_name AS location,
            ht.team_name as home_team_name,
            at.team_name as away_team_name,
            COALESCE(au.username, CONCAT(u.first_name, ' ', u.last_name)) as reviewed_by_username,
@@ -461,6 +462,7 @@ $allRequests = $db->fetchAll("
     JOIN teams ht ON g.home_team_id = ht.team_id
     JOIN teams at ON g.away_team_id = at.team_id
     LEFT JOIN schedules s ON g.game_id = s.game_id
+    LEFT JOIN locations l ON s.location_id = l.location_id
     LEFT JOIN admin_users au ON scr.reviewed_by = au.id
     LEFT JOIN users u ON scr.reviewed_by = u.id AND au.id IS NULL
     ORDER BY scr.created_date DESC

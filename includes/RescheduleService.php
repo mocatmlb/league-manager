@@ -50,10 +50,11 @@ class RescheduleService {
         $teamIds = array_map('intval', array_column($teams, 'team_id'));
 
         $game = $this->db->fetchOne(
-            'SELECT g.*, s.game_date, s.game_time, s.location,
+            'SELECT g.*, s.game_date, s.game_time, l.location_name AS location,
                     sea.reschedule_cutoff_date
              FROM games g
              LEFT JOIN schedules s ON g.game_id = s.game_id
+             LEFT JOIN locations l ON s.location_id = l.location_id
              LEFT JOIN seasons sea ON g.season_id = sea.season_id
              WHERE g.game_id = :game_id',
             ['game_id' => $gameId]
@@ -280,11 +281,12 @@ class RescheduleService {
         $awayPlaceholders = implode(',', array_map(fn($k) => ':' . $k, array_keys($awayParams)));
 
         $games = $this->db->fetchAll(
-            "SELECT g.*, s.game_date, s.game_time, s.location,
+            "SELECT g.*, s.game_date, s.game_time, l.location_name AS location,
                     ht.team_name AS home_team_name, at.team_name AS away_team_name,
                     sea.reschedule_cutoff_date
              FROM games g
              LEFT JOIN schedules s ON g.game_id = s.game_id
+             LEFT JOIN locations l ON s.location_id = l.location_id
              LEFT JOIN seasons sea ON g.season_id = sea.season_id
              JOIN teams ht ON g.home_team_id = ht.team_id
              JOIN teams at ON g.away_team_id = at.team_id
@@ -361,10 +363,11 @@ class RescheduleService {
         $awayPlaceholders = implode(',', array_map(fn($k) => ':' . $k, array_keys($awayParams)));
 
         $games = $this->db->fetchAll(
-            "SELECT g.*, s.game_date, s.game_time, s.location,
+            "SELECT g.*, s.game_date, s.game_time, l.location_name AS location,
                     ht.team_name AS home_team_name, at.team_name AS away_team_name
              FROM games g
              LEFT JOIN schedules s ON g.game_id = s.game_id
+             LEFT JOIN locations l ON s.location_id = l.location_id
              JOIN teams ht ON g.home_team_id = ht.team_id
              JOIN teams at ON g.away_team_id = at.team_id
              WHERE (g.home_team_id IN ({$homePlaceholders}) OR g.away_team_id IN ({$awayPlaceholders}))
@@ -404,9 +407,10 @@ class RescheduleService {
         $teamIds = array_map('intval', array_column($teams, 'team_id'));
 
         $game = $this->db->fetchOne(
-            'SELECT g.*, s.game_date, s.game_time, s.location
+            'SELECT g.*, s.game_date, s.game_time, l.location_name AS location
              FROM games g
              LEFT JOIN schedules s ON g.game_id = s.game_id
+             LEFT JOIN locations l ON s.location_id = l.location_id
              WHERE g.game_id = :game_id',
             ['game_id' => $gameId]
         );

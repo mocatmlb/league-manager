@@ -23,7 +23,7 @@ class CoachScheduleService {
         $sql = "SELECT g.game_number, g.game_status,
                        g.home_score, g.away_score,
                        g.home_team_id, g.away_team_id,
-                       s.game_date, s.game_time, s.location,
+                       s.game_date, s.game_time,
                        loc.location_name AS loc_name, loc.address, loc.city, loc.state, loc.zip_code,
                        ht.team_name AS home_team_name,
                        at.team_name AS away_team_name
@@ -34,7 +34,7 @@ class CoachScheduleService {
                 JOIN teams at ON g.away_team_id = at.team_id
                 WHERE (g.home_team_id IN ({$placeholders})
                     OR g.away_team_id IN ({$placeholders}))
-                ORDER BY s.game_date ASC, s.game_time ASC, s.location ASC";
+                ORDER BY s.game_date ASC, s.game_time ASC, loc.location_name ASC";
 
         $params = array_merge(array_values($teamIds), array_values($teamIds));
 

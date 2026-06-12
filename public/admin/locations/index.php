@@ -169,10 +169,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Get all locations with usage statistics
 $locations = $db->fetchAll("
     SELECT l.*,
-           COUNT(DISTINCT CASE WHEN s.location_id = l.location_id OR (s.location_id IS NULL AND s.location = l.location_name) THEN s.schedule_id END) as games_scheduled,
-           COUNT(DISTINCT CASE WHEN (s.location_id = l.location_id OR (s.location_id IS NULL AND s.location = l.location_name)) AND s.game_date >= CURDATE() THEN s.schedule_id END) as upcoming_games
+           COUNT(DISTINCT s.schedule_id) as games_scheduled,
+           COUNT(DISTINCT CASE WHEN s.game_date >= CURDATE() THEN s.schedule_id END) as upcoming_games
     FROM locations l
-    LEFT JOIN schedules s ON s.location_id = l.location_id OR (s.location_id IS NULL AND s.location = l.location_name)
+    LEFT JOIN schedules s ON s.location_id = l.location_id
     GROUP BY l.location_id
     ORDER BY l.active_status DESC, l.location_name
 ");

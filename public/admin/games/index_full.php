@@ -94,8 +94,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'admin_user' => $_SESSION['admin_username'] ?? 'unknown'
                     ]);
                     
+                    $locationText = sanitize($_POST['location']);
+                    $locRow = $db->fetchOne(
+                        "SELECT location_id FROM locations WHERE location_name = ? AND active_status = 'Active' LIMIT 1",
+                        [$locationText]
+                    );
+                    $resolvedLocationId = $locRow ? (int)$locRow['location_id'] : null;
+
                     $db->beginTransaction();
-                    
+
                     // Create game record
                     $gameData = [
                         'game_number' => sanitize($_POST['game_number']),
@@ -106,20 +113,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'game_status' => 'Active',
                         'created_date' => date('Y-m-d H:i:s')
                     ];
-                    
+
                     $gameId = $db->insert('games', $gameData);
-                    
+
                     // Create schedule record
                     $scheduleData = [
                         'game_id' => $gameId,
                         'game_date' => sanitize($_POST['game_date']),
                         'game_time' => sanitize($_POST['game_time']),
-                        'location' => sanitize($_POST['location']),
+                        'location_id' => $resolvedLocationId,
                         'created_date' => date('Y-m-d H:i:s')
                     ];
-                    
+
                     $db->insert('schedules', $scheduleData);
-                    
+
                     // Create initial schedule history entry
                     $historyData = [
                         'game_id' => $gameId,
@@ -127,7 +134,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'schedule_type' => 'Original',
                         'game_date' => sanitize($_POST['game_date']),
                         'game_time' => sanitize($_POST['game_time']),
-                        'location' => sanitize($_POST['location']),
+                        'location' => $locationText,
+                        'location_id' => $resolvedLocationId,
                         'is_current' => 1,
                         'created_at' => date('Y-m-d H:i:s'),
                         'notes' => 'Initial game schedule'
@@ -185,29 +193,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $newDate = sanitize($_POST['game_date']);
                     $newTime = sanitize($_POST['game_time']);
                     $newLocation = sanitize($_POST['location']);
-                    
-                    $scheduleChanged = ($currentSchedule['game_date'] !== $newDate || 
-                                     $currentSchedule['game_time'] !== $newTime || 
-                                     $currentSchedule['location'] !== $newLocation);
-                    
+
+                    $locRow = $db->fetchOne(
+                        "SELECT location_id FROM locations WHERE location_name = ? AND active_status = 'Active' LIMIT 1",
+                        [$newLocation]
+                    );
+                    $resolvedLocationId = $locRow ? (int)$locRow['location_id'] : null;
+
+                    $scheduleChanged = ($currentSchedule['game_date'] !== $newDate ||
+                                     $currentSchedule['game_time'] !== $newTime ||
+                                     (int)$currentSchedule['location_id'] !== (int)$resolvedLocationId);
+
                     if ($scheduleChanged) {
                         // Update schedule record
                         $scheduleData = [
                             'game_date' => $newDate,
                             'game_time' => $newTime,
-                            'location' => $newLocation,
+                            'location_id' => $resolvedLocationId,
                             'modified_date' => date('Y-m-d H:i:s')
                         ];
-                        
+
                         $db->update('schedules', $scheduleData, 'game_id = ?', [$gameId]);
-                        
+
                         // Mark current history as not current
                         $db->query("UPDATE schedule_history SET is_current = 0 WHERE game_id = ?", [$gameId]);
-                        
+
                         // Get next version number
                         $maxVersion = $db->fetchOne("SELECT MAX(version_number) as max_version FROM schedule_history WHERE game_id = ?", [$gameId]);
                         $nextVersion = ($maxVersion['max_version'] ?? 0) + 1;
-                        
+
                         // Create new schedule history entry
                         $historyData = [
                             'game_id' => $gameId,
@@ -216,6 +230,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             'game_date' => $newDate,
                             'game_time' => $newTime,
                             'location' => $newLocation,
+                            'location_id' => $resolvedLocationId,
                             'is_current' => 1,
                             'created_at' => date('Y-m-d H:i:s'),
                             'notes' => 'Schedule updated via admin'
@@ -281,8 +296,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $nextVersion = ($maxVersion['max_version'] ?? 0) + 1;
                     
                     // Get current schedule for the cancelled entry
-                    $currentSchedule = $db->fetchOne("SELECT * FROM schedules WHERE game_id = ?", [$gameId]);
-                    
+                    $currentSchedule = $db->fetchOne(
+                        "SELECT s.*, l.location_name AS location FROM schedules s LEFT JOIN locations l ON s.location_id = l.location_id WHERE s.game_id = ?",
+                        [$gameId]
+                    );
+
                     // Create cancellation history entry
                     $historyData = [
                         'game_id' => $gameId,
@@ -291,6 +309,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'game_date' => $currentSchedule['game_date'],
                         'game_time' => $currentSchedule['game_time'],
                         'location' => $currentSchedule['location'],
+                        'location_id' => $currentSchedule['location_id'],
                         'is_current' => 1,
                         'created_at' => date('Y-m-d H:i:s'),
                         'notes' => 'Game cancelled: ' . $reason
@@ -332,8 +351,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $nextVersion = ($maxVersion['max_version'] ?? 0) + 1;
                     
                     // Get current schedule for the postponed entry
-                    $currentSchedule = $db->fetchOne("SELECT * FROM schedules WHERE game_id = ?", [$gameId]);
-                    
+                    $currentSchedule = $db->fetchOne(
+                        "SELECT s.*, l.location_name AS location FROM schedules s LEFT JOIN locations l ON s.location_id = l.location_id WHERE s.game_id = ?",
+                        [$gameId]
+                    );
+
                     // Create postponement history entry
                     $historyData = [
                         'game_id' => $gameId,
@@ -342,6 +364,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'game_date' => $currentSchedule['game_date'],
                         'game_time' => $currentSchedule['game_time'],
                         'location' => $currentSchedule['location'],
+                        'location_id' => $currentSchedule['location_id'],
                         'is_current' => 1,
                         'created_at' => date('Y-m-d H:i:s'),
                         'notes' => 'Game postponed: ' . $reason
@@ -365,14 +388,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Get games with team names, schedule info, and change counts
 $games = $db->fetchAll("
-    SELECT g.*, sch.game_date, sch.game_time, sch.location,
-           ht.team_name as home_team_name, 
+    SELECT g.*, sch.game_date, sch.game_time, l.location_name AS location,
+           ht.team_name as home_team_name,
            at.team_name as away_team_name,
            s.season_name,
            d.division_name,
            (SELECT COUNT(*) FROM schedule_change_requests scr WHERE scr.game_id = g.game_id) as change_count
     FROM games g
     JOIN schedules sch ON g.game_id = sch.game_id
+    LEFT JOIN locations l ON sch.location_id = l.location_id
     JOIN teams ht ON g.home_team_id = ht.team_id
     JOIN teams at ON g.away_team_id = at.team_id
     JOIN seasons s ON g.season_id = s.season_id
@@ -384,7 +408,7 @@ $games = $db->fetchAll("
 $seasons = $db->fetchAll("SELECT * FROM seasons ORDER BY season_year DESC");
 $divisions = $db->fetchAll("SELECT * FROM divisions ORDER BY division_name");
 $teams = $db->fetchAll("SELECT * FROM teams WHERE active_status = 'Active' ORDER BY team_name");
-$locations = $db->fetchAll("SELECT DISTINCT location FROM schedules WHERE location IS NOT NULL AND location != '' ORDER BY location");
+$locations = $db->fetchAll("SELECT location_name FROM locations WHERE active_status = 'Active' ORDER BY location_name");
 
 ?>
 <!DOCTYPE html>
@@ -665,7 +689,7 @@ $locations = $db->fetchAll("SELECT DISTINCT location FROM schedules WHERE locati
                             <input type="text" name="location" class="form-control" list="locationsList" required>
                             <datalist id="locationsList">
                                 <?php foreach ($locations as $location): ?>
-                                    <option value="<?php echo sanitize($location['location']); ?>">
+                                    <option value="<?php echo sanitize($location['location_name']); ?>">
                                 <?php endforeach; ?>
                             </datalist>
                         </div>

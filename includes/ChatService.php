@@ -323,7 +323,7 @@ PROMPT;
                 "SELECT
                     s.game_date,
                     s.game_time,
-                    s.location,
+                    l.location_name AS location,
                     g.game_status,
                     g.home_score,
                     g.away_score,
@@ -334,6 +334,7 @@ PROMPT;
                     d.division_name
                  FROM schedules s
                  JOIN games g          ON g.game_id      = s.game_id
+                 LEFT JOIN locations l ON l.location_id  = s.location_id
                  JOIN teams  ht        ON ht.team_id     = g.home_team_id
                  JOIN teams  at_       ON at_.team_id    = g.away_team_id
                  LEFT JOIN divisions d ON d.division_id  = g.division_id

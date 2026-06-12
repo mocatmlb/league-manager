@@ -138,7 +138,7 @@ function generateGameNumber($seasonId, $gameCount) {
 function getUpcomingGames($days = 7) {
     $db = Database::getInstance();
 
-    $sql = "SELECT g.*, s.game_date, s.game_time, s.location,
+    $sql = "SELECT g.*, s.game_date, s.game_time,
                    loc.location_name as loc_name, loc.address, loc.city, loc.state, loc.zip_code,
                    ht.team_name as home_team, at.team_name as away_team,
                    ht.league_name as home_league, at.league_name as away_league
@@ -162,7 +162,7 @@ function getUpcomingGames($days = 7) {
 function getTodaysGames() {
     $db = Database::getInstance();
 
-    $sql = "SELECT g.*, s.game_date, s.game_time, s.location,
+    $sql = "SELECT g.*, s.game_date, s.game_time,
                    loc.location_name as loc_name, loc.address, loc.city, loc.state, loc.zip_code,
                    ht.team_name as home_team, at.team_name as away_team,
                    ht.league_name as home_league, at.league_name as away_league
