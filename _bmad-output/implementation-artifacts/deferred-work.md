@@ -148,3 +148,10 @@ These are race conditions, missing transactions, and performance issues. See [10
 
 ## Deferred from: code review of 20-3-admin-schedule-change-conflict-prompt.md (2026-06-09)
 - Pre-existing tech debt: `getGameConflicts` doesn't use the new exclusion logic [includes/ConflictDetectionService.php:33] — deferred, pre-existing
+
+## Deferred from: code review of spec-sms-consent-compliance (2026-06-09)
+
+- **Consent audit trail is point-in-time, not event-based** — `users.sms_consent_at` is cleared on opt-out and `terms_accepted_at` is overwritten on each re-affirmation, so the grant/revoke history and original acceptance date are lost. For a stronger TCPA/A2P posture, consider a consent-events log table (or `sms_consent_revoked_at` + ToS version column). Current design matches the approved spec.
+- **No registration-path consent test coverage** — `RegistrationService::register()` consent persistence (`sms_opt_in`, `sms_consent_at`, `terms_accepted_at`) and the `accept_terms` gate in `register.php` are untested; spec only required the ProfileService test.
+- **Profile error re-render discards POSTed edits** — `public/coaches/profile.php` repopulates the form from the DB row on any validation error (incl. the new ToS gate), losing the user's typed email/phone/SMS toggle. Pre-existing page pattern; repopulating from `$_POST` on error would fix it.
+- **Profile save is not atomic across services** — `updateContactInfo()` commits (incl. consent stamps) before `updateName()` runs; a name failure leaves contact/consent saved while the user sees an error. Pre-existing two-call structure in profile.php.

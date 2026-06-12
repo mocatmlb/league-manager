@@ -101,7 +101,7 @@ class ProfileService {
         }
     }
 
-    public function updateContactInfo(int $userId, string $email, string $phone, bool $smsOptIn): void {
+    public function updateContactInfo(int $userId, string $email, string $phone, bool $smsOptIn, bool $termsAccepted = false): void {
         $email = trim($email);
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             throw new InvalidArgumentException('Invalid email address.');
@@ -127,13 +127,40 @@ class ProfileService {
                 throw new InvalidArgumentException('Email is already in use.');
             }
 
+            // Consent audit: read the current opt-in state inside the
+            // transaction (FOR UPDATE so concurrent saves serialize) so
+            // sms_consent_at is only stamped when the user newly opts in
+            // (already-opted-in users keep their original consent
+            // timestamp); opting out clears it.
+            $current = $this->db->fetchOne(
+                'SELECT sms_opt_in, sms_consent_at, terms_accepted_at FROM users WHERE id = :user_id FOR UPDATE',
+                ['user_id' => $userId]
+            );
+            if ($current === false) {
+                throw new RuntimeException('User account not found.');
+            }
+            $currentOptIn = !empty($current['sms_opt_in']);
+            $now = date('Y-m-d H:i:s');
+
+            if ($smsOptIn) {
+                $smsConsentAt = $currentOptIn
+                    ? ($current['sms_consent_at'] ?? $now)
+                    : $now;
+            } else {
+                $smsConsentAt = null;
+            }
+
             $this->db->query(
-                'UPDATE users SET email = :email, phone = :phone, sms_opt_in = :sms_opt_in, updated_at = NOW() WHERE id = :user_id',
+                'UPDATE users SET email = :email, phone = :phone, sms_opt_in = :sms_opt_in, sms_consent_at = :sms_consent_at, terms_accepted_at = :terms_accepted_at, updated_at = NOW() WHERE id = :user_id',
                 [
-                    'email'      => $email,
-                    'phone'      => $formattedPhone,
-                    'sms_opt_in' => $smsOptIn ? 1 : 0,
-                    'user_id'    => $userId,
+                    'email'             => $email,
+                    'phone'             => $formattedPhone,
+                    'sms_opt_in'        => $smsOptIn ? 1 : 0,
+                    'sms_consent_at'    => $smsConsentAt,
+                    // Only the caller knows whether the user affirmatively
+                    // checked the ToS box — never stamp acceptance unprompted.
+                    'terms_accepted_at' => $termsAccepted ? $now : ($current['terms_accepted_at'] ?? null),
+                    'user_id'           => $userId,
                 ]
             );
 

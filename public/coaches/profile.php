@@ -63,16 +63,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $phone     = trim($_POST['phone'] ?? '');
         $smsOptIn  = !empty($_POST['sms_opt_in']);
 
-        try {
-            // Contact info first — if it fails (e.g. duplicate email), name stays unchanged.
-            $service->updateContactInfo($userId, $email, $phone, $smsOptIn);
-            $service->updateName($userId, $nameData);
+        if (empty($_POST['accept_terms'])) {
+            // ToS must be affirmatively re-accepted on every save — block before any DB write.
+            $error = 'You must accept the Terms of Service and Privacy Policy.';
+        } else {
+            try {
+                // Contact info first — if it fails (e.g. duplicate email), name stays unchanged.
+                $service->updateContactInfo($userId, $email, $phone, $smsOptIn, true);
+                $service->updateName($userId, $nameData);
 
-            $_SESSION['flash_success'] = 'Profile updated.';
-            header('Location: profile.php');
-            exit;
-        } catch (Throwable $e) {
-            $error = $e->getMessage() ?: 'Profile update failed — please try again.';
+                $_SESSION['flash_success'] = 'Profile updated.';
+                header('Location: profile.php');
+                exit;
+            } catch (Throwable $e) {
+                $error = $e->getMessage() ?: 'Profile update failed — please try again.';
+            }
         }
     } elseif ($action === 'change_password') {
         if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
@@ -225,9 +230,18 @@ if (Auth::isAdmin()) {
                                 <input class="form-check-input" type="checkbox" id="sms_opt_in" name="sms_opt_in"
                                        value="1" <?php echo !empty($user['sms_opt_in']) ? 'checked' : ''; ?>>
                                 <label class="form-check-label" for="sms_opt_in">
-                                    Opt in to text message notifications
+                                    By checking, you consent to receive SMS messages from District 8 Travel League. Message frequency may vary. Message and data rates may apply, reply HELP for help or STOP to opt-out.
                                 </label>
-                                <div class="form-text">Text message features are coming soon. Check this box to receive notifications when available.</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="accept_terms" name="accept_terms"
+                                       value="1" required>
+                                <label class="form-check-label" for="accept_terms">
+                                    I agree to the <a href="../terms.php" target="_blank" rel="noopener noreferrer">Terms of Service</a> and <a href="../privacy-policy.php" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
+                                </label>
                             </div>
                         </div>
 

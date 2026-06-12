@@ -77,6 +77,14 @@ class RegistrationService {
         $expiry = $this->tokenExpiry();
         $passwordHash = password_hash($data['password'], PASSWORD_BCRYPT);
 
+        // SMS consent (optional) + ToS acceptance audit trail. insertUser()
+        // binds values as placeholders, so use date() strings, not raw NOW().
+        // Only the caller knows whether the user affirmatively checked the
+        // ToS box — never stamp acceptance unprompted.
+        $smsOptIn = !empty($data['sms_opt_in']);
+        $termsAccepted = !empty($data['terms_accepted']);
+        $now = date('Y-m-d H:i:s');
+
         $insert = [
             'username'            => $username,
             'email'               => $email,
@@ -86,6 +94,9 @@ class RegistrationService {
             'status'              => 'unverified',
             'verification_token'  => $token,
             'verification_expiry' => $expiry,
+            'sms_opt_in'          => $smsOptIn ? 1 : 0,
+            'sms_consent_at'      => $smsOptIn ? $now : null,
+            'terms_accepted_at'   => $termsAccepted ? $now : null,
         ];
         $this->applyPasswordColumn($insert, $passwordHash);
         $this->applyRoleDefaults($insert);
