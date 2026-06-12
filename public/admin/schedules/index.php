@@ -340,6 +340,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         break;
                     }
 
+                    $locRow = $db->fetchOne(
+                        "SELECT location_id FROM locations WHERE location_name = ? AND active_status = 'Active' LIMIT 1",
+                        [$newLocation]
+                    );
+                    $resolvedLocationId = $locRow ? (int)$locRow['location_id'] : null;
+
                     $db->beginTransaction();
 
                     $originalSchedule = $db->fetchOne("SELECT game_date, game_time, location FROM schedules WHERE game_id = ?", [$gameId]);
@@ -358,6 +364,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'game_date' => $newDate,
                         'game_time' => $newTime,
                         'location' => $newLocation,
+                        'location_id' => $resolvedLocationId,
                         'created_by_type' => 'Admin',
                         'created_by_id' => $currentUser['id'],
                         'is_current' => 1,
@@ -385,6 +392,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'game_date' => $newDate,
                         'game_time' => $newTime,
                         'location' => $newLocation,
+                        'location_id' => $resolvedLocationId,
                         'modified_date' => date('Y-m-d H:i:s')
                     ], 'game_id = :game_id', ['game_id' => $gameId]);
 
