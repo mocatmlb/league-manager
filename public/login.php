@@ -19,6 +19,7 @@ try {
 
 require_once EnvLoader::getPath('includes/AuthService.php');
 require_once EnvLoader::getPath('includes/ActivityLogger.php');
+require_once EnvLoader::getPath('includes/PermissionGuard.php');
 
 /**
  * Allow only same-site coach paths in the intended_url redirect after login.
@@ -72,19 +73,7 @@ if (Auth::isAdmin()) {
     exit;
 }
 if (Auth::isCoach()) {
-    $sessionRole = $_SESSION['role'] ?? '';
-    if ($sessionRole === 'umpire_assignor') {
-        $url = EnvLoader::isProduction() ? '/admin/umpires/index.php' : '/public/admin/umpires/index.php';
-        header('Location: ' . $url);
-        exit;
-    }
-    if ($sessionRole === 'umpire') {
-        $url = EnvLoader::isProduction() ? '/umpires/index.php' : '/public/umpires/index.php';
-        header('Location: ' . $url);
-        exit;
-    }
-    $coachUrl = EnvLoader::isProduction() ? '/coaches/dashboard.php' : '/public/coaches/dashboard.php';
-    header('Location: ' . $coachUrl);
+    header('Location: ' . PermissionGuard::getHomeUrl($_SESSION['role'] ?? 'coach'));
     exit;
 }
 
@@ -135,25 +124,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if ($actualRole !== '') {
                             $_SESSION['role'] = $actualRole;
                         }
-
-                        if ($actualRole === 'umpire_assignor') {
-                            $url = EnvLoader::isProduction() ? '/admin/umpires/index.php' : '/public/admin/umpires/index.php';
-                            header('Location: ' . $url);
-                            exit;
-                        }
-                        if ($actualRole === 'umpire') {
-                            $url = EnvLoader::isProduction() ? '/umpires/index.php' : '/public/umpires/index.php';
-                            header('Location: ' . $url);
-                            exit;
-                        }
                     } catch (Throwable $e) {
                         error_log('[login] Role check failed, defaulting to coach redirect: ' . $e->getMessage());
                     }
 
-                    // Honor intended_url set by auth guard (AC2)
-                    $raw = isset($_SESSION['intended_url']) ? (string) $_SESSION['intended_url'] : '';
+                    // Honor a valid intended_url if the coach guard set one; otherwise use role home
+                    $raw = (string) ($_SESSION['intended_url'] ?? '');
                     unset($_SESSION['intended_url']);
-                    $redirect = unified_login_safe_redirect_target($raw !== '' ? $raw : null);
+                    $intendedCoachUrl = $raw !== '' ? unified_login_safe_redirect_target($raw) : null;
+                    $redirect = ($intendedCoachUrl !== null && $intendedCoachUrl !== 'coaches/dashboard.php')
+                        ? $intendedCoachUrl
+                        : PermissionGuard::getHomeUrl($_SESSION['role'] ?? 'coach');
                     header('Location: ' . $redirect);
                     exit;
                 }

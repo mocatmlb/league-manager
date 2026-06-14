@@ -21,6 +21,29 @@ class PermissionGuard {
     ];
 
     /**
+     * Maps each role to its post-login home URL [production, development].
+     * Add one entry here when a new role is introduced — no other file needs changing.
+     */
+    private static array $ROLE_HOME = [
+        'administrator'   => ['/admin/index.php',         '/public/admin/index.php'],
+        'umpire_assignor' => ['/admin/umpires/index.php', '/public/admin/umpires/index.php'],
+        'umpire'          => ['/umpires/index.php',       '/public/umpires/index.php'],
+        'coach'           => ['/coaches/dashboard.php',   '/public/coaches/dashboard.php'],
+        'team_owner'      => ['/coaches/dashboard.php',   '/public/coaches/dashboard.php'],
+        'team_official'   => ['/coaches/dashboard.php',   '/public/coaches/dashboard.php'],
+        'user'            => ['/coaches/dashboard.php',   '/public/coaches/dashboard.php'],
+    ];
+
+    /**
+     * Return the post-login home URL for a given role.
+     * Unknown roles fall back to the 'user' entry.
+     */
+    public static function getHomeUrl(string $role): string {
+        $pair = self::$ROLE_HOME[$role] ?? self::$ROLE_HOME['user'];
+        return EnvLoader::isProduction() ? $pair[0] : $pair[1];
+    }
+
+    /**
      * Require the current session user to have the specified role(s).
      *
      * Redirects to the login page and halts execution if the role check fails.
