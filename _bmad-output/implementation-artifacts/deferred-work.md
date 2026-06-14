@@ -155,3 +155,13 @@ These are race conditions, missing transactions, and performance issues. See [10
 - **No registration-path consent test coverage** — `RegistrationService::register()` consent persistence (`sms_opt_in`, `sms_consent_at`, `terms_accepted_at`) and the `accept_terms` gate in `register.php` are untested; spec only required the ProfileService test.
 - **Profile error re-render discards POSTed edits** — `public/coaches/profile.php` repopulates the form from the DB row on any validation error (incl. the new ToS gate), losing the user's typed email/phone/SMS toggle. Pre-existing page pattern; repopulating from `$_POST` on error would fix it.
 - **Profile save is not atomic across services** — `updateContactInfo()` commits (incl. consent stamps) before `updateName()` runs; a name failure leaves contact/consent saved while the user sees an error. Pre-existing two-call structure in profile.php.
+
+## Deferred from: code review 22.2 — Umpire Roster Management (2026-06-14)
+
+### Medium Priority
+- **Consider caching umpire role ID** — `UmpireRosterService.php:66-72` fetches `umpire` role on every `createUmpire()` call. For high-volume operations, consider caching this value.
+- **Improve temporary password UX** — `public/admin/umpires/roster.php:48` flashes temp password in session (visible on browser back). Consider displaying in a modal immediately after creation, or generating a secure one-time download link.
+
+### Low Priority
+- **Add client-side validation for DOB requirement** — `public/admin/umpires/roster.php` has HTML `required` attributes but no JS validation feedback for DOB when under-18 checkbox is checked.
+- **Consider making phone type/role configurable** — `UmpireRosterService.php:107-111` hardcodes `type='Cell'` and `role='primary'` in dual-write to `user_phones`. This assumes all umpires use cell phones.
