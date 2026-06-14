@@ -72,6 +72,17 @@ if (Auth::isAdmin()) {
     exit;
 }
 if (Auth::isCoach()) {
+    $sessionRole = $_SESSION['role'] ?? '';
+    if ($sessionRole === 'umpire_assignor') {
+        $url = EnvLoader::isProduction() ? '/admin/umpires/index.php' : '/public/admin/umpires/index.php';
+        header('Location: ' . $url);
+        exit;
+    }
+    if ($sessionRole === 'umpire') {
+        $url = EnvLoader::isProduction() ? '/umpires/index.php' : '/public/umpires/index.php';
+        header('Location: ' . $url);
+        exit;
+    }
     $coachUrl = EnvLoader::isProduction() ? '/coaches/dashboard.php' : '/public/coaches/dashboard.php';
     header('Location: ' . $coachUrl);
     exit;
@@ -97,7 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         session_regenerate_id(true);
                     }
 
-                    // Users-table users with administrator role get a full admin session
+                    // Resolve actual role from DB and update session; redirect based on role
                     try {
                         $db = Database::getInstance();
                         $roleRow = $db->fetchOne(
@@ -107,7 +118,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                              WHERE u.id = :id LIMIT 1',
                             ['id' => $_SESSION['coach_user_id']]
                         );
-                        if (($roleRow['role_name'] ?? '') === 'administrator') {
+                        $actualRole = (string) ($roleRow['role_name'] ?? '');
+
+                        if ($actualRole === 'administrator') {
                             $_SESSION['user_type']       = 'admin';
                             $_SESSION['admin_id']        = $_SESSION['coach_user_id'];
                             $_SESSION['admin_username']  = $_SESSION['coach_identifier'];
@@ -115,6 +128,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $_SESSION['expires']         = time() + ADMIN_SESSION_TIMEOUT;
                             $adminUrl = EnvLoader::isProduction() ? '/admin/index.php' : '/public/admin/index.php';
                             header('Location: ' . $adminUrl);
+                            exit;
+                        }
+
+                        // Stamp the real role so PermissionGuard works on subsequent requests
+                        if ($actualRole !== '') {
+                            $_SESSION['role'] = $actualRole;
+                        }
+
+                        if ($actualRole === 'umpire_assignor') {
+                            $url = EnvLoader::isProduction() ? '/admin/umpires/index.php' : '/public/admin/umpires/index.php';
+                            header('Location: ' . $url);
+                            exit;
+                        }
+                        if ($actualRole === 'umpire') {
+                            $url = EnvLoader::isProduction() ? '/umpires/index.php' : '/public/umpires/index.php';
+                            header('Location: ' . $url);
                             exit;
                         }
                     } catch (Throwable $e) {

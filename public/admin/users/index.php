@@ -79,9 +79,11 @@ function buildPaginationUrl(int $targetPage, string $search, string $role, strin
 // Helper: role badge HTML
 function roleBadgeHtml(string $role): string {
     switch ($role) {
-        case 'administrator': return '<span class="badge bg-danger">Administrator</span>';
-        case 'team_owner':    return '<span class="badge status-team-owner">Team Owner</span>';
-        default:              return '<span class="badge bg-secondary">User</span>';
+        case 'administrator':   return '<span class="badge bg-danger">Administrator</span>';
+        case 'team_owner':      return '<span class="badge status-team-owner">Team Owner</span>';
+        case 'umpire_assignor': return '<span class="badge bg-warning text-dark">Umpire Assignor</span>';
+        case 'umpire':          return '<span class="badge bg-info text-dark">Umpire</span>';
+        default:                return '<span class="badge bg-secondary">User</span>';
     }
 }
 
