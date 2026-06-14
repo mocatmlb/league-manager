@@ -571,9 +571,11 @@ $pageTitle = 'User Detail — ' . sanitize($user['first_name'] . ' ' . $user['la
                         <div>
                             <label class="form-label mb-1">Current Role: <strong><?php echo sanitize($roleName); ?></strong></label>
                             <select name="new_role" class="form-select form-select-sm" style="min-width:180px;" <?php echo $isSelf ? 'disabled' : ''; ?>>
-                                <option value="user"          <?php echo $roleName === 'user'          ? 'selected' : ''; ?>>User</option>
-                                <option value="team_owner"    <?php echo $roleName === 'team_owner'    ? 'selected' : ''; ?>>Team Owner</option>
-                                <option value="administrator" <?php echo $roleName === 'administrator' ? 'selected' : ''; ?>>Administrator</option>
+                                <option value="user"            <?php echo $roleName === 'user'            ? 'selected' : ''; ?>>User</option>
+                                <option value="team_owner"      <?php echo $roleName === 'team_owner'      ? 'selected' : ''; ?>>Team Owner</option>
+                                <option value="administrator"   <?php echo $roleName === 'administrator'   ? 'selected' : ''; ?>>Administrator</option>
+                                <option value="umpire_assignor" <?php echo $roleName === 'umpire_assignor' ? 'selected' : ''; ?>>Umpire Assignor</option>
+                                <option value="umpire"          <?php echo $roleName === 'umpire'          ? 'selected' : ''; ?>>Umpire</option>
                             </select>
                         </div>
                         <div class="mt-3">

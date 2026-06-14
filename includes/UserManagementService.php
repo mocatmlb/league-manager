@@ -156,7 +156,7 @@ class UserManagementService {
     }
 
     public function setRole(int $userId, string $role, int $adminUserId): void {
-        $validRoles = ['user', 'team_owner', 'administrator'];
+        $validRoles = ['user', 'team_owner', 'administrator', 'umpire_assignor', 'umpire'];
         if (!in_array($role, $validRoles, true)) {
             throw new InvalidArgumentException("Invalid role: {$role}");
         }
