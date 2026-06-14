@@ -10,6 +10,7 @@ $envLoader = file_exists(__DIR__ . '/../includes/env-loader.php')
     : __DIR__ . '/../../includes/env-loader.php';
 require_once $envLoader;
 require_once EnvLoader::getPath('includes/bootstrap.php');
+require_once EnvLoader::getPath('includes/PermissionGuard.php');
 
 PermissionGuard::requireRole('umpire', '/login.php');
 
