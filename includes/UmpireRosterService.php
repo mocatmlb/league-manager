@@ -281,14 +281,19 @@ class UmpireRosterService {
                 require_once __DIR__ . '/EmailService.php';
             }
             $emailSvc = new EmailService();
-            $loginUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http')
-                . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/login.php';
-            $emailSvc->triggerNotificationToAddress('umpire_account_welcome', $toEmail, [
-                'first_name'    => $firstName,
-                'email'         => $toEmail,
-                'temp_password' => $tempPassword,
-                'login_url'     => $loginUrl,
+            $appUrl = defined('APP_URL') ? rtrim((string) APP_URL, '/') : '';
+            $loginUrl = $appUrl !== '' ? $appUrl . '/login.php' : '/login.php';
+            $sent = $emailSvc->triggerNotificationToAddress('umpire_account_welcome', $toEmail, [
+                'first_name'    => htmlspecialchars($firstName, ENT_QUOTES, 'UTF-8'),
+                'email'         => htmlspecialchars($toEmail, ENT_QUOTES, 'UTF-8'),
+                'temp_password' => htmlspecialchars($tempPassword, ENT_QUOTES, 'UTF-8'),
+                'login_url'     => htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8'),
             ]);
+            if (!$sent) {
+                Logger::warn('[UmpireRosterService] welcome email was not sent', [
+                    'to' => $toEmail,
+                ]);
+            }
         } catch (\Throwable $e) {
             Logger::error('[UmpireRosterService] sendWelcomeEmail failed', [
                 'to'    => $toEmail,
