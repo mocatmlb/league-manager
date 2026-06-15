@@ -107,6 +107,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     error_log('[roster.php] activate error: ' . $e->getMessage());
                 }
             }
+
+        } elseif ($action === 'toggle_migration_mode') {
+            if ($svc->isMigrationMode()) {
+                $svc->disableMigrationMode();
+                $_SESSION['flash_message'] = 'Migration mode disabled. Emails will be sent normally.';
+            } else {
+                $svc->enableMigrationMode();
+                $_SESSION['flash_message'] = 'Migration mode enabled. No emails will be sent for this session.';
+            }
+            header('Location: roster.php'); exit;
         }
     }
 }
@@ -157,6 +167,30 @@ unset($__nav);
         <div class="alert alert-danger" role="alert">
             <?= $pageError ?>
         </div>
+    <?php endif; ?>
+
+    <?php if ($svc->isMigrationMode()): ?>
+    <div class="alert alert-warning d-flex align-items-center justify-content-between mb-3" role="alert">
+        <div>
+            <i class="fas fa-tools me-2"></i>
+            <strong>Migration Mode Active</strong> — No welcome emails will be sent when creating umpire accounts this session.
+        </div>
+        <form method="post" class="mb-0">
+            <input type="hidden" name="csrf_token" value="<?php echo Auth::generateCSRFToken(); ?>">
+            <input type="hidden" name="action" value="toggle_migration_mode">
+            <button type="submit" class="btn btn-sm btn-outline-dark">Disable Migration Mode</button>
+        </form>
+    </div>
+    <?php else: ?>
+    <div class="mb-3 text-end">
+        <form method="post" class="d-inline">
+            <input type="hidden" name="csrf_token" value="<?php echo Auth::generateCSRFToken(); ?>">
+            <input type="hidden" name="action" value="toggle_migration_mode">
+            <button type="submit" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-tools me-1"></i> Enable Migration Mode
+            </button>
+        </form>
+    </div>
     <?php endif; ?>
 
     <div class="d-flex justify-content-between align-items-center mb-3">

@@ -133,6 +133,10 @@ class UmpireRosterService {
             'is_under_18'   => $isUnder18,
         ]);
 
+        if (!$this->isMigrationMode()) {
+            $this->sendWelcomeEmail($email, $firstName, $tempPassword);
+        }
+
         return ['user_id' => $newId, 'temp_password' => $tempPassword];
     }
 
@@ -267,6 +271,28 @@ class UmpireRosterService {
             Logger::error('[UmpireRosterService] reconcileUnder18Flag failed silently', [
                 'user_id' => $userId,
                 'error'   => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function sendWelcomeEmail(string $toEmail, string $firstName, string $tempPassword): void {
+        try {
+            if (!class_exists('EmailService')) {
+                require_once __DIR__ . '/EmailService.php';
+            }
+            $emailSvc = new EmailService();
+            $loginUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http')
+                . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/login.php';
+            $emailSvc->triggerNotificationToAddress('umpire_account_welcome', $toEmail, [
+                'first_name'    => $firstName,
+                'email'         => $toEmail,
+                'temp_password' => $tempPassword,
+                'login_url'     => $loginUrl,
+            ]);
+        } catch (\Throwable $e) {
+            Logger::error('[UmpireRosterService] sendWelcomeEmail failed', [
+                'to'    => $toEmail,
+                'error' => $e->getMessage(),
             ]);
         }
     }
