@@ -172,6 +172,12 @@ $rootPath = getPathToRoot();
                                         <i class="fas fa-id-card"></i> Umpire Roster
                                     </a>
                                 </li>
+                                <li>
+                                    <a class="dropdown-item <?php echo isActiveNav('import', 'umpires'); ?>"
+                                       href="<?php echo $rootPath; ?>admin/umpires/import.php">
+                                        <i class="fas fa-file-csv"></i> Import Umpires
+                                    </a>
+                                </li>
                             </ul>
                         </li>
 
@@ -244,6 +250,12 @@ $rootPath = getPathToRoot();
                                     <a class="dropdown-item <?php echo isActiveNav('roster', 'umpires'); ?>"
                                        href="<?php echo $rootPath; ?>admin/umpires/roster.php">
                                         <i class="fas fa-users"></i> Umpire Roster
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item <?php echo isActiveNav('import', 'umpires'); ?>"
+                                       href="<?php echo $rootPath; ?>admin/umpires/import.php">
+                                        <i class="fas fa-file-csv"></i> Import Umpires
                                     </a>
                                 </li>
                             </ul>

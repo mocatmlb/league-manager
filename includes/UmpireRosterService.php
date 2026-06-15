@@ -76,10 +76,13 @@ class UmpireRosterService {
         $passwordHash = password_hash($tempPassword, PASSWORD_BCRYPT);
 
         $newId = 0;
-        $inTransaction = false;
+        $ownTransaction = false;
         try {
-            $this->db->beginTransaction();
-            $inTransaction = true;
+            // Only open a new transaction if one isn't already active (supports nested callers)
+            if (!$this->db->getConnection()->inTransaction()) {
+                $this->db->beginTransaction();
+                $ownTransaction = true;
+            }
 
             // 1. INSERT users
             $this->db->query(
@@ -117,10 +120,12 @@ class UmpireRosterService {
                 ['uid' => $newId, 'level' => $level, 'under18' => $isUnder18, 'dob' => $isUnder18 ? $dob : null]
             );
 
-            $this->db->commit();
-            $inTransaction = false;
+            if ($ownTransaction) {
+                $this->db->commit();
+                $ownTransaction = false;
+            }
         } catch (\Throwable $e) {
-            if ($inTransaction) {
+            if ($ownTransaction) {
                 try { $this->db->rollback(); } catch (\Throwable $ignored) {}
             }
             throw $e;
