@@ -1,263 +1,371 @@
 diff --git a/_bmad-output/implementation-artifacts/deferred-work.md b/_bmad-output/implementation-artifacts/deferred-work.md
-index 483792b..da87f4b 100644
+index 00e3d91..da12224 100644
 --- a/_bmad-output/implementation-artifacts/deferred-work.md
 +++ b/_bmad-output/implementation-artifacts/deferred-work.md
-@@ -8,6 +8,15 @@ Items deferred from code reviews — triaged 2026-05-09.
- 
- - `public/index.prod.php` is missing the weather widget that `index.php` has — this is a pre-existing divergence, not caused by the mobile card change. The prod copy should be brought in sync with the dev home page's weather widget feature.
- 
-+## From spec-admin-schedules-submitted-reviewed-dates (2026-06-07)
+@@ -165,3 +165,9 @@ These are race conditions, missing transactions, and performance issues. See [10
+ ### Low Priority
+ - **Add client-side validation for DOB requirement** — `public/admin/umpires/roster.php` has HTML `required` attributes but no JS validation feedback for DOB when under-18 checkbox is checked.
+ - **Consider making phone type/role configurable** — `UmpireRosterService.php:107-111` hardcodes `type='Cell'` and `role='primary'` in dual-write to `user_phones`. This assumes all umpires use cell phones.
 +
-+- `public/admin/schedules/index.php` pending request accordion items use `data-bs-parent` which enforces single-open behavior — may want to remove it if admins want to compare multiple requests side by side.
-+- `public/admin/schedules/index.php` pending requests serialized as full JSON into onclick attributes (exposes `reviewed_by` ID and `review_notes` in HTML source) — pre-existing in the desktop table, now also in the mobile accordion. Consider passing only the fields the edit modal needs.
++## Deferred from: code review of 22-4-csv-umpire-import (2026-06-15)
 +
-+## Deferred from: code review of 20-1-game-scr-conflict-detection.md (2026-06-07)
-+- Pre-existing DB divergence between dev and prod environments.
-+- Missing indices on several legacy tables in `database/schema.sql`.
-+
- ---
- 
- ## Routed to Story 9-1 (Cutover Service Backend)
++- `$errors` array always empty despite return contract — `importRows()` initializes `$errors` but never populates it; callers expecting error details always get `[]`.
++- `createUmpire()` duplicate-email SELECT redundant inside import transaction — `UmpireRosterService` re-checks email inside a SELECT that is already protected by the parent import transaction.
++- UTF-8 multi-byte names locale-dependent with `fgetcsv` — no locale-setting code in `import.php`; names with accented characters may be garbled on systems with non-UTF-8 locale.
 diff --git a/blind_hunter_input.diff b/blind_hunter_input.diff
-index fe0d40e..e69de29 100644
+index e7173bd..e69de29 100644
 --- a/blind_hunter_input.diff
 +++ b/blind_hunter_input.diff
-@@ -1,194 +0,0 @@
--diff --git a/_bmad-output/planning-artifacts/epics.md b/_bmad-output/planning-artifacts/epics.md
--index a6cf2b1..2f8cdd8 100644
----- a/_bmad-output/planning-artifacts/epics.md
--+++ b/_bmad-output/planning-artifacts/epics.md
--@@ -2054,3 +2054,18 @@ As an admin, I want to configure blackout date ranges during which coaches canno
+@@ -1,263 +0,0 @@
+-diff --git a/_bmad-output/implementation-artifacts/deferred-work.md b/_bmad-output/implementation-artifacts/deferred-work.md
+-index 483792b..da87f4b 100644
+---- a/_bmad-output/implementation-artifacts/deferred-work.md
+-+++ b/_bmad-output/implementation-artifacts/deferred-work.md
+-@@ -8,6 +8,15 @@ Items deferred from code reviews — triaged 2026-05-09.
 - 
-- **Status:** ready-for-dev
-- **Story Key:** 21-4-reschedule-blackout-dates
+- - `public/index.prod.php` is missing the weather widget that `index.php` has — this is a pre-existing divergence, not caused by the mobile card change. The prod copy should be brought in sync with the dev home page's weather widget feature.
+- 
+-+## From spec-admin-schedules-submitted-reviewed-dates (2026-06-07)
 -+
--+### Story 21.5: Calendar View — Show Score for Completed Games
+-+- `public/admin/schedules/index.php` pending request accordion items use `data-bs-parent` which enforces single-open behavior — may want to remove it if admins want to compare multiple requests side by side.
+-+- `public/admin/schedules/index.php` pending requests serialized as full JSON into onclick attributes (exposes `reviewed_by` ID and `review_notes` in HTML source) — pre-existing in the desktop table, now also in the mobile accordion. Consider passing only the fields the edit modal needs.
 -+
--+As a league participant, I want to see the final score when I click a completed game on the calendar, so that I can quickly check results without switching to the table view.
+-+## Deferred from: code review of 20-1-game-scr-conflict-detection.md (2026-06-07)
+-+- Pre-existing DB divergence between dev and prod environments.
+-+- Missing indices on several legacy tables in `database/schema.sql`.
 -+
--+**Status:** ready-for-dev
--+**Story Key:** 21-5-calendar-score-display
--+
--+### Story 21.6: Calendar View — Awaiting Results Badge and Days Late
--+
--+As a league participant, I want awaiting-results games on the calendar to clearly show their status and how overdue they are, so that I can tell at a glance which games still need scores submitted without switching to the table view.
--+
--+**Status:** ready-for-dev
--+**Depends on:** Story 21.5
--+**Story Key:** 21-6-calendar-awaiting-badge
--diff --git a/assets/css/style.css b/assets/css/style.css
--index 388c735..b789a76 100644
----- a/assets/css/style.css
--+++ b/assets/css/style.css
--@@ -920,3 +920,23 @@ a.hero-stat.hero-stat-alert:hover {
-- .cal-search-wrap .form-control-sm {
--     font-size: 0.82rem;
-- }
--+
--+/* Special date background events */
--+.fc-special-date .fc-bg-event {
--+    opacity: 0.18;
--+}
--+.fc .fc-bg-event .fc-event-title {
--+    font-size: 0.65rem;
--+    font-weight: 700;
--+    opacity: 1;
--+    padding: 1px 3px;
--+}
--+
--+/* Calendar legend */
--+.cal-legend-chip {
--+    display: inline-block;
--+    padding: 2px 8px;
--+    border-radius: 4px;
--+    font-size: 0.75rem;
--+    font-weight: 600;
--+}
--diff --git a/includes/nav.php b/includes/nav.php
--index d3a0d2c..bb36bd7 100644
----- a/includes/nav.php
--+++ b/includes/nav.php
--@@ -88,11 +88,17 @@ $rootPath = getPathToRoot();
--                                     </a>
--                                 </li>
--                                 <li>
---                                    <a class="dropdown-item <?php echo isActiveNav('index', 'schedules'); ?>" 
--+                                    <a class="dropdown-item <?php echo isActiveNav('index', 'schedules'); ?>"
--                                        href="<?php echo $rootPath; ?>admin/schedules/">
--                                         <i class="fas fa-calendar-check"></i> Schedules
--                                     </a>
--                                 </li>
--+                                <li>
--+                                    <a class="dropdown-item <?php echo isActiveNav('special-dates', 'schedules'); ?>"
--+                                       href="<?php echo $rootPath; ?>admin/schedules/special-dates.php">
--+                                        <i class="fas fa-star me-1"></i> Special Dates
--+                                    </a>
--+                                </li>
--                                 <li>
--                                     <a class="dropdown-item <?php echo isActiveNav('index', 'teams'); ?>" 
--                                        href="<?php echo $rootPath; ?>admin/teams/">
+- ---
+- 
+- ## Routed to Story 9-1 (Cutover Service Backend)
+-diff --git a/blind_hunter_input.diff b/blind_hunter_input.diff
+-index fe0d40e..e69de29 100644
+---- a/blind_hunter_input.diff
+-+++ b/blind_hunter_input.diff
+-@@ -1,194 +0,0 @@
+--diff --git a/_bmad-output/planning-artifacts/epics.md b/_bmad-output/planning-artifacts/epics.md
+--index a6cf2b1..2f8cdd8 100644
+----- a/_bmad-output/planning-artifacts/epics.md
+--+++ b/_bmad-output/planning-artifacts/epics.md
+--@@ -2054,3 +2054,18 @@ As an admin, I want to configure blackout date ranges during which coaches canno
+-- 
+-- **Status:** ready-for-dev
+-- **Story Key:** 21-4-reschedule-blackout-dates
+--+
+--+### Story 21.5: Calendar View — Show Score for Completed Games
+--+
+--+As a league participant, I want to see the final score when I click a completed game on the calendar, so that I can quickly check results without switching to the table view.
+--+
+--+**Status:** ready-for-dev
+--+**Story Key:** 21-5-calendar-score-display
+--+
+--+### Story 21.6: Calendar View — Awaiting Results Badge and Days Late
+--+
+--+As a league participant, I want awaiting-results games on the calendar to clearly show their status and how overdue they are, so that I can tell at a glance which games still need scores submitted without switching to the table view.
+--+
+--+**Status:** ready-for-dev
+--+**Depends on:** Story 21.5
+--+**Story Key:** 21-6-calendar-awaiting-badge
+--diff --git a/assets/css/style.css b/assets/css/style.css
+--index 388c735..b789a76 100644
+----- a/assets/css/style.css
+--+++ b/assets/css/style.css
+--@@ -920,3 +920,23 @@ a.hero-stat.hero-stat-alert:hover {
+-- .cal-search-wrap .form-control-sm {
+--     font-size: 0.82rem;
+-- }
+--+
+--+/* Special date background events */
+--+.fc-special-date .fc-bg-event {
+--+    opacity: 0.18;
+--+}
+--+.fc .fc-bg-event .fc-event-title {
+--+    font-size: 0.65rem;
+--+    font-weight: 700;
+--+    opacity: 1;
+--+    padding: 1px 3px;
+--+}
+--+
+--+/* Calendar legend */
+--+.cal-legend-chip {
+--+    display: inline-block;
+--+    padding: 2px 8px;
+--+    border-radius: 4px;
+--+    font-size: 0.75rem;
+--+    font-weight: 600;
+--+}
+--diff --git a/includes/nav.php b/includes/nav.php
+--index d3a0d2c..bb36bd7 100644
+----- a/includes/nav.php
+--+++ b/includes/nav.php
+--@@ -88,11 +88,17 @@ $rootPath = getPathToRoot();
+--                                     </a>
+--                                 </li>
+--                                 <li>
+---                                    <a class="dropdown-item <?php echo isActiveNav('index', 'schedules'); ?>" 
+--+                                    <a class="dropdown-item <?php echo isActiveNav('index', 'schedules'); ?>"
+--                                        href="<?php echo $rootPath; ?>admin/schedules/">
+--                                         <i class="fas fa-calendar-check"></i> Schedules
+--                                     </a>
+--                                 </li>
+--+                                <li>
+--+                                    <a class="dropdown-item <?php echo isActiveNav('special-dates', 'schedules'); ?>"
+--+                                       href="<?php echo $rootPath; ?>admin/schedules/special-dates.php">
+--+                                        <i class="fas fa-star me-1"></i> Special Dates
+--+                                    </a>
+--+                                </li>
+--                                 <li>
+--                                     <a class="dropdown-item <?php echo isActiveNav('index', 'teams'); ?>" 
+--                                        href="<?php echo $rootPath; ?>admin/teams/">
+--diff --git a/public/assets/css/style.css b/public/assets/css/style.css
+--index 388c735..b789a76 100644
+----- a/public/assets/css/style.css
+--+++ b/public/assets/css/style.css
+--@@ -920,3 +920,23 @@ a.hero-stat.hero-stat-alert:hover {
+-- .cal-search-wrap .form-control-sm {
+--     font-size: 0.82rem;
+-- }
+--+
+--+/* Special date background events */
+--+.fc-special-date .fc-bg-event {
+--+    opacity: 0.18;
+--+}
+--+.fc .fc-bg-event .fc-event-title {
+--+    font-size: 0.65rem;
+--+    font-weight: 700;
+--+    opacity: 1;
+--+    padding: 1px 3px;
+--+}
+--+
+--+/* Calendar legend */
+--+.cal-legend-chip {
+--+    display: inline-block;
+--+    padding: 2px 8px;
+--+    border-radius: 4px;
+--+    font-size: 0.75rem;
+--+    font-weight: 600;
+--+}
+--diff --git a/public/schedule.php b/public/schedule.php
+--index 31ac495..15ae530 100644
+----- a/public/schedule.php
+--+++ b/public/schedule.php
+--@@ -138,6 +138,42 @@ foreach (['upcoming' => $gamesUpcoming, 'completed' => $gamesCompleted,
+--     }
+-- }
+-- 
+--+// Query special dates filtered by active season and global
+--+$specialDateScopeId = (int)($filters['season_id'] ?? 0);
+--+if ($specialDateScopeId > 0) {
+--+    $specialDates = $db->fetchAll(
+--+        "SELECT id, date, label, date_type, display_color
+--+         FROM league_special_dates
+--+         WHERE season_id IS NULL
+--+            OR season_id = ?
+--+         ORDER BY date ASC",
+--+        [$specialDateScopeId]
+--+    );
+--+} else {
+--+    $specialDates = $db->fetchAll(
+--+        "SELECT id, date, label, date_type, display_color
+--+         FROM league_special_dates
+--+         WHERE season_id IS NULL
+--+         ORDER BY date ASC"
+--+    );
+--+}
+--+
+--+$specialDateEvents = [];
+--+foreach ($specialDates as $sd) {
+--+    $specialDateEvents[] = [
+--+        'title'      => $sd['label'],
+--+        'start'      => $sd['date'],
+--+        'allDay'     => true,
+--+        'display'    => 'background',
+--+        'color'      => $sd['display_color'],
+--+        'classNames' => ['fc-special-date'],
+--+        'extendedProps' => [
+--+            'isSpecialDate' => true,
+--+            'dateType'      => $sd['date_type'],
+--+        ],
+--+    ];
+--+}
+--+
+-- // Days Late for awaiting games
+-- foreach ($gamesAwaiting as &$g) {
+--     $g['days_late'] = (int)floor((strtotime($today) - strtotime($g['game_date'])) / 86400);
+--@@ -686,6 +722,16 @@ $pageTitle = "Schedule - " . APP_NAME;
+--                 <p id="calendarEmptyNote" class="text-muted mt-2 small" style="display:none;">
+--                     No games match your current filters.
+--                 </p>
+--+                <!-- Calendar legend -->
+--+                <div class="cal-legend mt-2 d-flex flex-wrap gap-2 align-items-center">
+--+                    <span class="cal-legend-chip" style="background:#2563eb;color:#fff;">&#9632; Upcoming</span>
+--+                    <span class="cal-legend-chip" style="background:#6c757d;color:#fff;">&#9632; Completed</span>
+--+                    <span class="cal-legend-chip" style="background:#f59e0b;color:#000;">&#9632; Awaiting Result</span>
+--+                    <span class="cal-legend-chip" style="background:#6f42c1;color:#fff;">&#9632; Postponed</span>
+--+                    <?php if (!empty($specialDateEvents)): ?>
+--+                    <span class="cal-legend-chip" style="background:#e2e8f0;color:#475569;">&#9733; Special Date</span>
+--+                    <?php endif; ?>
+--+                </div>
+--             </div>
+-- 
+--         </div><!-- /#desktopSchedule -->
+--@@ -714,7 +760,10 @@ $pageTitle = "Schedule - " . APP_NAME;
+--     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
+-- 
+--     <script>
+---    var calendarEvents = <?php echo json_encode($calendarEvents, JSON_HEX_TAG | JSON_HEX_AMP); ?>;
+--+    var calendarEvents = <?php echo json_encode(
+--+        array_merge($calendarEvents, $specialDateEvents),
+--+        JSON_HEX_TAG | JSON_HEX_AMP
+--+    ); ?>;
+-- 
+--     $(document).ready(function() {
+-- 
+--@@ -754,6 +803,7 @@ $pageTitle = "Schedule - " . APP_NAME;
+-- 
+--         // ── Event popover ─────────────────────────────────────────────────
+--         function showEventPopover(el, event) {
+--+            if (event.extendedProps && event.extendedProps.isSpecialDate) return;
+--             if (currentPopover) { currentPopover.dispose(); currentPopover = null; }
+-- 
+--             var p = event.extendedProps;
+--@@ -798,6 +848,7 @@ $pageTitle = "Schedule - " . APP_NAME;
+--             var term = this.value.trim().toLowerCase();
+--             var eventsToShow = term
+--                 ? allCalendarEvents.filter(function(ev) {
+--+                    if (ev.extendedProps && ev.extendedProps.isSpecialDate) return true;
+--                     return ev.title.toLowerCase().indexOf(term) !== -1;
+--                   })
+--                 : allCalendarEvents;
 -diff --git a/public/assets/css/style.css b/public/assets/css/style.css
--index 388c735..b789a76 100644
+-index d2ce46f..d39c11c 100644
 ---- a/public/assets/css/style.css
 -+++ b/public/assets/css/style.css
--@@ -920,3 +920,23 @@ a.hero-stat.hero-stat-alert:hover {
-- .cal-search-wrap .form-control-sm {
--     font-size: 0.82rem;
+-@@ -1,10 +1,38 @@
+- /* District 8 Travel League - MVP Styles */
+- 
+-+/* ============================================================
+-+   BASEBALL THEME — Stadium Modern
+-+   Palette:
+-+     Navy    #0d1f3c   (dugout / primary)
+-+     Red     #c8102e   (accent / CTAs)
+-+     Green   #2d6a4f   (field / hero)
+-+     Cream   #f5f2eb   (background)
+-+     Gold    #f59e0b   (first place / highlights)
+-+   ============================================================ */
+-+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&display=swap');
+-+
+-+:root {
+-+    --bb-navy:   #0d1f3c;
+-+    --bb-navy-2: #162844;
+-+    --bb-red:    #c8102e;
+-+    --bb-green:  #2d6a4f;
+-+    --bb-green-2:#1e4d2b;
+-+    --bb-cream:  #f5f2eb;
+-+    --bb-gold:   #f59e0b;
+-+}
+-+
+- /* Custom styles for the MVP application */
+- 
+- body {
+-     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+--    background-color: #f8f9fa;
+-+    background-color: var(--bb-cream);
+-+}
+-+
+-+h1, h2, h3, h4,
+-+.navbar-brand,
+-+.coach-hero-team,
+-+.card-header {
+-+    font-family: 'Oswald', sans-serif;
 - }
--+
--+/* Special date background events */
--+.fc-special-date .fc-bg-event {
--+    opacity: 0.18;
--+}
--+.fc .fc-bg-event .fc-event-title {
--+    font-size: 0.65rem;
--+    font-weight: 700;
--+    opacity: 1;
--+    padding: 1px 3px;
--+}
--+
--+/* Calendar legend */
--+.cal-legend-chip {
--+    display: inline-block;
--+    padding: 2px 8px;
--+    border-radius: 4px;
--+    font-size: 0.75rem;
--+    font-weight: 600;
--+}
--diff --git a/public/schedule.php b/public/schedule.php
--index 31ac495..15ae530 100644
----- a/public/schedule.php
--+++ b/public/schedule.php
--@@ -138,6 +138,42 @@ foreach (['upcoming' => $gamesUpcoming, 'completed' => $gamesCompleted,
--     }
-- }
 - 
--+// Query special dates filtered by active season and global
--+$specialDateScopeId = (int)($filters['season_id'] ?? 0);
--+if ($specialDateScopeId > 0) {
--+    $specialDates = $db->fetchAll(
--+        "SELECT id, date, label, date_type, display_color
--+         FROM league_special_dates
--+         WHERE season_id IS NULL
--+            OR season_id = ?
--+         ORDER BY date ASC",
--+        [$specialDateScopeId]
--+    );
--+} else {
--+    $specialDates = $db->fetchAll(
--+        "SELECT id, date, label, date_type, display_color
--+         FROM league_special_dates
--+         WHERE season_id IS NULL
--+         ORDER BY date ASC"
--+    );
--+}
--+
--+$specialDateEvents = [];
--+foreach ($specialDates as $sd) {
--+    $specialDateEvents[] = [
--+        'title'      => $sd['label'],
--+        'start'      => $sd['date'],
--+        'allDay'     => true,
--+        'display'    => 'background',
--+        'color'      => $sd['display_color'],
--+        'classNames' => ['fc-special-date'],
--+        'extendedProps' => [
--+            'isSpecialDate' => true,
--+            'dateType'      => $sd['date_type'],
--+        ],
--+    ];
--+}
--+
-- // Days Late for awaiting games
-- foreach ($gamesAwaiting as &$g) {
--     $g['days_late'] = (int)floor((strtotime($today) - strtotime($g['game_date'])) / 86400);
--@@ -686,6 +722,16 @@ $pageTitle = "Schedule - " . APP_NAME;
--                 <p id="calendarEmptyNote" class="text-muted mt-2 small" style="display:none;">
--                     No games match your current filters.
--                 </p>
--+                <!-- Calendar legend -->
--+                <div class="cal-legend mt-2 d-flex flex-wrap gap-2 align-items-center">
--+                    <span class="cal-legend-chip" style="background:#2563eb;color:#fff;">&#9632; Upcoming</span>
--+                    <span class="cal-legend-chip" style="background:#6c757d;color:#fff;">&#9632; Completed</span>
--+                    <span class="cal-legend-chip" style="background:#f59e0b;color:#000;">&#9632; Awaiting Result</span>
--+                    <span class="cal-legend-chip" style="background:#6f42c1;color:#fff;">&#9632; Postponed</span>
--+                    <?php if (!empty($specialDateEvents)): ?>
--+                    <span class="cal-legend-chip" style="background:#e2e8f0;color:#475569;">&#9733; Special Date</span>
--+                    <?php endif; ?>
--+                </div>
--             </div>
-- 
--         </div><!-- /#desktopSchedule -->
--@@ -714,7 +760,10 @@ $pageTitle = "Schedule - " . APP_NAME;
--     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
-- 
--     <script>
---    var calendarEvents = <?php echo json_encode($calendarEvents, JSON_HEX_TAG | JSON_HEX_AMP); ?>;
--+    var calendarEvents = <?php echo json_encode(
--+        array_merge($calendarEvents, $specialDateEvents),
--+        JSON_HEX_TAG | JSON_HEX_AMP
--+    ); ?>;
-- 
--     $(document).ready(function() {
-- 
--@@ -754,6 +803,7 @@ $pageTitle = "Schedule - " . APP_NAME;
-- 
--         // ── Event popover ─────────────────────────────────────────────────
--         function showEventPopover(el, event) {
--+            if (event.extendedProps && event.extendedProps.isSpecialDate) return;
--             if (currentPopover) { currentPopover.dispose(); currentPopover = null; }
-- 
--             var p = event.extendedProps;
--@@ -798,6 +848,7 @@ $pageTitle = "Schedule - " . APP_NAME;
--             var term = this.value.trim().toLowerCase();
--             var eventsToShow = term
--                 ? allCalendarEvents.filter(function(ev) {
--+                    if (ev.extendedProps && ev.extendedProps.isSpecialDate) return true;
--                     return ev.title.toLowerCase().indexOf(term) !== -1;
--                   })
--                 : allCalendarEvents;
-diff --git a/public/assets/css/style.css b/public/assets/css/style.css
-index d2ce46f..d39c11c 100644
---- a/public/assets/css/style.css
-+++ b/public/assets/css/style.css
-@@ -1,10 +1,38 @@
- /* District 8 Travel League - MVP Styles */
+- .navbar-brand {
+diff --git a/includes/UmpireImportService.php b/includes/UmpireImportService.php
+index 1ef4582..31b4eb8 100644
+--- a/includes/UmpireImportService.php
++++ b/includes/UmpireImportService.php
+@@ -115,11 +115,10 @@ class UmpireImportService {
+         }
+         $rosterSvc = new UmpireRosterService();
  
-+/* ============================================================
-+   BASEBALL THEME — Stadium Modern
-+   Palette:
-+     Navy    #0d1f3c   (dugout / primary)
-+     Red     #c8102e   (accent / CTAs)
-+     Green   #2d6a4f   (field / hero)
-+     Cream   #f5f2eb   (background)
-+     Gold    #f59e0b   (first place / highlights)
-+   ============================================================ */
-+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&display=swap');
+-        // migration mode is always active during import (AC 5) — suppresses welcome email in createUmpire()
+-        $rosterSvc->enableMigrationMode();
+-
+-        $this->db->beginTransaction();
+         try {
++            $this->db->beginTransaction();
++            $rosterSvc->enableMigrationMode();
 +
-+:root {
-+    --bb-navy:   #0d1f3c;
-+    --bb-navy-2: #162844;
-+    --bb-red:    #c8102e;
-+    --bb-green:  #2d6a4f;
-+    --bb-green-2:#1e4d2b;
-+    --bb-cream:  #f5f2eb;
-+    --bb-gold:   #f59e0b;
-+}
-+
- /* Custom styles for the MVP application */
+             foreach ($willCreateRows as $row) {
+                 try {
+                     // Race-condition guard: re-check email just before insert
+@@ -144,21 +143,25 @@ class UmpireImportService {
+                     $created++;
+                 } catch (DuplicateEmailException $e) {
+                     $skipped++;
++                } catch (\PDOException $e) {
++                    if ($e->getCode() == 23000 && str_contains($e->getMessage(), 'Duplicate')) {
++                        $skipped++;
++                    } else {
++                        throw $e;
++                    }
+                 } catch (\Throwable $e) {
+-                    // Rethrow — triggers outer rollback (AC 4)
+                     throw $e;
+                 }
+             }
  
- body {
-     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
--    background-color: #f8f9fa;
-+    background-color: var(--bb-cream);
-+}
-+
-+h1, h2, h3, h4,
-+.navbar-brand,
-+.coach-hero-team,
-+.card-header {
-+    font-family: 'Oswald', sans-serif;
+             $this->db->commit();
++            try { $rosterSvc->disableMigrationMode(); } catch (\Throwable $e) {}
+         } catch (\Throwable $e) {
+             try { $this->db->rollback(); } catch (\Throwable $ignored) {}
+             $rosterSvc->disableMigrationMode();
+             throw $e;
+         }
+ 
+-        $rosterSvc->disableMigrationMode();
+-
+         return ['created' => $created, 'skipped' => $skipped, 'errors' => $errors];
+     }
  }
+diff --git a/public/admin/umpires/import.php b/public/admin/umpires/import.php
+index e24cdbd..2a42a5e 100644
+--- a/public/admin/umpires/import.php
++++ b/public/admin/umpires/import.php
+@@ -68,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+             : 'Blue Shirt';
  
- .navbar-brand {
+         $file = $_FILES['import_file'] ?? null;
+-        if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
++        if (!is_array($file) || $file['error'] !== UPLOAD_ERR_OK) {
+             $uploadErrMap = [
+                 UPLOAD_ERR_INI_SIZE   => 'The file exceeds the server upload size limit.',
+                 UPLOAD_ERR_FORM_SIZE  => 'The file exceeds the form upload size limit.',
+@@ -78,7 +78,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                 UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk.',
+                 UPLOAD_ERR_EXTENSION  => 'A PHP extension stopped the upload.',
+             ];
+-            $pageError = $uploadErrMap[$file['error'] ?? UPLOAD_ERR_NO_FILE] ?? 'File upload failed.';
++            $errorCode = is_array($file) ? ($file['error'] ?? UPLOAD_ERR_NO_FILE) : UPLOAD_ERR_NO_FILE;
++            $pageError = $uploadErrMap[$errorCode] ?? 'File upload failed.';
+         } else {
+             $maxSize = 1 * 1024 * 1024; // 1 MB
+             if ($file['size'] > $maxSize) {
+@@ -125,7 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                                 // Read data rows
+                                 $dataRows = [];
+                                 while (($csvRow = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
+-                                    if ($csvRow === [null]) {
++                                    if ($csvRow === [null] || $csvRow === []) {
+                                         continue; // skip blank lines
+                                     }
+                                     $assoc = [];
+@@ -170,7 +171,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+         } else {
+             $allRows      = $sessionData['rows'];
+             $defaultLevel = $sessionData['level'] ?? 'Blue Shirt';
+-            $willCreate   = array_filter($allRows, static fn($r) => $r['status'] === 'will_create');
++            $willCreate   = is_array($allRows) ? array_filter($allRows, static fn($r) => $r['status'] === 'will_create') : [];
+ 
+             if (empty($willCreate)) {
+                 unset($_SESSION['umpire_import_preview']);
