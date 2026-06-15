@@ -88,14 +88,14 @@ SET @e2e_game_3 := LAST_INSERT_ID();
 -- -----------------------------------------------------------------------------
 -- 6) Schedules (live row used by schedule.php joins)
 -- -----------------------------------------------------------------------------
-INSERT INTO schedules (game_id, game_date, game_time, location, location_id)
-VALUES (@e2e_game_1, '2030-05-10', '18:00:00', 'E2E_TEST Field North', @e2e_loc_n);
+INSERT INTO schedules (game_id, game_date, game_time, location_id)
+VALUES (@e2e_game_1, '2030-05-10', '18:00:00', @e2e_loc_n);
 
-INSERT INTO schedules (game_id, game_date, game_time, location, location_id)
-VALUES (@e2e_game_2, '2030-05-04', '17:30:00', 'E2E_TEST Field South', @e2e_loc_s);
+INSERT INTO schedules (game_id, game_date, game_time, location_id)
+VALUES (@e2e_game_2, '2030-05-04', '17:30:00', @e2e_loc_s);
 
-INSERT INTO schedules (game_id, game_date, game_time, location, location_id)
-VALUES (@e2e_game_3, '2030-05-15', '19:00:00', 'E2E_TEST Field North', @e2e_loc_n);
+INSERT INTO schedules (game_id, game_date, game_time, location_id)
+VALUES (@e2e_game_3, '2030-05-15', '19:00:00', @e2e_loc_n);
 
 -- -----------------------------------------------------------------------------
 -- 7) Schedule history (aligns with schedules; supports history UI)
@@ -172,7 +172,7 @@ SET is_current = FALSE
 WHERE game_id = @e2e_game_2 AND version_number = 1;
 
 UPDATE schedules
-SET game_date = '2030-05-06', game_time = '18:00:00', location = 'E2E_TEST Field North', location_id = @e2e_loc_n
+SET game_date = '2030-05-06', game_time = '18:00:00', location_id = @e2e_loc_n
 WHERE game_id = @e2e_game_2;
 
 -- -----------------------------------------------------------------------------

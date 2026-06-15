@@ -241,7 +241,9 @@ $fieldClass = static function (string $field) use ($formErrors): string {
                             <select name="role" class="form-select" required>
                                 <option value="user"          <?php echo $formData['role'] === 'user'          ? 'selected' : ''; ?>>User</option>
                                 <option value="team_owner"    <?php echo $formData['role'] === 'team_owner'    ? 'selected' : ''; ?>>Team Owner</option>
-                                <option value="administrator" <?php echo $formData['role'] === 'administrator' ? 'selected' : ''; ?>>Administrator</option>
+                                <option value="administrator"   <?php echo $formData['role'] === 'administrator'   ? 'selected' : ''; ?>>Administrator</option>
+                                <option value="umpire_assignor" <?php echo $formData['role'] === 'umpire_assignor' ? 'selected' : ''; ?>>Umpire Assignor</option>
+                                <option value="umpire"          <?php echo $formData['role'] === 'umpire'          ? 'selected' : ''; ?>>Umpire</option>
                             </select>
                         </div>
                     </div>

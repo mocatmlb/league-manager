@@ -318,13 +318,14 @@ class EmailService {
      */
     private function getGameData($gameId) {
         $game = $this->db->fetchOne("
-            SELECT g.*, sch.game_date, sch.game_time, sch.location,
-                   ht.team_name as home_team, 
+            SELECT g.*, sch.game_date, sch.game_time, l.location_name AS location,
+                   ht.team_name as home_team,
                    at.team_name as away_team,
                    s.season_name,
                    d.division_name
             FROM games g
             LEFT JOIN schedules sch ON g.game_id = sch.game_id
+            LEFT JOIN locations l ON sch.location_id = l.location_id
             JOIN teams ht ON g.home_team_id = ht.team_id
             JOIN teams at ON g.away_team_id = at.team_id
             JOIN seasons s ON g.season_id = s.season_id

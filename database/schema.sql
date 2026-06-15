@@ -133,7 +133,6 @@ CREATE TABLE schedules (
     game_id INT NOT NULL,
     game_date DATE NOT NULL,
     game_time TIME,
-    location VARCHAR(100),
     location_id INT,
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     modified_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

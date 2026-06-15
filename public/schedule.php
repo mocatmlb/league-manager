@@ -41,7 +41,7 @@ $today = date('Y-m-d');
 
 // Shared SELECT columns and JOIN clause for all four queries
 $selectCols = "g.game_number, g.game_status, g.home_score, g.away_score,
-               s.game_date, s.game_time, s.location,
+               s.game_date, s.game_time,
                loc.location_name as loc_name, loc.address, loc.city, loc.state, loc.zip_code,
                ht.team_name as home_team, ht.league_name as home_league,
                at.team_name as away_team, at.league_name as away_league,
@@ -113,7 +113,7 @@ foreach (['upcoming' => $gamesUpcoming, 'completed' => $gamesCompleted,
         $away = htmlspecialchars(strtoupper($g['away_team'] ?: $g['away_league']), ENT_QUOTES, 'UTF-8');
         $home = htmlspecialchars(strtoupper($g['home_team'] ?: $g['home_league']), ENT_QUOTES, 'UTF-8');
         $timeStr = !empty($g['game_time']) ? date('g:i A', strtotime($g['game_time'])) : '';
-        $locDisplay = $g['loc_name'] ?: ($g['location'] ?? '');
+        $locDisplay = $g['loc_name'] ?? '';
         [$statusClass, $statusLabel] = getStatusInfo($g['game_status']);
         $mapsUrl = buildMapsUrl($g);
 
@@ -228,7 +228,7 @@ foreach (['upcoming' => $gamesUpcoming, 'completed' => $gamesCompleted,
 
 function buildMapsUrl($game) {
     $parts = [];
-    $name = $game['loc_name'] ?? $game['location'] ?? '';
+    $name = $game['loc_name'] ?? '';
     if (!empty($name)) $parts[] = $name;
     if (!empty($game['address'])) $parts[] = $game['address'];
     if (!empty($game['city'])) $parts[] = $game['city'];
@@ -477,7 +477,7 @@ $pageTitle = "Schedule - " . APP_NAME;
                                     $mgDiv     = htmlspecialchars($mg['division_name'] ?? '', ENT_QUOTES, 'UTF-8');
                                     $mgAway    = strtoupper($mg['away_team'] ?: $mg['away_league']);
                                     $mgHome    = strtoupper($mg['home_team'] ?: $mg['home_league']);
-                                    $mgLoc     = htmlspecialchars($mg['loc_name'] ?: ($mg['location'] ?? ''), ENT_QUOTES, 'UTF-8');
+                                    $mgLoc     = htmlspecialchars($mg['loc_name'] ?? '', ENT_QUOTES, 'UTF-8');
                                     $mgMaps    = buildMapsUrl($mg);
                                     $mgLocLink = $mgMaps ? '<a href="' . $mgMaps . '" target="_blank" rel="noopener noreferrer">' . $mgLoc . '</a>' : $mgLoc;
                                     $mgTime    = formatTime($mg['game_time']);
@@ -602,7 +602,7 @@ $pageTitle = "Schedule - " . APP_NAME;
                                     $isToday = ($game['game_date'] === $today);
                                     [$statusClass, $statusLabel] = getStatusInfo($game['game_status']);
                                     $mapsUrl     = buildMapsUrl($game);
-                                    $displayLoc  = $game['loc_name'] ?: $game['location'];
+                                    $displayLoc  = $game['loc_name'] ?? '';
                                 ?>
                                 <tr<?php echo $isToday ? ' class="game-row-today"' : ''; ?>>
                                     <td><?php echo sanitize($game['game_number']); ?></td>
@@ -653,7 +653,7 @@ $pageTitle = "Schedule - " . APP_NAME;
                                 <?php foreach ($gamesCompleted as $game):
                                     [$statusClass, $statusLabel] = getStatusInfo($game['game_status']);
                                     $mapsUrl    = buildMapsUrl($game);
-                                    $displayLoc = $game['loc_name'] ?: $game['location'];
+                                    $displayLoc = $game['loc_name'] ?? '';
                                 ?>
                                 <tr>
                                     <td><?php echo sanitize($game['game_number']); ?></td>
@@ -710,7 +710,7 @@ $pageTitle = "Schedule - " . APP_NAME;
                                 <?php foreach ($gamesAwaiting as $game):
                                     [$statusClass, $statusLabel] = getStatusInfo($game['game_status']);
                                     $mapsUrl    = buildMapsUrl($game);
-                                    $displayLoc = $game['loc_name'] ?: $game['location'];
+                                    $displayLoc = $game['loc_name'] ?? '';
                                     $daysLate   = $game['days_late'];
                                     $daysLabel  = $daysLate . ' day' . ($daysLate === 1 ? '' : 's');
                                 ?>

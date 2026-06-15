@@ -316,7 +316,6 @@ class GameImportService
                     'game_id'      => $gameId,
                     'game_date'    => $row['game_date'],
                     'game_time'    => $row['game_time'],
-                    'location'     => $row['location_name'],
                     'location_id'  => $row['location_id'],
                     'created_date' => date('Y-m-d H:i:s'),
                 ]);

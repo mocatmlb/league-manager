@@ -19,6 +19,7 @@ try {
 
 require_once EnvLoader::getPath('includes/AuthService.php');
 require_once EnvLoader::getPath('includes/ActivityLogger.php');
+require_once EnvLoader::getPath('includes/PermissionGuard.php');
 
 /**
  * Allow only same-site coach paths in the intended_url redirect after login.
@@ -72,8 +73,7 @@ if (Auth::isAdmin()) {
     exit;
 }
 if (Auth::isCoach()) {
-    $coachUrl = EnvLoader::isProduction() ? '/coaches/dashboard.php' : '/public/coaches/dashboard.php';
-    header('Location: ' . $coachUrl);
+    header('Location: ' . PermissionGuard::getHomeUrl($_SESSION['role'] ?? 'coach'));
     exit;
 }
 
@@ -97,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         session_regenerate_id(true);
                     }
 
-                    // Users-table users with administrator role get a full admin session
+                    // Resolve actual role from DB and update session; redirect based on role
                     try {
                         $db = Database::getInstance();
                         $roleRow = $db->fetchOne(
@@ -107,7 +107,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                              WHERE u.id = :id LIMIT 1',
                             ['id' => $_SESSION['coach_user_id']]
                         );
-                        if (($roleRow['role_name'] ?? '') === 'administrator') {
+                        $actualRole = (string) ($roleRow['role_name'] ?? '');
+
+                        if ($actualRole === 'administrator') {
                             $_SESSION['user_type']       = 'admin';
                             $_SESSION['admin_id']        = $_SESSION['coach_user_id'];
                             $_SESSION['admin_username']  = $_SESSION['coach_identifier'];
@@ -117,14 +119,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             header('Location: ' . $adminUrl);
                             exit;
                         }
+
+                        // Stamp the real role so PermissionGuard works on subsequent requests
+                        if ($actualRole !== '') {
+                            $_SESSION['role'] = $actualRole;
+                        }
                     } catch (Throwable $e) {
                         error_log('[login] Role check failed, defaulting to coach redirect: ' . $e->getMessage());
                     }
 
-                    // Honor intended_url set by auth guard (AC2)
-                    $raw = isset($_SESSION['intended_url']) ? (string) $_SESSION['intended_url'] : '';
+                    // Honor a valid intended_url if the coach guard set one; otherwise use role home
+                    $raw = (string) ($_SESSION['intended_url'] ?? '');
                     unset($_SESSION['intended_url']);
-                    $redirect = unified_login_safe_redirect_target($raw !== '' ? $raw : null);
+                    $intendedCoachUrl = $raw !== '' ? unified_login_safe_redirect_target($raw) : null;
+                    $redirect = ($intendedCoachUrl !== null && $intendedCoachUrl !== 'coaches/dashboard.php')
+                        ? $intendedCoachUrl
+                        : PermissionGuard::getHomeUrl($_SESSION['role'] ?? 'coach');
                     header('Location: ' . $redirect);
                     exit;
                 }

@@ -10,9 +10,10 @@ if (!isset($currentUser)) {
 }
 
 // Get user roles and permissions
-$isAdmin = Auth::isAdmin();
-$isCoach = Auth::isCoach();
-$isLoggedIn = Auth::isLoggedIn();
+$isAdmin          = Auth::isAdmin();
+$isCoach          = Auth::isCoach();
+$isLoggedIn       = Auth::isLoggedIn();
+$isUmpireAssignor = ($isCoach && !$isAdmin) && (($_SESSION['role'] ?? '') === 'umpire_assignor');
 
 // Determine the current page for active navigation
 $currentPage = basename($_SERVER['PHP_SELF'], '.php');
@@ -75,7 +76,7 @@ $rootPath = getPathToRoot();
                     <?php if ($isAdmin): ?>
                         <!-- Admin Management Dropdown -->
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle <?php echo in_array($currentDir, ['games', 'schedules', 'teams', 'programs', 'seasons', 'divisions', 'locations', 'league-list', 'users', 'logs']) ? 'active' : ''; ?>"
+                            <a class="nav-link dropdown-toggle <?php echo in_array($currentDir, ['games', 'schedules', 'teams', 'programs', 'seasons', 'divisions', 'locations', 'league-list', 'users', 'logs', 'umpires']) ? 'active' : ''; ?>"
                                href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fas fa-cogs"></i> Management
                             </a>
@@ -163,6 +164,20 @@ $rootPath = getPathToRoot();
                                         <i class="fas fa-robot"></i> AI Blue
                                     </a>
                                 </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header">Umpires</h6></li>
+                                <li>
+                                    <a class="dropdown-item <?php echo isActiveNav('roster', 'umpires'); ?>"
+                                       href="<?php echo $rootPath; ?>admin/umpires/roster.php">
+                                        <i class="fas fa-id-card"></i> Umpire Roster
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item <?php echo isActiveNav('import', 'umpires'); ?>"
+                                       href="<?php echo $rootPath; ?>admin/umpires/import.php">
+                                        <i class="fas fa-file-csv"></i> Import Umpires
+                                    </a>
+                                </li>
                             </ul>
                         </li>
 
@@ -175,7 +190,7 @@ $rootPath = getPathToRoot();
                         </li>
                     <?php endif; ?>
 
-                    <?php if ($isCoach && !$isAdmin): ?>
+                    <?php if ($isCoach && !$isAdmin && !$isUmpireAssignor): ?>
                         <!-- Coach Links -->
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle <?php echo $currentDir === 'coaches' ? 'active' : ''; ?>" 
@@ -217,6 +232,30 @@ $rootPath = getPathToRoot();
                                     <a class="dropdown-item <?php echo isActiveNav('rules', 'coaches'); ?>"
                                        href="<?php echo $rootPath; ?>coaches/rules.php">
                                         <i class="fas fa-book"></i> Rules
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    <?php endif; ?>
+
+                    <?php if ($isUmpireAssignor): ?>
+                        <!-- Umpire Assignor Links -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle <?php echo $currentDir === 'umpires' ? 'active' : ''; ?>"
+                               href="#" id="umpireDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-id-card"></i> Umpire Tools
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item <?php echo isActiveNav('roster', 'umpires'); ?>"
+                                       href="<?php echo $rootPath; ?>admin/umpires/roster.php">
+                                        <i class="fas fa-users"></i> Umpire Roster
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item <?php echo isActiveNav('import', 'umpires'); ?>"
+                                       href="<?php echo $rootPath; ?>admin/umpires/import.php">
+                                        <i class="fas fa-file-csv"></i> Import Umpires
                                     </a>
                                 </li>
                             </ul>

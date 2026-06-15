@@ -173,3 +173,132 @@ register_test('AC1-P4: PermissionGuard::requireRole(user) accepts team_owner rol
     assert_true(!$exited, 'requireRole(user) should allow team_owner session role');
     unset($_SESSION['role']);
 });
+
+// ---------------------------------------------------------------------------
+// Story 22.1: Umpire roles tests
+// ---------------------------------------------------------------------------
+
+register_test('Story 22.1: PermissionGuard umpire_assignor role satisfies itself', function () {
+    if (session_status() === PHP_SESSION_NONE) {
+        @session_start();
+    }
+    $_SESSION['role'] = 'umpire_assignor';
+
+    $exited = false;
+    try {
+        PermissionGuard::requireRole('umpire_assignor');
+    } catch (Throwable $e) {
+        $exited = true;
+    }
+
+    assert_true(!$exited, 'umpire_assignor session role should satisfy requireRole(umpire_assignor)');
+    unset($_SESSION['role']);
+});
+
+register_test('Story 22.1: PermissionGuard administrator satisfies umpire_assignor', function () {
+    if (session_status() === PHP_SESSION_NONE) {
+        @session_start();
+    }
+    $_SESSION['role'] = 'administrator';
+
+    $exited = false;
+    try {
+        PermissionGuard::requireRole('umpire_assignor');
+    } catch (Throwable $e) {
+        $exited = true;
+    }
+
+    assert_true(!$exited, 'administrator session role should satisfy requireRole(umpire_assignor)');
+    unset($_SESSION['role']);
+});
+
+register_test('Story 22.1: PermissionGuard umpire role satisfies itself only', function () {
+    if (session_status() === PHP_SESSION_NONE) {
+        @session_start();
+    }
+    $_SESSION['role'] = 'umpire';
+
+    $exited = false;
+    try {
+        PermissionGuard::requireRole('umpire');
+    } catch (Throwable $e) {
+        $exited = true;
+    }
+
+    assert_true(!$exited, 'umpire session role should satisfy requireRole(umpire)');
+    unset($_SESSION['role']);
+});
+
+register_test('Story 22.1: PermissionGuard administrator does NOT satisfy umpire role', function () {
+    $script = <<<'PHP'
+<?php
+define('D8TL_APP', true);
+require_once __DIR__ . '/../../includes/PermissionGuard.php';
+
+if (session_status() === PHP_SESSION_NONE) {
+    @session_start();
+}
+$_SESSION['role'] = 'administrator';
+
+PermissionGuard::requireRole('umpire');
+
+echo 'GUARD_DID_NOT_EXIT';
+exit(0);
+PHP;
+
+    $scriptFile = sys_get_temp_dir() . '/perm_guard_test_admin_umpire_' . getmypid() . '.php';
+    file_put_contents($scriptFile, $script);
+
+    $output = shell_exec(PHP_BINARY . ' ' . escapeshellarg($scriptFile) . ' 2>/dev/null');
+    unlink($scriptFile);
+
+    assert_true(
+        strpos((string)$output, 'GUARD_DID_NOT_EXIT') === false,
+        'administrator should NOT satisfy requireRole(umpire) - umpire role is self-service only'
+    );
+});
+
+register_test('Story 22.1: PermissionGuard existing admin role still passes', function () {
+    if (session_status() === PHP_SESSION_NONE) {
+        @session_start();
+    }
+    $_SESSION['role'] = 'administrator';
+
+    $exited = false;
+    try {
+        PermissionGuard::requireRole('admin');
+    } catch (Throwable $e) {
+        $exited = true;
+    }
+
+    assert_true(!$exited, 'administrator session role should still satisfy requireRole(admin)');
+    unset($_SESSION['role']);
+});
+
+register_test('Story 22.1: PermissionGuard existing user/team_owner roles still pass', function () {
+    if (session_status() === PHP_SESSION_NONE) {
+        @session_start();
+    }
+
+    // Test user role
+    $_SESSION['role'] = 'coach';
+    $exited = false;
+    try {
+        PermissionGuard::requireRole('user');
+    } catch (Throwable $e) {
+        $exited = true;
+    }
+    assert_true(!$exited, 'coach should still satisfy requireRole(user)');
+
+    // Test team_owner role
+    $_SESSION['role'] = 'team_owner';
+    $exited = false;
+    try {
+        PermissionGuard::requireRole('team_owner');
+    } catch (Throwable $e) {
+        $exited = true;
+    }
+    assert_true(!$exited, 'team_owner should still satisfy requireRole(team_owner)');
+
+    unset($_SESSION['role']);
+});
