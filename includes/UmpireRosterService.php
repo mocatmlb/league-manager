@@ -151,15 +151,22 @@ class UmpireRosterService {
      */
     public function getRoster(bool $activeOnly = true): array {
         $activeClause = $activeOnly ? "AND u.status = 'active'" : '';
+
+        // Resolve role ID once to avoid subquery in the main loop/query
+        $umpireRoleId = (int) ($this->db->fetchOne(
+            'SELECT id FROM roles WHERE name = :name LIMIT 1',
+            ['name' => 'umpire']
+        )['id'] ?? 0);
+
         $sql = "SELECT
                     u.id, u.first_name, u.last_name, u.email, u.phone, u.status,
                     p.umpire_level, p.is_under_18, p.date_of_birth
                 FROM users u
                 INNER JOIN umpire_profiles p ON p.user_id = u.id
-                WHERE u.role_id = (SELECT id FROM roles WHERE name = 'umpire' LIMIT 1)
+                WHERE u.role_id = :role_id
                   {$activeClause}
                 ORDER BY u.last_name ASC, u.first_name ASC";
-        $stmt = $this->db->query($sql, []);
+        $stmt = $this->db->query($sql, ['role_id' => $umpireRoleId]);
         return ($stmt && method_exists($stmt, 'fetchAll')) ? $stmt->fetchAll() : [];
     }
 
@@ -167,6 +174,12 @@ class UmpireRosterService {
      * Return single umpire row + profile, or null if not found / not an umpire.
      */
     public function getUmpire(int $userId): ?array {
+        // Resolve role ID once
+        $umpireRoleId = (int) ($this->db->fetchOne(
+            'SELECT id FROM roles WHERE name = :name LIMIT 1',
+            ['name' => 'umpire']
+        )['id'] ?? 0);
+
         $row = $this->db->fetchOne(
             "SELECT
                 u.id, u.first_name, u.last_name, u.email, u.phone, u.status,
@@ -174,9 +187,9 @@ class UmpireRosterService {
              FROM users u
              INNER JOIN umpire_profiles p ON p.user_id = u.id
              WHERE u.id = :uid
-               AND u.role_id = (SELECT id FROM roles WHERE name = 'umpire' LIMIT 1)
+               AND u.role_id = :role_id
              LIMIT 1",
-            ['uid' => $userId]
+            ['uid' => $userId, 'role_id' => $umpireRoleId]
         );
         return $row !== false ? $row : null;
     }
@@ -259,7 +272,14 @@ class UmpireRosterService {
             if (!$profile || !$profile['is_under_18'] || empty($profile['date_of_birth'])) {
                 return;
             }
-            $dob = new \DateTime($profile['date_of_birth']);
+
+            // Guard against invalid date strings that might cause DateTime to throw
+            $dobStr = (string) $profile['date_of_birth'];
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dobStr)) {
+                return;
+            }
+
+            $dob = new \DateTime($dobStr);
             $now = new \DateTime();
             if ($now->diff($dob)->y >= 18) {
                 $this->db->query(

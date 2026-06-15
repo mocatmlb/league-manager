@@ -58,8 +58,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         } elseif ($action === 'edit') {
             $targetId = (int) ($_POST['user_id'] ?? 0);
-            if ($targetId < 1) {
-                $pageError = 'Invalid umpire ID.';
+            $umpire = $svc->getUmpire($targetId);
+            if ($targetId < 1 || !$umpire) {
+                $pageError = 'Invalid umpire ID or umpire not found.';
             } else {
                 try {
                     $svc->updateProfile($targetId, [
@@ -79,8 +80,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         } elseif ($action === 'deactivate') {
             $targetId = (int) ($_POST['user_id'] ?? 0);
-            if ($targetId < 1) {
-                $pageError = 'Invalid umpire ID.';
+            $umpire = $svc->getUmpire($targetId);
+            if ($targetId < 1 || !$umpire) {
+                $pageError = 'Invalid umpire ID or umpire not found.';
+            } elseif ($umpire['status'] === 'disabled') {
+                $pageError = 'Umpire is already deactivated.';
             } else {
                 try {
                     $svc->deactivate($targetId, $actorUserId);
@@ -94,8 +98,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         } elseif ($action === 'activate') {
             $targetId = (int) ($_POST['user_id'] ?? 0);
-            if ($targetId < 1) {
-                $pageError = 'Invalid umpire ID.';
+            $umpire = $svc->getUmpire($targetId);
+            if ($targetId < 1 || !$umpire) {
+                $pageError = 'Invalid umpire ID or umpire not found.';
+            } elseif ($umpire['status'] === 'active') {
+                $pageError = 'Umpire is already active.';
             } else {
                 try {
                     $svc->activate($targetId, $actorUserId);
