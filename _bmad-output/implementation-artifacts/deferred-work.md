@@ -171,3 +171,9 @@ These are race conditions, missing transactions, and performance issues. See [10
 - Locale-Dependent `fgetcsv` [`public/admin/umpires/import.php:96,128`] — `fgetcsv()` is locale-dependent; multi-byte characters (accented names) may be garbled if server locale is not UTF-8.
 - Redundant SELECT in `createUmpire` [`includes/UmpireRosterService.php:57`] — `createUmpire()` checks for existing emails, which is already done in `importRows()`. Harmless but results in N extra DB round-trips.
 - Code Duplication (Email Normalization) [`includes/UmpireImportService.php:37,127`] — `trim(strtolower(...))` is duplicated between preview and import steps.
+
+## Deferred from: code review of 22-2-manual-umpire-account-creation-roster-management.md (2026-06-15)
+
+- Code Duplication (Email Normalization) [`includes/UmpireRosterService.php:37,127`] — `trim(strtolower(...))` is duplicated between preview and import steps.
+- INSERT ... ON DUPLICATE KEY UPDATE overkill in updateProfile() [`includes/UmpireRosterService.php:203`] — Profile should exist if umpire was created correctly, but the UPSERT handles missing rows gracefully at the cost of slight complexity.
+- Lack of explicit transaction around deactivate/activate [`includes/UmpireRosterService.php:220,232`] — These are single-query updates, but transactions would be safer if logging or other side effects are added.
