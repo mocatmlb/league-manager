@@ -165,3 +165,9 @@ These are race conditions, missing transactions, and performance issues. See [10
 ### Low Priority
 - **Add client-side validation for DOB requirement** — `public/admin/umpires/roster.php` has HTML `required` attributes but no JS validation feedback for DOB when under-18 checkbox is checked.
 - **Consider making phone type/role configurable** — `UmpireRosterService.php:107-111` hardcodes `type='Cell'` and `role='primary'` in dual-write to `user_phones`. This assumes all umpires use cell phones.
+
+## Deferred from: code review of 22-4-csv-umpire-import (2026-06-15)
+
+- Locale-Dependent `fgetcsv` [`public/admin/umpires/import.php:96,128`] — `fgetcsv()` is locale-dependent; multi-byte characters (accented names) may be garbled if server locale is not UTF-8.
+- Redundant SELECT in `createUmpire` [`includes/UmpireRosterService.php:57`] — `createUmpire()` checks for existing emails, which is already done in `importRows()`. Harmless but results in N extra DB round-trips.
+- Code Duplication (Email Normalization) [`includes/UmpireImportService.php:37,127`] — `trim(strtolower(...))` is duplicated between preview and import steps.

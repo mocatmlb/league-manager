@@ -68,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             : 'Blue Shirt';
 
         $file = $_FILES['import_file'] ?? null;
-        if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
+        if (!is_array($file) || $file['error'] !== UPLOAD_ERR_OK) {
             $uploadErrMap = [
                 UPLOAD_ERR_INI_SIZE   => 'The file exceeds the server upload size limit.',
                 UPLOAD_ERR_FORM_SIZE  => 'The file exceeds the form upload size limit.',
@@ -78,7 +78,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk.',
                 UPLOAD_ERR_EXTENSION  => 'A PHP extension stopped the upload.',
             ];
-            $pageError = $uploadErrMap[$file['error'] ?? UPLOAD_ERR_NO_FILE] ?? 'File upload failed.';
+            $errorCode = is_array($file) ? ($file['error'] ?? UPLOAD_ERR_NO_FILE) : UPLOAD_ERR_NO_FILE;
+            $pageError = $uploadErrMap[$errorCode] ?? 'File upload failed.';
         } else {
             $maxSize = 1 * 1024 * 1024; // 1 MB
             if ($file['size'] > $maxSize) {
@@ -125,7 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 // Read data rows
                                 $dataRows = [];
                                 while (($csvRow = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
-                                    if ($csvRow === [null]) {
+                                    if ($csvRow === [null] || $csvRow === []) {
                                         continue; // skip blank lines
                                     }
                                     $assoc = [];
@@ -170,7 +171,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $allRows      = $sessionData['rows'];
             $defaultLevel = $sessionData['level'] ?? 'Blue Shirt';
-            $willCreate   = array_filter($allRows, static fn($r) => $r['status'] === 'will_create');
+            $willCreate   = is_array($allRows) ? array_filter($allRows, static fn($r) => $r['status'] === 'will_create') : [];
 
             if (empty($willCreate)) {
                 unset($_SESSION['umpire_import_preview']);
@@ -193,7 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit;
             } catch (\Throwable $e) {
                 error_log('[umpire/import.php] importRows error: ' . $e->getMessage());
-                $_SESSION['flash_error'] = 'Import failed — no accounts were created. Please try again.';
+                $_SESSION['flash_error'] = 'Import failed: ' . $e->getMessage() . '. No accounts were created.';
                 header('Location: ' . EnvLoader::getBaseUrl() . '/admin/umpires/import.php');
                 exit;
             }

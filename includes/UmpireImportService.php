@@ -102,63 +102,64 @@ class UmpireImportService {
      * @param array  $willCreateRows Only the 'will_create' rows from previewRows()
      * @param string $defaultLevel   Umpire level applied to all imported accounts
      * @param int    $actorUserId    Admin/assignor performing the import
-     * @return array ['created' => int, 'skipped' => int, 'errors' => [...]]
+     * @return array ['created' => int, 'skipped' => int]
      * @throws \Throwable on transaction failure (caller must surface error)
      */
     public function importRows(array $willCreateRows, string $defaultLevel, int $actorUserId): array {
         $created = 0;
         $skipped = 0;
-        $errors  = [];
 
         if (!class_exists('UmpireRosterService')) {
             require_once __DIR__ . '/UmpireRosterService.php';
         }
         $rosterSvc = new UmpireRosterService();
 
-        // migration mode is always active during import (AC 5) — suppresses welcome email in createUmpire()
-        $rosterSvc->enableMigrationMode();
-
-        $this->db->beginTransaction();
         try {
-            foreach ($willCreateRows as $row) {
-                try {
-                    // Race-condition guard: re-check email just before insert
-                    $exists = $this->db->fetchOne(
-                        'SELECT id FROM users WHERE email = :e LIMIT 1',
-                        ['e' => trim(strtolower((string) $row['email']))]
-                    );
-                    if ($exists !== false) {
+            $this->db->beginTransaction();
+            $rosterSvc->enableMigrationMode();
+
+            try {
+                foreach ($willCreateRows as $row) {
+                    try {
+                        // Race-condition guard: re-check email just before insert
+                        $exists = $this->db->fetchOne(
+                            'SELECT id FROM users WHERE email = :e LIMIT 1',
+                            ['e' => trim(strtolower((string) $row['email']))]
+                        );
+                        if ($exists !== false) {
+                            $skipped++;
+                            continue;
+                        }
+
+                        $rosterSvc->createUmpire([
+                            'first_name'   => trim((string) $row['first_name']),
+                            'last_name'    => trim((string) $row['last_name']),
+                            'email'        => trim((string) $row['email']),
+                            'phone'        => trim((string) ($row['phone'] ?? '')),
+                            'umpire_level' => $defaultLevel,
+                            'is_under_18'  => false,
+                        ], $actorUserId);
+
+                        $created++;
+                    } catch (DuplicateEmailException $e) {
                         $skipped++;
-                        continue;
+                    } catch (\PDOException $e) {
+                        if ($e->getCode() == 23000 && str_contains($e->getMessage(), 'Duplicate')) {
+                            $skipped++;
+                        } else {
+                            throw $e;
+                        }
                     }
-
-                    $rosterSvc->createUmpire([
-                        'first_name'   => trim((string) $row['first_name']),
-                        'last_name'    => trim((string) $row['last_name']),
-                        'email'        => trim((string) $row['email']),
-                        'phone'        => trim((string) ($row['phone'] ?? '')),
-                        'umpire_level' => $defaultLevel,
-                        'is_under_18'  => false,
-                    ], $actorUserId);
-
-                    $created++;
-                } catch (DuplicateEmailException $e) {
-                    $skipped++;
-                } catch (\Throwable $e) {
-                    // Rethrow — triggers outer rollback (AC 4)
-                    throw $e;
                 }
+                $this->db->commit();
+            } finally {
+                $rosterSvc->disableMigrationMode();
             }
-
-            $this->db->commit();
         } catch (\Throwable $e) {
             try { $this->db->rollback(); } catch (\Throwable $ignored) {}
-            $rosterSvc->disableMigrationMode();
             throw $e;
         }
 
-        $rosterSvc->disableMigrationMode();
-
-        return ['created' => $created, 'skipped' => $skipped, 'errors' => $errors];
+        return ['created' => $created, 'skipped' => $skipped];
     }
 }
