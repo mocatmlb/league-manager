@@ -18,6 +18,7 @@ if ($actorUserId < 1) { header('Location: /login.php'); exit; }
 
 $svc   = new UmpireAssignmentService();
 $games = $svc->getAssignmentBoard();
+$csrfToken = Auth::generateCSRFToken();
 
 $flashMessage = $_SESSION['flash_message'] ?? '';
 $flashError   = $_SESSION['flash_error']   ?? '';
@@ -97,15 +98,20 @@ unset($__nav);
                                 $slot1 = $game['slots'][0] ?? null;
                                 $slot2 = $game['slots'][1] ?? null;
                                 ?>
-                                <tr class="board-row" id="game-<?= (int) $game['game_id'] ?>">
+                                <tr class="board-row"
+                                    id="game-<?= (int) $game['game_id'] ?>"
+                                    tabindex="0"
+                                    role="button"
+                                    data-assignment-drawer-trigger
+                                    data-game-id="<?= (int) $game['game_id'] ?>">
                                     <td><?= htmlspecialchars($game['game_date'] ?? '') ?></td>
                                     <td><?= htmlspecialchars($game['game_time'] ?? '') ?></td>
                                     <td><?= htmlspecialchars($game['home_team'] ?? '') ?></td>
                                     <td><?= htmlspecialchars($game['away_team'] ?? '') ?></td>
                                     <td><?= htmlspecialchars($game['location_name'] ?? '—') ?></td>
                                     <td><?= htmlspecialchars($game['division_name'] ?? '—') ?></td>
-                                    <td><?= (int) ($game['filled_slots'] ?? 0) ?>/2</td>
-                                    <td>
+                                    <td data-board-filled><?= (int) ($game['filled_slots'] ?? 0) ?>/2</td>
+                                    <td data-board-slot="0">
                                         <?php if ($slot1): ?>
                                             <?= htmlspecialchars($slot1['name']) ?>
                                             <span class="badge bg-<?= $slot1['status'] === 'Published' ? 'success' : 'warning text-dark' ?> ms-1">
@@ -115,7 +121,7 @@ unset($__nav);
                                             <span class="text-muted">—</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td>
+                                    <td data-board-slot="1">
                                         <?php if ($slot2): ?>
                                             <?= htmlspecialchars($slot2['name']) ?>
                                             <span class="badge bg-<?= $slot2['status'] === 'Published' ? 'success' : 'warning text-dark' ?> ms-1">
@@ -125,7 +131,7 @@ unset($__nav);
                                             <span class="text-muted">—</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td>
+                                    <td data-board-status>
                                         <span class="badge bg-<?= htmlspecialchars($game['status_class']) ?>">
                                             <?= htmlspecialchars($game['board_status']) ?>
                                         </span>
@@ -141,8 +147,18 @@ unset($__nav);
 
 </div>
 
-<!-- TODO 23.2: offcanvas drawer -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="assignmentDrawer"
+     aria-labelledby="assignmentDrawerTitle"
+     data-csrf-token="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>"
+     data-page-mode="board">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="assignmentDrawerTitle">Assignment Drawer</h5>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body" id="assignmentDrawerBody" aria-live="polite"></div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assignment-drawer.js"></script>
 </body>
 </html>

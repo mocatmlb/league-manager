@@ -156,19 +156,21 @@ unset($__nav);
                         </thead>
                         <tbody>
                             <?php foreach ($games as $game): ?>
-                                <tr>
+                                <tr data-game-id="<?= (int) $game['game_id'] ?>">
                                     <td><?= htmlspecialchars($game['game_date'] ?? '') ?></td>
                                     <td><?= htmlspecialchars($game['game_time'] ?? '') ?></td>
                                     <td><?= htmlspecialchars($game['home_team'] ?? '') ?></td>
                                     <td><?= htmlspecialchars($game['away_team'] ?? '') ?></td>
                                     <td><?= htmlspecialchars($game['location_name'] ?? '—') ?></td>
                                     <td><?= htmlspecialchars($game['division_name'] ?? '—') ?></td>
-                                    <td><?= (int) $game['filled_slots'] ?>/2</td>
+                                    <td data-slot-count><?= (int) $game['filled_slots'] ?>/2</td>
                                     <td>
-                                        <a href="board.php#game-<?= (int) $game['game_id'] ?>"
-                                           class="btn btn-outline-primary btn-sm">
-                                            Assign &rarr;
-                                        </a>
+                                        <button type="button"
+                                                class="btn btn-outline-primary btn-sm"
+                                                data-assignment-drawer-trigger
+                                                data-game-id="<?= (int) $game['game_id'] ?>">
+                                            Assign
+                                        </button>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -181,8 +183,18 @@ unset($__nav);
 
 </div>
 
-<!-- TODO 23.2: offcanvas drawer -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="assignmentDrawer"
+     aria-labelledby="assignmentDrawerTitle"
+     data-csrf-token="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>"
+     data-page-mode="queue">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="assignmentDrawerTitle">Assignment Drawer</h5>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body" id="assignmentDrawerBody" aria-live="polite"></div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assignment-drawer.js"></script>
 </body>
 </html>

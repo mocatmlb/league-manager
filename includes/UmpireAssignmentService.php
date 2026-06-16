@@ -4,6 +4,9 @@ if (!defined('D8TL_APP')) { die('Direct access not permitted'); }
 if (!class_exists('ActivityLogger')) {
     require_once __DIR__ . '/ActivityLogger.php';
 }
+if (!class_exists('UmpireRosterService')) {
+    require_once __DIR__ . '/UmpireRosterService.php';
+}
 
 class UmpireAssignmentService {
 
@@ -154,5 +157,320 @@ class UmpireAssignmentService {
         unset($game);
 
         return $games;
+    }
+
+    public function getGameAssignmentDrawer(int $gameId): array {
+        $this->validatePositiveId($gameId, 'Game');
+        $game = $this->fetchGame($gameId);
+
+        $slots = [
+            0 => $this->openSlot(0),
+            1 => $this->openSlot(1),
+        ];
+
+        $stmt = $this->db->query(
+            "SELECT
+                gua.assignment_id, gua.game_id, gua.umpire_user_id, gua.slot_index,
+                gua.assignment_status, gua.published, gua.migration_mode,
+                u.first_name, u.last_name, u.email, u.phone,
+                p.umpire_level, p.is_under_18
+             FROM game_umpire_assignments gua
+             LEFT JOIN users u ON u.id = gua.umpire_user_id
+             LEFT JOIN umpire_profiles p ON p.user_id = gua.umpire_user_id
+             WHERE gua.game_id = :game_id
+               AND gua.slot_index IN (0, 1)
+             ORDER BY gua.slot_index ASC",
+            ['game_id' => $gameId]
+        );
+        $assignmentRows = ($stmt && method_exists($stmt, 'fetchAll')) ? $stmt->fetchAll() : [];
+        foreach ($assignmentRows as $row) {
+            $idx = (int) ($row['slot_index'] ?? -1);
+            if ($idx !== 0 && $idx !== 1) {
+                continue;
+            }
+            $slots[$idx] = $this->formatSlot($idx, $row);
+        }
+
+        $rosterService = new UmpireRosterService();
+        $roster = $rosterService->getRoster(true);
+        $loads = $this->fetchCurrentGameLoads(array_map(static function ($row) {
+            return (int) ($row['id'] ?? 0);
+        }, $roster));
+
+        foreach ($roster as &$umpire) {
+            $id = (int) ($umpire['id'] ?? 0);
+            $umpire['current_game_load'] = (int) ($loads[$id] ?? 0);
+            $umpire['is_under_18'] = (int) ($umpire['is_under_18'] ?? 0);
+        }
+        unset($umpire);
+
+        return [
+            'game' => $game,
+            'slot_labels' => [
+                0 => getSetting('umpire_slot_1_label', 'Umpire 1'),
+                1 => getSetting('umpire_slot_2_label', 'Umpire 2'),
+            ],
+            'slots' => $slots,
+            'roster' => $roster,
+            'migration_mode' => $rosterService->isMigrationMode(),
+        ];
+    }
+
+    public function saveSlot(int $gameId, int $slotIndex, int $umpireUserId, int $actorUserId): array {
+        $this->validatePositiveId($gameId, 'Game');
+        $this->validatePositiveId($umpireUserId, 'Umpire');
+        $this->validatePositiveId($actorUserId, 'Actor');
+        $this->validateSlotIndex($slotIndex);
+        $this->fetchGame($gameId);
+
+        $umpire = $this->fetchActiveUmpire($umpireUserId);
+        if ($umpire === null) {
+            throw new \InvalidArgumentException('Selected umpire is not active or does not have an umpire profile.');
+        }
+
+        $rosterService = new UmpireRosterService();
+        $rosterService->reconcileUnder18Flag($umpireUserId);
+        $migrationMode = $rosterService->isMigrationMode() ? 1 : 0;
+
+        $existing = $this->fetchSlot($gameId, $slotIndex);
+        if ($existing && (string) ($existing['assignment_status'] ?? '') === 'Published') {
+            throw new \RuntimeException('Published slots cannot be changed in this workflow.', 409);
+        }
+
+        $this->db->query(
+            "INSERT INTO game_umpire_assignments
+                (game_id, umpire_user_id, slot_index, slot_type, assignment_status, published,
+                 migration_mode, assigned_by_user_id, assigned_at, created_at, modified_at)
+             VALUES
+                (:game_id, :umpire_user_id, :slot_index, 'general', 'Draft', 0,
+                 :migration_mode, :actor_user_id, NOW(), NOW(), NOW())
+             ON DUPLICATE KEY UPDATE
+                umpire_user_id = VALUES(umpire_user_id),
+                assignment_status = 'Draft',
+                published = 0,
+                migration_mode = VALUES(migration_mode),
+                assigned_by_user_id = VALUES(assigned_by_user_id),
+                assigned_at = NOW(),
+                modified_at = NOW()",
+            [
+                'game_id' => $gameId,
+                'umpire_user_id' => $umpireUserId,
+                'slot_index' => $slotIndex,
+                'migration_mode' => $migrationMode,
+                'actor_user_id' => $actorUserId,
+            ]
+        );
+
+        ActivityLogger::log($migrationMode === 1 ? 'umpire.migrated' : 'umpire.assigned', [
+            'game_id' => $gameId,
+            'slot_index' => $slotIndex,
+            'umpire_user_id' => $umpireUserId,
+            'actor_user_id' => $actorUserId,
+        ]);
+
+        return [
+            'game_id' => $gameId,
+            'slot' => [
+                'slot_index' => $slotIndex,
+                'status' => 'Draft',
+                'umpire_user_id' => $umpireUserId,
+                'umpire' => $umpire,
+                'published' => 0,
+                'migration_mode' => $migrationMode,
+            ],
+        ];
+    }
+
+    public function unassignSlot(int $gameId, int $slotIndex, int $actorUserId): array {
+        $this->validatePositiveId($gameId, 'Game');
+        $this->validatePositiveId($actorUserId, 'Actor');
+        $this->validateSlotIndex($slotIndex);
+        $this->fetchGame($gameId);
+
+        $existing = $this->fetchSlot($gameId, $slotIndex);
+        if ($existing && (string) ($existing['assignment_status'] ?? '') === 'Published') {
+            throw new \RuntimeException('Published slots cannot be changed in this workflow.', 409);
+        }
+
+        if ($existing) {
+            $this->db->query(
+                "UPDATE game_umpire_assignments
+                 SET umpire_user_id = NULL,
+                     assignment_status = 'Open',
+                     published = 0,
+                     assigned_by_user_id = :actor_user_id,
+                     assigned_at = NULL,
+                     last_notified_at = NULL,
+                     last_notified_hash = NULL,
+                     modified_at = NOW()
+                 WHERE game_id = :game_id
+                   AND slot_index = :slot_index",
+                [
+                    'actor_user_id' => $actorUserId,
+                    'game_id' => $gameId,
+                    'slot_index' => $slotIndex,
+                ]
+            );
+
+            ActivityLogger::log('umpire.unassigned', [
+                'game_id' => $gameId,
+                'slot_index' => $slotIndex,
+                'umpire_user_id' => ($existing['umpire_user_id'] ?? null) !== null ? (int) $existing['umpire_user_id'] : null,
+                'actor_user_id' => $actorUserId,
+            ]);
+        }
+
+        return [
+            'game_id' => $gameId,
+            'slot' => $this->openSlot($slotIndex),
+        ];
+    }
+
+    private function fetchGame(int $gameId): array {
+        $row = $this->db->fetchOne(
+            "SELECT
+                g.game_id, g.game_number, g.game_status, g.division_id,
+                d.division_name,
+                ht.team_name AS home_team,
+                at.team_name AS away_team,
+                s.game_date, s.game_time,
+                l.location_name
+             FROM games g
+             JOIN schedules s ON g.game_id = s.game_id
+             LEFT JOIN locations l ON s.location_id = l.location_id
+             LEFT JOIN divisions d ON g.division_id = d.division_id
+             JOIN teams ht ON g.home_team_id = ht.team_id
+             JOIN teams at ON g.away_team_id = at.team_id
+             WHERE g.game_id = :game_id
+             LIMIT 1",
+            ['game_id' => $gameId]
+        );
+        if ($row === false || $row === null) {
+            throw new \InvalidArgumentException('Game not found.');
+        }
+        $status = (string) ($row['game_status'] ?? '');
+        if ($status === 'Cancelled' || $status === 'Postponed') {
+            throw new \InvalidArgumentException(ucfirst(strtolower($status)) . ' games cannot be assigned.');
+        }
+        return $row;
+    }
+
+    private function fetchActiveUmpire(int $umpireUserId): ?array {
+        $role = $this->db->fetchOne(
+            'SELECT id FROM roles WHERE name = :name LIMIT 1',
+            ['name' => 'umpire']
+        );
+        $roleId = (int) ($role['id'] ?? 0);
+        if ($roleId < 1) {
+            throw new \RuntimeException('umpire role not found in roles table — is migration 041 applied?');
+        }
+
+        $row = $this->db->fetchOne(
+            "SELECT
+                u.id, u.first_name, u.last_name, u.email, u.phone, u.status,
+                p.umpire_level, p.is_under_18
+             FROM users u
+             INNER JOIN umpire_profiles p ON p.user_id = u.id
+             WHERE u.id = :uid
+               AND u.role_id = :role_id
+               AND u.status = 'active'
+             LIMIT 1",
+            ['uid' => $umpireUserId, 'role_id' => $roleId]
+        );
+
+        return $row !== false ? $row : null;
+    }
+
+    private function fetchSlot(int $gameId, int $slotIndex): ?array {
+        $row = $this->db->fetchOne(
+            "SELECT *
+             FROM game_umpire_assignments
+             WHERE game_id = :game_id
+               AND slot_index = :slot_index
+             LIMIT 1",
+            ['game_id' => $gameId, 'slot_index' => $slotIndex]
+        );
+        return $row !== false ? $row : null;
+    }
+
+    private function fetchCurrentGameLoads(array $umpireIds): array {
+        $ids = array_values(array_filter(array_unique(array_map('intval', $umpireIds)), static function ($id) {
+            return $id > 0;
+        }));
+        if (empty($ids)) {
+            return [];
+        }
+
+        $params = [];
+        $placeholders = [];
+        foreach ($ids as $i => $id) {
+            $key = 'uid_' . $i;
+            $placeholders[] = ':' . $key;
+            $params[$key] = $id;
+        }
+
+        $stmt = $this->db->query(
+            "SELECT gua.umpire_user_id, COUNT(*) AS current_game_load
+             FROM game_umpire_assignments gua
+             JOIN games g ON g.game_id = gua.game_id
+             WHERE gua.umpire_user_id IN (" . implode(', ', $placeholders) . ")
+               AND gua.assignment_status IN ('Draft', 'Published')
+               AND g.game_status != 'Cancelled'
+             GROUP BY gua.umpire_user_id",
+            $params
+        );
+        $rows = ($stmt && method_exists($stmt, 'fetchAll')) ? $stmt->fetchAll() : [];
+        $loads = [];
+        foreach ($rows as $row) {
+            $loads[(int) ($row['umpire_user_id'] ?? 0)] = (int) ($row['current_game_load'] ?? 0);
+        }
+        return $loads;
+    }
+
+    private function validatePositiveId(int $id, string $label): void {
+        if ($id < 1) {
+            throw new \InvalidArgumentException($label . ' ID must be positive.');
+        }
+    }
+
+    private function validateSlotIndex(int $slotIndex): void {
+        if ($slotIndex !== 0 && $slotIndex !== 1) {
+            throw new \InvalidArgumentException('Slot index must be 0 or 1.');
+        }
+    }
+
+    private function openSlot(int $slotIndex): array {
+        return [
+            'slot_index' => $slotIndex,
+            'status' => 'Open',
+            'umpire_user_id' => null,
+            'umpire' => null,
+            'published' => 0,
+            'migration_mode' => 0,
+        ];
+    }
+
+    private function formatSlot(int $slotIndex, array $row): array {
+        $status = (string) ($row['assignment_status'] ?? 'Open');
+        if ($status === 'Open' || empty($row['umpire_user_id'])) {
+            return $this->openSlot($slotIndex);
+        }
+
+        return [
+            'slot_index' => $slotIndex,
+            'status' => $status,
+            'umpire_user_id' => (int) $row['umpire_user_id'],
+            'umpire' => [
+                'id' => (int) $row['umpire_user_id'],
+                'first_name' => $row['first_name'] ?? '',
+                'last_name' => $row['last_name'] ?? '',
+                'email' => $row['email'] ?? '',
+                'phone' => $row['phone'] ?? '',
+                'umpire_level' => $row['umpire_level'] ?? '',
+                'is_under_18' => (int) ($row['is_under_18'] ?? 0),
+            ],
+            'published' => (int) ($row['published'] ?? 0),
+            'migration_mode' => (int) ($row['migration_mode'] ?? 0),
+        ];
     }
 }
