@@ -167,6 +167,18 @@ $rootPath = getPathToRoot();
                                 <li><hr class="dropdown-divider"></li>
                                 <li><h6 class="dropdown-header">Umpires</h6></li>
                                 <li>
+                                    <a class="dropdown-item <?php echo isActiveNav('index', 'umpires'); ?>"
+                                       href="<?php echo $rootPath; ?>admin/umpires/index.php">
+                                        <i class="fas fa-list-check"></i> Assignment Queue
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item <?php echo isActiveNav('board', 'umpires'); ?>"
+                                       href="<?php echo $rootPath; ?>admin/umpires/board.php">
+                                        <i class="fas fa-table-columns"></i> Assignment Board
+                                    </a>
+                                </li>
+                                <li>
                                     <a class="dropdown-item <?php echo isActiveNav('roster', 'umpires'); ?>"
                                        href="<?php echo $rootPath; ?>admin/umpires/roster.php">
                                         <i class="fas fa-id-card"></i> Umpire Roster
@@ -246,6 +258,18 @@ $rootPath = getPathToRoot();
                                 <i class="fas fa-id-card"></i> Umpire Tools
                             </a>
                             <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item <?php echo isActiveNav('index', 'umpires'); ?>"
+                                       href="<?php echo $rootPath; ?>admin/umpires/index.php">
+                                        <i class="fas fa-list-check"></i> Assignment Queue
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item <?php echo isActiveNav('board', 'umpires'); ?>"
+                                       href="<?php echo $rootPath; ?>admin/umpires/board.php">
+                                        <i class="fas fa-table-columns"></i> Assignment Board
+                                    </a>
+                                </li>
                                 <li>
                                     <a class="dropdown-item <?php echo isActiveNav('roster', 'umpires'); ?>"
                                        href="<?php echo $rootPath; ?>admin/umpires/roster.php">
