@@ -10,6 +10,7 @@
     var title = document.getElementById('assignmentDrawerTitle');
     var csrfToken = drawer.getAttribute('data-csrf-token') || '';
     var pageMode = drawer.getAttribute('data-page-mode') || '';
+    var canOverride = drawer.getAttribute('data-can-override') === '1';
     var offcanvas = bootstrap.Offcanvas.getOrCreateInstance(drawer);
     var activeGameId = 0;
 
@@ -49,7 +50,9 @@
                 return { success: false, error: 'Invalid JSON response.' };
             }).then(function (payload) {
                 if (!response.ok || !payload.success) {
-                    throw new Error(payload.error || 'Request failed.');
+                    var error = new Error(payload.error || 'Request failed.');
+                    error.payload = payload;
+                    throw error;
                 }
                 return payload.data;
             });
@@ -70,6 +73,78 @@
         }).then(renderDrawer).catch(function (error) {
             setStaticState(error.message, 'error');
         });
+    }
+
+    function conflictLabel(conflict) {
+        if (!conflict) {
+            return '';
+        }
+        var teams = [conflict.away_team, conflict.home_team].filter(Boolean).join(' at ');
+        return [
+            conflict.game_date,
+            conflict.game_time,
+            conflict.game_number ? 'Game ' + conflict.game_number : null,
+            teams,
+            conflict.location_name
+        ].filter(Boolean).join(' | ');
+    }
+
+    function renderOverrideError(container, error, retryCallback) {
+        var payload = error.payload || {};
+        container.textContent = '';
+        container.className = 'small mb-2';
+
+        var alert = document.createElement('div');
+        alert.className = 'alert alert-danger py-2 mb-2';
+        appendText(alert, 'div', 'fw-semibold', error.message);
+        if (payload.conflict) {
+            appendText(alert, 'div', 'mt-1', conflictLabel(payload.conflict));
+        }
+        container.appendChild(alert);
+
+        if (!payload.requires_override || !canOverride) {
+            return;
+        }
+
+        var group = document.createElement('div');
+        group.className = 'border rounded p-2 bg-light';
+
+        var label = document.createElement('label');
+        label.className = 'form-label small fw-semibold mb-1';
+        label.textContent = 'Override reason';
+        group.appendChild(label);
+
+        var textarea = document.createElement('textarea');
+        textarea.className = 'form-control form-control-sm mb-2';
+        textarea.rows = 2;
+        textarea.maxLength = 500;
+        group.appendChild(textarea);
+
+        var validation = document.createElement('div');
+        validation.className = 'text-danger mb-2 d-none';
+        validation.textContent = 'Enter an override reason before confirming.';
+        group.appendChild(validation);
+
+        var confirm = document.createElement('button');
+        confirm.type = 'button';
+        confirm.className = 'btn btn-danger btn-sm';
+        confirm.textContent = 'Confirm Override';
+        confirm.addEventListener('click', function () {
+            var reason = textarea.value.trim();
+            if (!reason) {
+                validation.classList.remove('d-none');
+                textarea.focus();
+                return;
+            }
+            validation.classList.add('d-none');
+            confirm.disabled = true;
+            confirm.textContent = 'Saving...';
+            retryCallback(reason).catch(function (retryError) {
+                renderOverrideError(container, retryError, retryCallback);
+            });
+        });
+        group.appendChild(confirm);
+        container.appendChild(group);
     }
 
     function postSlot(url, payload) {
@@ -199,10 +274,16 @@
                 slot_index: slotIndex,
                 umpire_user_id: select.value
             }).catch(function (error) {
-                status.className = 'small text-danger mb-2';
-                status.textContent = error.message;
+                renderOverrideError(status, error, function (reason) {
+                    return postSlot('ajax/save-slot.php', {
+                        game_id: activeGameId,
+                        slot_index: slotIndex,
+                        umpire_user_id: select.value,
+                        override_reason: reason
+                    });
+                });
                 save.disabled = false;
-                unassign.disabled = !slot.umpire_user_id || slot.status === 'Published';
+                unassign.disabled = !slot.umpire_user_id;
             });
         });
         actions.appendChild(save);
@@ -211,7 +292,7 @@
         unassign.type = 'button';
         unassign.className = 'btn btn-outline-secondary btn-sm';
         unassign.textContent = 'Unassign';
-        unassign.disabled = !slot.umpire_user_id || slot.status === 'Published';
+        unassign.disabled = !slot.umpire_user_id;
         unassign.addEventListener('click', function () {
             status.className = 'small text-muted mb-2';
             status.textContent = 'Unassigning...';
@@ -221,8 +302,13 @@
                 game_id: activeGameId,
                 slot_index: slotIndex
             }).catch(function (error) {
-                status.className = 'small text-danger mb-2';
-                status.textContent = error.message;
+                renderOverrideError(status, error, function (reason) {
+                    return postSlot('ajax/unassign-slot.php', {
+                        game_id: activeGameId,
+                        slot_index: slotIndex,
+                        override_reason: reason
+                    });
+                });
                 save.disabled = false;
                 unassign.disabled = false;
             });

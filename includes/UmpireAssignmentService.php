@@ -7,6 +7,26 @@ if (!class_exists('ActivityLogger')) {
 if (!class_exists('UmpireRosterService')) {
     require_once __DIR__ . '/UmpireRosterService.php';
 }
+if (!class_exists('UmpireConflictChecker')) {
+    require_once __DIR__ . '/UmpireConflictChecker.php';
+}
+
+if (!class_exists('UmpireAssignmentOverrideRequiredException')) {
+    class UmpireAssignmentOverrideRequiredException extends \RuntimeException {
+        private array $payload;
+
+        public function __construct(string $message, array $payload = []) {
+            parent::__construct($message, 409);
+            $this->payload = array_merge([
+                'requires_override' => true,
+            ], $payload);
+        }
+
+        public function getPayload(): array {
+            return $this->payload;
+        }
+    }
+}
 
 class UmpireAssignmentService {
 
@@ -216,12 +236,20 @@ class UmpireAssignmentService {
         ];
     }
 
-    public function saveSlot(int $gameId, int $slotIndex, int $umpireUserId, int $actorUserId): array {
+    public function saveSlot(
+        int $gameId,
+        int $slotIndex,
+        int $umpireUserId,
+        ?int $assignedByUserId,
+        bool $actorIsAdmin = false,
+        ?string $overrideReason = null,
+        ?int $actorAdminId = null
+    ): array {
         $this->validatePositiveId($gameId, 'Game');
         $this->validatePositiveId($umpireUserId, 'Umpire');
-        $this->validatePositiveId($actorUserId, 'Actor');
         $this->validateSlotIndex($slotIndex);
-        $this->fetchGame($gameId);
+        [$assignedByUserId, $actorAdminId] = $this->normalizeActor($assignedByUserId, $actorAdminId);
+        $game = $this->fetchGame($gameId);
 
         $umpire = $this->fetchActiveUmpire($umpireUserId);
         if ($umpire === null) {
@@ -233,8 +261,25 @@ class UmpireAssignmentService {
         $migrationMode = $rosterService->isMigrationMode() ? 1 : 0;
 
         $existing = $this->fetchSlot($gameId, $slotIndex);
-        if ($existing && (string) ($existing['assignment_status'] ?? '') === 'Published') {
-            throw new \RuntimeException('Published slots cannot be changed in this workflow.', 409);
+        $publishedMutation = $existing && (string) ($existing['assignment_status'] ?? '') === 'Published';
+        $reason = trim((string) $overrideReason);
+        $hasOverride = $actorIsAdmin && $reason !== '';
+
+        [$targetStart, $targetEnd] = $this->assignmentWindow($game);
+        $conflict = UmpireConflictChecker::check(
+            $umpireUserId,
+            $targetStart,
+            $targetEnd,
+            $existing && isset($existing['assignment_id']) ? (int) $existing['assignment_id'] : null
+        );
+
+        if (($conflict !== null || $publishedMutation) && !$hasOverride) {
+            $message = $conflict !== null
+                ? 'This umpire is already assigned to an overlapping game.'
+                : 'Published slots require an administrator override reason before they can be changed.';
+            throw new UmpireAssignmentOverrideRequiredException($message, [
+                'conflict' => $conflict,
+            ]);
         }
 
         $this->db->query(
@@ -251,22 +296,28 @@ class UmpireAssignmentService {
                 migration_mode = VALUES(migration_mode),
                 assigned_by_user_id = VALUES(assigned_by_user_id),
                 assigned_at = NOW(),
+                last_notified_at = NULL,
+                last_notified_hash = NULL,
                 modified_at = NOW()",
             [
                 'game_id' => $gameId,
                 'umpire_user_id' => $umpireUserId,
                 'slot_index' => $slotIndex,
                 'migration_mode' => $migrationMode,
-                'actor_user_id' => $actorUserId,
+                'actor_user_id' => $assignedByUserId,
             ]
         );
 
-        ActivityLogger::log($migrationMode === 1 ? 'umpire.migrated' : 'umpire.assigned', [
-            'game_id' => $gameId,
-            'slot_index' => $slotIndex,
-            'umpire_user_id' => $umpireUserId,
-            'actor_user_id' => $actorUserId,
-        ]);
+        if (($conflict !== null || $publishedMutation) && $hasOverride) {
+            $this->logOverride($reason, $gameId, $slotIndex, $existing, $umpireUserId, $conflict, $assignedByUserId, $actorAdminId);
+        } else {
+            ActivityLogger::log($migrationMode === 1 ? 'umpire.migrated' : 'umpire.assigned', [
+                'game_id' => $gameId,
+                'slot_index' => $slotIndex,
+                'umpire_user_id' => $umpireUserId,
+                'actor_user_id' => $assignedByUserId,
+            ]);
+        }
 
         return [
             'game_id' => $gameId,
@@ -281,15 +332,25 @@ class UmpireAssignmentService {
         ];
     }
 
-    public function unassignSlot(int $gameId, int $slotIndex, int $actorUserId): array {
+    public function unassignSlot(
+        int $gameId,
+        int $slotIndex,
+        ?int $assignedByUserId,
+        bool $actorIsAdmin = false,
+        ?string $overrideReason = null,
+        ?int $actorAdminId = null
+    ): array {
         $this->validatePositiveId($gameId, 'Game');
-        $this->validatePositiveId($actorUserId, 'Actor');
         $this->validateSlotIndex($slotIndex);
+        [$assignedByUserId, $actorAdminId] = $this->normalizeActor($assignedByUserId, $actorAdminId);
         $this->fetchGame($gameId);
 
         $existing = $this->fetchSlot($gameId, $slotIndex);
-        if ($existing && (string) ($existing['assignment_status'] ?? '') === 'Published') {
-            throw new \RuntimeException('Published slots cannot be changed in this workflow.', 409);
+        $publishedMutation = $existing && (string) ($existing['assignment_status'] ?? '') === 'Published';
+        $reason = trim((string) $overrideReason);
+        $hasOverride = $actorIsAdmin && $reason !== '';
+        if ($publishedMutation && !$hasOverride) {
+            throw new UmpireAssignmentOverrideRequiredException('Published slots require an administrator override reason before they can be changed.');
         }
 
         if ($existing) {
@@ -306,18 +367,22 @@ class UmpireAssignmentService {
                  WHERE game_id = :game_id
                    AND slot_index = :slot_index",
                 [
-                    'actor_user_id' => $actorUserId,
+                    'actor_user_id' => $assignedByUserId,
                     'game_id' => $gameId,
                     'slot_index' => $slotIndex,
                 ]
             );
 
-            ActivityLogger::log('umpire.unassigned', [
-                'game_id' => $gameId,
-                'slot_index' => $slotIndex,
-                'umpire_user_id' => ($existing['umpire_user_id'] ?? null) !== null ? (int) $existing['umpire_user_id'] : null,
-                'actor_user_id' => $actorUserId,
-            ]);
+            if ($publishedMutation && $hasOverride) {
+                $this->logOverride($reason, $gameId, $slotIndex, $existing, null, null, $assignedByUserId, $actorAdminId);
+            } else {
+                ActivityLogger::log('umpire.unassigned', [
+                    'game_id' => $gameId,
+                    'slot_index' => $slotIndex,
+                    'umpire_user_id' => ($existing['umpire_user_id'] ?? null) !== null ? (int) $existing['umpire_user_id'] : null,
+                    'actor_user_id' => $assignedByUserId,
+                ]);
+            }
         }
 
         return [
@@ -353,6 +418,51 @@ class UmpireAssignmentService {
             throw new \InvalidArgumentException(ucfirst(strtolower($status)) . ' games cannot be assigned.');
         }
         return $row;
+    }
+
+    private function assignmentWindow(array $game): array {
+        $date = (string) ($game['game_date'] ?? '');
+        $time = (string) (($game['game_time'] ?? '') ?: '00:00:00');
+        $start = new \DateTime(trim($date . ' ' . $time));
+        $end = (clone $start)->modify('+2 hours');
+        return [$start, $end];
+    }
+
+    private function normalizeActor(?int $assignedByUserId, ?int $actorAdminId): array {
+        $assignedByUserId = $assignedByUserId !== null && $assignedByUserId > 0 ? $assignedByUserId : null;
+        $actorAdminId = $actorAdminId !== null && $actorAdminId > 0 ? $actorAdminId : null;
+
+        if ($assignedByUserId === null && $actorAdminId === null) {
+            throw new \InvalidArgumentException('Authenticated actor not found.');
+        }
+
+        return [$assignedByUserId, $actorAdminId];
+    }
+
+    private function logOverride(
+        string $reason,
+        int $gameId,
+        int $slotIndex,
+        ?array $existing,
+        ?int $newUmpireUserId,
+        ?array $conflict,
+        ?int $assignedByUserId,
+        ?int $actorAdminId
+    ): void {
+        ActivityLogger::log('umpire.override', [
+            'reason' => $reason,
+            'game_id' => $gameId,
+            'target_game_id' => $gameId,
+            'slot_index' => $slotIndex,
+            'prior_umpire_user_id' => ($existing && isset($existing['umpire_user_id']) && $existing['umpire_user_id'] !== null)
+                ? (int) $existing['umpire_user_id']
+                : null,
+            'new_umpire_user_id' => $newUmpireUserId,
+            'conflicting_assignment_id' => $conflict['assignment_id'] ?? null,
+            'conflicting_game_id' => $conflict['game_id'] ?? null,
+            'actor_user_id' => $assignedByUserId,
+            'actor_admin_id' => $actorAdminId,
+        ]);
     }
 
     private function fetchActiveUmpire(int $umpireUserId): ?array {

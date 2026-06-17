@@ -150,6 +150,7 @@ unset($__nav);
 <div class="offcanvas offcanvas-end" tabindex="-1" id="assignmentDrawer"
      aria-labelledby="assignmentDrawerTitle"
      data-csrf-token="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>"
+     data-can-override="<?= ($_SESSION['role'] ?? '') === 'administrator' ? '1' : '0' ?>"
      data-page-mode="board">
     <div class="offcanvas-header">
         <h5 class="offcanvas-title" id="assignmentDrawerTitle">Assignment Drawer</h5>

@@ -15,7 +15,15 @@ header('Content-Type: application/json');
 
 function d8tl_umpire_json(bool $success, array|string $payload, int $status = 200): void {
     http_response_code($status);
-    echo json_encode($success ? ['success' => true, 'data' => $payload] : ['success' => false, 'error' => $payload]);
+    if ($success) {
+        echo json_encode(['success' => true, 'data' => $payload]);
+        exit;
+    }
+    if (is_array($payload)) {
+        echo json_encode(array_merge(['success' => false], $payload));
+        exit;
+    }
+    echo json_encode(['success' => false, 'error' => $payload]);
     exit;
 }
 
@@ -29,25 +37,39 @@ if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
 
 $gameId = filter_input(INPUT_POST, 'game_id', FILTER_VALIDATE_INT);
 $slotIndex = filter_input(INPUT_POST, 'slot_index', FILTER_VALIDATE_INT);
+$overrideReason = isset($_POST['override_reason']) ? trim((string) $_POST['override_reason']) : null;
 
 if (!$gameId || $gameId < 1 || $slotIndex === false || $slotIndex === null) {
     d8tl_umpire_json(false, 'Valid game_id and slot_index are required.', 400);
 }
 
-$currentUser = Auth::getCurrentUser();
-$actorUserId = (int) ($currentUser['id'] ?? 0);
-if ($actorUserId < 1) {
+$actorIsAdmin = ($_SESSION['role'] ?? '') === 'administrator';
+$assignedByUserId = isset($_SESSION['coach_user_id']) ? (int) $_SESSION['coach_user_id'] : null;
+$actorAdminId = isset($_SESSION['admin_id']) && !isset($_SESSION['coach_user_id']) ? (int) $_SESSION['admin_id'] : null;
+
+if (($assignedByUserId === null || $assignedByUserId < 1) && ($actorAdminId === null || $actorAdminId < 1)) {
     d8tl_umpire_json(false, 'Authenticated user not found.', 400);
 }
 
 try {
     $svc = new UmpireAssignmentService();
-    d8tl_umpire_json(true, $svc->unassignSlot((int) $gameId, (int) $slotIndex, $actorUserId));
+    d8tl_umpire_json(true, $svc->unassignSlot(
+        (int) $gameId,
+        (int) $slotIndex,
+        $assignedByUserId,
+        $actorIsAdmin,
+        $overrideReason,
+        $actorAdminId
+    ));
 } catch (\InvalidArgumentException $e) {
     d8tl_umpire_json(false, $e->getMessage(), 400);
 } catch (\RuntimeException $e) {
     if ($e->getCode() === 409) {
-        d8tl_umpire_json(false, $e->getMessage(), 409);
+        $payload = ['error' => $e->getMessage()];
+        if (method_exists($e, 'getPayload')) {
+            $payload = array_merge($payload, $e->getPayload());
+        }
+        d8tl_umpire_json(false, $payload, 409);
     } else {
         error_log('[umpires/ajax/unassign-slot.php] ' . $e->getMessage());
         d8tl_umpire_json(false, 'An unexpected error occurred.', 500);

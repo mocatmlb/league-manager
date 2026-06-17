@@ -67,6 +67,7 @@ class UmpireAssignmentMockDb extends Database {
 class UmpireAssignmentMockStmt {
     private array $rows;
     public function __construct(array $rows) { $this->rows = $rows; }
+    public function fetch($mode = null) { return $this->rows[0] ?? false; }
     public function fetchAll($mode = null): array { return $this->rows; }
 }
 
@@ -378,6 +379,99 @@ register_test('23.2 saveSlot rejects Published existing slot', function () {
     assert_true($threw, 'Expected Published slot save rejection');
 });
 
+register_test('23.3 saveSlot rejects conflicting assignment with structured 409 payload', function () {
+    unset($_SESSION['umpire_migration_mode']);
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [
+        ['game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Scheduled', 'game_date' => '2026-07-01', 'game_time' => '18:00:00'],
+        ['id' => 7],
+        ['id' => 101, 'status' => 'active', 'umpire_level' => 'Black Shirt'],
+        ['is_under_18' => 0, 'date_of_birth' => null],
+        ['assignment_id' => 22, 'assignment_status' => 'Draft', 'umpire_user_id' => 202],
+    ];
+    $mock->queryRows = [[
+        ['assignment_id' => 55, 'game_id' => 99, 'game_number' => 'G099', 'game_date' => '2026-07-01', 'game_time' => '18:30:00', 'home_team' => 'Home', 'away_team' => 'Away', 'location_name' => 'Field 1', 'assignment_status' => 'Draft'],
+    ]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+
+    $threw = false;
+    try {
+        $svc->saveSlot(10, 0, 101, 1);
+    } catch (\RuntimeException $e) {
+        $threw = true;
+        assert_equals($e->getCode(), 409, 'Expected conflict rejection to map to HTTP 409');
+        assert_true(method_exists($e, 'getPayload'), 'Expected structured payload accessor');
+        $payload = $e->getPayload();
+        assert_true($payload['requires_override'] ?? false, 'Expected override flag');
+        assert_equals($payload['conflict']['assignment_id'] ?? null, 55, 'Expected conflict payload');
+    }
+    assert_true($threw, 'Expected conflicting save to throw');
+});
+
+register_test('23.3 saveSlot allows admin conflict override and logs PII-free context', function () {
+    unset($_SESSION['umpire_migration_mode']);
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [
+        ['game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Scheduled', 'game_date' => '2026-07-01', 'game_time' => '18:00:00'],
+        ['id' => 7],
+        ['id' => 101, 'first_name' => 'Pat', 'last_name' => 'Blue', 'email' => 'pat@example.test', 'phone' => '555', 'status' => 'active', 'umpire_level' => 'Black Shirt'],
+        ['is_under_18' => 0, 'date_of_birth' => null],
+        ['assignment_id' => 22, 'assignment_status' => 'Draft', 'umpire_user_id' => 202],
+    ];
+    $mock->queryRows = [[
+        ['assignment_id' => 55, 'game_id' => 99, 'game_number' => 'G099', 'game_date' => '2026-07-01', 'game_time' => '18:30:00', 'home_team' => 'Home', 'away_team' => 'Away', 'location_name' => 'Field 1', 'assignment_status' => 'Published'],
+    ]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->saveSlot(10, 0, 101, 1, true, 'Assignor approved overlap', null);
+
+    assert_equals($result['slot']['status'], 'Draft', 'Expected override save to produce Draft slot');
+    $logParams = array_values(array_filter($mock->lastParams, static function ($p) {
+        return ($p['event'] ?? '') === 'umpire.override';
+    }));
+    assert_equals(count($logParams), 1, 'Expected one override log');
+    $context = json_decode($logParams[0]['context'], true);
+    assert_equals($context['reason'] ?? null, 'Assignor approved overlap', 'Expected override reason');
+    assert_equals($context['target_game_id'] ?? null, 10, 'Expected target game id');
+    assert_equals($context['prior_umpire_user_id'] ?? null, 202, 'Expected prior umpire id');
+    assert_equals($context['new_umpire_user_id'] ?? null, 101, 'Expected new umpire id');
+    assert_equals($context['conflicting_assignment_id'] ?? null, 55, 'Expected conflicting assignment id');
+    assert_true(!isset($context['email']) && !isset($context['phone']) && !isset($context['first_name']) && !isset($context['last_name']), 'Expected PII-free override context');
+});
+
+register_test('23.3 saveSlot legacy admin writes NULL assigned_by_user_id and logs actor_admin_id', function () {
+    unset($_SESSION['umpire_migration_mode']);
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [
+        ['game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Scheduled', 'game_date' => '2026-07-01', 'game_time' => '18:00:00'],
+        ['id' => 7],
+        ['id' => 101, 'status' => 'active', 'umpire_level' => 'Black Shirt'],
+        ['is_under_18' => 0, 'date_of_birth' => null],
+        ['assignment_id' => 22, 'assignment_status' => 'Published', 'umpire_user_id' => 202],
+    ];
+    $mock->queryRows = [[]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $svc->saveSlot(10, 0, 101, null, true, 'Legacy admin correction', 77);
+
+    $upsertParams = [];
+    foreach ($mock->lastParams as $params) {
+        if (isset($params['migration_mode'])) {
+            $upsertParams = $params;
+            break;
+        }
+    }
+    assert_true(array_key_exists('actor_user_id', $upsertParams), 'Expected actor_user_id param to be present');
+    assert_null($upsertParams['actor_user_id'], 'Expected NULL assigned_by_user_id for legacy admin');
+    $logParams = array_values(array_filter($mock->lastParams, static function ($p) {
+        return ($p['event'] ?? '') === 'umpire.override';
+    }));
+    $context = json_decode($logParams[0]['context'], true);
+    assert_equals($context['actor_admin_id'] ?? null, 77, 'Expected legacy actor admin id in audit context');
+    assert_null($context['actor_user_id'] ?? null, 'Expected no users-table actor id');
+});
+
 register_test('23.2 saveSlot upserts Draft assignment and logs normal assignment', function () {
     unset($_SESSION['umpire_migration_mode']);
     $mock = new UmpireAssignmentMockDb();
@@ -447,6 +541,46 @@ register_test('23.2 unassignSlot rejects Published existing slot', function () {
     assert_true($threw, 'Expected Published slot unassign to throw RuntimeException');
 });
 
+register_test('23.3 unassignSlot requires admin override for Published slot', function () {
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [
+        ['game_id' => 10, 'game_status' => 'Scheduled'],
+        ['assignment_id' => 22, 'assignment_status' => 'Published', 'umpire_user_id' => 101],
+    ];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+
+    $threw = false;
+    try {
+        $svc->unassignSlot(10, 0, 1, false, 'not enough');
+    } catch (\RuntimeException $e) {
+        $threw = true;
+        assert_equals($e->getCode(), 409, 'Expected 409 for assignor Published mutation');
+        assert_true(method_exists($e, 'getPayload'), 'Expected structured override payload');
+        assert_true($e->getPayload()['requires_override'] ?? false, 'Expected override required flag');
+    }
+    assert_true($threw, 'Expected Published unassign rejection');
+});
+
+register_test('23.3 unassignSlot allows admin Published override and logs override event', function () {
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [
+        ['game_id' => 10, 'game_status' => 'Scheduled'],
+        ['assignment_id' => 22, 'assignment_status' => 'Published', 'umpire_user_id' => 101],
+    ];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->unassignSlot(10, 0, 1, true, 'Crew changed after publish');
+
+    assert_equals($result['slot']['status'], 'Open', 'Expected open slot after override unassign');
+    $sqlLog = implode("\n", $mock->lastSql);
+    assert_true(strpos($sqlLog, 'last_notified_at = NULL') !== false, 'Expected notification timestamp clear');
+    assert_true(strpos($sqlLog, 'last_notified_hash = NULL') !== false, 'Expected notification hash clear');
+    $loggedEvents = array_column(array_filter($mock->lastParams, static function ($p) { return isset($p['event']); }), 'event');
+    assert_true(in_array('umpire.override', $loggedEvents, true), 'Expected umpire.override event');
+    assert_true(!in_array('umpire.unassigned', $loggedEvents, true), 'Expected no separate unassigned log for override');
+});
+
 register_test('23.2 unassignSlot opens an existing Draft slot and clears notification state', function () {
     $mock = new UmpireAssignmentMockDb();
     $mock->fetchOneRows = [
@@ -469,5 +603,16 @@ register_test('23.2 POST AJAX endpoints reject invalid CSRF with HTTP 403 JSON p
         assert_true(strpos($source, "Auth::verifyCSRFToken(\$_POST['csrf_token'] ?? '')") !== false, 'Expected CSRF verification in ' . $file);
         assert_true(strpos($source, "'Invalid CSRF token.', 403") !== false, 'Expected 403 JSON error in ' . $file);
         assert_true(strpos($source, "['success' => false, 'error' =>") !== false, 'Expected JSON error envelope in ' . $file);
+    }
+});
+
+register_test('23.3 POST AJAX endpoints expose override contract and session actor mapping', function () {
+    foreach (['save-slot.php', 'unassign-slot.php'] as $file) {
+        $source = file_get_contents(__DIR__ . '/../../public/admin/umpires/ajax/' . $file);
+        assert_true(strpos($source, 'override_reason') !== false, 'Expected override_reason support in ' . $file);
+        assert_true(strpos($source, "\$_SESSION['role'] ?? ''") !== false && strpos($source, "'administrator'") !== false, 'Expected administrator session check in ' . $file);
+        assert_true(strpos($source, "\$_SESSION['coach_user_id']") !== false, 'Expected users-table actor mapping in ' . $file);
+        assert_true(strpos($source, "\$_SESSION['admin_id']") !== false, 'Expected legacy admin actor mapping in ' . $file);
+        assert_true(strpos($source, 'getPayload') !== false, 'Expected structured 409 payload passthrough in ' . $file);
     }
 });
