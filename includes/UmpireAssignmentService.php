@@ -284,6 +284,7 @@ class UmpireAssignmentService {
         $publishedMutation = $existing && (string) ($existing['assignment_status'] ?? '') === 'Published';
         $reason = trim((string) $overrideReason);
         $hasOverride = $actorIsAdmin && $reason !== '';
+        $this->assertUmpireNotAssignedToOtherSlot($gameId, $slotIndex, $umpireUserId);
 
         [$targetStart, $targetEnd] = $this->assignmentWindow($game);
         $conflict = UmpireConflictChecker::check(
@@ -505,6 +506,20 @@ class UmpireAssignmentService {
         ];
     }
 
+    /**
+     * Cascade-cancel active umpire assignments when game schedule/status changes.
+     *
+     * Called when a game is cancelled, postponed, or rescheduled. Cancels all Draft/Published
+     * assignments with assigned umpires, queues cascade release notifications, and logs audit events.
+     *
+     * IMPORTANT: This method does NOT manage transactions. Caller must wrap in transaction
+     * to ensure atomic cancellation + notification queuing.
+     *
+     * @param int $gameId Game ID whose assignments should be cancelled
+     * @param string $triggerRef Event reference (e.g., "SCR-123", "GAME-CANCELLED-456") for audit trail
+     * @param array $options Optional context: ['actor_user_id' => int, 'actor_admin_id' => int, 'source' => string]
+     * @return bool True on success, false on error (errors are logged, not thrown)
+     */
     public function onScheduleChanged(int $gameId, string $triggerRef, array $options = []): bool {
         try {
             $this->validatePositiveId($gameId, 'Game');
@@ -542,7 +557,7 @@ class UmpireAssignmentService {
 
             return true;
         } catch (\Throwable $e) {
-            error_log('[UmpireAssignmentService] Cascade cancellation failed game_id=' . $gameId
+            error_log('[UmpireAssignmentService::onScheduleChanged] Cascade cancellation failed game_id=' . $gameId
                 . ' trigger_ref=' . $triggerRef . ' error=' . $e->getMessage());
             return false;
         }
@@ -875,6 +890,27 @@ class UmpireAssignmentService {
             ['game_id' => $gameId, 'slot_index' => $slotIndex]
         );
         return $row !== false ? $row : null;
+    }
+
+    private function assertUmpireNotAssignedToOtherSlot(int $gameId, int $slotIndex, int $umpireUserId): void {
+        $row = $this->db->fetchOne(
+            "SELECT assignment_id, slot_index
+             FROM game_umpire_assignments
+             WHERE game_id = :game_id
+               AND umpire_user_id = :umpire_user_id
+               AND slot_index <> :slot_index
+               AND assignment_status IN ('Draft', 'Published')
+             LIMIT 1",
+            [
+                'game_id' => $gameId,
+                'umpire_user_id' => $umpireUserId,
+                'slot_index' => $slotIndex,
+            ]
+        );
+
+        if ($row !== false && $row !== null) {
+            throw new \InvalidArgumentException('Selected umpire is already assigned to another slot on this game.');
+        }
     }
 
     private function fetchCurrentGameLoads(array $umpireIds): array {

@@ -515,7 +515,7 @@ class RescheduleService {
                     ['actor_user_id' => $userId, 'source' => 'coach_auto_postponement']
                 );
                 if (!$cascadeOk) {
-                    error_log('[RescheduleService] Umpire cascade failed for auto-approved postponement request_id=' . $requestId);
+                    error_log('[RescheduleService::submitRequest] Umpire cascade failed for auto-approved postponement request_id=' . $requestId);
                 }
             } else {
                 $requestId = (int) $this->db->insert('schedule_change_requests', [

@@ -213,7 +213,7 @@
         var slots = data.slots || {};
         var labels = data.slot_labels || {};
         [0, 1].forEach(function (slotIndex) {
-            body.appendChild(renderSlotPanel(slotIndex, labels[slotIndex] || ('Umpire ' + (slotIndex + 1)), slots[slotIndex] || {}, roster));
+            body.appendChild(renderSlotPanel(slotIndex, labels[slotIndex] || ('Umpire ' + (slotIndex + 1)), slots[slotIndex] || {}, roster, slots));
         });
 
         var publishPanel = renderPublishPanel(slots);
@@ -302,9 +302,23 @@
         container.appendChild(confirm);
     }
 
-    function renderSlotPanel(slotIndex, label, slot, roster) {
+    function otherAssignedUmpireIds(slotIndex, slots) {
+        return [0, 1].reduce(function (ids, otherSlotIndex) {
+            var otherSlot = slots && slots[otherSlotIndex];
+            if (otherSlotIndex !== slotIndex && otherSlot && otherSlot.umpire_user_id) {
+                ids.push(Number(otherSlot.umpire_user_id));
+            }
+            return ids;
+        }, []);
+    }
+
+    function renderSlotPanel(slotIndex, label, slot, roster, slots) {
         var panel = document.createElement('section');
         panel.className = 'border rounded p-3 mb-3 bg-white';
+        var unavailableIds = otherAssignedUmpireIds(slotIndex, slots);
+        var availableRoster = roster.filter(function (umpire) {
+            return unavailableIds.indexOf(Number(umpire.id)) === -1;
+        });
 
         var header = document.createElement('div');
         header.className = 'd-flex justify-content-between align-items-start gap-2 mb-2';
@@ -337,7 +351,7 @@
         blank.textContent = 'Select umpire';
         select.appendChild(blank);
 
-        roster.forEach(function (umpire) {
+        availableRoster.forEach(function (umpire) {
             var option = document.createElement('option');
             option.value = umpire.id;
             option.textContent = fullName(umpire) + ' - ' + (umpire.umpire_level || 'Level unknown') + ' - Load ' + Number(umpire.current_game_load || 0);
@@ -350,7 +364,7 @@
 
         var rosterList = document.createElement('div');
         rosterList.className = 'd-flex flex-column gap-2 mb-3';
-        roster.forEach(function (umpire) {
+        availableRoster.forEach(function (umpire) {
             rosterList.appendChild(renderRosterLine(umpire));
         });
         panel.appendChild(rosterList);

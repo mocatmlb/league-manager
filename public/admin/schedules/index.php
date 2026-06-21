@@ -167,7 +167,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 ['actor_user_id' => (int) $currentUser['id'], 'source' => 'admin_scr_postponement']
                             );
                             if (!$cascadeOk) {
-                                error_log('[schedules] Umpire cascade failed for SCR postponement request_id=' . $requestId);
+                                error_log('[admin/schedules/index.php::approve_postponement] Umpire cascade failed for SCR postponement request_id=' . $requestId);
                             }
 
                             $db->commit();
@@ -240,7 +240,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 ['actor_user_id' => (int) $currentUser['id'], 'source' => 'admin_scr_reschedule']
                             );
                             if (!$cascadeOk) {
-                                error_log('[schedules] Umpire cascade failed for SCR reschedule request_id=' . $requestId);
+                                error_log('[admin/schedules/index.php::approve_reschedule] Umpire cascade failed for SCR reschedule request_id=' . $requestId);
                             }
 
                             $db->commit();
@@ -427,7 +427,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ['actor_user_id' => (int) $currentUser['id'], 'source' => 'admin_direct_schedule']
                     );
                     if (!$cascadeOk) {
-                        error_log('[schedules] Umpire cascade failed for direct schedule request_id=' . $newRequestId);
+                        error_log('[admin/schedules/index.php::direct_schedule_change] Umpire cascade failed for direct schedule request_id=' . $newRequestId);
                     }
 
                     $db->commit();

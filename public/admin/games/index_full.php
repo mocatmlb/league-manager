@@ -324,7 +324,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ['actor_user_id' => (int) $currentUser['id'], 'source' => 'admin_game_cancel_full']
                     );
                     if (!$cascadeOk) {
-                        error_log('[admin/games_full] Umpire cascade failed for cancellation game_id=' . $gameId);
+                        error_log('[admin/games/index_full.php::cancel_game] Umpire cascade failed for cancellation game_id=' . $gameId);
                     }
 
                     $db->commit();
@@ -388,7 +388,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ['actor_user_id' => (int) $currentUser['id'], 'source' => 'admin_game_postpone_full']
                     );
                     if (!$cascadeOk) {
-                        error_log('[admin/games_full] Umpire cascade failed for postponement game_id=' . $gameId);
+                        error_log('[admin/games/index_full.php::postpone_game] Umpire cascade failed for postponement game_id=' . $gameId);
                     }
 
                     $db->commit();

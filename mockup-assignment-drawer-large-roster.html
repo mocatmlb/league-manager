@@ -556,7 +556,7 @@
     let activeSlot = 1;
     let activeFilter = 'all';
     const selected = {
-        0: { first: 'Jordan', last: 'Avery', level: 'Black Shirt', minor: false, load: 1, phone: '555-210-4100', email: 'jordan.avery@example.test' },
+        0: roster[0],
         1: null
     };
 
@@ -578,9 +578,17 @@
         return span;
     }
 
+    function assignedIdsOutsideActiveSlot() {
+        return Object.entries(selected)
+            .filter(([slotIndex, umpire]) => Number(slotIndex) !== activeSlot && umpire)
+            .map(([, umpire]) => umpire.id);
+    }
+
     function renderResults() {
         const term = searchInput.value.trim().toLowerCase();
+        const unavailableIds = assignedIdsOutsideActiveSlot();
         const filtered = roster.filter(umpire => {
+            const isAlreadyAssigned = unavailableIds.includes(umpire.id);
             const haystack = `${umpire.first} ${umpire.last} ${umpire.level} ${umpire.phone} ${umpire.email}`.toLowerCase();
             const matchesTerm = !term || haystack.includes(term);
             const matchesFilter =
@@ -589,15 +597,16 @@
                 (activeFilter === 'blue' && umpire.level === 'Blue Shirt') ||
                 (activeFilter === 'black' && umpire.level === 'Black Shirt') ||
                 (activeFilter === 'minor' && umpire.minor);
-            return matchesTerm && matchesFilter;
+            return !isAlreadyAssigned && matchesTerm && matchesFilter;
         });
 
         resultList.textContent = '';
-        resultCount.textContent = `${filtered.length} of ${roster.length} umpires`;
+        resultCount.textContent = `${filtered.length} available of ${roster.length} umpires`;
 
         filtered.slice(0, 60).forEach(umpire => {
             const row = document.createElement('div');
             row.className = 'result-row';
+            row.dataset.umpireId = String(umpire.id);
 
             const info = document.createElement('div');
             const name = document.createElement('div');
@@ -721,6 +730,8 @@
             renderResults();
         });
     });
+
+    renderSlots();
 </script>
 </body>
 </html>

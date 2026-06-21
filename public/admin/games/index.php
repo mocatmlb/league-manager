@@ -515,14 +515,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ];
                     
                     $db->insert('schedule_history', $historyData);
-                    
+
+                    // Cascade-cancel umpire assignments (within transaction for atomicity)
                     $cascadeOk = (new UmpireAssignmentService())->onScheduleChanged(
                         $gameId,
                         "GAME-CANCELLED-{$gameId}",
                         ['actor_user_id' => (int) $currentUser['id'], 'source' => 'admin_game_cancel']
                     );
                     if (!$cascadeOk) {
-                        error_log('[admin/games] Umpire cascade failed for cancellation game_id=' . $gameId);
+                        error_log('[admin/games/index.php::cancel_game] Umpire cascade failed for cancellation game_id=' . $gameId);
                     }
 
                     $db->commit();
@@ -623,14 +624,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ];
                     
                     $db->insert('schedule_history', $historyData);
-                    
+
+                    // Cascade-cancel umpire assignments (within transaction for atomicity)
                     $cascadeOk = (new UmpireAssignmentService())->onScheduleChanged(
                         $gameId,
                         "GAME-POSTPONED-{$gameId}",
                         ['actor_user_id' => (int) $currentUser['id'], 'source' => 'admin_game_postpone']
                     );
                     if (!$cascadeOk) {
-                        error_log('[admin/games] Umpire cascade failed for postponement game_id=' . $gameId);
+                        error_log('[admin/games/index.php::postpone_game] Umpire cascade failed for postponement game_id=' . $gameId);
                     }
 
                     $db->commit();

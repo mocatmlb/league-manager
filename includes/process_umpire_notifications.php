@@ -21,10 +21,15 @@ if (!class_exists('Database')) {
 }
 require_once __DIR__ . '/EmailService.php';
 
-function processUmpirePendingNotifications(int $limit = 25, ?EmailService $emailService = null, ?Database $db = null): array {
+// Notification processing constants
+define('UMPIRE_NOTIFICATION_DEFAULT_BATCH_SIZE', 25);
+define('UMPIRE_NOTIFICATION_MAX_BATCH_SIZE', 100);
+define('UMPIRE_NOTIFICATION_MAX_RETRY_COUNT', 3);
+
+function processUmpirePendingNotifications(int $limit = UMPIRE_NOTIFICATION_DEFAULT_BATCH_SIZE, ?EmailService $emailService = null, ?Database $db = null): array {
     $db = $db ?: Database::getInstance();
     $emailService = $emailService ?: new EmailService();
-    $limit = max(1, min(100, $limit));
+    $limit = max(1, min(UMPIRE_NOTIFICATION_MAX_BATCH_SIZE, $limit));
 
     $stmt = $db->query(
         "SELECT
@@ -32,6 +37,7 @@ function processUmpirePendingNotifications(int $limit = 25, ?EmailService $email
             upn.assignment_id,
             upn.umpire_user_id,
             upn.trigger_event_ref,
+            upn.retry_count,
             gua.game_id,
             gua.slot_index,
             gua.assignment_status,
@@ -57,7 +63,7 @@ function processUmpirePendingNotifications(int $limit = 25, ?EmailService $email
          JOIN teams at ON at.team_id = g.away_team_id
          WHERE upn.notification_type = 'cascade_cancelled'
            AND upn.sent_at IS NULL
-           AND upn.failed_at IS NULL
+           AND (upn.failed_at IS NULL OR upn.retry_count < " . UMPIRE_NOTIFICATION_MAX_RETRY_COUNT . ")
          ORDER BY upn.created_at ASC, upn.notification_id ASC
          LIMIT " . (int) $limit,
         []
@@ -99,20 +105,26 @@ function processUmpirePendingNotifications(int $limit = 25, ?EmailService $email
             $db->update('umpire_pending_notifications', [
                 'sent_at' => date('Y-m-d H:i:s'),
                 'failure_reason' => null,
+                'failed_at' => null,
             ], 'notification_id = :notification_id', [
                 'notification_id' => (int) $row['notification_id'],
             ]);
             $result['sent']++;
         } catch (Throwable $e) {
+            $retryCount = (int) ($row['retry_count'] ?? 0);
+            $newRetryCount = $retryCount + 1;
+            $isMaxRetries = $newRetryCount >= UMPIRE_NOTIFICATION_MAX_RETRY_COUNT;
+
             $db->update('umpire_pending_notifications', [
-                'failed_at' => date('Y-m-d H:i:s'),
+                'failed_at' => $isMaxRetries ? date('Y-m-d H:i:s') : null,
                 'failure_reason' => substr($e->getMessage(), 0, 500),
+                'retry_count' => $newRetryCount,
             ], 'notification_id = :notification_id', [
                 'notification_id' => (int) $row['notification_id'],
             ]);
             $result['failed']++;
             error_log('[process_umpire_notifications] notification_id=' . (int) $row['notification_id']
-                . ' failed: ' . $e->getMessage());
+                . ' failed (retry ' . $newRetryCount . '/' . UMPIRE_NOTIFICATION_MAX_RETRY_COUNT . '): ' . $e->getMessage());
         }
     }
 

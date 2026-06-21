@@ -407,6 +407,32 @@ register_test('23.2 saveSlot rejects Published existing slot', function () {
     assert_true($threw, 'Expected Published slot save rejection');
 });
 
+register_test('23.2 saveSlot rejects same umpire in another active slot on the same game', function () {
+    unset($_SESSION['umpire_migration_mode']);
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [
+        ['game_id' => 10, 'game_status' => 'Scheduled'],
+        ['id' => 7],
+        ['id' => 101, 'status' => 'active', 'umpire_level' => 'Black Shirt'],
+        ['is_under_18' => 0, 'date_of_birth' => null],
+        false,
+        ['assignment_id' => 44, 'slot_index' => 1],
+    ];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+
+    $threw = false;
+    try {
+        $svc->saveSlot(10, 0, 101, 1);
+    } catch (\InvalidArgumentException $e) {
+        $threw = true;
+        assert_equals($e->getMessage(), 'Selected umpire is already assigned to another slot on this game.', 'Expected duplicate same-game message');
+    }
+    assert_true($threw, 'Expected duplicate same-game assignment to reject');
+    $sqlLog = implode("\n", $mock->lastSql);
+    assert_true(strpos($sqlLog, 'slot_index <> :slot_index') !== false, 'Expected other-slot duplicate guard query');
+});
+
 register_test('23.3 saveSlot rejects conflicting assignment with structured 409 payload', function () {
     unset($_SESSION['umpire_migration_mode']);
     $GLOBALS['_test_settings']['conflict_window_minutes'] = '90';
