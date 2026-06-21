@@ -13,6 +13,11 @@
     var canOverride = drawer.getAttribute('data-can-override') === '1';
     var offcanvas = bootstrap.Offcanvas.getOrCreateInstance(drawer);
     var activeGameId = 0;
+    var drawerState = null;
+    var activePickerSlotIndex = null;
+    var pickerFilter = 'all';
+    var pickerSearch = '';
+    var returnFocusSlotIndex = null;
 
     function setStaticState(message, type) {
         body.textContent = '';
@@ -191,6 +196,15 @@
     }
 
     function renderDrawer(data) {
+        drawerState = data || {};
+        activePickerSlotIndex = null;
+        pickerFilter = 'all';
+        pickerSearch = '';
+        renderCurrentDrawer();
+    }
+
+    function renderCurrentDrawer() {
+        var data = drawerState || {};
         var game = data.game || {};
         title.textContent = 'Game ' + (game.game_number || game.game_id || activeGameId);
         body.textContent = '';
@@ -202,24 +216,46 @@
             body.appendChild(migration);
         }
 
+        body.appendChild(renderGameSummary(game));
+
+        if (activePickerSlotIndex === 0 || activePickerSlotIndex === 1) {
+            body.appendChild(renderPickerView(activePickerSlotIndex));
+            focusPickerSearch();
+            return;
+        }
+
+        body.appendChild(renderSlotOverview());
+
+        var publishPanel = renderPublishPanel(data.slots || {});
+        if (publishPanel) {
+            body.appendChild(publishPanel);
+        }
+
+        if (returnFocusSlotIndex === 0 || returnFocusSlotIndex === 1) {
+            focusSlotAction(returnFocusSlotIndex);
+            returnFocusSlotIndex = null;
+        }
+    }
+
+    function renderGameSummary(game) {
         var summary = document.createElement('section');
         summary.className = 'mb-3';
         appendText(summary, 'h6', 'text-uppercase text-muted small mb-2', 'Game Details');
         appendText(summary, 'div', 'fw-semibold', (game.away_team || '-') + ' at ' + (game.home_team || '-'));
         appendText(summary, 'div', 'small text-muted', [game.game_date, game.game_time, game.location_name, game.division_name].filter(Boolean).join(' | '));
-        body.appendChild(summary);
+        return summary;
+    }
 
-        var roster = data.roster || [];
+    function renderSlotOverview() {
+        var data = drawerState || {};
         var slots = data.slots || {};
         var labels = data.slot_labels || {};
+        var overview = document.createElement('section');
+        overview.className = 'mb-3';
         [0, 1].forEach(function (slotIndex) {
-            body.appendChild(renderSlotPanel(slotIndex, labels[slotIndex] || ('Umpire ' + (slotIndex + 1)), slots[slotIndex] || {}, roster, slots));
+            overview.appendChild(renderSlotPanel(slotIndex, labels[slotIndex] || ('Umpire ' + (slotIndex + 1)), slots[slotIndex] || {}));
         });
-
-        var publishPanel = renderPublishPanel(slots);
-        if (publishPanel) {
-            body.appendChild(publishPanel);
-        }
+        return overview;
     }
 
     function hasFilledDraftSlot(slots) {
@@ -312,13 +348,9 @@
         }, []);
     }
 
-    function renderSlotPanel(slotIndex, label, slot, roster, slots) {
+    function renderSlotPanel(slotIndex, label, slot) {
         var panel = document.createElement('section');
         panel.className = 'border rounded p-3 mb-3 bg-white';
-        var unavailableIds = otherAssignedUmpireIds(slotIndex, slots);
-        var availableRoster = roster.filter(function (umpire) {
-            return unavailableIds.indexOf(Number(umpire.id)) === -1;
-        });
 
         var header = document.createElement('div');
         header.className = 'd-flex justify-content-between align-items-start gap-2 mb-2';
@@ -336,6 +368,7 @@
             if (Number(slot.umpire.is_under_18) === 1) {
                 badge(assignedMeta, 'Under 18', 'bg-info text-dark');
             }
+            badge(assignedMeta, 'Load ' + Number(slot.umpire.current_game_load || 0), 'bg-light text-dark border');
             assigned.appendChild(assignedMeta);
             appendText(assigned, 'div', 'small text-muted mt-1', [slot.umpire.phone, slot.umpire.email].filter(Boolean).join(' | '));
             panel.appendChild(assigned);
@@ -343,71 +376,23 @@
             appendText(panel, 'p', 'text-muted mb-3', 'Open');
         }
 
-        var select = document.createElement('select');
-        select.className = 'form-select mb-2';
-        select.setAttribute('aria-label', label + ' umpire');
-        var blank = document.createElement('option');
-        blank.value = '';
-        blank.textContent = 'Select umpire';
-        select.appendChild(blank);
-
-        availableRoster.forEach(function (umpire) {
-            var option = document.createElement('option');
-            option.value = umpire.id;
-            option.textContent = fullName(umpire) + ' - ' + (umpire.umpire_level || 'Level unknown') + ' - Load ' + Number(umpire.current_game_load || 0);
-            if (slot.umpire_user_id && Number(slot.umpire_user_id) === Number(umpire.id)) {
-                option.selected = true;
-            }
-            select.appendChild(option);
-        });
-        panel.appendChild(select);
-
-        var rosterList = document.createElement('div');
-        rosterList.className = 'd-flex flex-column gap-2 mb-3';
-        availableRoster.forEach(function (umpire) {
-            rosterList.appendChild(renderRosterLine(umpire));
-        });
-        panel.appendChild(rosterList);
-
         var status = document.createElement('div');
         status.className = 'small mb-2';
         panel.appendChild(status);
 
         var actions = document.createElement('div');
-        actions.className = 'd-flex gap-2';
+        actions.className = 'd-flex flex-wrap gap-2';
 
-        var save = document.createElement('button');
-        save.type = 'button';
-        save.className = 'btn btn-primary btn-sm';
-        save.textContent = 'Save';
-        save.addEventListener('click', function () {
-            if (!select.value) {
-                status.className = 'small text-danger mb-2';
-                status.textContent = 'Choose an umpire first.';
-                return;
-            }
-            status.className = 'small text-muted mb-2';
-            status.textContent = 'Saving...';
-            save.disabled = true;
-            unassign.disabled = true;
-            postSlot('ajax/save-slot.php', {
-                game_id: activeGameId,
-                slot_index: slotIndex,
-                umpire_user_id: select.value
-            }).catch(function (error) {
-                renderOverrideError(status, error, function (reason) {
-                    return postSlot('ajax/save-slot.php', {
-                        game_id: activeGameId,
-                        slot_index: slotIndex,
-                        umpire_user_id: select.value,
-                        override_reason: reason
-                    });
-                });
-                save.disabled = false;
-                unassign.disabled = !slot.umpire_user_id;
-            });
+        var choose = document.createElement('button');
+        choose.type = 'button';
+        choose.className = 'btn btn-primary btn-sm';
+        choose.textContent = slot.umpire_user_id ? 'Change' : 'Choose';
+        choose.setAttribute('data-slot-action', 'picker');
+        choose.setAttribute('data-slot-index', String(slotIndex));
+        choose.addEventListener('click', function () {
+            openPicker(slotIndex);
         });
-        actions.appendChild(save);
+        actions.appendChild(choose);
 
         var unassign = document.createElement('button');
         unassign.type = 'button';
@@ -417,7 +402,7 @@
         unassign.addEventListener('click', function () {
             status.className = 'small text-muted mb-2';
             status.textContent = 'Unassigning...';
-            save.disabled = true;
+            choose.disabled = true;
             unassign.disabled = true;
             postSlot('ajax/unassign-slot.php', {
                 game_id: activeGameId,
@@ -430,30 +415,229 @@
                         override_reason: reason
                     });
                 });
-                save.disabled = false;
+                choose.disabled = false;
                 unassign.disabled = false;
             });
         });
-        actions.appendChild(unassign);
+        if (slot.umpire_user_id) {
+            actions.appendChild(unassign);
+        }
         panel.appendChild(actions);
 
         return panel;
     }
 
-    function renderRosterLine(umpire) {
-        var line = document.createElement('div');
-        line.className = 'small border-top pt-2';
-        appendText(line, 'div', 'fw-semibold', fullName(umpire));
+    function openPicker(slotIndex) {
+        activePickerSlotIndex = slotIndex;
+        pickerFilter = 'all';
+        pickerSearch = '';
+        returnFocusSlotIndex = slotIndex;
+        renderCurrentDrawer();
+    }
+
+    function focusPickerSearch() {
+        window.setTimeout(function () {
+            var input = body.querySelector('[data-assignment-picker-search]');
+            if (input) {
+                input.focus();
+            }
+        }, 0);
+    }
+
+    function focusSlotAction(slotIndex) {
+        window.setTimeout(function () {
+            var action = body.querySelector('[data-slot-action="picker"][data-slot-index="' + slotIndex + '"]');
+            if (action) {
+                action.focus();
+            }
+        }, 0);
+    }
+
+    function renderPickerView(slotIndex) {
+        var data = drawerState || {};
+        var labels = data.slot_labels || {};
+        var slot = (data.slots || {})[slotIndex] || {};
+        var label = labels[slotIndex] || ('Umpire ' + (slotIndex + 1));
+
+        var panel = document.createElement('section');
+        panel.className = 'border rounded p-3 mb-3 bg-white';
+
+        var header = document.createElement('div');
+        header.className = 'd-flex justify-content-between align-items-start gap-2 mb-3';
+        var titleWrap = document.createElement('div');
+        appendText(titleWrap, 'h6', 'mb-1', label + ' Picker');
+        appendText(titleWrap, 'div', 'small text-muted', slot.umpire ? ('Current: ' + fullName(slot.umpire)) : 'Current: Open');
+        header.appendChild(titleWrap);
+
+        var back = document.createElement('button');
+        back.type = 'button';
+        back.className = 'btn btn-outline-secondary btn-sm';
+        back.textContent = 'Back';
+        back.addEventListener('click', function () {
+            activePickerSlotIndex = null;
+            renderCurrentDrawer();
+        });
+        header.appendChild(back);
+        panel.appendChild(header);
+
+        var search = document.createElement('input');
+        search.type = 'search';
+        search.className = 'form-control mb-2';
+        search.value = pickerSearch;
+        search.placeholder = 'Search name, level, phone, or email';
+        search.setAttribute('aria-label', 'Search umpires');
+        search.setAttribute('data-assignment-picker-search', '1');
+        panel.appendChild(search);
+
+        var filters = document.createElement('div');
+        filters.className = 'btn-group flex-wrap mb-3';
+        filters.setAttribute('role', 'group');
+        [
+            ['all', 'All'],
+            ['low-load', 'Low load'],
+            ['blue-shirt', 'Blue Shirt'],
+            ['black-shirt', 'Black Shirt'],
+            ['under-18', 'Under 18']
+        ].forEach(function (filter) {
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'btn btn-sm ' + (pickerFilter === filter[0] ? 'btn-primary' : 'btn-outline-primary');
+            button.textContent = filter[1];
+            button.setAttribute('aria-pressed', pickerFilter === filter[0] ? 'true' : 'false');
+            button.addEventListener('click', function () {
+                pickerFilter = filter[0];
+                renderCurrentDrawer();
+            });
+            filters.appendChild(button);
+        });
+        panel.appendChild(filters);
+
+        var count = document.createElement('div');
+        count.className = 'small text-muted mb-2';
+        count.setAttribute('data-picker-result-count', '1');
+        panel.appendChild(count);
+
+        var status = document.createElement('div');
+        status.className = 'small mb-2';
+        panel.appendChild(status);
+
+        var results = document.createElement('div');
+        results.className = 'd-flex flex-column gap-2';
+        results.setAttribute('data-picker-results', '1');
+        panel.appendChild(results);
+
+        function updateResults() {
+            pickerSearch = search.value;
+            var roster = pickerRoster(slotIndex);
+            var filtered = filterPickerRoster(roster);
+            var visible = filtered.slice(0, 75);
+            results.textContent = '';
+            count.textContent = filtered.length + ' available of ' + roster.length + ' umpires';
+
+            if (visible.length === 0) {
+                appendText(results, 'div', 'text-muted py-2', 'No matching umpires.');
+                return;
+            }
+
+            visible.forEach(function (umpire) {
+                results.appendChild(renderPickerResult(slotIndex, umpire, status));
+            });
+
+            if (filtered.length > visible.length) {
+                appendText(results, 'div', 'small text-muted py-2', 'Showing first ' + visible.length + '. Keep typing to narrow results.');
+            }
+        }
+
+        search.addEventListener('input', updateResults);
+        updateResults();
+
+        return panel;
+    }
+
+    function pickerRoster(slotIndex) {
+        var data = drawerState || {};
+        var roster = data.roster || [];
+        var unavailableIds = otherAssignedUmpireIds(slotIndex, data.slots || {});
+        return roster.filter(function (umpire) {
+            return unavailableIds.indexOf(Number(umpire.id)) === -1;
+        });
+    }
+
+    function filterPickerRoster(roster) {
+        var query = pickerSearch.trim().toLowerCase();
+        return roster.filter(function (umpire) {
+            if (pickerFilter === 'low-load' && Number(umpire.current_game_load || 0) > 1) {
+                return false;
+            }
+            if (pickerFilter === 'blue-shirt' && (umpire.umpire_level || '') !== 'Blue Shirt') {
+                return false;
+            }
+            if (pickerFilter === 'black-shirt' && (umpire.umpire_level || '') !== 'Black Shirt') {
+                return false;
+            }
+            if (pickerFilter === 'under-18' && Number(umpire.is_under_18) !== 1) {
+                return false;
+            }
+            if (!query) {
+                return true;
+            }
+            return [
+                fullName(umpire),
+                umpire.umpire_level,
+                umpire.phone,
+                umpire.email
+            ].filter(Boolean).join(' ').toLowerCase().indexOf(query) !== -1;
+        });
+    }
+
+    function renderPickerResult(slotIndex, umpire, status) {
+        var row = document.createElement('div');
+        row.className = 'border rounded p-2';
+        row.setAttribute('data-umpire-result-id', String(umpire.id));
+
+        var top = document.createElement('div');
+        top.className = 'd-flex justify-content-between align-items-start gap-2';
+        var identity = document.createElement('div');
+        appendText(identity, 'div', 'fw-semibold', fullName(umpire));
         var meta = document.createElement('div');
-        meta.className = 'd-flex flex-wrap gap-1 my-1';
+        meta.className = 'd-flex flex-wrap gap-1 mt-1';
         badge(meta, umpire.umpire_level || 'Level unknown', umpire.umpire_level === 'Black Shirt' ? 'bg-dark' : 'bg-primary');
         if (Number(umpire.is_under_18) === 1) {
             badge(meta, 'Under 18', 'bg-info text-dark');
         }
         badge(meta, 'Load ' + Number(umpire.current_game_load || 0), 'bg-light text-dark border');
-        line.appendChild(meta);
-        appendText(line, 'div', 'text-muted', [umpire.phone, umpire.email].filter(Boolean).join(' | '));
-        return line;
+        identity.appendChild(meta);
+        top.appendChild(identity);
+
+        var select = document.createElement('button');
+        select.type = 'button';
+        select.className = 'btn btn-primary btn-sm';
+        select.textContent = 'Select';
+        select.addEventListener('click', function () {
+            status.className = 'small text-muted mb-2';
+            status.textContent = 'Saving...';
+            select.disabled = true;
+            postSlot('ajax/save-slot.php', {
+                game_id: activeGameId,
+                slot_index: slotIndex,
+                umpire_user_id: umpire.id
+            }).catch(function (error) {
+                renderOverrideError(status, error, function (reason) {
+                    return postSlot('ajax/save-slot.php', {
+                        game_id: activeGameId,
+                        slot_index: slotIndex,
+                        umpire_user_id: umpire.id,
+                        override_reason: reason
+                    });
+                });
+                select.disabled = false;
+            });
+        });
+        top.appendChild(select);
+        row.appendChild(top);
+
+        appendText(row, 'div', 'small text-muted mt-1', [umpire.phone, umpire.email].filter(Boolean).join(' | '));
+        return row;
     }
 
     function updatePageRow(data) {

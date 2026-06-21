@@ -433,6 +433,29 @@ register_test('23.2 saveSlot rejects same umpire in another active slot on the s
     assert_true(strpos($sqlLog, 'slot_index <> :slot_index') !== false, 'Expected other-slot duplicate guard query');
 });
 
+register_test('23.6 saveSlot allows current slot umpire when duplicate guard scans same game', function () {
+    unset($_SESSION['umpire_migration_mode']);
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [
+        ['game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Scheduled', 'game_date' => '2026-07-01', 'game_time' => '18:00:00'],
+        ['id' => 7],
+        ['id' => 101, 'status' => 'active', 'umpire_level' => 'Black Shirt'],
+        ['is_under_18' => 0, 'date_of_birth' => null],
+        ['assignment_id' => 22, 'assignment_status' => 'Draft', 'umpire_user_id' => 101],
+        false,
+    ];
+    $mock->queryRows = [[]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+
+    $result = $svc->saveSlot(10, 0, 101, 1);
+
+    assert_equals($result['slot']['umpire_user_id'], 101, 'Expected same-slot umpire to remain assignable');
+    $sqlLog = implode("\n", $mock->lastSql);
+    assert_true(strpos($sqlLog, 'slot_index <> :slot_index') !== false, 'Expected duplicate guard to exclude current slot');
+    assert_true(strpos($sqlLog, 'ON DUPLICATE KEY UPDATE') !== false, 'Expected normal save path to continue');
+});
+
 register_test('23.3 saveSlot rejects conflicting assignment with structured 409 payload', function () {
     unset($_SESSION['umpire_migration_mode']);
     $GLOBALS['_test_settings']['conflict_window_minutes'] = '90';
@@ -832,6 +855,48 @@ register_test('23.4 assignment drawer source supports publish button, partial wa
     assert_true(strpos($source, 'confirm_partial') !== false, 'Expected partial confirmation retry');
     assert_true(strpos($source, 'Publish') !== false, 'Expected Publish button text');
     assert_true(strpos($source, 'updatePageRow(data)') !== false, 'Expected row refresh path');
+});
+
+register_test('23.6 assignment drawer source defaults to slot overview without repeated roster controls', function () {
+    $source = file_get_contents(__DIR__ . '/../../public/admin/umpires/assignment-drawer.js');
+    assert_true(strpos($source, 'function renderSlotOverview()') !== false, 'Expected slot overview render path');
+    assert_true(strpos($source, 'function renderPickerView(slotIndex)') !== false, 'Expected focused picker render path');
+    assert_true(strpos($source, "document.createElement('select')") === false, 'Expected no default roster select rendering');
+    assert_true(strpos($source, 'function renderRosterLine') === false, 'Expected no repeated full roster line renderer');
+    assert_true(strpos($source, 'renderPublishPanel(data.slots || {})') !== false, 'Expected publish panel to remain after overview');
+});
+
+register_test('23.6 assignment drawer source supports searchable filtered picker rows', function () {
+    $source = file_get_contents(__DIR__ . '/../../public/admin/umpires/assignment-drawer.js');
+    foreach ([
+        'data-assignment-picker-search',
+        'data-picker-result-count',
+        'data-picker-results',
+        'data-umpire-result-id',
+        'filterPickerRoster',
+        'low-load',
+        'blue-shirt',
+        'black-shirt',
+        'under-18',
+        'Search name, level, phone, or email',
+        'Keep typing to narrow results.',
+    ] as $token) {
+        assert_true(strpos($source, $token) !== false, 'Expected picker token: ' . $token);
+    }
+    assert_true(strpos($source, 'fullName(umpire),') !== false, 'Expected name search source');
+    assert_true(strpos($source, 'umpire.umpire_level') !== false, 'Expected level search/filter source');
+    assert_true(strpos($source, 'umpire.phone') !== false, 'Expected phone search source');
+    assert_true(strpos($source, 'umpire.email') !== false, 'Expected email search source');
+});
+
+register_test('23.6 assignment drawer source excludes other slot selections and refreshes after mutation', function () {
+    $source = file_get_contents(__DIR__ . '/../../public/admin/umpires/assignment-drawer.js');
+    assert_true(strpos($source, 'otherAssignedUmpireIds(slotIndex, data.slots || {})') !== false, 'Expected picker to exclude opposite slot umpire ids');
+    assert_true(strpos($source, 'unavailableIds.indexOf(Number(umpire.id)) === -1') !== false, 'Expected unavailable ids filter');
+    assert_true(strpos($source, "requestJson('ajax/get-drawer.php?game_id=' + encodeURIComponent(activeGameId)") !== false, 'Expected drawer refresh after save/unassign');
+    assert_true(strpos($source, "postSlot('ajax/save-slot.php'") !== false, 'Expected existing save endpoint');
+    assert_true(strpos($source, "postSlot('ajax/unassign-slot.php'") !== false, 'Expected existing unassign endpoint');
+    assert_true(strpos($source, 'renderOverrideError(status, error') !== false, 'Expected override error flow preserved');
 });
 
 // ---------------------------------------------------------------------------
