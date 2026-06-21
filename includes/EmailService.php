@@ -253,9 +253,108 @@ class EmailService {
                     if ($awayEmail) $emails[] = $awayEmail;
                 }
                 break;
+
+            case 'Assigned_Umpires':
+                if (isset($context['game_id'])) {
+                    $emails = array_merge($emails, $this->getAssignedUmpireEmails($context['game_id']));
+                }
+                break;
+
+            case 'Assigned_Umpire_1':
+                if (isset($context['game_id'])) {
+                    $emails = array_merge($emails, $this->getAssignedUmpireEmails($context['game_id'], 0));
+                }
+                break;
+
+            case 'Assigned_Umpire_2':
+                if (isset($context['game_id'])) {
+                    $emails = array_merge($emails, $this->getAssignedUmpireEmails($context['game_id'], 1));
+                }
+                break;
+
+            case 'League_Contacts':
+                $emails = array_merge($emails, $this->getLeagueContactEmails());
+                break;
+
+            case 'League_Contact':
+                if (!empty($config['league_official_id'])) {
+                    $email = $this->getLeagueContactEmail((int) $config['league_official_id']);
+                    if ($email) $emails[] = $email;
+                }
+                break;
         }
         
         return $emails;
+    }
+
+    /**
+     * Get assigned umpire email addresses for a game.
+     */
+    private function getAssignedUmpireEmails($gameId, $slotIndex = null) {
+        $params = ['game_id' => $gameId];
+        $slotClause = '';
+        if ($slotIndex !== null) {
+            $slotClause = ' AND gua.slot_index = :slot_index';
+            $params['slot_index'] = (int) $slotIndex;
+        }
+
+        $rows = $this->db->fetchAll(
+            "SELECT DISTINCT u.email
+             FROM game_umpire_assignments gua
+             INNER JOIN users u ON u.id = gua.umpire_user_id
+             WHERE gua.game_id = :game_id
+               AND gua.slot_index IN (0, 1)
+               AND gua.assignment_status IN ('Draft', 'Published')
+               AND u.email IS NOT NULL
+               AND u.email != ''
+               {$slotClause}
+             ORDER BY gua.slot_index ASC",
+            $params
+        );
+
+        return array_values(array_filter(array_map(static function ($row) {
+            return $row['email'] ?? null;
+        }, $rows)));
+    }
+
+    /**
+     * Get active league contact email addresses.
+     */
+    private function getLeagueContactEmails() {
+        $rows = $this->db->fetchAll(
+            "SELECT email
+             FROM league_officials
+             WHERE active_status = 'Active'
+               AND email IS NOT NULL
+               AND email != ''
+             ORDER BY sort_order ASC, name ASC"
+        );
+
+        return array_values(array_filter(array_map(static function ($row) {
+            return $row['email'] ?? null;
+        }, $rows)));
+    }
+
+    /**
+     * Get one active league contact email address.
+     */
+    private function getLeagueContactEmail(int $officialId) {
+        if ($officialId < 1) {
+            return null;
+        }
+
+        $row = $this->db->fetchOne(
+            "SELECT email
+             FROM league_officials
+             WHERE official_id = ?
+               AND active_status = 'Active'
+               AND email IS NOT NULL
+               AND email != ''
+             LIMIT 1",
+            [$officialId]
+        );
+
+        return $row ? ($row['email'] ?? null) : null;
     }
     
     /**
