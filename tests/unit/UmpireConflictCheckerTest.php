@@ -64,7 +64,8 @@ register_test('23.3 conflict checker returns Draft/Published overlap payload', f
     $sql = $mock->lastSql[0] ?? '';
     assert_true(strpos($sql, "gua.assignment_status IN ('Draft', 'Published')") !== false, 'Expected only Draft/Published conflicts');
     assert_true(strpos($sql, "g.game_status NOT IN ('Cancelled', 'Postponed')") !== false, 'Expected cancelled/postponed games ignored');
-    assert_true(strpos($sql, 'gua.assignment_id <> :exclude_assignment_id') !== false, 'Expected exclude assignment predicate');
+    assert_true(strpos($sql, 'gua.assignment_id <> :exclude_assignment_id_value') !== false, 'Expected exclude assignment predicate');
+    assert_true(strpos($sql, ':exclude_assignment_id_is_null') !== false, 'Expected distinct null-check placeholder');
     assert_true(strpos($sql, 'DATE_ADD') !== false, 'Expected default two-hour window in SQL');
 });
 
@@ -83,7 +84,8 @@ register_test('23.3 conflict checker returns null for adjacent/non-overlap', fun
     assert_null($result, 'Expected no conflict when query returns no overlapping assignment');
     $params = $mock->lastParams[0] ?? [];
     assert_equals($params['umpire_user_id'] ?? null, 101, 'Expected umpire id param');
-    assert_equals($params['exclude_assignment_id'] ?? null, 55, 'Expected excluded assignment id param');
+    assert_equals($params['exclude_assignment_id_is_null'] ?? null, 55, 'Expected excluded assignment null-check param');
+    assert_equals($params['exclude_assignment_id_value'] ?? null, 55, 'Expected excluded assignment value param');
     assert_equals($params['target_start'] ?? null, '2026-07-01 20:00:00', 'Expected start param');
     assert_equals($params['target_end'] ?? null, '2026-07-01 22:00:00', 'Expected end param');
 });

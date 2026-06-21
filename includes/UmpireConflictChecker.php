@@ -38,7 +38,7 @@ final class UmpireConflictChecker {
              WHERE gua.umpire_user_id = :umpire_user_id
                AND gua.assignment_status IN ('Draft', 'Published')
                AND g.game_status NOT IN ('Cancelled', 'Postponed')
-               AND (:exclude_assignment_id IS NULL OR gua.assignment_id <> :exclude_assignment_id)
+               AND (:exclude_assignment_id_is_null IS NULL OR gua.assignment_id <> :exclude_assignment_id_value)
                AND TIMESTAMP(s.game_date, COALESCE(s.game_time, '00:00:00')) < :target_end
                AND DATE_ADD(
                     TIMESTAMP(s.game_date, COALESCE(s.game_time, '00:00:00')),
@@ -48,7 +48,8 @@ final class UmpireConflictChecker {
              LIMIT 1",
             [
                 'umpire_user_id' => $umpireUserId,
-                'exclude_assignment_id' => $excludeAssignmentId !== null && $excludeAssignmentId > 0 ? $excludeAssignmentId : null,
+                'exclude_assignment_id_is_null' => $excludeAssignmentId !== null && $excludeAssignmentId > 0 ? $excludeAssignmentId : null,
+                'exclude_assignment_id_value' => $excludeAssignmentId !== null && $excludeAssignmentId > 0 ? $excludeAssignmentId : 0,
                 'target_start' => $start->format('Y-m-d H:i:s'),
                 'target_end' => $end->format('Y-m-d H:i:s'),
             ]
