@@ -233,6 +233,17 @@ class UmpireAssignmentService {
 
         $rosterService = new UmpireRosterService();
         $roster = $rosterService->getRoster(true);
+
+        // Story 23.7: Filter roster by program eligibility
+        $programId = $this->resolveGameProgram($gameId);
+        if ($programId > 0) {
+            $roster = array_filter($roster, function ($umpire) use ($programId) {
+                // Eligible if all_programs is true or game program_id is in their list
+                return $umpire['all_programs'] || in_array($programId, $umpire['program_ids'], true);
+            });
+            $roster = array_values($roster); // Re-index
+        }
+
         $loads = $this->fetchCurrentGameLoads(array_map(static function ($row) {
             return (int) ($row['id'] ?? 0);
         }, $roster));
@@ -269,14 +280,23 @@ class UmpireAssignmentService {
         $this->validatePositiveId($umpireUserId, 'Umpire');
         $this->validateSlotIndex($slotIndex);
         [$assignedByUserId, $actorAdminId] = $this->normalizeActor($assignedByUserId, $actorAdminId);
+        $rosterService = new UmpireRosterService();
         $game = $this->fetchGame($gameId);
+
+        // Story 23.7: Enforce program eligibility
+        $programId = $this->resolveGameProgram($gameId);
+        if ($programId > 0) {
+            $umpireDetails = $rosterService->getUmpire($umpireUserId);
+            if ($umpireDetails && !$umpireDetails['all_programs'] && !in_array($programId, $umpireDetails['program_ids'], true)) {
+                throw new \InvalidArgumentException('Umpire is not eligible for this game\'s program.');
+            }
+        }
 
         $umpire = $this->fetchActiveUmpire($umpireUserId);
         if ($umpire === null) {
             throw new \InvalidArgumentException('Selected umpire is not active or does not have an umpire profile.');
         }
 
-        $rosterService = new UmpireRosterService();
         $rosterService->reconcileUnder18Flag($umpireUserId);
         $migrationMode = $rosterService->isMigrationMode() ? 1 : 0;
 
@@ -945,6 +965,21 @@ class UmpireAssignmentService {
             $loads[(int) ($row['umpire_user_id'] ?? 0)] = (int) ($row['current_game_load'] ?? 0);
         }
         return $loads;
+    }
+
+    /**
+     * Resolve the program_id for a game via its season.
+     */
+    private function resolveGameProgram(int $gameId): int {
+        $row = $this->db->fetchOne(
+            "SELECT s.program_id
+             FROM games g
+             JOIN seasons s ON s.season_id = g.season_id
+             WHERE g.game_id = :game_id
+             LIMIT 1",
+            ['game_id' => $gameId]
+        );
+        return (int) ($row['program_id'] ?? 0);
     }
 
     private function validatePositiveId(int $id, string $label): void {

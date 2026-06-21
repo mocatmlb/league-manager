@@ -53,6 +53,7 @@ function run_all_tests(): int {
         } catch (Throwable $e) {
             ob_end_clean();
             echo "    ❌ FAILED: " . $e->getMessage() . "\n";
+            echo "    " . str_replace("\n", "\n    ", $e->getTraceAsString()) . "\n";
             $_d8tl_results['failed']++;
             $_d8tl_results['errors'][] = "[{$test['name']}] " . $e->getMessage();
         }

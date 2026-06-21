@@ -20,6 +20,15 @@ class UmpireRosterService {
         $this->db = Database::getInstance();
     }
 
+    public function getActivePrograms(): array {
+        $sql = "SELECT program_id, program_name, program_code
+                FROM programs
+                WHERE active_status = 'Active'
+                ORDER BY program_name ASC";
+        $stmt = $this->db->query($sql);
+        return ($stmt && method_exists($stmt, 'fetchAll')) ? $stmt->fetchAll() : [];
+    }
+
     /**
      * Create a new umpire user account + umpire_profiles row in one transaction.
      * Returns ['user_id' => int, 'temp_password' => string].
@@ -120,6 +129,11 @@ class UmpireRosterService {
                 ['uid' => $newId, 'level' => $level, 'under18' => $isUnder18, 'dob' => $isUnder18 ? $dob : null]
             );
 
+            // 4. Persistence for program eligibility
+            $allPrograms = !empty($data['all_programs']);
+            $programIds = !empty($data['program_ids']) && is_array($data['program_ids']) ? $data['program_ids'] : [];
+            $this->saveProgramEligibility($newId, $allPrograms, $programIds, $actorUserId, false);
+
             if ($ownTransaction) {
                 $this->db->commit();
                 $ownTransaction = false;
@@ -167,7 +181,30 @@ class UmpireRosterService {
                   {$activeClause}
                 ORDER BY u.last_name ASC, u.first_name ASC";
         $stmt = $this->db->query($sql, ['role_id' => $umpireRoleId]);
-        return ($stmt && method_exists($stmt, 'fetchAll')) ? $stmt->fetchAll() : [];
+        $rows = ($stmt && method_exists($stmt, 'fetchAll')) ? $stmt->fetchAll() : [];
+
+        if (empty($rows)) {
+            return [];
+        }
+
+        // Batch load eligibility
+        $userIds = array_column($rows, 'id');
+        $placeholders = implode(',', array_fill(0, count($userIds), '?'));
+        $eligibilitySql = "SELECT umpire_user_id, program_id FROM umpire_program_eligibility WHERE umpire_user_id IN ({$placeholders})";
+        $eStmt = $this->db->query($eligibilitySql, $userIds);
+        $eligibilityRows = ($eStmt && method_exists($eStmt, 'fetchAll')) ? $eStmt->fetchAll() : [];
+
+        $eligibilityMap = [];
+        foreach ($eligibilityRows as $eRow) {
+            $eligibilityMap[$eRow['umpire_user_id']][] = (int) $eRow['program_id'];
+        }
+
+        foreach ($rows as &$row) {
+            $row['program_ids'] = $eligibilityMap[$row['id']] ?? [];
+            $row['all_programs'] = empty($row['program_ids']);
+        }
+
+        return $rows;
     }
 
     /**
@@ -191,7 +228,20 @@ class UmpireRosterService {
              LIMIT 1",
             ['uid' => $userId, 'role_id' => $umpireRoleId]
         );
-        return $row !== false ? $row : null;
+
+        if ($row === false) {
+            return null;
+        }
+
+        $eRows = $this->db->query(
+            "SELECT program_id FROM umpire_program_eligibility WHERE umpire_user_id = :uid",
+            ['uid' => $userId]
+        )->fetchAll();
+
+        $row['program_ids'] = array_map(fn($r) => (int) $r['program_id'], $eRows);
+        $row['all_programs'] = empty($row['program_ids']);
+
+        return $row;
     }
 
     /**
@@ -212,16 +262,40 @@ class UmpireRosterService {
         // If adult, clear DOB unconditionally
         $dobToStore = $isUnder18 ? $dob : null;
 
-        $this->db->query(
-            "INSERT INTO umpire_profiles (user_id, umpire_level, is_under_18, date_of_birth, created_at, updated_at)
-             VALUES (:uid, :level, :under18, :dob, NOW(), NOW())
-             ON DUPLICATE KEY UPDATE
-                 umpire_level  = VALUES(umpire_level),
-                 is_under_18   = VALUES(is_under_18),
-                 date_of_birth = VALUES(date_of_birth),
-                 updated_at    = NOW()",
-            ['uid' => $userId, 'level' => $level, 'under18' => $isUnder18, 'dob' => $dobToStore]
-        );
+        $ownTransaction = false;
+        try {
+            if (!$this->db->getConnection()->inTransaction()) {
+                $this->db->beginTransaction();
+                $ownTransaction = true;
+            }
+
+            $this->db->query(
+                "INSERT INTO umpire_profiles (user_id, umpire_level, is_under_18, date_of_birth, created_at, updated_at)
+                 VALUES (:uid, :level, :under18, :dob, NOW(), NOW())
+                 ON DUPLICATE KEY UPDATE
+                     umpire_level  = VALUES(umpire_level),
+                     is_under_18   = VALUES(is_under_18),
+                     date_of_birth = VALUES(date_of_birth),
+                     updated_at    = NOW()",
+                ['uid' => $userId, 'level' => $level, 'under18' => $isUnder18, 'dob' => $dobToStore]
+            );
+
+            if (isset($data['all_programs']) || isset($data['program_ids'])) {
+                $allPrograms = !empty($data['all_programs']);
+                $programIds = !empty($data['program_ids']) && is_array($data['program_ids']) ? $data['program_ids'] : [];
+                $this->saveProgramEligibility($userId, $allPrograms, $programIds, $actorUserId, true);
+            }
+
+            if ($ownTransaction) {
+                $this->db->commit();
+                $ownTransaction = false;
+            }
+        } catch (\Throwable $e) {
+            if ($ownTransaction) {
+                try { $this->db->rollback(); } catch (\Throwable $ignored) {}
+            }
+            throw $e;
+        }
 
         ActivityLogger::log('umpire.profile_updated', [
             'user_id'       => $userId,
@@ -296,6 +370,115 @@ class UmpireRosterService {
             Logger::error('[UmpireRosterService] reconcileUnder18Flag failed silently', [
                 'user_id' => $userId,
                 'error'   => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Backfill/sync newly added active programs to existing selected-program umpires.
+     * $programIds: Array of program IDs to add to eligible lists.
+     */
+    public function syncProgramEligibility(array $programIds, int $actorUserId): int {
+        if (empty($programIds)) {
+            return 0;
+        }
+
+        // Validate program IDs
+        $activePrograms = array_column($this->getActivePrograms(), 'program_id');
+        foreach ($programIds as $pid) {
+            if (!in_array($pid, $activePrograms)) {
+                throw new \InvalidArgumentException("Invalid or inactive program ID: {$pid}");
+            }
+        }
+
+        // Find umpires who have AT LEAST one eligibility row (selected-program mode)
+        $selectedModeUmpireIds = array_column($this->db->query(
+            "SELECT DISTINCT umpire_user_id FROM umpire_program_eligibility"
+        )->fetchAll(), 'umpire_user_id');
+
+        if (empty($selectedModeUmpireIds)) {
+            return 0;
+        }
+
+        $insertedCount = 0;
+        $ownTransaction = false;
+        try {
+            if (!$this->db->getConnection()->inTransaction()) {
+                $this->db->beginTransaction();
+                $ownTransaction = true;
+            }
+
+            foreach ($selectedModeUmpireIds as $uid) {
+                foreach ($programIds as $pid) {
+                    $stmt = $this->db->query(
+                        "INSERT IGNORE INTO umpire_program_eligibility (umpire_user_id, program_id, created_at)
+                         VALUES (:uid, :pid, NOW())",
+                        ['uid' => $uid, 'pid' => $pid]
+                    );
+                    $insertedCount += $stmt->rowCount();
+                }
+            }
+
+            if ($ownTransaction) {
+                $this->db->commit();
+                $ownTransaction = false;
+            }
+        } catch (\Throwable $e) {
+            if ($ownTransaction) {
+                try { $this->db->rollback(); } catch (\Throwable $ignored) {}
+            }
+            throw $e;
+        }
+
+        if ($insertedCount > 0) {
+            sort($programIds);
+            ActivityLogger::log('umpire.program_eligibility_backfilled', [
+                'actor_user_id' => $actorUserId,
+                'program_ids'   => $programIds,
+                'affected_umpire_count' => count($selectedModeUmpireIds),
+            ]);
+        }
+
+        return $insertedCount;
+    }
+
+    /**
+     * Internal helper to persist eligibility and log the event.
+     */
+    private function saveProgramEligibility(int $userId, bool $allPrograms, array $programIds, int $actorUserId, bool $logUpdate = true): void {
+        if (!$allPrograms && !empty($programIds)) {
+            // Validate programs exist and are active
+            $activePrograms = array_column($this->getActivePrograms(), 'program_id');
+            foreach ($programIds as $pid) {
+                if (!in_array($pid, $activePrograms)) {
+                    throw new \InvalidArgumentException("Invalid or inactive program ID: {$pid}");
+                }
+            }
+        }
+
+        // Clear existing rows
+        $this->db->query(
+            "DELETE FROM umpire_program_eligibility WHERE umpire_user_id = :uid",
+            ['uid' => $userId]
+        );
+
+        if (!$allPrograms && !empty($programIds)) {
+            foreach ($programIds as $pid) {
+                $this->db->query(
+                    "INSERT INTO umpire_program_eligibility (umpire_user_id, program_id, created_at)
+                     VALUES (:uid, :pid, NOW())",
+                    ['uid' => $userId, 'pid' => $pid]
+                );
+            }
+        }
+
+        if ($logUpdate) {
+            sort($programIds);
+            ActivityLogger::log('umpire.program_eligibility_updated', [
+                'umpire_user_id' => $userId,
+                'actor_user_id'  => $actorUserId,
+                'all_programs'   => $allPrograms ? 1 : 0,
+                'program_ids'    => $allPrograms ? [] : $programIds,
             ]);
         }
     }
