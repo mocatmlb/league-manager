@@ -217,6 +217,45 @@ register_test('EmailService resolves one selected league contact recipient', fun
     assert_true(strpos($paramsLog, '12') !== false, 'Expected selected official id in query params');
 });
 
+register_test('23.4 direct assignment email includes configured league contact recipients', function () {
+    $mock = new EmailServiceMockDb();
+    $mock->fetchOneRows = [
+        [
+            'template_name' => 'umpire_assignment_published',
+            'subject_template' => 'Assignment {game_number}',
+            'body_template' => '<p>{game_number}</p>',
+            'is_active' => 1,
+        ],
+        ['email' => 'assignor@example.test'],
+    ];
+    $mock->fetchAllRows = [
+        [
+            [
+                'template_name' => 'umpire_assignment_published',
+                'recipient_type' => 'Static_CC',
+                'recipient_source' => 'League_Contact',
+                'email_address' => null,
+                'league_official_id' => 12,
+                'is_active' => 1,
+            ],
+        ],
+    ];
+    Database::setInstance($mock);
+
+    $svc = new EmailService();
+    $result = $svc->sendTemplateToAddressWithMetadata(
+        'umpire_assignment_published',
+        'umpire@example.test',
+        ['game_id' => 10, 'game_number' => 'G010'],
+        ['include_configured_recipients' => true]
+    );
+
+    assert_true($result['success'] ?? false, 'Expected direct send with configured recipients to succeed');
+    $queued = $mock->insertRows[0]['data'];
+    assert_equals(json_decode($queued['to_addresses'], true), ['umpire@example.test'], 'Expected direct umpire recipient preserved');
+    assert_equals(json_decode($queued['cc_addresses'], true), ['assignor@example.test'], 'Expected selected league contact as CC recipient');
+});
+
 register_test('Email recipients settings section exposes dynamic league contact selector', function () {
     $source = file_get_contents(__DIR__ . '/../../public/admin/settings/sections/email-recipients.php');
     assert_true(strpos($source, 'FROM league_officials') !== false, 'Expected active league contacts query');

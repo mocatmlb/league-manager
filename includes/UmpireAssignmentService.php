@@ -425,20 +425,25 @@ class UmpireAssignmentService {
             return (string) ($slot['assignment_status'] ?? '') === 'Draft'
                 && (int) ($slot['umpire_user_id'] ?? 0) > 0;
         }));
+        $filledSlots = array_values(array_filter($slots, static function ($slot) {
+            return in_array((string) ($slot['assignment_status'] ?? ''), ['Draft', 'Published'], true)
+                && (int) ($slot['umpire_user_id'] ?? 0) > 0;
+        }));
 
         if (count($filledDraftSlots) === 0) {
             throw new \InvalidArgumentException('At least one filled Draft slot is required before publishing.');
         }
 
         $expectedCrewSize = $this->expectedCrewSize($game);
-        $warned = count($filledDraftSlots) < $expectedCrewSize;
+        $filledCrewCount = count($filledSlots);
+        $warned = $filledCrewCount < $expectedCrewSize;
         if ($warned && !$confirmPartial) {
             throw new UmpireAssignmentPublishConfirmationRequiredException(
                 'This game has fewer filled slots than the expected crew size.',
                 [
                     'error' => 'This game has fewer filled slots than the expected crew size.',
                     'warning' => [
-                        'filled_slots' => count($filledDraftSlots),
+                        'filled_slots' => $filledCrewCount,
                         'expected_crew_size' => $expectedCrewSize,
                     ],
                 ]
@@ -466,10 +471,11 @@ class UmpireAssignmentService {
                 $email = $emailService->sendTemplateToAddressWithMetadata(
                     'umpire_assignment_published',
                     (string) ($slot['email'] ?? ''),
-                    $this->assignmentEmailContext($game, $slot, $slotLabels[$slotIndex] ?? ('Umpire ' . ($slotIndex + 1)), $assignor, count($filledDraftSlots)),
+                    $this->assignmentEmailContext($game, $slot, $slotLabels[$slotIndex] ?? ('Umpire ' . ($slotIndex + 1)), $assignor, $filledCrewCount),
                     [
                         'reply_to_email' => $assignor['email'] ?? '',
                         'reply_to_name' => $assignor['name'] ?? '',
+                        'include_configured_recipients' => true,
                     ]
                 );
                 if (!($email['success'] ?? false) || empty($email['queue_id'])) {

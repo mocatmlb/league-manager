@@ -736,6 +736,30 @@ register_test('23.4 publishGame requires confirmation for partial crew', functio
     assert_true($threw, 'Expected partial crew warning');
 });
 
+register_test('23.4 publishGame does not warn when Published plus Draft slots fill expected crew', function () {
+    $mock = new UmpireAssignmentMockDb();
+    $mock->nextInsertId = 8810;
+    $mock->fetchOneRows = [
+        [
+            'game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Scheduled',
+            'division_name' => 'Junior', 'home_team' => 'Home', 'away_team' => 'Away',
+            'game_date' => '2026-07-01', 'game_time' => '18:00:00', 'location_name' => 'Field 1',
+        ],
+        ['id' => 5, 'first_name' => 'Alex', 'last_name' => 'Assignor', 'email' => 'assignor@example.test', 'phone' => '555'],
+        ['template_name' => 'umpire_assignment_published', 'subject_template' => 'D8 Assignment: {game_date} {game_time} — {slot_label}', 'body_template' => 'Game {game_number} {fee_per_team}', 'is_active' => 1],
+    ];
+    $mock->queryRows = [[
+        ['assignment_id' => 1010, 'umpire_user_id' => 201, 'slot_index' => 0, 'assignment_status' => 'Published', 'migration_mode' => 0, 'email' => 'plate@example.test'],
+        ['assignment_id' => 1011, 'umpire_user_id' => 202, 'slot_index' => 1, 'assignment_status' => 'Draft', 'migration_mode' => 0, 'email' => 'base@example.test'],
+    ]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->publishGame(10, 5, null, false);
+
+    assert_equals($result['published'], 1, 'Expected only the Draft slot to publish');
+    assert_true(!$result['warned'], 'Expected no partial warning when total filled crew is two');
+});
+
 register_test('23.4 publishGame publishes migration-mode Draft without email queue or notification fields', function () {
     $mock = new UmpireAssignmentMockDb();
     $mock->fetchOneRows = [

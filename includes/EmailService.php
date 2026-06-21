@@ -127,12 +127,15 @@ class EmailService {
 
             $processedSubject = $this->processTemplate($template['subject_template'], $context);
             $processedBody = $this->processTemplate($template['body_template'], $context);
+            $configuredRecipients = !empty($options['include_configured_recipients'])
+                ? $this->resolveRecipients($templateName, $context)
+                : ['to' => [], 'cc' => [], 'bcc' => []];
 
             $queueId = $this->queueEmail([
                 'template_name' => $templateName,
-                'to_addresses' => json_encode([$toEmail]),
-                'cc_addresses' => json_encode([]),
-                'bcc_addresses' => json_encode([]),
+                'to_addresses' => json_encode($this->mergeAddresses([$toEmail], $configuredRecipients['to'] ?? [])),
+                'cc_addresses' => json_encode($this->mergeAddresses($configuredRecipients['cc'] ?? [])),
+                'bcc_addresses' => json_encode($this->mergeAddresses($configuredRecipients['bcc'] ?? [])),
                 'subject' => $processedSubject,
                 'body' => $processedBody,
                 'game_id' => $context['game_id'] ?? null,
@@ -667,6 +670,19 @@ class EmailService {
             return null;
         }
         return filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null;
+    }
+
+    private function mergeAddresses(...$addressLists) {
+        $merged = [];
+        foreach ($addressLists as $addresses) {
+            foreach ((array) $addresses as $email) {
+                $email = trim((string) $email);
+                if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $merged[] = $email;
+                }
+            }
+        }
+        return array_values(array_unique($merged));
     }
     
     /**
