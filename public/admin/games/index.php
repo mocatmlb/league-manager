@@ -30,6 +30,7 @@ unset($__dir, $__found, $__i, $__candidate);
 
 @include_once EnvLoader::getPath('includes/admin_bootstrap.php');
 require_once EnvLoader::getPath('includes/ConflictDetectionService.php');
+require_once EnvLoader::getPath('includes/UmpireAssignmentService.php');
 
 // Require admin authentication
 Auth::requireAdmin();
@@ -515,6 +516,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     $db->insert('schedule_history', $historyData);
                     
+                    $cascadeOk = (new UmpireAssignmentService())->onScheduleChanged(
+                        $gameId,
+                        "GAME-CANCELLED-{$gameId}",
+                        ['actor_user_id' => (int) $currentUser['id'], 'source' => 'admin_game_cancel']
+                    );
+                    if (!$cascadeOk) {
+                        error_log('[admin/games] Umpire cascade failed for cancellation game_id=' . $gameId);
+                    }
+
                     $db->commit();
                     
                     logActivity('game_cancelled', "Game ID $gameId cancelled: $reason");
@@ -614,6 +624,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     $db->insert('schedule_history', $historyData);
                     
+                    $cascadeOk = (new UmpireAssignmentService())->onScheduleChanged(
+                        $gameId,
+                        "GAME-POSTPONED-{$gameId}",
+                        ['actor_user_id' => (int) $currentUser['id'], 'source' => 'admin_game_postpone']
+                    );
+                    if (!$cascadeOk) {
+                        error_log('[admin/games] Umpire cascade failed for postponement game_id=' . $gameId);
+                    }
+
                     $db->commit();
                     
                     logActivity('game_postponed', "Game ID $gameId postponed: $reason");

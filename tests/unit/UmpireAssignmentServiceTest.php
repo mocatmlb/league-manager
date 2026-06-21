@@ -50,6 +50,7 @@ class UmpireAssignmentMockDb extends Database {
     public array $fetchOneRows = [];
     public array $insertRows   = [];
     public array $updateRows   = [];
+    public array $throwOnInsertTables = [];
     public int $nextInsertId   = 1000;
 
     public function __construct() {}
@@ -71,6 +72,9 @@ class UmpireAssignmentMockDb extends Database {
     }
 
     public function insert($table, $data) {
+        if (in_array($table, $this->throwOnInsertTables, true)) {
+            throw new RuntimeException('Mock insert failure for ' . $table);
+        }
         $this->insertRows[] = ['table' => $table, 'data' => $data];
         return $this->nextInsertId++;
     }
@@ -802,4 +806,124 @@ register_test('23.4 assignment drawer source supports publish button, partial wa
     assert_true(strpos($source, 'confirm_partial') !== false, 'Expected partial confirmation retry');
     assert_true(strpos($source, 'Publish') !== false, 'Expected Publish button text');
     assert_true(strpos($source, 'updatePageRow(data)') !== false, 'Expected row refresh path');
+});
+
+// ---------------------------------------------------------------------------
+// Tests: Story 23.5 cascade release notifications
+// ---------------------------------------------------------------------------
+
+register_test('23.5 onScheduleChanged cancels active assignments, inserts pending rows, and logs PII-free cascade events', function () {
+    $mock = new UmpireAssignmentMockDb();
+    $mock->nextInsertId = 9100;
+    $mock->fetchOneRows = [[
+        'game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Postponed',
+        'division_name' => 'Junior', 'home_team' => 'Home', 'away_team' => 'Away',
+        'game_date' => '2026-07-01', 'game_time' => '18:00:00', 'location_name' => 'Field 1',
+    ]];
+    $mock->queryRows = [[
+        ['assignment_id' => 1010, 'game_id' => 10, 'umpire_user_id' => 201, 'slot_index' => 0, 'assignment_status' => 'Draft', 'published' => 0, 'migration_mode' => 0],
+        ['assignment_id' => 1011, 'game_id' => 10, 'umpire_user_id' => 202, 'slot_index' => 1, 'assignment_status' => 'Published', 'published' => 1, 'migration_mode' => 1],
+    ]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->onScheduleChanged(10, 'SCR-55', ['actor_user_id' => 5, 'source' => 'unit']);
+
+    assert_true($result, 'Expected cascade success');
+    $sqlLog = implode("\n", $mock->lastSql);
+    assert_true(strpos($sqlLog, "assignment_status = 'Cancelled'") !== false, 'Expected Cancelled update');
+    assert_true(strpos($sqlLog, 'published = 0') !== false, 'Expected published flag cleared');
+    assert_true(strpos($sqlLog, 'last_notified_at = NULL') === false, 'Expected cascade not to clear notification timestamp');
+    assert_true(strpos($sqlLog, 'last_notified_hash = NULL') === false, 'Expected cascade not to clear notification hash');
+
+    $pendingRows = array_values(array_filter($mock->insertRows, static function ($row) {
+        return ($row['table'] ?? '') === 'umpire_pending_notifications';
+    }));
+    assert_equals(count($pendingRows), 2, 'Expected one pending notification per affected assignment');
+    assert_equals($pendingRows[0]['data']['notification_type'] ?? null, 'cascade_cancelled', 'Expected cascade notification type');
+    assert_equals($pendingRows[0]['data']['trigger_event_ref'] ?? null, 'SCR-55', 'Expected trigger ref');
+
+    $logs = array_values(array_filter($mock->lastParams, static function ($p) {
+        return ($p['event'] ?? '') === 'umpire.cascade_cancelled';
+    }));
+    assert_equals(count($logs), 2, 'Expected one cascade audit event per assignment');
+    $context = json_decode($logs[0]['context'], true);
+    assert_equals($context['notification_id'] ?? null, 9100, 'Expected notification id in audit context');
+    assert_equals($context['trigger_event_ref'] ?? null, 'SCR-55', 'Expected trigger ref in audit context');
+    assert_true(!isset($context['email']) && !isset($context['phone']) && !isset($context['first_name']) && !isset($context['last_name']), 'Expected PII-free cascade audit context');
+});
+
+register_test('23.5 onScheduleChanged returns true without rows when no active assigned slots are affected', function () {
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [[
+        'game_id' => 10, 'game_status' => 'Cancelled',
+        'game_date' => '2026-07-01', 'game_time' => '18:00:00',
+    ]];
+    $mock->queryRows = [[]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->onScheduleChanged(10, 'GAME-CANCELLED-10');
+
+    assert_true($result, 'Expected no-op cascade to succeed');
+    assert_equals(count($mock->insertRows), 0, 'Expected no pending rows');
+    $events = array_column(array_filter($mock->lastParams, static function ($p) { return isset($p['event']); }), 'event');
+    assert_true(!in_array('umpire.cascade_cancelled', $events, true), 'Expected no cascade audit events');
+});
+
+register_test('23.5 onScheduleChanged catches pending notification insert failure and returns false', function () {
+    $mock = new UmpireAssignmentMockDb();
+    $mock->throwOnInsertTables = ['umpire_pending_notifications'];
+    $mock->fetchOneRows = [[
+        'game_id' => 10, 'game_status' => 'Postponed',
+        'game_date' => '2026-07-01', 'game_time' => '18:00:00',
+    ]];
+    $mock->queryRows = [[
+        ['assignment_id' => 1010, 'game_id' => 10, 'umpire_user_id' => 201, 'slot_index' => 0, 'assignment_status' => 'Published'],
+    ]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->onScheduleChanged(10, 'SCR-55');
+
+    assert_true(!$result, 'Expected insert failure to return false, not throw');
+    $sqlLog = implode("\n", $mock->lastSql);
+    assert_true(strpos($sqlLog, "assignment_status = 'Cancelled'") !== false, 'Expected cancellation attempted before insert failure');
+});
+
+register_test('23.5 live trigger sources call onScheduleChanged before commit and preserve existing notifications', function () {
+    $checks = [
+        [
+            'file' => __DIR__ . '/../../public/admin/schedules/index.php',
+            'tokens' => ['SCR-{$requestId}', 'DIRECT-SCHEDULE-{$newRequestId}'],
+            'notifications' => ['onSchedulePostponed', 'onScheduleChangeApprove'],
+        ],
+        [
+            'file' => __DIR__ . '/../../includes/RescheduleService.php',
+            'tokens' => ['SCR-{$requestId}'],
+            'notifications' => ['onSchedulePostponed'],
+        ],
+        [
+            'file' => __DIR__ . '/../../public/admin/games/index.php',
+            'tokens' => ['GAME-CANCELLED-{$gameId}', 'GAME-POSTPONED-{$gameId}'],
+            'notifications' => ['onScheduleCancellation', 'onSchedulePostponed'],
+        ],
+        [
+            'file' => __DIR__ . '/../../public/admin/games/index_full.php',
+            'tokens' => ['GAME-CANCELLED-{$gameId}', 'GAME-POSTPONED-{$gameId}'],
+            'notifications' => [],
+        ],
+    ];
+
+    foreach ($checks as $check) {
+        $source = file_get_contents($check['file']);
+        assert_true(strpos($source, 'UmpireAssignmentService') !== false, 'Expected service include/use in ' . basename($check['file']));
+        foreach ($check['tokens'] as $token) {
+            $pos = strpos($source, $token);
+            assert_true($pos !== false, 'Expected trigger token ' . $token . ' in ' . basename($check['file']));
+            $commitPos = strpos($source, 'commit()', $pos);
+            assert_true($commitPos !== false, 'Expected commit after trigger token ' . $token . ' in ' . basename($check['file']));
+            assert_true($commitPos > $pos, 'Expected cascade trigger before following commit in ' . basename($check['file']));
+        }
+        foreach ($check['notifications'] as $notification) {
+            assert_true(strpos($source, $notification) !== false, 'Expected existing notification ' . $notification . ' to remain in ' . basename($check['file']));
+        }
+    }
 });

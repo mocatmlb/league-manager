@@ -505,6 +505,49 @@ class UmpireAssignmentService {
         ];
     }
 
+    public function onScheduleChanged(int $gameId, string $triggerRef, array $options = []): bool {
+        try {
+            $this->validatePositiveId($gameId, 'Game');
+            $triggerRef = trim($triggerRef);
+            if ($triggerRef === '') {
+                throw new \InvalidArgumentException('Trigger reference is required.');
+            }
+
+            $this->fetchCascadeGame($gameId);
+            $assignments = $this->fetchCascadeAssignments($gameId);
+            if (empty($assignments)) {
+                return true;
+            }
+
+            $ids = array_map(static function ($row) {
+                return (int) $row['assignment_id'];
+            }, $assignments);
+            $this->cancelCascadeAssignments($ids);
+
+            foreach ($assignments as $assignment) {
+                $notificationId = $this->insertPendingCascadeNotification($assignment, $triggerRef);
+                ActivityLogger::log('umpire.cascade_cancelled', [
+                    'game_id' => $gameId,
+                    'assignment_id' => (int) $assignment['assignment_id'],
+                    'umpire_user_id' => (int) $assignment['umpire_user_id'],
+                    'slot_index' => (int) $assignment['slot_index'],
+                    'prior_status' => (string) ($assignment['assignment_status'] ?? ''),
+                    'trigger_event_ref' => $triggerRef,
+                    'notification_id' => $notificationId,
+                    'actor_user_id' => isset($options['actor_user_id']) ? (int) $options['actor_user_id'] : null,
+                    'actor_admin_id' => isset($options['actor_admin_id']) ? (int) $options['actor_admin_id'] : null,
+                    'source' => isset($options['source']) ? (string) $options['source'] : null,
+                ]);
+            }
+
+            return true;
+        } catch (\Throwable $e) {
+            error_log('[UmpireAssignmentService] Cascade cancellation failed game_id=' . $gameId
+                . ' trigger_ref=' . $triggerRef . ' error=' . $e->getMessage());
+            return false;
+        }
+    }
+
     private function fetchGame(int $gameId): array {
         $row = $this->db->fetchOne(
             "SELECT
@@ -532,6 +575,84 @@ class UmpireAssignmentService {
             throw new \InvalidArgumentException(ucfirst(strtolower($status)) . ' games cannot be assigned.');
         }
         return $row;
+    }
+
+    private function fetchCascadeGame(int $gameId): array {
+        $row = $this->db->fetchOne(
+            "SELECT
+                g.game_id, g.game_number, g.game_status, g.division_id,
+                d.division_name,
+                ht.team_name AS home_team,
+                at.team_name AS away_team,
+                s.game_date, s.game_time,
+                l.location_name
+             FROM games g
+             JOIN schedules s ON g.game_id = s.game_id
+             LEFT JOIN locations l ON s.location_id = l.location_id
+             LEFT JOIN divisions d ON g.division_id = d.division_id
+             JOIN teams ht ON g.home_team_id = ht.team_id
+             JOIN teams at ON g.away_team_id = at.team_id
+             WHERE g.game_id = :game_id
+             LIMIT 1",
+            ['game_id' => $gameId]
+        );
+        if ($row === false || $row === null) {
+            throw new \InvalidArgumentException('Game not found.');
+        }
+        return $row;
+    }
+
+    private function fetchCascadeAssignments(int $gameId): array {
+        $stmt = $this->db->query(
+            "SELECT assignment_id, game_id, umpire_user_id, slot_index,
+                    assignment_status, published, migration_mode,
+                    last_notified_at, last_notified_hash
+             FROM game_umpire_assignments
+             WHERE game_id = :game_id
+               AND assignment_status IN ('Draft', 'Published')
+               AND umpire_user_id IS NOT NULL
+             ORDER BY slot_index ASC, assignment_id ASC",
+            ['game_id' => $gameId]
+        );
+        return ($stmt && method_exists($stmt, 'fetchAll')) ? $stmt->fetchAll() : [];
+    }
+
+    private function cancelCascadeAssignments(array $assignmentIds): void {
+        $assignmentIds = array_values(array_filter(array_map('intval', $assignmentIds), static function ($id) {
+            return $id > 0;
+        }));
+        if (empty($assignmentIds)) {
+            return;
+        }
+
+        $params = [];
+        $placeholders = [];
+        foreach ($assignmentIds as $i => $id) {
+            $key = 'assignment_id_' . $i;
+            $placeholders[] = ':' . $key;
+            $params[$key] = $id;
+        }
+
+        $this->db->query(
+            "UPDATE game_umpire_assignments
+             SET assignment_status = 'Cancelled',
+                 published = 0,
+                 modified_at = NOW()
+             WHERE assignment_id IN (" . implode(', ', $placeholders) . ")
+               AND assignment_status IN ('Draft', 'Published')
+               AND umpire_user_id IS NOT NULL",
+            $params
+        );
+    }
+
+    private function insertPendingCascadeNotification(array $assignment, string $triggerRef): int {
+        return (int) $this->db->insert('umpire_pending_notifications', [
+            'assignment_id' => (int) $assignment['assignment_id'],
+            'umpire_user_id' => (int) $assignment['umpire_user_id'],
+            'notification_type' => 'cascade_cancelled',
+            'trigger_event_ref' => $triggerRef,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
     }
 
     private function fetchPublishableSlots(int $gameId): array {

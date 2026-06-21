@@ -30,6 +30,7 @@ unset($__dir, $__found, $__i, $__candidate);
 
 @include_once EnvLoader::getPath('includes/admin_bootstrap.php');
 require_once EnvLoader::getPath('includes/ConflictDetectionService.php');
+require_once EnvLoader::getPath('includes/UmpireAssignmentService.php');
 
 // Require admin authentication
 Auth::requireAdmin();
@@ -160,6 +161,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 'review_notes'   => sanitize($_POST['admin_notes'] ?? ''),
                             ], 'request_id = :rid', ['rid' => $requestId]);
 
+                            $cascadeOk = (new UmpireAssignmentService())->onScheduleChanged(
+                                (int) $request['game_id'],
+                                "SCR-{$requestId}",
+                                ['actor_user_id' => (int) $currentUser['id'], 'source' => 'admin_scr_postponement']
+                            );
+                            if (!$cascadeOk) {
+                                error_log('[schedules] Umpire cascade failed for SCR postponement request_id=' . $requestId);
+                            }
+
                             $db->commit();
 
                             logActivity('postponement_approved', "Postponement request #{$requestId} approved", $currentUser['id']);
@@ -223,6 +233,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 'game_status' => 'Scheduled',
                                 'modified_date' => date('Y-m-d H:i:s')
                             ], "game_id = ? AND game_status NOT IN ('Completed', 'Cancelled')", [$request['game_id']]);
+
+                            $cascadeOk = (new UmpireAssignmentService())->onScheduleChanged(
+                                (int) $request['game_id'],
+                                "SCR-{$requestId}",
+                                ['actor_user_id' => (int) $currentUser['id'], 'source' => 'admin_scr_reschedule']
+                            );
+                            if (!$cascadeOk) {
+                                error_log('[schedules] Umpire cascade failed for SCR reschedule request_id=' . $requestId);
+                            }
 
                             $db->commit();
 
@@ -401,6 +420,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'game_status' => 'Scheduled',
                         'modified_date' => date('Y-m-d H:i:s')
                     ], "game_id = ? AND game_status NOT IN ('Completed', 'Cancelled')", [$gameId]);
+
+                    $cascadeOk = (new UmpireAssignmentService())->onScheduleChanged(
+                        (int) $gameId,
+                        "DIRECT-SCHEDULE-{$newRequestId}",
+                        ['actor_user_id' => (int) $currentUser['id'], 'source' => 'admin_direct_schedule']
+                    );
+                    if (!$cascadeOk) {
+                        error_log('[schedules] Umpire cascade failed for direct schedule request_id=' . $newRequestId);
+                    }
 
                     $db->commit();
 
