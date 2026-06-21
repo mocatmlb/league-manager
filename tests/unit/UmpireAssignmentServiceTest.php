@@ -14,6 +14,10 @@ require_once __DIR__ . '/test-helpers.php';
 require_once __DIR__ . '/../../includes/database.php';
 require_once __DIR__ . '/../../includes/ActivityLogger.php';
 
+if (!defined('EMAIL_DEV_LOG_ONLY')) {
+    define('EMAIL_DEV_LOG_ONLY', true);
+}
+
 // ---------------------------------------------------------------------------
 // Stubs for global helpers
 // Stubs are guarded so this file can run alone or inside the full suite.
@@ -44,6 +48,9 @@ class UmpireAssignmentMockDb extends Database {
     public array $queryRows    = [];
     public ?array $fetchOneRow = null;  // null = return false; set to row array to return that row
     public array $fetchOneRows = [];
+    public array $insertRows   = [];
+    public array $updateRows   = [];
+    public int $nextInsertId   = 1000;
 
     public function __construct() {}
 
@@ -61,6 +68,23 @@ class UmpireAssignmentMockDb extends Database {
             return array_shift($this->fetchOneRows);
         }
         return $this->fetchOneRow ?? false;
+    }
+
+    public function insert($table, $data) {
+        $this->insertRows[] = ['table' => $table, 'data' => $data];
+        return $this->nextInsertId++;
+    }
+
+    public function update($table, $data, $where, $whereParams = []) {
+        $this->updateRows[] = [
+            'table' => $table,
+            'data' => $data,
+            'where' => $where,
+            'whereParams' => $whereParams,
+        ];
+        $this->lastSql[] = 'UPDATE ' . $table . ' SET ' . implode(', ', array_keys($data)) . ' WHERE ' . $where;
+        $this->lastParams[] = array_merge($data, $whereParams);
+        return new UmpireAssignmentMockStmt([]);
     }
 }
 
@@ -615,4 +639,137 @@ register_test('23.3 POST AJAX endpoints expose override contract and session act
         assert_true(strpos($source, "\$_SESSION['admin_id']") !== false, 'Expected legacy admin actor mapping in ' . $file);
         assert_true(strpos($source, 'getPayload') !== false, 'Expected structured 409 payload passthrough in ' . $file);
     }
+});
+
+// ---------------------------------------------------------------------------
+// Tests: Story 23.4 publish assignments and notification behavior
+// ---------------------------------------------------------------------------
+
+register_test('23.4 publishGame publishes filled Draft slots, queues email, updates notification hash, and logs queue id', function () {
+    $GLOBALS['_test_settings']['umpire_slot_1_label'] = 'Plate';
+    $GLOBALS['_test_settings']['umpire_slot_2_label'] = 'Bases';
+
+    $mock = new UmpireAssignmentMockDb();
+    $mock->nextInsertId = 8801;
+    $mock->fetchOneRows = [
+        [
+            'game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Scheduled',
+            'division_name' => 'Junior', 'home_team' => 'Home', 'away_team' => 'Away',
+            'game_date' => '2026-07-01', 'game_time' => '18:00:00', 'location_name' => 'Field 1',
+        ],
+        ['id' => 5, 'first_name' => 'Alex', 'last_name' => 'Assignor', 'email' => 'assignor@example.test', 'phone' => '(555) 222-3333'],
+        ['template_name' => 'umpire_assignment_published', 'subject_template' => 'D8 Assignment: {game_date} {game_time} — {slot_label}', 'body_template' => 'Game {game_number} {slot_label} {fee_per_team} {assignor_phone_tel}', 'is_active' => 1],
+    ];
+    $mock->queryRows = [
+        [[
+            'assignment_id' => 1010, 'game_id' => 10, 'umpire_user_id' => 201, 'slot_index' => 0,
+            'assignment_status' => 'Draft', 'published' => 0, 'migration_mode' => 0,
+            'first_name' => 'Pat', 'last_name' => 'Blue', 'email' => 'pat@example.test', 'phone' => '555',
+        ]],
+    ];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->publishGame(10, 5, null, true);
+
+    assert_equals($result['published'], 1, 'Expected one published slot');
+    assert_true($result['warned'], 'Expected partial crew warning flag after confirmed partial publish');
+
+    $queue = $mock->insertRows[0] ?? null;
+    assert_equals($queue['table'] ?? null, 'email_queue', 'Expected email_queue insert');
+    assert_true(strpos($queue['data']['subject'] ?? '', 'D8 Assignment: 07/01/2026 6:00 PM') !== false, 'Expected assignment subject');
+    assert_equals($queue['data']['reply_to_email'] ?? null, 'assignor@example.test', 'Expected per-message Reply-To email');
+    assert_equals($queue['data']['reply_to_name'] ?? null, 'Alex Assignor', 'Expected per-message Reply-To name');
+
+    $sqlLog = implode("\n", $mock->lastSql);
+    assert_true(strpos($sqlLog, "assignment_status = 'Published'") !== false, 'Expected Published update SQL');
+    assert_true(strpos($sqlLog, 'last_notified_hash = :last_notified_hash') !== false, 'Expected notification hash update');
+
+    $publishedLogs = array_values(array_filter($mock->lastParams, static function ($p) {
+        return ($p['event'] ?? '') === 'umpire.published';
+    }));
+    assert_equals(count($publishedLogs), 1, 'Expected one publish audit log');
+    $context = json_decode($publishedLogs[0]['context'], true);
+    assert_equals($context['email_queue_id'] ?? null, 8801, 'Expected queue id in audit context');
+    assert_true(!isset($context['email']) && !isset($context['phone']) && !isset($context['first_name']) && !isset($context['last_name']), 'Expected PII-free publish context');
+
+    unset($GLOBALS['_test_settings']['umpire_slot_1_label'], $GLOBALS['_test_settings']['umpire_slot_2_label']);
+});
+
+register_test('23.4 publishGame rejects zero filled Draft slots', function () {
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [
+        ['game_id' => 10, 'game_status' => 'Scheduled'],
+    ];
+    $mock->queryRows = [[]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $threw = false;
+    try {
+        $svc->publishGame(10, 5, null, false);
+    } catch (\InvalidArgumentException $e) {
+        $threw = true;
+    }
+    assert_true($threw, 'Expected zero filled Draft slots to reject');
+});
+
+register_test('23.4 publishGame requires confirmation for partial crew', function () {
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [
+        ['game_id' => 10, 'game_status' => 'Scheduled'],
+    ];
+    $mock->queryRows = [[
+        ['assignment_id' => 1010, 'umpire_user_id' => 201, 'slot_index' => 0, 'assignment_status' => 'Draft', 'migration_mode' => 0, 'email' => 'pat@example.test'],
+    ]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $threw = false;
+    try {
+        $svc->publishGame(10, 5, null, false);
+    } catch (\RuntimeException $e) {
+        $threw = true;
+        assert_equals($e->getCode(), 409, 'Expected confirmation warning to use 409');
+        assert_true(method_exists($e, 'getPayload'), 'Expected structured payload');
+        $payload = $e->getPayload();
+        assert_true($payload['requires_confirmation'] ?? false, 'Expected requires_confirmation flag');
+        assert_equals($payload['warning']['filled_slots'] ?? null, 1, 'Expected filled slot count');
+    }
+    assert_true($threw, 'Expected partial crew warning');
+});
+
+register_test('23.4 publishGame publishes migration-mode Draft without email queue or notification fields', function () {
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [
+        ['game_id' => 10, 'game_status' => 'Scheduled'],
+        ['id' => 5, 'first_name' => 'Alex', 'last_name' => 'Assignor', 'email' => 'assignor@example.test', 'phone' => '555'],
+    ];
+    $mock->queryRows = [[
+        ['assignment_id' => 1010, 'umpire_user_id' => 201, 'slot_index' => 0, 'assignment_status' => 'Draft', 'migration_mode' => 1, 'email' => 'pat@example.test'],
+    ]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->publishGame(10, 5, null, true);
+
+    assert_equals($result['published'], 1, 'Expected migration row to publish');
+    assert_equals(count($mock->insertRows), 0, 'Expected no email_queue insert for migration row');
+    $sqlLog = implode("\n", $mock->lastSql);
+    assert_true(strpos($sqlLog, 'last_notified_at = NULL') !== false, 'Expected notification timestamp remains NULL');
+    assert_true(strpos($sqlLog, 'last_notified_hash = NULL') !== false, 'Expected notification hash remains NULL');
+});
+
+register_test('23.4 publish AJAX endpoint has CSRF, role gate, JSON envelope, actor mapping, and confirm partial support', function () {
+    $source = file_get_contents(__DIR__ . '/../../public/admin/umpires/ajax/publish.php');
+    assert_true(strpos($source, "PermissionGuard::requireRole(['admin', 'umpire_assignor'], '/login.php')") !== false, 'Expected role gate');
+    assert_true(strpos($source, "Auth::verifyCSRFToken(\$_POST['csrf_token'] ?? '')") !== false, 'Expected CSRF verification');
+    assert_true(strpos($source, 'confirm_partial') !== false, 'Expected confirm_partial input');
+    assert_true(strpos($source, "\$_SESSION['coach_user_id']") !== false, 'Expected users-table actor mapping');
+    assert_true(strpos($source, "\$_SESSION['admin_id']") !== false, 'Expected legacy admin actor mapping');
+    assert_true(strpos($source, "['success' => true, 'data' =>") !== false, 'Expected success JSON envelope');
+});
+
+register_test('23.4 assignment drawer source supports publish button, partial warning retry, and refresh path', function () {
+    $source = file_get_contents(__DIR__ . '/../../public/admin/umpires/assignment-drawer.js');
+    assert_true(strpos($source, 'ajax/publish.php') !== false, 'Expected publish endpoint call');
+    assert_true(strpos($source, 'confirm_partial') !== false, 'Expected partial confirmation retry');
+    assert_true(strpos($source, 'Publish') !== false, 'Expected Publish button text');
+    assert_true(strpos($source, 'updatePageRow(data)') !== false, 'Expected row refresh path');
 });

@@ -97,21 +97,32 @@ class EmailService {
      * @return bool                True on success, false on failure (errors logged)
      */
     public function triggerNotificationToAddress($templateName, $toEmail, $context = []) {
+        $result = $this->sendTemplateToAddressWithMetadata($templateName, $toEmail, $context);
+        return (bool) ($result['success'] ?? false);
+    }
+
+    /**
+     * Queue and immediately process a template email to a direct address.
+     *
+     * Returns queue metadata so callers can include email_queue.queue_id in
+     * audit records.
+     */
+    public function sendTemplateToAddressWithMetadata($templateName, $toEmail, $context = [], $options = []) {
         try {
             $toEmail = trim((string) $toEmail);
             if ($toEmail === '' || !filter_var($toEmail, FILTER_VALIDATE_EMAIL)) {
-                Logger::warn("triggerNotificationToAddress called with invalid recipient", ['template' => $templateName]);
-                return false;
+                Logger::warn("sendTemplateToAddressWithMetadata called with invalid recipient", ['template' => $templateName]);
+                return ['success' => false, 'queue_id' => null];
             }
 
             $template = $this->getEmailTemplate($templateName);
             if (!$template) {
                 Logger::error("Email template '{$templateName}' not found");
-                return false;
+                return ['success' => false, 'queue_id' => null];
             }
             if (!$template['is_active']) {
                 Logger::info("Email template '{$templateName}' is inactive, skipping notification");
-                return true;
+                return ['success' => true, 'queue_id' => null];
             }
 
             $processedSubject = $this->processTemplate($template['subject_template'], $context);
@@ -126,6 +137,8 @@ class EmailService {
                 'body' => $processedBody,
                 'game_id' => $context['game_id'] ?? null,
                 'schedule_change_id' => $context['schedule_change_id'] ?? null,
+                'reply_to_email' => $this->validOptionalEmail($options['reply_to_email'] ?? null),
+                'reply_to_name' => $options['reply_to_name'] ?? null,
             ]);
 
             // Local development: skip SMTP when EMAIL_DEV_LOG_ONLY is true (see includes/config.php).
@@ -144,13 +157,16 @@ class EmailService {
                     'sent_time' => date('Y-m-d H:i:s'),
                     'error_message' => null,
                 ], 'queue_id = :queue_id', ['queue_id' => $queueId]);
-                return true;
+                return ['success' => true, 'queue_id' => (int) $queueId];
             }
 
-            return (bool) $this->processQueuedEmail($queueId);
+            return [
+                'success' => (bool) $this->processQueuedEmail($queueId),
+                'queue_id' => (int) $queueId,
+            ];
         } catch (Exception $e) {
             Logger::error("Email notification (direct) failed for template '{$templateName}': " . $e->getMessage());
-            return false;
+            return ['success' => false, 'queue_id' => null];
         }
     }
 
@@ -493,9 +509,11 @@ class EmailService {
             
             // Recipients
             $mail->setFrom($smtpConfig['from_email'], $smtpConfig['from_name']);
-            
-            if ($smtpConfig['reply_to_email']) {
-                $mail->addReplyTo($smtpConfig['reply_to_email'], $smtpConfig['from_name']);
+
+            $replyToEmail = $queuedEmail['reply_to_email'] ?? ($smtpConfig['reply_to_email'] ?? '');
+            $replyToName = $queuedEmail['reply_to_name'] ?? ($smtpConfig['from_name'] ?? '');
+            if ($replyToEmail) {
+                $mail->addReplyTo($replyToEmail, $replyToName);
             }
             
             // Add TO recipients
@@ -542,6 +560,14 @@ class EmailService {
         }
         
         return base64_decode($encryptedPassword);
+    }
+
+    private function validOptionalEmail($email) {
+        $email = trim((string) $email);
+        if ($email === '') {
+            return null;
+        }
+        return filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null;
     }
     
     /**

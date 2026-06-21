@@ -168,6 +168,28 @@
         });
     }
 
+    function postPublish(confirmPartial) {
+        var form = new FormData();
+        form.append('game_id', activeGameId);
+        form.append('csrf_token', csrfToken);
+        if (confirmPartial) {
+            form.append('confirm_partial', '1');
+        }
+
+        return requestJson('ajax/publish.php', {
+            method: 'POST',
+            body: form,
+            credentials: 'same-origin'
+        }).then(function () {
+            return requestJson('ajax/get-drawer.php?game_id=' + encodeURIComponent(activeGameId), {
+                credentials: 'same-origin'
+            });
+        }).then(function (data) {
+            renderDrawer(data);
+            updatePageRow(data);
+        });
+    }
+
     function renderDrawer(data) {
         var game = data.game || {};
         title.textContent = 'Game ' + (game.game_number || game.game_id || activeGameId);
@@ -193,6 +215,91 @@
         [0, 1].forEach(function (slotIndex) {
             body.appendChild(renderSlotPanel(slotIndex, labels[slotIndex] || ('Umpire ' + (slotIndex + 1)), slots[slotIndex] || {}, roster));
         });
+
+        var publishPanel = renderPublishPanel(slots);
+        if (publishPanel) {
+            body.appendChild(publishPanel);
+        }
+    }
+
+    function hasFilledDraftSlot(slots) {
+        return [slots[0], slots[1]].some(function (slot) {
+            return slot && slot.status === 'Draft' && slot.umpire_user_id;
+        });
+    }
+
+    function renderPublishPanel(slots) {
+        if (!hasFilledDraftSlot(slots || {})) {
+            return null;
+        }
+
+        var panel = document.createElement('section');
+        panel.className = 'border rounded p-3 mb-3 bg-light';
+
+        appendText(panel, 'h6', 'mb-2', 'Publish Assignments');
+        appendText(panel, 'p', 'small text-muted mb-2', 'Send assignment email for filled draft slots and mark them Published.');
+
+        var status = document.createElement('div');
+        status.className = 'small mb-2';
+        panel.appendChild(status);
+
+        var publish = document.createElement('button');
+        publish.type = 'button';
+        publish.className = 'btn btn-success btn-sm';
+        publish.textContent = 'Publish';
+
+        function attempt(confirmPartial) {
+            status.className = 'small text-muted mb-2';
+            status.textContent = confirmPartial ? 'Publishing partial crew...' : 'Publishing...';
+            publish.disabled = true;
+            publish.textContent = 'Publishing...';
+            return postPublish(confirmPartial).catch(function (error) {
+                var payload = error.payload || {};
+                publish.disabled = false;
+                publish.textContent = 'Publish';
+                if (payload.requires_confirmation) {
+                    renderPartialPublishWarning(status, payload, function () {
+                        return attempt(true);
+                    });
+                    return;
+                }
+                status.className = 'small text-danger mb-2';
+                status.textContent = error.message;
+            });
+        }
+
+        publish.addEventListener('click', function () {
+            attempt(false);
+        });
+        panel.appendChild(publish);
+
+        return panel;
+    }
+
+    function renderPartialPublishWarning(container, payload, confirmCallback) {
+        container.textContent = '';
+        container.className = 'mb-2';
+
+        var alert = document.createElement('div');
+        alert.className = 'alert alert-warning py-2 mb-2';
+        appendText(alert, 'div', 'fw-semibold', payload.error || 'This game has fewer filled slots than expected.');
+        var warning = payload.warning || {};
+        appendText(alert, 'div', 'small', 'Filled slots: ' + Number(warning.filled_slots || 0) + ' of ' + Number(warning.expected_crew_size || 2));
+        container.appendChild(alert);
+
+        var confirm = document.createElement('button');
+        confirm.type = 'button';
+        confirm.className = 'btn btn-warning btn-sm';
+        confirm.textContent = 'Confirm Partial Publish';
+        confirm.addEventListener('click', function () {
+            confirm.disabled = true;
+            confirm.textContent = 'Publishing...';
+            confirmCallback().catch(function (retryError) {
+                container.className = 'small text-danger mb-2';
+                container.textContent = retryError.message;
+            });
+        });
+        container.appendChild(confirm);
     }
 
     function renderSlotPanel(slotIndex, label, slot, roster) {
