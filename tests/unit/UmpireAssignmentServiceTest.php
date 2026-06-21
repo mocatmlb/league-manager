@@ -405,6 +405,7 @@ register_test('23.2 saveSlot rejects Published existing slot', function () {
 
 register_test('23.3 saveSlot rejects conflicting assignment with structured 409 payload', function () {
     unset($_SESSION['umpire_migration_mode']);
+    $GLOBALS['_test_settings']['conflict_window_minutes'] = '90';
     $mock = new UmpireAssignmentMockDb();
     $mock->fetchOneRows = [
         ['game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Scheduled', 'game_date' => '2026-07-01', 'game_time' => '18:00:00'],
@@ -431,6 +432,11 @@ register_test('23.3 saveSlot rejects conflicting assignment with structured 409 
         assert_equals($payload['conflict']['assignment_id'] ?? null, 55, 'Expected conflict payload');
     }
     assert_true($threw, 'Expected conflicting save to throw');
+    $conflictParams = array_values(array_filter($mock->lastParams, static function ($p) {
+        return isset($p['target_start'], $p['target_end']);
+    }));
+    assert_equals($conflictParams[0]['target_end'] ?? null, '2026-07-01 19:30:00', 'Expected assignment target window to honor conflict settings');
+    unset($GLOBALS['_test_settings']['conflict_window_minutes']);
 });
 
 register_test('23.3 saveSlot allows admin conflict override and logs PII-free context', function () {

@@ -677,7 +677,7 @@ class UmpireAssignmentService {
         $date = (string) ($game['game_date'] ?? '');
         $time = (string) (($game['game_time'] ?? '') ?: '00:00:00');
         $start = new \DateTime(trim($date . ' ' . $time));
-        $end = (clone $start)->modify('+2 hours');
+        $end = (clone $start)->modify('+' . UmpireConflictChecker::assignmentWindowSeconds() . ' seconds');
         return [$start, $end];
     }
 

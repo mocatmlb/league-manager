@@ -13,6 +13,14 @@ require_once __DIR__ . '/test-helpers.php';
 require_once __DIR__ . '/../../includes/database.php';
 require_once __DIR__ . '/../../includes/UmpireConflictChecker.php';
 
+$GLOBALS['_test_settings'] = [];
+
+if (!function_exists('getSetting')) {
+    function getSetting(string $key, string $default = '') {
+        return $GLOBALS['_test_settings'][$key] ?? $default;
+    }
+}
+
 class UmpireConflictCheckerMockDb extends Database {
     public array $lastSql = [];
     public array $lastParams = [];
@@ -66,7 +74,7 @@ register_test('23.3 conflict checker returns Draft/Published overlap payload', f
     assert_true(strpos($sql, "g.game_status NOT IN ('Cancelled', 'Postponed')") !== false, 'Expected cancelled/postponed games ignored');
     assert_true(strpos($sql, 'gua.assignment_id <> :exclude_assignment_id_value') !== false, 'Expected exclude assignment predicate');
     assert_true(strpos($sql, ':exclude_assignment_id_is_null') !== false, 'Expected distinct null-check placeholder');
-    assert_true(strpos($sql, 'DATE_ADD') !== false, 'Expected default two-hour window in SQL');
+    assert_true(strpos($sql, 'INTERVAL 10800 SECOND') !== false, 'Expected default conflict settings window in SQL');
 });
 
 register_test('23.3 conflict checker returns null for adjacent/non-overlap', function () {
@@ -88,6 +96,24 @@ register_test('23.3 conflict checker returns null for adjacent/non-overlap', fun
     assert_equals($params['exclude_assignment_id_value'] ?? null, 55, 'Expected excluded assignment value param');
     assert_equals($params['target_start'] ?? null, '2026-07-01 20:00:00', 'Expected start param');
     assert_equals($params['target_end'] ?? null, '2026-07-01 22:00:00', 'Expected end param');
+});
+
+register_test('23.3 conflict checker honors configured conflict window setting', function () {
+    $mock = new UmpireConflictCheckerMockDb();
+    $mock->rows = [];
+    Database::setInstance($mock);
+    $GLOBALS['_test_settings']['conflict_window_minutes'] = '90';
+
+    UmpireConflictChecker::check(
+        101,
+        new DateTime('2026-07-01 18:00:00'),
+        new DateTime('2026-07-01 19:30:00')
+    );
+
+    $sql = $mock->lastSql[0] ?? '';
+    assert_true(strpos($sql, 'INTERVAL 5400 SECOND') !== false, 'Expected configured conflict window in SQL');
+
+    unset($GLOBALS['_test_settings']['conflict_window_minutes']);
 });
 
 register_test('23.3 conflict checker rejects invalid umpire id', function () {

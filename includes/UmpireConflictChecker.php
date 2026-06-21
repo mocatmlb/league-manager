@@ -2,7 +2,12 @@
 if (!defined('D8TL_APP')) { die('Direct access not permitted'); }
 
 final class UmpireConflictChecker {
-    private const DEFAULT_ASSIGNMENT_WINDOW_HOURS = 2;
+    private const DEFAULT_ASSIGNMENT_WINDOW_MINUTES = 180;
+
+    public static function assignmentWindowSeconds(): int {
+        $minutes = self::configuredWindowMinutes();
+        return $minutes * 60;
+    }
 
     public static function check(
         int $umpireUserId,
@@ -18,6 +23,7 @@ final class UmpireConflictChecker {
         }
 
         $db = Database::getInstance();
+        $windowSeconds = self::assignmentWindowSeconds();
         $stmt = $db->query(
             "SELECT
                 gua.assignment_id,
@@ -42,7 +48,7 @@ final class UmpireConflictChecker {
                AND TIMESTAMP(s.game_date, COALESCE(s.game_time, '00:00:00')) < :target_end
                AND DATE_ADD(
                     TIMESTAMP(s.game_date, COALESCE(s.game_time, '00:00:00')),
-                    INTERVAL " . self::DEFAULT_ASSIGNMENT_WINDOW_HOURS . " HOUR
+                    INTERVAL " . $windowSeconds . " SECOND
                ) > :target_start
              ORDER BY s.game_date ASC, s.game_time ASC, gua.assignment_id ASC
              LIMIT 1",
@@ -75,5 +81,16 @@ final class UmpireConflictChecker {
             'location_name' => $row['location_name'] ?? null,
             'assignment_status' => $row['assignment_status'] ?? null,
         ];
+    }
+
+    private static function configuredWindowMinutes(): int {
+        $raw = function_exists('getSetting')
+            ? getSetting('conflict_window_minutes', (string) self::DEFAULT_ASSIGNMENT_WINDOW_MINUTES)
+            : (string) self::DEFAULT_ASSIGNMENT_WINDOW_MINUTES;
+        $minutes = (int) $raw;
+        if ($minutes < 1) {
+            return self::DEFAULT_ASSIGNMENT_WINDOW_MINUTES;
+        }
+        return min($minutes, 1440);
     }
 }
