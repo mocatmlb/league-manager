@@ -59,19 +59,17 @@ function formatAssignmentTime(?string $time): string {
 </head>
 <body class="bg-light">
 
+    <?php
+    $navPath = file_exists(__DIR__ . '/../includes/nav.php')
+        ? __DIR__ . '/../includes/nav.php'
+        : __DIR__ . '/../../includes/nav.php';
+    include $navPath;
+    ?>
+
     <div class="container mt-4">
         <div class="row">
             <div class="col-12">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h1 class="mb-0">My Assignments</h1>
-                    <form method="post" action="logout.php" class="d-inline">
-                        <?php $csrf = Auth::generateCSRFToken(); ?>
-                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
-                        <button type="submit" class="btn btn-outline-secondary btn-sm">
-                            <i class="fas fa-sign-out-alt me-1"></i>Log Out
-                        </button>
-                    </form>
-                </div>
+                <h1 class="mb-3">My Assignments</h1>
 
 <?php if ($flashSuccess): ?>
                 <div class="alert alert-success" role="alert"><?= htmlspecialchars($flashSuccess, ENT_QUOTES, 'UTF-8') ?></div>

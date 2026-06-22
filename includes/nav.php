@@ -14,6 +14,7 @@ $isAdmin          = Auth::isAdmin();
 $isCoach          = Auth::isCoach();
 $isLoggedIn       = Auth::isLoggedIn();
 $isUmpireAssignor = ($isCoach && !$isAdmin) && (($_SESSION['role'] ?? '') === 'umpire_assignor');
+$isUmpire         = ($isCoach && !$isAdmin) && (($_SESSION['role'] ?? '') === 'umpire');
 
 // Determine the current page for active navigation
 $currentPage = basename($_SERVER['PHP_SELF'], '.php');
@@ -193,7 +194,7 @@ $rootPath = getPathToRoot();
                         </li>
                     <?php endif; ?>
 
-                    <?php if ($isCoach && !$isAdmin && !$isUmpireAssignor): ?>
+                    <?php if ($isCoach && !$isAdmin && !$isUmpireAssignor && !$isUmpire): ?>
                         <!-- Coach Links -->
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle <?php echo $currentDir === 'coaches' ? 'active' : ''; ?>" 
@@ -271,6 +272,23 @@ $rootPath = getPathToRoot();
                                     <a class="dropdown-item <?php echo isActiveNav('import', 'umpires'); ?>"
                                        href="<?php echo $rootPath; ?>admin/umpires/import.php">
                                         <i class="fas fa-file-csv"></i> Import Umpires
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    <?php endif; ?>
+
+                    <?php if ($isUmpire): ?>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle <?php echo $currentDir === 'umpires' ? 'active' : ''; ?>"
+                               href="#" id="umpirePortalDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-whistle"></i> My Assignments
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item <?php echo isActiveNav('index', 'umpires'); ?>"
+                                       href="<?php echo $rootPath; ?>umpires/index.php">
+                                        <i class="fas fa-clipboard-list"></i> My Assignments
                                     </a>
                                 </li>
                             </ul>

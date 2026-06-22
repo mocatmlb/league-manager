@@ -88,6 +88,14 @@ $assignor_contact = $assignment['assignor_contact'] ?? 'your assignor';
     </style>
 </head>
 <body class="bg-light">
+
+    <?php
+    $navPath = file_exists(__DIR__ . '/../includes/nav.php')
+        ? __DIR__ . '/../includes/nav.php'
+        : __DIR__ . '/../../includes/nav.php';
+    include $navPath;
+    ?>
+
     <div class="container mt-4">
         <div class="row justify-content-center">
             <div class="col-12 col-lg-8">
