@@ -97,35 +97,51 @@ class EmailService {
      * @return bool                True on success, false on failure (errors logged)
      */
     public function triggerNotificationToAddress($templateName, $toEmail, $context = []) {
+        $result = $this->sendTemplateToAddressWithMetadata($templateName, $toEmail, $context);
+        return (bool) ($result['success'] ?? false);
+    }
+
+    /**
+     * Queue and immediately process a template email to a direct address.
+     *
+     * Returns queue metadata so callers can include email_queue.queue_id in
+     * audit records.
+     */
+    public function sendTemplateToAddressWithMetadata($templateName, $toEmail, $context = [], $options = []) {
         try {
             $toEmail = trim((string) $toEmail);
             if ($toEmail === '' || !filter_var($toEmail, FILTER_VALIDATE_EMAIL)) {
-                Logger::warn("triggerNotificationToAddress called with invalid recipient", ['template' => $templateName]);
-                return false;
+                Logger::warn("sendTemplateToAddressWithMetadata called with invalid recipient", ['template' => $templateName]);
+                return ['success' => false, 'queue_id' => null];
             }
 
             $template = $this->getEmailTemplate($templateName);
             if (!$template) {
                 Logger::error("Email template '{$templateName}' not found");
-                return false;
+                return ['success' => false, 'queue_id' => null];
             }
             if (!$template['is_active']) {
                 Logger::info("Email template '{$templateName}' is inactive, skipping notification");
-                return true;
+                return ['success' => true, 'queue_id' => null];
             }
 
             $processedSubject = $this->processTemplate($template['subject_template'], $context);
             $processedBody = $this->processTemplate($template['body_template'], $context);
+            $configuredRecipients = !empty($options['include_configured_recipients'])
+                ? $this->resolveRecipients($templateName, $context)
+                : ['to' => [], 'cc' => [], 'bcc' => []];
 
             $queueId = $this->queueEmail([
                 'template_name' => $templateName,
-                'to_addresses' => json_encode([$toEmail]),
-                'cc_addresses' => json_encode([]),
-                'bcc_addresses' => json_encode([]),
+                'to_addresses' => json_encode($this->mergeAddresses([$toEmail], $configuredRecipients['to'] ?? [])),
+                'cc_addresses' => json_encode($this->mergeAddresses($configuredRecipients['cc'] ?? [])),
+                'bcc_addresses' => json_encode($this->mergeAddresses($configuredRecipients['bcc'] ?? [])),
                 'subject' => $processedSubject,
                 'body' => $processedBody,
                 'game_id' => $context['game_id'] ?? null,
                 'schedule_change_id' => $context['schedule_change_id'] ?? null,
+                'reply_to_email' => $this->validOptionalEmail($options['reply_to_email'] ?? null),
+                'reply_to_name' => $options['reply_to_name'] ?? null,
             ]);
 
             // Local development: skip SMTP when EMAIL_DEV_LOG_ONLY is true (see includes/config.php).
@@ -144,13 +160,16 @@ class EmailService {
                     'sent_time' => date('Y-m-d H:i:s'),
                     'error_message' => null,
                 ], 'queue_id = :queue_id', ['queue_id' => $queueId]);
-                return true;
+                return ['success' => true, 'queue_id' => (int) $queueId];
             }
 
-            return (bool) $this->processQueuedEmail($queueId);
+            return [
+                'success' => (bool) $this->processQueuedEmail($queueId),
+                'queue_id' => (int) $queueId,
+            ];
         } catch (Exception $e) {
             Logger::error("Email notification (direct) failed for template '{$templateName}': " . $e->getMessage());
-            return false;
+            return ['success' => false, 'queue_id' => null];
         }
     }
 
@@ -237,9 +256,108 @@ class EmailService {
                     if ($awayEmail) $emails[] = $awayEmail;
                 }
                 break;
+
+            case 'Assigned_Umpires':
+                if (isset($context['game_id'])) {
+                    $emails = array_merge($emails, $this->getAssignedUmpireEmails($context['game_id']));
+                }
+                break;
+
+            case 'Assigned_Umpire_1':
+                if (isset($context['game_id'])) {
+                    $emails = array_merge($emails, $this->getAssignedUmpireEmails($context['game_id'], 0));
+                }
+                break;
+
+            case 'Assigned_Umpire_2':
+                if (isset($context['game_id'])) {
+                    $emails = array_merge($emails, $this->getAssignedUmpireEmails($context['game_id'], 1));
+                }
+                break;
+
+            case 'League_Contacts':
+                $emails = array_merge($emails, $this->getLeagueContactEmails());
+                break;
+
+            case 'League_Contact':
+                if (!empty($config['league_official_id'])) {
+                    $email = $this->getLeagueContactEmail((int) $config['league_official_id']);
+                    if ($email) $emails[] = $email;
+                }
+                break;
         }
         
         return $emails;
+    }
+
+    /**
+     * Get assigned umpire email addresses for a game.
+     */
+    private function getAssignedUmpireEmails($gameId, $slotIndex = null) {
+        $params = ['game_id' => $gameId];
+        $slotClause = '';
+        if ($slotIndex !== null) {
+            $slotClause = ' AND gua.slot_index = :slot_index';
+            $params['slot_index'] = (int) $slotIndex;
+        }
+
+        $rows = $this->db->fetchAll(
+            "SELECT DISTINCT u.email
+             FROM game_umpire_assignments gua
+             INNER JOIN users u ON u.id = gua.umpire_user_id
+             WHERE gua.game_id = :game_id
+               AND gua.slot_index IN (0, 1)
+               AND gua.assignment_status IN ('Draft', 'Published')
+               AND u.email IS NOT NULL
+               AND u.email != ''
+               {$slotClause}
+             ORDER BY gua.slot_index ASC",
+            $params
+        );
+
+        return array_values(array_filter(array_map(static function ($row) {
+            return $row['email'] ?? null;
+        }, $rows)));
+    }
+
+    /**
+     * Get active league contact email addresses.
+     */
+    private function getLeagueContactEmails() {
+        $rows = $this->db->fetchAll(
+            "SELECT email
+             FROM league_officials
+             WHERE active_status = 'Active'
+               AND email IS NOT NULL
+               AND email != ''
+             ORDER BY sort_order ASC, name ASC"
+        );
+
+        return array_values(array_filter(array_map(static function ($row) {
+            return $row['email'] ?? null;
+        }, $rows)));
+    }
+
+    /**
+     * Get one active league contact email address.
+     */
+    private function getLeagueContactEmail(int $officialId) {
+        if ($officialId < 1) {
+            return null;
+        }
+
+        $row = $this->db->fetchOne(
+            "SELECT email
+             FROM league_officials
+             WHERE official_id = ?
+               AND active_status = 'Active'
+               AND email IS NOT NULL
+               AND email != ''
+             LIMIT 1",
+            [$officialId]
+        );
+
+        return $row ? ($row['email'] ?? null) : null;
     }
     
     /**
@@ -493,9 +611,11 @@ class EmailService {
             
             // Recipients
             $mail->setFrom($smtpConfig['from_email'], $smtpConfig['from_name']);
-            
-            if ($smtpConfig['reply_to_email']) {
-                $mail->addReplyTo($smtpConfig['reply_to_email'], $smtpConfig['from_name']);
+
+            $replyToEmail = $queuedEmail['reply_to_email'] ?? ($smtpConfig['reply_to_email'] ?? '');
+            $replyToName = $queuedEmail['reply_to_name'] ?? ($smtpConfig['from_name'] ?? '');
+            if ($replyToEmail) {
+                $mail->addReplyTo($replyToEmail, $replyToName);
             }
             
             // Add TO recipients
@@ -542,6 +662,27 @@ class EmailService {
         }
         
         return base64_decode($encryptedPassword);
+    }
+
+    private function validOptionalEmail($email) {
+        $email = trim((string) $email);
+        if ($email === '') {
+            return null;
+        }
+        return filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null;
+    }
+
+    private function mergeAddresses(...$addressLists) {
+        $merged = [];
+        foreach ($addressLists as $addresses) {
+            foreach ((array) $addresses as $email) {
+                $email = trim((string) $email);
+                if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $merged[] = $email;
+                }
+            }
+        }
+        return array_values(array_unique($merged));
     }
     
     /**

@@ -9,8 +9,9 @@ CREATE TABLE IF NOT EXISTS email_recipients (
     recipient_id INT AUTO_INCREMENT PRIMARY KEY,
     template_name VARCHAR(100) NOT NULL,
     recipient_type ENUM('Team_Based', 'Static_To', 'Static_CC', 'Static_BCC') NOT NULL,
-    recipient_source ENUM('Home_Team_Manager', 'Away_Team_Manager', 'Both_Team_Managers', 'Static_Email') NOT NULL,
+    recipient_source ENUM('Home_Team_Manager', 'Away_Team_Manager', 'Both_Team_Managers', 'Static_Email', 'Assigned_Umpires', 'Assigned_Umpire_1', 'Assigned_Umpire_2', 'League_Contacts', 'League_Contact') NOT NULL,
     email_address VARCHAR(255) NULL, -- Only for static recipients
+    league_official_id INT NULL, -- Only for a specific league contact recipient
     is_active BOOLEAN DEFAULT TRUE,
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_template_name (template_name),

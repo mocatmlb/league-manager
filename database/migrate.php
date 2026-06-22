@@ -83,6 +83,7 @@ class MigrationRunner {
             $this->db->insert('schema_migrations', ['version' => $version]);
         } catch (Exception $e) {
             echo " FAILED\n";
+            echo " [DEBUG_LOG] Error in $version: " . $e->getMessage() . "\n";
             throw new Exception("Migration $version failed: " . $e->getMessage());
         }
     }

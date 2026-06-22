@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assignment Drawer Large Roster Prototype</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --surface: #f6f8fb;
+            --line: #dbe3ed;
+            --ink: #16202a;
+            --muted: #667485;
+            --brand: #2457a6;
+            --brand-2: #1f7a5f;
+            --warn: #9a6715;
+        }
+
+        body {
+            background: var(--surface);
+            color: var(--ink);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            letter-spacing: 0;
+        }
+
+        .app-shell {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: 252px minmax(0, 1fr);
+        }
+
+        .sidebar {
+            background: #1e2b37;
+            color: #edf3f8;
+            padding: 20px 18px;
+        }
+
+        .sidebar-title {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 22px;
+        }
+
+        .nav-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 38px;
+            padding: 0 10px;
+            border-radius: 6px;
+            color: #c9d4df;
+            font-size: .92rem;
+        }
+
+        .nav-row.active {
+            background: #304454;
+            color: #fff;
+        }
+
+        .main {
+            padding: 24px;
+            min-width: 0;
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .toolbar h1 {
+            font-size: 1.45rem;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .board-wrap {
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .table {
+            margin: 0;
+            font-size: .92rem;
+        }
+
+        .table thead th {
+            color: var(--muted);
+            font-size: .78rem;
+            text-transform: uppercase;
+            letter-spacing: .02em;
+            background: #f9fbfd;
+            border-bottom-color: var(--line);
+        }
+
+        .game-row {
+            cursor: pointer;
+        }
+
+        .game-row.active {
+            background: #eef5ff;
+            box-shadow: inset 3px 0 0 var(--brand);
+        }
+
+        .drawer {
+            position: fixed;
+            inset: 0 0 0 auto;
+            width: min(560px, 100vw);
+            background: #fff;
+            box-shadow: -16px 0 32px rgba(17, 28, 43, .18);
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            z-index: 20;
+        }
+
+        .drawer-header {
+            padding: 18px 20px 14px;
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: flex-start;
+        }
+
+        .drawer-title {
+            font-size: 1.08rem;
+            font-weight: 700;
+            margin: 0 0 4px;
+        }
+
+        .drawer-subtitle {
+            color: var(--muted);
+            font-size: .86rem;
+        }
+
+        .drawer-body {
+            min-height: 0;
+            overflow: hidden;
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+        }
+
+        .game-summary {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--line);
+            display: grid;
+            gap: 6px;
+            background: #fbfcfe;
+        }
+
+        .summary-line {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            font-size: .9rem;
+        }
+
+        .summary-line span:first-child {
+            color: var(--muted);
+        }
+
+        .slot-view,
+        .picker-view {
+            min-height: 0;
+            overflow: auto;
+            padding: 18px 20px 22px;
+        }
+
+        .slot-card {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+
+        .slot-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .slot-name {
+            font-weight: 700;
+        }
+
+        .assignment-box {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 12px;
+            align-items: center;
+            min-height: 72px;
+            background: #f8fafc;
+            border: 1px solid #e5ebf1;
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .umpire-name {
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .meta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .contact-row {
+            color: var(--muted);
+            font-size: .82rem;
+            margin-top: 5px;
+        }
+
+        .btn-icon {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            min-height: 34px;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+
+        .picker-view {
+            display: none;
+            grid-template-rows: auto auto minmax(0, 1fr);
+        }
+
+        .picker-view.active {
+            display: grid;
+        }
+
+        .slot-view.hidden {
+            display: none;
+        }
+
+        .picker-top {
+            position: sticky;
+            top: -18px;
+            background: #fff;
+            z-index: 2;
+            padding-top: 2px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .picker-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .search-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 8px;
+        }
+
+        .search-input {
+            min-height: 42px;
+            border-radius: 6px;
+        }
+
+        .filter-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 12px 0 0;
+        }
+
+        .filter-row .btn {
+            border-radius: 999px;
+            min-height: 32px;
+            font-size: .84rem;
+        }
+
+        .picker-count {
+            color: var(--muted);
+            font-size: .86rem;
+            margin: 12px 0;
+        }
+
+        .result-list {
+            display: grid;
+            gap: 8px;
+            align-content: start;
+            padding-bottom: 18px;
+        }
+
+        .result-row {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            min-height: 78px;
+            padding: 12px;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 12px;
+            align-items: center;
+            background: #fff;
+        }
+
+        .result-row:hover,
+        .result-row:focus-within {
+            border-color: #9dbbe6;
+            background: #f7fbff;
+        }
+
+        .badge-soft {
+            background: #eef2f6;
+            color: #324150;
+            border: 1px solid #d8e0e8;
+        }
+
+        .badge-load-low {
+            background: #e7f6ef;
+            color: #17684e;
+        }
+
+        .badge-load-high {
+            background: #fff3dc;
+            color: var(--warn);
+        }
+
+        .drawer-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 25, 35, .18);
+            z-index: 10;
+        }
+
+        @media (max-width: 900px) {
+            .app-shell {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                display: none;
+            }
+
+            .main {
+                padding: 14px;
+            }
+
+            .drawer {
+                width: 100vw;
+            }
+
+            .assignment-box,
+            .result-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-title">District 8 Travel League</div>
+        <div class="nav-row"><i class="fas fa-gauge-high"></i> Dashboard</div>
+        <div class="nav-row active"><i class="fas fa-user-shield"></i> Umpires</div>
+        <div class="nav-row"><i class="fas fa-calendar-days"></i> Schedule</div>
+        <div class="nav-row"><i class="fas fa-users"></i> Teams</div>
+    </aside>
+
+    <main class="main">
+        <div class="toolbar">
+            <div>
+                <h1>Assignment Board</h1>
+                <div class="text-muted small">Prototype view with large-roster picker</div>
+            </div>
+            <button class="btn btn-outline-secondary btn-sm btn-icon" type="button">
+                <i class="fas fa-list-check"></i> Queue
+            </button>
+        </div>
+
+        <div class="board-wrap">
+            <table class="table table-hover align-middle">
+                <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Game</th>
+                    <th>Location</th>
+                    <th>Slots</th>
+                    <th>Status</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr class="game-row active">
+                    <td>2026-06-20</td>
+                    <td>6:00 PM</td>
+                    <td>River Bats at Lake Lions</td>
+                    <td>Central Park Field 1</td>
+                    <td><span id="boardSlots">1/2</span></td>
+                    <td><span class="badge bg-warning text-dark">Draft</span></td>
+                </tr>
+                <tr class="game-row">
+                    <td>2026-06-20</td>
+                    <td>7:45 PM</td>
+                    <td>North Stars at South Hawks</td>
+                    <td>Memorial Field</td>
+                    <td>0/2</td>
+                    <td><span class="badge bg-secondary">Unassigned</span></td>
+                </tr>
+                <tr class="game-row">
+                    <td>2026-06-21</td>
+                    <td>10:00 AM</td>
+                    <td>West Eagles at East Foxes</td>
+                    <td>Riverside Diamond</td>
+                    <td>2/2</td>
+                    <td><span class="badge bg-success">Published</span></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+
+<div class="drawer-backdrop"></div>
+<aside class="drawer" aria-labelledby="drawerTitle">
+    <header class="drawer-header">
+        <div>
+            <h2 class="drawer-title" id="drawerTitle">Game E2E-2030-001</h2>
+            <div class="drawer-subtitle">River Bats at Lake Lions</div>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm" type="button" aria-label="Close">
+            <i class="fas fa-xmark"></i>
+        </button>
+    </header>
+
+    <div class="drawer-body">
+        <section class="game-summary">
+            <div class="summary-line"><span>Date / time</span><strong>Jun 20, 2026 at 6:00 PM</strong></div>
+            <div class="summary-line"><span>Location</span><strong>Central Park Field 1</strong></div>
+            <div class="summary-line"><span>Division</span><strong>Majors</strong></div>
+        </section>
+
+        <section class="slot-view" id="slotView">
+            <article class="slot-card">
+                <div class="slot-head">
+                    <div class="slot-name">Umpire 1</div>
+                    <span class="badge bg-warning text-dark">Draft</span>
+                </div>
+                <div class="assignment-box">
+                    <div>
+                        <div class="umpire-name" id="slot0Name">Jordan Avery</div>
+                        <div class="meta-row" id="slot0Meta">
+                            <span class="badge bg-dark">Black Shirt</span>
+                            <span class="badge badge-load-low">Load 1</span>
+                        </div>
+                        <div class="contact-row" id="slot0Contact">555-210-4100 | jordan.avery@example.test</div>
+                    </div>
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button class="btn btn-outline-primary btn-sm btn-icon" type="button" data-pick-slot="0">
+                            <i class="fas fa-arrows-rotate"></i> Change
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm btn-icon" type="button" data-clear-slot="0">
+                            <i class="fas fa-user-minus"></i> Unassign
+                        </button>
+                    </div>
+                </div>
+            </article>
+
+            <article class="slot-card">
+                <div class="slot-head">
+                    <div class="slot-name">Umpire 2</div>
+                    <span class="badge bg-secondary" id="slot1Status">Open</span>
+                </div>
+                <div class="assignment-box">
+                    <div>
+                        <div class="umpire-name" id="slot1Name">Open</div>
+                        <div class="meta-row" id="slot1Meta">
+                            <span class="badge badge-soft">No umpire selected</span>
+                        </div>
+                        <div class="contact-row" id="slot1Contact"></div>
+                    </div>
+                    <button class="btn btn-primary btn-sm btn-icon" type="button" data-pick-slot="1">
+                        <i class="fas fa-user-plus"></i> Choose
+                    </button>
+                </div>
+            </article>
+
+            <div class="d-flex justify-content-end gap-2 mt-3">
+                <button class="btn btn-outline-secondary" type="button">Cancel</button>
+                <button class="btn btn-success" type="button">
+                    <i class="fas fa-floppy-disk me-1"></i> Save Draft Crew
+                </button>
+            </div>
+        </section>
+
+        <section class="picker-view" id="pickerView">
+            <div class="picker-top">
+                <div class="picker-actions">
+                    <button class="btn btn-outline-secondary btn-sm btn-icon" type="button" id="backToSlots">
+                        <i class="fas fa-arrow-left"></i> Slots
+                    </button>
+                    <div class="fw-semibold" id="pickerTitle">Choose Umpire 2</div>
+                </div>
+                <div class="search-row">
+                    <input class="form-control search-input" id="searchInput" type="search" placeholder="Search by name, level, phone, email">
+                </div>
+                <div class="filter-row" aria-label="Roster filters">
+                    <button class="btn btn-primary btn-sm" type="button" data-filter="all">All</button>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" data-filter="low">Low load</button>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" data-filter="blue">Blue Shirt</button>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" data-filter="black">Black Shirt</button>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" data-filter="minor">Under 18</button>
+                </div>
+            </div>
+            <div class="picker-count" id="resultCount"></div>
+            <div class="result-list" id="resultList"></div>
+        </section>
+    </div>
+</aside>
+
+<script>
+    const firstNames = [
+        'Alex', 'Bailey', 'Casey', 'Devon', 'Emerson', 'Finley', 'Gray', 'Harper', 'Indigo', 'Jamie',
+        'Kai', 'Logan', 'Morgan', 'Noel', 'Oakley', 'Parker', 'Quinn', 'Reese', 'Sawyer', 'Taylor',
+        'Ari', 'Blake', 'Cameron', 'Drew', 'Elliot', 'Frankie', 'Hayden', 'Jules', 'Kendall', 'Lane'
+    ];
+    const lastNames = [
+        'Adams', 'Bennett', 'Chen', 'Diaz', 'Evans', 'Foster', 'Garcia', 'Hughes', 'Ibrahim', 'Jones',
+        'Kim', 'Lewis', 'Miller', 'Nguyen', 'Owens', 'Patel', 'Rivera', 'Smith', 'Turner', 'Walker',
+        'Young', 'Zimmer', 'Baker', 'Coleman', 'Duncan', 'Ellis', 'Fields', 'Grant', 'Hayes', 'Irwin'
+    ];
+
+    const roster = Array.from({ length: 130 }, (_, index) => {
+        const first = firstNames[index % firstNames.length];
+        const last = lastNames[(index * 7) % lastNames.length];
+        const load = (index * 3) % 9;
+        const level = index % 3 === 0 ? 'Black Shirt' : 'Blue Shirt';
+        const minor = index % 11 === 0;
+        return {
+            id: 2000 + index,
+            first,
+            last,
+            level,
+            minor,
+            load,
+            phone: '555-' + String(210 + (index % 80)).padStart(3, '0') + '-' + String(4100 + index).padStart(4, '0'),
+            email: (first + '.' + last + index + '@example.test').toLowerCase()
+        };
+    }).sort((a, b) => a.load - b.load || a.last.localeCompare(b.last));
+
+    let activeSlot = 1;
+    let activeFilter = 'all';
+    const selected = {
+        0: roster[0],
+        1: null
+    };
+
+    const slotView = document.getElementById('slotView');
+    const pickerView = document.getElementById('pickerView');
+    const pickerTitle = document.getElementById('pickerTitle');
+    const searchInput = document.getElementById('searchInput');
+    const resultList = document.getElementById('resultList');
+    const resultCount = document.getElementById('resultCount');
+
+    function nameOf(umpire) {
+        return `${umpire.first} ${umpire.last}`;
+    }
+
+    function badge(text, className) {
+        const span = document.createElement('span');
+        span.className = `badge ${className}`;
+        span.textContent = text;
+        return span;
+    }
+
+    function assignedIdsOutsideActiveSlot() {
+        return Object.entries(selected)
+            .filter(([slotIndex, umpire]) => Number(slotIndex) !== activeSlot && umpire)
+            .map(([, umpire]) => umpire.id);
+    }
+
+    function renderResults() {
+        const term = searchInput.value.trim().toLowerCase();
+        const unavailableIds = assignedIdsOutsideActiveSlot();
+        const filtered = roster.filter(umpire => {
+            const isAlreadyAssigned = unavailableIds.includes(umpire.id);
+            const haystack = `${umpire.first} ${umpire.last} ${umpire.level} ${umpire.phone} ${umpire.email}`.toLowerCase();
+            const matchesTerm = !term || haystack.includes(term);
+            const matchesFilter =
+                activeFilter === 'all' ||
+                (activeFilter === 'low' && umpire.load <= 2) ||
+                (activeFilter === 'blue' && umpire.level === 'Blue Shirt') ||
+                (activeFilter === 'black' && umpire.level === 'Black Shirt') ||
+                (activeFilter === 'minor' && umpire.minor);
+            return !isAlreadyAssigned && matchesTerm && matchesFilter;
+        });
+
+        resultList.textContent = '';
+        resultCount.textContent = `${filtered.length} available of ${roster.length} umpires`;
+
+        filtered.slice(0, 60).forEach(umpire => {
+            const row = document.createElement('div');
+            row.className = 'result-row';
+            row.dataset.umpireId = String(umpire.id);
+
+            const info = document.createElement('div');
+            const name = document.createElement('div');
+            name.className = 'umpire-name';
+            name.textContent = nameOf(umpire);
+            info.appendChild(name);
+
+            const meta = document.createElement('div');
+            meta.className = 'meta-row';
+            meta.appendChild(badge(umpire.level, umpire.level === 'Black Shirt' ? 'bg-dark' : 'bg-primary'));
+            meta.appendChild(badge(`Load ${umpire.load}`, umpire.load <= 2 ? 'badge-load-low' : (umpire.load >= 6 ? 'badge-load-high' : 'badge-soft')));
+            if (umpire.minor) {
+                meta.appendChild(badge('Under 18', 'bg-info text-dark'));
+            }
+            info.appendChild(meta);
+
+            const contact = document.createElement('div');
+            contact.className = 'contact-row';
+            contact.textContent = `${umpire.phone} | ${umpire.email}`;
+            info.appendChild(contact);
+
+            const action = document.createElement('button');
+            action.type = 'button';
+            action.className = 'btn btn-outline-primary btn-sm btn-icon';
+            action.innerHTML = '<i class="fas fa-check"></i> Select';
+            action.addEventListener('click', () => {
+                selected[activeSlot] = umpire;
+                renderSlots();
+                showSlots();
+            });
+
+            row.appendChild(info);
+            row.appendChild(action);
+            resultList.appendChild(row);
+        });
+
+        if (filtered.length > 60) {
+            const note = document.createElement('div');
+            note.className = 'text-muted small text-center py-2';
+            note.textContent = 'Keep typing to narrow the roster.';
+            resultList.appendChild(note);
+        }
+    }
+
+    function showPicker(slotIndex) {
+        activeSlot = Number(slotIndex);
+        pickerTitle.textContent = `Choose Umpire ${activeSlot + 1}`;
+        slotView.classList.add('hidden');
+        pickerView.classList.add('active');
+        searchInput.value = '';
+        activeFilter = 'all';
+        document.querySelectorAll('[data-filter]').forEach(button => {
+            button.className = button.dataset.filter === 'all' ? 'btn btn-primary btn-sm' : 'btn btn-outline-secondary btn-sm';
+        });
+        renderResults();
+        setTimeout(() => searchInput.focus(), 0);
+    }
+
+    function showSlots() {
+        pickerView.classList.remove('active');
+        slotView.classList.remove('hidden');
+    }
+
+    function renderSlot(slotIndex) {
+        const umpire = selected[slotIndex];
+        const name = document.getElementById(`slot${slotIndex}Name`);
+        const meta = document.getElementById(`slot${slotIndex}Meta`);
+        const contact = document.getElementById(`slot${slotIndex}Contact`);
+        const status = document.getElementById(`slot${slotIndex}Status`);
+
+        name.textContent = umpire ? nameOf(umpire) : 'Open';
+        meta.textContent = '';
+        contact.textContent = umpire ? `${umpire.phone} | ${umpire.email}` : '';
+
+        if (umpire) {
+            meta.appendChild(badge(umpire.level, umpire.level === 'Black Shirt' ? 'bg-dark' : 'bg-primary'));
+            meta.appendChild(badge(`Load ${umpire.load}`, umpire.load <= 2 ? 'badge-load-low' : 'badge-soft'));
+            if (umpire.minor) {
+                meta.appendChild(badge('Under 18', 'bg-info text-dark'));
+            }
+            if (status) {
+                status.className = 'badge bg-warning text-dark';
+                status.textContent = 'Draft';
+            }
+        } else {
+            meta.appendChild(badge('No umpire selected', 'badge-soft'));
+            if (status) {
+                status.className = 'badge bg-secondary';
+                status.textContent = 'Open';
+            }
+        }
+    }
+
+    function renderSlots() {
+        renderSlot(0);
+        renderSlot(1);
+        const filled = [selected[0], selected[1]].filter(Boolean).length;
+        document.getElementById('boardSlots').textContent = `${filled}/2`;
+    }
+
+    document.querySelectorAll('[data-pick-slot]').forEach(button => {
+        button.addEventListener('click', () => showPicker(button.dataset.pickSlot));
+    });
+
+    document.querySelectorAll('[data-clear-slot]').forEach(button => {
+        button.addEventListener('click', () => {
+            selected[button.dataset.clearSlot] = null;
+            renderSlots();
+        });
+    });
+
+    document.getElementById('backToSlots').addEventListener('click', showSlots);
+    searchInput.addEventListener('input', renderResults);
+
+    document.querySelectorAll('[data-filter]').forEach(button => {
+        button.addEventListener('click', () => {
+            activeFilter = button.dataset.filter;
+            document.querySelectorAll('[data-filter]').forEach(peer => {
+                peer.className = peer === button ? 'btn btn-primary btn-sm' : 'btn btn-outline-secondary btn-sm';
+            });
+            renderResults();
+        });
+    });
+
+    renderSlots();
+</script>
+</body>
+</html>

@@ -13,6 +13,67 @@ $templates = $db->fetchAll("
     ORDER BY template_name
 ");
 
+$hasLeagueOfficialRecipientColumn = false;
+$hasDynamicRecipientSources = false;
+try {
+    $schemaCheck = $db->fetchOne("
+        SELECT
+            SUM(CASE WHEN COLUMN_NAME = 'league_official_id' THEN 1 ELSE 0 END) AS league_official_column_count,
+            MAX(CASE WHEN COLUMN_NAME = 'recipient_source' THEN COLUMN_TYPE ELSE NULL END) AS recipient_source_type
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'email_recipients'
+          AND COLUMN_NAME IN ('league_official_id', 'recipient_source')
+    ");
+    $hasLeagueOfficialRecipientColumn = (int)($schemaCheck['league_official_column_count'] ?? 0) > 0;
+    $recipientSourceType = (string)($schemaCheck['recipient_source_type'] ?? '');
+    $hasDynamicRecipientSources = strpos($recipientSourceType, 'Assigned_Umpires') !== false
+        && strpos($recipientSourceType, 'League_Contacts') !== false;
+} catch (Exception $e) {
+    $hasLeagueOfficialRecipientColumn = false;
+    $hasDynamicRecipientSources = false;
+}
+
+// Get active league contacts for dynamic recipient selection
+$leagueContacts = $db->fetchAll("
+    SELECT official_id, name, role, email
+    FROM league_officials
+    WHERE active_status = 'Active'
+      AND email IS NOT NULL
+      AND email != ''
+    ORDER BY sort_order ASC, name ASC
+");
+
+// Define recipient types and sources
+$recipientTypes = [
+    'Team_Based' => 'Team Based',
+    'Static_To' => 'Static To',
+    'Static_CC' => 'Static CC',
+    'Static_BCC' => 'Static BCC'
+];
+
+$recipientSources = [
+    'Home_Team_Manager' => 'Home Team Manager',
+    'Away_Team_Manager' => 'Away Team Manager',
+    'Both_Team_Managers' => 'Both Team Managers',
+    'Static_Email' => 'Static Email Address'
+];
+if ($hasDynamicRecipientSources) {
+    $recipientSources = array_merge(
+        array_slice($recipientSources, 0, 3, true),
+        [
+            'Assigned_Umpires' => 'Assigned Umpires',
+            'Assigned_Umpire_1' => 'Assigned Umpire 1',
+            'Assigned_Umpire_2' => 'Assigned Umpire 2',
+            'League_Contacts' => 'All League Contacts',
+        ],
+        array_slice($recipientSources, 3, null, true)
+    );
+}
+if ($hasDynamicRecipientSources && $hasLeagueOfficialRecipientColumn) {
+    $recipientSources['League_Contact'] = 'League Contact';
+}
+
 // Get recipient for editing if specified
 $editRecipient = null;
 if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
@@ -42,14 +103,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'is_active' => isset($_POST['is_active']) ? 1 : 0,
                     'created_date' => date('Y-m-d H:i:s')
                 ];
+                if ($hasLeagueOfficialRecipientColumn) {
+                    $recipientData['league_official_id'] = !empty($_POST['league_official_id']) ? (int)$_POST['league_official_id'] : null;
+                }
 
                 // Validate required fields
                 if (empty($recipientData['template_name'])) {
                     throw new Exception('Template name is required');
                 }
 
+                if (!array_key_exists($recipientData['recipient_type'], $recipientTypes)) {
+                    throw new Exception('Invalid recipient type');
+                }
+
+                if (!array_key_exists($recipientData['recipient_source'], $recipientSources)) {
+                    throw new Exception('Invalid recipient source');
+                }
+
                 if ($recipientData['recipient_source'] === 'Static_Email' && empty($recipientData['email_address'])) {
                     throw new Exception('Email address is required for static recipients');
+                }
+
+                if ($recipientData['recipient_source'] === 'League_Contact' && (!$hasLeagueOfficialRecipientColumn || empty($recipientData['league_official_id']))) {
+                    throw new Exception('League contact is required for this recipient source');
+                }
+
+                if ($recipientData['recipient_source'] !== 'Static_Email') {
+                    $recipientData['email_address'] = null;
+                }
+
+                if ($hasLeagueOfficialRecipientColumn && $recipientData['recipient_source'] !== 'League_Contact') {
+                    $recipientData['league_official_id'] = null;
                 }
 
                 $db->insert('email_recipients', $recipientData);
@@ -65,9 +149,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'email_address' => sanitize($_POST['email_address']),
                     'is_active' => isset($_POST['is_active']) ? 1 : 0
                 ];
+                if ($hasLeagueOfficialRecipientColumn) {
+                    $recipientData['league_official_id'] = !empty($_POST['league_official_id']) ? (int)$_POST['league_official_id'] : null;
+                }
 
                 if ($recipientData['recipient_source'] === 'Static_Email' && empty($recipientData['email_address'])) {
                     throw new Exception('Email address is required for static recipients');
+                }
+
+                if ($recipientData['recipient_source'] === 'League_Contact' && (!$hasLeagueOfficialRecipientColumn || empty($recipientData['league_official_id']))) {
+                    throw new Exception('League contact is required for this recipient source');
+                }
+
+                if (!array_key_exists($recipientData['recipient_type'], $recipientTypes)) {
+                    throw new Exception('Invalid recipient type');
+                }
+
+                if (!array_key_exists($recipientData['recipient_source'], $recipientSources)) {
+                    throw new Exception('Invalid recipient source');
+                }
+
+                if ($recipientData['recipient_source'] !== 'Static_Email') {
+                    $recipientData['email_address'] = null;
+                }
+
+                if ($hasLeagueOfficialRecipientColumn && $recipientData['recipient_source'] !== 'League_Contact') {
+                    $recipientData['league_official_id'] = null;
                 }
 
                 $db->update('email_recipients', $recipientData, 'recipient_id = ?', [$recipientId]);
@@ -88,10 +195,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Get all recipients with template names
+$contactSelect = $hasLeagueOfficialRecipientColumn
+    ? ", lo.name AS league_contact_name, lo.role AS league_contact_role, lo.email AS league_contact_email"
+    : ", NULL AS league_official_id, NULL AS league_contact_name, NULL AS league_contact_role, NULL AS league_contact_email";
+$contactJoin = $hasLeagueOfficialRecipientColumn
+    ? "LEFT JOIN league_officials lo ON lo.official_id = r.league_official_id"
+    : "";
 $recipientsQuery = "
-    SELECT r.*, t.template_name 
+    SELECT r.*, t.template_name{$contactSelect}
     FROM email_recipients r
     JOIN email_templates t ON r.template_name = t.template_name
+    {$contactJoin}
 ";
 
 if ($filterTemplate) {
@@ -101,20 +215,6 @@ if ($filterTemplate) {
     $recipients = $db->fetchAll($recipientsQuery . " ORDER BY t.template_name, r.recipient_type");
 }
 
-// Define recipient types and sources
-$recipientTypes = [
-    'Team_Based' => 'Team Based',
-    'Static_To' => 'Static To',
-    'Static_CC' => 'Static CC',
-    'Static_BCC' => 'Static BCC'
-];
-
-$recipientSources = [
-    'Home_Team_Manager' => 'Home Team Manager',
-    'Away_Team_Manager' => 'Away Team Manager',
-    'Both_Team_Managers' => 'Both Team Managers',
-    'Static_Email' => 'Static Email Address'
-];
 ?>
 
 <?php if (!empty($message)): ?>
@@ -128,6 +228,14 @@ $recipientSources = [
     <div class="alert alert-danger alert-dismissible fade show" role="alert">
         <i class="fas fa-exclamation-circle"></i> <?php echo $error; ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+<?php endif; ?>
+
+<?php if (!$hasDynamicRecipientSources || !$hasLeagueOfficialRecipientColumn): ?>
+    <div class="alert alert-warning" role="alert">
+        <i class="fas fa-exclamation-triangle"></i>
+        Run migration 045 to enable assigned umpire and league-contact recipient selection.
+        Existing recipient configuration remains available.
     </div>
 <?php endif; ?>
 
@@ -176,6 +284,11 @@ $recipientSources = [
                                         <td>
                                             <?php if ($recipient['recipient_source'] === 'Static_Email'): ?>
                                                 <?php echo sanitize($recipient['email_address']); ?>
+                                            <?php elseif ($recipient['recipient_source'] === 'League_Contact'): ?>
+                                                <?php echo sanitize(trim(($recipient['league_contact_name'] ?? '') . ' - ' . ($recipient['league_contact_role'] ?? ''))); ?>
+                                                <?php if (!empty($recipient['league_contact_email'])): ?>
+                                                    <br><small class="text-muted"><?php echo sanitize($recipient['league_contact_email']); ?></small>
+                                                <?php endif; ?>
                                             <?php else: ?>
                                                 <em class="text-muted">Dynamic</em>
                                             <?php endif; ?>
@@ -225,6 +338,10 @@ $recipientSources = [
                     <li><strong>Home Team Manager:</strong> Uses home team's manager email</li>
                     <li><strong>Away Team Manager:</strong> Uses away team's manager email</li>
                     <li><strong>Both Team Managers:</strong> Includes both managers</li>
+                    <li><strong>Assigned Umpires:</strong> Uses the umpires assigned to the game</li>
+                    <li><strong>Assigned Umpire 1/2:</strong> Uses the specific assigned umpire slot</li>
+                    <li><strong>All League Contacts:</strong> Uses all active league contacts with email addresses</li>
+                    <li><strong>League Contact:</strong> Uses one selected active league contact</li>
                     <li><strong>Static Email:</strong> Uses specified email address</li>
                 </ul>
 
@@ -287,6 +404,18 @@ $recipientSources = [
                                placeholder="Enter email address">
                     </div>
 
+                    <div class="mb-3" id="LeagueContactField" style="display: none;">
+                        <label class="form-label">League Contact *</label>
+                        <select name="league_official_id" class="form-select">
+                            <option value="">Select League Contact</option>
+                            <?php foreach ($leagueContacts as $contact): ?>
+                                <option value="<?php echo (int)$contact['official_id']; ?>">
+                                    <?php echo sanitize($contact['name'] . ' - ' . $contact['role'] . ' (' . $contact['email'] . ')'); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
                     <div class="mb-3">
                         <div class="form-check">
                             <input type="checkbox" name="is_active" class="form-check-input" value="1" checked>
@@ -347,6 +476,18 @@ $recipientSources = [
                                placeholder="Enter email address">
                     </div>
 
+                    <div class="mb-3" id="editLeagueContactField" style="display: none;">
+                        <label class="form-label">League Contact *</label>
+                        <select name="league_official_id" id="editLeagueOfficialId" class="form-select">
+                            <option value="">Select League Contact</option>
+                            <?php foreach ($leagueContacts as $contact): ?>
+                                <option value="<?php echo (int)$contact['official_id']; ?>">
+                                    <?php echo sanitize($contact['name'] . ' - ' . $contact['role'] . ' (' . $contact['email'] . ')'); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
                     <div class="mb-3">
                         <div class="form-check">
                             <input type="checkbox" name="is_active" id="editIsActive" class="form-check-input" value="1">
@@ -397,6 +538,8 @@ function toggleEmailField(source, mode = 'add') {
     const prefix = mode === 'edit' ? 'edit' : '';
     const emailField = document.getElementById(prefix + 'EmailField');
     const emailInput = emailField.querySelector('input[type="email"]');
+    const leagueContactField = document.getElementById(prefix + 'LeagueContactField');
+    const leagueContactSelect = leagueContactField.querySelector('select');
     
     if (source === 'Static_Email') {
         emailField.style.display = 'block';
@@ -404,6 +547,14 @@ function toggleEmailField(source, mode = 'add') {
     } else {
         emailField.style.display = 'none';
         emailInput.required = false;
+    }
+
+    if (source === 'League_Contact') {
+        leagueContactField.style.display = 'block';
+        leagueContactSelect.required = true;
+    } else {
+        leagueContactField.style.display = 'none';
+        leagueContactSelect.required = false;
     }
 }
 
@@ -413,6 +564,7 @@ function editRecipient(recipient) {
     document.getElementById('editRecipientType').value = recipient.recipient_type;
     document.getElementById('editRecipientSource').value = recipient.recipient_source;
     document.getElementById('editEmailAddress').value = recipient.email_address || '';
+    document.getElementById('editLeagueOfficialId').value = recipient.league_official_id || '';
     document.getElementById('editIsActive').checked = recipient.is_active == 1;
     
     toggleEmailField(recipient.recipient_source, 'edit');

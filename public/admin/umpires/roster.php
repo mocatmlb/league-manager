@@ -67,6 +67,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'umpire_level'  => $_POST['umpire_level']  ?? 'Blue Shirt',
                         'is_under_18'   => !empty($_POST['is_under_18']),
                         'date_of_birth' => $_POST['date_of_birth'] ?? '',
+                        'all_programs'  => !empty($_POST['all_programs']),
+                        'program_ids'   => $_POST['program_ids']   ?? [],
                     ], $actorUserId);
                     $_SESSION['flash_message'] = 'Umpire profile updated.';
                     header('Location: roster.php'); exit;
@@ -75,6 +77,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } catch (\Throwable $e) {
                     $pageError = 'An unexpected error occurred. Please try again.';
                     error_log('[roster.php] updateProfile error: ' . $e->getMessage());
+                }
+            }
+
+        } elseif ($action === 'sync_eligibility') {
+            $programIds = $_POST['sync_program_ids'] ?? [];
+            if (empty($programIds)) {
+                $pageError = 'Please select at least one program to sync.';
+            } else {
+                try {
+                    $count = $svc->syncProgramEligibility($programIds, $actorUserId);
+                    $_SESSION['flash_message'] = "Sync complete. Added {$count} eligibility rows across selected-program umpires.";
+                    header('Location: roster.php'); exit;
+                } catch (\InvalidArgumentException $e) {
+                    $pageError = htmlspecialchars($e->getMessage());
+                } catch (\Throwable $e) {
+                    $pageError = 'An unexpected error occurred. Please try again.';
+                    error_log('[roster.php] syncProgramEligibility error: ' . $e->getMessage());
                 }
             }
 
@@ -131,6 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // ─── GET: build roster ────────────────────────────────────────────────────────
 $showInactive = !empty($_GET['show_inactive']);
 $roster = $svc->getRoster(!$showInactive);
+$activePrograms = $svc->getActivePrograms();
 
 $csrfToken = Auth::generateCSRFToken();
 ?>
@@ -200,6 +220,47 @@ unset($__nav);
     </div>
     <?php endif; ?>
 
+    <!-- Maintenance Section (Sync Eligibility) -->
+    <?php if (!empty($activePrograms)): ?>
+    <div class="card mb-4 border-info">
+        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+            <strong><i class="fas fa-sync-alt me-2"></i> Maintenance: Program Eligibility Sync</strong>
+            <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#syncForm">
+                Toggle Maintenance
+            </button>
+        </div>
+        <div id="syncForm" class="collapse">
+            <div class="card-body">
+                <p class="small text-muted mb-3">
+                    Adding new programs? Select them below to backfill eligibility for all umpires currently in <strong>"Selected Programs"</strong> mode.
+                    Umpires in "All Programs" mode are not affected as they already have access to all active programs.
+                </p>
+                <form method="POST" action="roster.php">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                    <input type="hidden" name="action" value="sync_eligibility">
+                    <div class="row g-2 mb-3">
+                        <?php foreach ($activePrograms as $ap): ?>
+                        <div class="col-sm-6 col-md-4 col-lg-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="sync_program_ids[]"
+                                    value="<?= (int) $ap['program_id'] ?>" id="syncProg<?= (int) $ap['program_id'] ?>">
+                                <label class="form-check-label small" for="syncProg<?= (int) $ap['program_id'] ?>">
+                                    <?= htmlspecialchars($ap['program_name']) ?>
+                                </label>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <button type="submit" class="btn btn-info btn-sm text-white"
+                        onclick="return confirm('Backfill selected programs for all restricted umpires?')">
+                        Sync Selected Programs
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2 class="mb-0">Umpire Roster</h2>
         <div class="d-flex gap-2 align-items-center">
@@ -264,6 +325,38 @@ unset($__nav);
                             <label class="form-label">Date of Birth</label>
                             <input type="date" name="date_of_birth" class="form-control"
                                 value="<?= htmlspecialchars($_POST['date_of_birth'] ?? '') ?>">
+                        </div>
+
+                        <!-- Eligibility -->
+                        <div class="col-12">
+                            <hr class="my-2">
+                            <label class="form-label d-block">Program Eligibility</label>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input eligibility-mode" type="radio" name="all_programs"
+                                    id="createAllProgs" value="1" checked data-target="createSelectedProgs">
+                                <label class="form-check-label" for="createAllProgs">All active programs</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input eligibility-mode" type="radio" name="all_programs"
+                                    id="createSomeProgs" value="0" data-target="createSelectedProgs">
+                                <label class="form-check-label" for="createSomeProgs">Only selected programs</label>
+                            </div>
+
+                            <div id="createSelectedProgs" class="mt-2 p-2 border rounded bg-light" style="display:none">
+                                <div class="row g-2">
+                                    <?php foreach ($activePrograms as $ap): ?>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="program_ids[]"
+                                                value="<?= (int) $ap['program_id'] ?>" id="createProg<?= (int) $ap['program_id'] ?>">
+                                            <label class="form-check-label small" for="createProg<?= (int) $ap['program_id'] ?>">
+                                                <?= htmlspecialchars($ap['program_name']) ?>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="mt-3">
@@ -389,6 +482,44 @@ unset($__nav);
                                                         <input type="date" name="date_of_birth" class="form-control"
                                                             value="<?= htmlspecialchars($umpire['date_of_birth'] ?? '') ?>">
                                                     </div>
+
+                                                    <hr>
+                                                    <label class="form-label d-block">Program Eligibility</label>
+                                                    <div class="form-check form-check-inline">
+                                                        <input class="form-check-input eligibility-mode" type="radio"
+                                                            name="all_programs" value="1"
+                                                            id="editAllProgs_<?= (int) $umpire['id'] ?>"
+                                                            data-target="editSelectedProgs_<?= (int) $umpire['id'] ?>"
+                                                            <?= $umpire['all_programs'] ? 'checked' : '' ?>>
+                                                        <label class="form-check-label" for="editAllProgs_<?= (int) $umpire['id'] ?>">All active programs</label>
+                                                    </div>
+                                                    <div class="form-check form-check-inline">
+                                                        <input class="form-check-input eligibility-mode" type="radio"
+                                                            name="all_programs" value="0"
+                                                            id="editSomeProgs_<?= (int) $umpire['id'] ?>"
+                                                            data-target="editSelectedProgs_<?= (int) $umpire['id'] ?>"
+                                                            <?= !$umpire['all_programs'] ? 'checked' : '' ?>>
+                                                        <label class="form-check-label" for="editSomeProgs_<?= (int) $umpire['id'] ?>">Only selected programs</label>
+                                                    </div>
+
+                                                    <div id="editSelectedProgs_<?= (int) $umpire['id'] ?>" class="mt-2 p-2 border rounded bg-light"
+                                                        style="<?= $umpire['all_programs'] ? 'display:none' : '' ?>">
+                                                        <div class="row g-2">
+                                                            <?php foreach ($activePrograms as $ap): ?>
+                                                            <div class="col-sm-6">
+                                                                <div class="form-check">
+                                                                    <input class="form-check-input" type="checkbox" name="program_ids[]"
+                                                                        value="<?= (int) $ap['program_id'] ?>"
+                                                                        id="editProg_<?= (int) $umpire['id'] ?>_<?= (int) $ap['program_id'] ?>"
+                                                                        <?= in_array((int) $ap['program_id'], $umpire['program_ids']) ? 'checked' : '' ?>>
+                                                                    <label class="form-check-label small" for="editProg_<?= (int) $umpire['id'] ?>_<?= (int) $ap['program_id'] ?>">
+                                                                        <?= htmlspecialchars($ap['program_name']) ?>
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                            <?php endforeach; ?>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                                 <div class="modal-footer">
                                                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -421,6 +552,19 @@ document.querySelectorAll('.edit-under18').forEach(function (checkbox) {
     checkbox.addEventListener('change', function () {
         var targetId = this.dataset.target;
         document.getElementById(targetId).style.display = this.checked ? '' : 'none';
+    });
+});
+
+// Show/hide Selected Programs list based on mode radio
+document.querySelectorAll('.eligibility-mode').forEach(function (radio) {
+    radio.addEventListener('change', function () {
+        var targetId = this.dataset.target;
+        // If "All Programs" (value 1) is checked, hide; if "Only Selected" (value 0) is checked, show
+        if (this.value === "1") {
+            document.getElementById(targetId).style.display = 'none';
+        } else {
+            document.getElementById(targetId).style.display = '';
+        }
     });
 });
 

@@ -25,6 +25,10 @@ if (!class_exists('SubmissionWindowException')) {
     class SubmissionWindowException extends RuntimeException {}
 }
 
+if (!class_exists('UmpireAssignmentService')) {
+    require_once __DIR__ . '/UmpireAssignmentService.php';
+}
+
 class RescheduleService {
 
     private Database $db;
@@ -504,6 +508,15 @@ class RescheduleService {
                     'game_id'    => $gameId,
                     'request_id' => $requestId,
                 ]);
+
+                $cascadeOk = (new UmpireAssignmentService())->onScheduleChanged(
+                    $gameId,
+                    "SCR-{$requestId}",
+                    ['actor_user_id' => $userId, 'source' => 'coach_auto_postponement']
+                );
+                if (!$cascadeOk) {
+                    error_log('[RescheduleService::submitRequest] Umpire cascade failed for auto-approved postponement request_id=' . $requestId);
+                }
             } else {
                 $requestId = (int) $this->db->insert('schedule_change_requests', [
                     'game_id'              => $gameId,

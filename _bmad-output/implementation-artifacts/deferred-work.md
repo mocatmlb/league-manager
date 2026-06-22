@@ -177,3 +177,8 @@ These are race conditions, missing transactions, and performance issues. See [10
 - Code Duplication (Email Normalization) [`includes/UmpireRosterService.php:37,127`] — `trim(strtolower(...))` is duplicated between preview and import steps.
 - INSERT ... ON DUPLICATE KEY UPDATE overkill in updateProfile() [`includes/UmpireRosterService.php:203`] — Profile should exist if umpire was created correctly, but the UPSERT handles missing rows gracefully at the cost of slight complexity.
 - Lack of explicit transaction around deactivate/activate [`includes/UmpireRosterService.php:220,232`] — These are single-query updates, but transactions would be safer if logging or other side effects are added.
+
+## Deferred from: code review of 23-2-assignment-drawer-assign-unassign-slots.md (2026-06-15)
+
+- Bootstrap CDN loaded without SRI integrity hash — `public/admin/umpires/board.php` and `index.php` load Bootstrap 5.1.3 from jsDelivr without `integrity="sha384-..."`. Pre-existing across all pages; CDN tampering would allow arbitrary JS execution on mutation pages.
+- `updatePageRow` cannot restore queue rows absent from server-rendered HTML — when a game is fully assigned at page load, its `<tr>` is not rendered; unassigning slots via drawer cannot surface it without a full page reload. Known SPA-on-server-render limitation; Story 3.8 permits full reload as fallback but the JS doesn't trigger one in this case.

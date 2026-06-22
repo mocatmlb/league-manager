@@ -4,6 +4,7 @@
  */
 
 require_once dirname(dirname(dirname(__DIR__))) . '/includes/bootstrap.php';
+require_once dirname(dirname(dirname(__DIR__))) . '/includes/UmpireAssignmentService.php';
 
 // Require admin authentication
 Auth::requireAdmin();
@@ -142,7 +143,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ];
                     
                     $db->insert('schedule_history', $historyData);
-                    
+
                     $db->commit();
                     
                     logActivity('game_created', "Game {$gameData['game_number']} created: {$awayTeam['team_name']} vs {$homeTeam['team_name']}");
@@ -317,6 +318,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     $db->insert('schedule_history', $historyData);
                     
+                    $cascadeOk = (new UmpireAssignmentService())->onScheduleChanged(
+                        $gameId,
+                        "GAME-CANCELLED-{$gameId}",
+                        ['actor_user_id' => (int) $currentUser['id'], 'source' => 'admin_game_cancel_full']
+                    );
+                    if (!$cascadeOk) {
+                        error_log('[admin/games/index_full.php::cancel_game] Umpire cascade failed for cancellation game_id=' . $gameId);
+                    }
+
                     $db->commit();
                     
                     logActivity('game_cancelled', "Game ID $gameId cancelled: $reason");
@@ -372,6 +382,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     $db->insert('schedule_history', $historyData);
                     
+                    $cascadeOk = (new UmpireAssignmentService())->onScheduleChanged(
+                        $gameId,
+                        "GAME-POSTPONED-{$gameId}",
+                        ['actor_user_id' => (int) $currentUser['id'], 'source' => 'admin_game_postpone_full']
+                    );
+                    if (!$cascadeOk) {
+                        error_log('[admin/games/index_full.php::postpone_game] Umpire cascade failed for postponement game_id=' . $gameId);
+                    }
+
                     $db->commit();
                     
                     logActivity('game_postponed', "Game ID $gameId postponed: $reason");
@@ -1087,4 +1106,3 @@ $locations = $db->fetchAll("SELECT location_name FROM locations WHERE active_sta
     </script>
 </body>
 </html>
-
