@@ -50,6 +50,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+
+    if ($action === 'save_decline_lockout') {
+        if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+            $pageError = 'Invalid security token. Please try again.';
+        } else {
+            $raw = $_POST['decline_lockout_hours'] ?? '';
+            if (!ctype_digit((string) $raw) || $raw === '') {
+                $pageError = 'Decline lockout hours must be a non-negative integer.';
+            } else {
+                $hours = (int) $raw;
+                try {
+                    $svc->saveDeclineLockoutHours($hours, $actorUserId);
+                    $_SESSION['flash_message'] = 'Decline lockout hours updated.';
+                    header('Location: index.php'); exit;
+                } catch (\InvalidArgumentException $e) {
+                    $pageError = htmlspecialchars($e->getMessage());
+                } catch (\Throwable $e) {
+                    $pageError = 'An unexpected error occurred. Please try again.';
+                    error_log('[index.php] saveDeclineLockoutHours error: ' . $e->getMessage());
+                }
+            }
+        }
+    }
 }
 
 // ─── GET: load queue ──────────────────────────────────────────────────────────
@@ -106,7 +129,7 @@ unset($__nav);
         </a>
     </div>
 
-    <!-- Queue Window Settings -->
+    <!-- Queue Window & Decline Lockout Settings -->
     <div class="card mb-4">
         <div class="card-body">
             <form method="POST" action="index.php" class="row g-2 align-items-end">
@@ -123,6 +146,23 @@ unset($__nav);
                         <button type="submit" class="btn btn-primary">Save</button>
                     </div>
                     <div class="form-text">Set to 0 to show all games with open slots regardless of date.</div>
+                </div>
+            </form>
+            <hr class="my-3">
+            <form method="POST" action="index.php" class="row g-2 align-items-end">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                <input type="hidden" name="action" value="save_decline_lockout">
+                <div class="col-auto">
+                    <label class="form-label mb-1 fw-semibold">Decline Lockout</label>
+                    <div class="input-group">
+                        <span class="input-group-text">Block decline within</span>
+                        <input type="number" name="decline_lockout_hours" class="form-control"
+                            style="width:80px" min="0" step="1"
+                            value="<?= (int) $svc->getDeclineLockoutHours() ?>">
+                        <span class="input-group-text">hours of game start</span>
+                        <button type="submit" class="btn btn-primary">Save</button>
+                    </div>
+                    <div class="form-text">Umpires cannot decline a published assignment within this window. They'll see a lockout message with assignor contact.</div>
                 </div>
             </form>
         </div>

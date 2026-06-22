@@ -87,6 +87,22 @@ class UmpireAssignmentService {
         ]);
     }
 
+    public function getDeclineLockoutHours(): int {
+        return max(0, (int) getSetting('umpire_decline_lockout_hours', '48'));
+    }
+
+    public function saveDeclineLockoutHours(int $hours, int $actorUserId): void {
+        if ($hours < 0) {
+            throw new \InvalidArgumentException('Decline lockout hours must be a non-negative integer.');
+        }
+        updateSetting('umpire_decline_lockout_hours', (string) $hours);
+        ActivityLogger::log('umpire.settings_changed', [
+            'setting'       => 'umpire_decline_lockout_hours',
+            'new_value'     => $hours,
+            'actor_user_id' => $actorUserId,
+        ]);
+    }
+
     public function getUnassignedQueue(int $windowDays): array {
         $params = [];
         $dateClause = '';
@@ -811,7 +827,7 @@ class UmpireAssignmentService {
     }
 
     private function declineLockoutHours(): int {
-        return max(0, (int) getSetting('umpire_decline_lockout_hours', '48'));
+        return $this->getDeclineLockoutHours();
     }
 
     private function hoursUntilGameStart(array $game): float {
