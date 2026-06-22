@@ -1062,6 +1062,87 @@ a.hero-stat.hero-stat-alert:hover {
     text-transform: uppercase;
 }
 
+/* ── Mega Menu ── */
+#main-navbar .mega-dropdown {
+    position: static;
+}
+
+#main-navbar .mega-dropdown .dropdown-menu.mega-menu {
+    width: 100%;
+    border: none;
+    border-top: 3px solid var(--bb-red);
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    padding: 1.25rem 1.5rem;
+    margin-top: 0;
+    background: #fff;
+    left: 0;
+    right: 0;
+}
+
+#main-navbar .mega-dropdown .mega-section-header {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    color: var(--bb-red);
+    padding-bottom: 0.4rem;
+    margin-bottom: 0.4rem;
+    border-bottom: 2px solid var(--bb-red);
+}
+
+#main-navbar .mega-dropdown .dropdown-item {
+    padding: 0.35rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    color: #333;
+}
+
+#main-navbar .mega-dropdown .dropdown-item i {
+    width: 20px;
+    text-align: center;
+    margin-right: 8px;
+    color: var(--bb-navy);
+}
+
+#main-navbar .mega-dropdown .dropdown-item:hover {
+    background: #f0f3f8;
+    color: var(--bb-navy);
+}
+
+#main-navbar .mega-dropdown .dropdown-item.active {
+    background: #eef2f7;
+    color: var(--bb-navy);
+    font-weight: 600;
+}
+
+#main-navbar .mega-dropdown .mega-section-header.mt-3 {
+    margin-top: 1rem !important;
+    padding-top: 0.5rem;
+}
+
+@media (max-width: 991.98px) {
+    #main-navbar .mega-dropdown {
+        position: relative;
+    }
+    #main-navbar .mega-dropdown .dropdown-menu.mega-menu {
+        width: auto;
+        left: auto;
+        right: auto;
+        padding: 0.5rem;
+    }
+    #main-navbar .mega-dropdown .mega-menu .row {
+        display: block;
+    }
+    #main-navbar .mega-dropdown .mega-menu [class*="col-"] {
+        width: 100%;
+        flex: none;
+        margin-bottom: 0.75rem;
+    }
+}
+
 /* ── Jumbotron / Hero ── */
 .jumbotron {
     background: linear-gradient(160deg, var(--bb-green-2) 0%, var(--bb-green) 55%, var(--bb-navy) 100%);
