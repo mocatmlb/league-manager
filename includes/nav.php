@@ -146,7 +146,7 @@ $rootPath = getPathToRoot();
                                         <div class="mega-section-header">Users &amp; Access</div>
                                         <a class="dropdown-item <?php echo isActiveNav('index', 'users'); ?>"
                                            href="<?php echo $rootPath; ?>admin/users/">
-                                            <i class="fas fa-user-cog"></i> Admin Users
+                                            <i class="fas fa-user-cog"></i> Manage Users
                                         </a>
                                         <a class="dropdown-item <?php echo isActiveNav('invitations', 'users'); ?>"
                                            href="<?php echo $rootPath; ?>admin/users/invitations.php">
