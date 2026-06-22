@@ -156,9 +156,11 @@ unset($__nav);
                     <label class="form-label mb-1 fw-semibold">Decline Lockout</label>
                     <div class="input-group">
                         <span class="input-group-text">Block decline within</span>
-                        <input type="number" name="decline_lockout_hours" class="form-control"
-                            style="width:80px" min="0" step="1"
-                            value="<?= (int) $svc->getDeclineLockoutHours() ?>">
+                        <div style="width:80px">
+                            <input type="number" name="decline_lockout_hours" class="form-control"
+                                min="0" step="1"
+                                value="<?= (int) $svc->getDeclineLockoutHours() ?>">
+                        </div>
                         <span class="input-group-text">hours of game start</span>
                         <button type="submit" class="btn btn-primary">Save</button>
                     </div>
