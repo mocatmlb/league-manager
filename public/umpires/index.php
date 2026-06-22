@@ -24,6 +24,9 @@ if ($userId <= 0) {
 
 $service = new UmpireAssignmentService();
 $assignments = $service->getUmpireAssignments($userId);
+$flashSuccess = (string) ($_SESSION['flash_success'] ?? '');
+$flashError = (string) ($_SESSION['flash_error'] ?? '');
+unset($_SESSION['flash_success'], $_SESSION['flash_error']);
 
 $currentUser = Auth::getCurrentUser();
 $name = htmlspecialchars(trim(($currentUser['first_name'] ?? '') . ' ' . ($currentUser['last_name'] ?? '')));
@@ -47,6 +50,12 @@ function formatAssignmentTime(?string $time): string {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="../../assets/css/style.css" rel="stylesheet">
+    <style>
+        .decline-action {
+            min-height: 44px;
+            min-width: 44px;
+        }
+    </style>
 </head>
 <body class="bg-light">
 
@@ -64,6 +73,13 @@ function formatAssignmentTime(?string $time): string {
                     </form>
                 </div>
 
+<?php if ($flashSuccess): ?>
+                <div class="alert alert-success" role="alert"><?= htmlspecialchars($flashSuccess, ENT_QUOTES, 'UTF-8') ?></div>
+<?php endif; ?>
+<?php if ($flashError): ?>
+                <div class="alert alert-danger" role="alert"><?= htmlspecialchars($flashError, ENT_QUOTES, 'UTF-8') ?></div>
+<?php endif; ?>
+
 <?php if (empty($assignments)): ?>
                 <div class="alert alert-info">You have no published assignments.</div>
 <?php else: ?>
@@ -78,6 +94,7 @@ function formatAssignmentTime(?string $time): string {
                                 <th>Role</th>
                                 <th>Fee</th>
                                 <th>Assignor</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -97,6 +114,19 @@ function formatAssignmentTime(?string $time): string {
                                     <?php endif; ?>
                                     <?php if (!empty($a['assignor_phone'])): ?>
                                         <br><small><a href="<?= htmlspecialchars($a['assignor_phone_tel']) ?>"><?= htmlspecialchars($a['assignor_phone']) ?></a></small>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if (!empty($a['decline_allowed'])): ?>
+                                        <a class="btn btn-outline-danger btn-sm decline-action d-inline-flex align-items-center"
+                                           href="/umpires/decline.php?assignment_id=<?= htmlspecialchars((string) ($a['assignment_id'] ?? 0), ENT_QUOTES, 'UTF-8') ?>">
+                                            <i class="fas fa-times-circle me-1"></i>Decline
+                                        </a>
+                                    <?php else: ?>
+                                        <span class="d-block small text-muted mb-1" tabindex="0">
+                                            Decline not available within <?= htmlspecialchars((string) ($a['decline_lockout_hours'] ?? 48), ENT_QUOTES, 'UTF-8') ?> hours. Contact your assignor.
+                                        </span>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm decline-action" disabled aria-disabled="true">Decline</button>
                                     <?php endif; ?>
                                 </td>
                             </tr>

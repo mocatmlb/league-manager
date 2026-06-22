@@ -61,8 +61,11 @@ ON DUPLICATE KEY UPDATE description = VALUES(description);
 INSERT INTO email_templates (template_name, subject_template, body_template, is_active)
 VALUES ('umpire_assignment_published', 'D8 Assignment: {game_date} {game_time} — {slot_label}', '[Stub — implemented in Story 23.4]', 0),
        ('umpire_cascade_cancelled',    'Assignment Released: {game_date} {game_time}',            '[Stub — implemented in Story 23.5]', 0),
-       ('umpire_decline_alert',        'Umpire Declined: {game_date} {game_time} — {slot_label}', '[Stub — implemented in Story 24.2]', 0)
-ON DUPLICATE KEY UPDATE body_template = VALUES(body_template);
+       ('umpire_decline_alert',        'Umpire Declined: {game_date} {game_time} — {slot_label}', 'Umpire {umpire_name} declined the {slot_label} assignment for {division_name} on {game_date} at {game_time} at {location}. There are {hours_until_game_start} hours remaining before game start. Please reassign this slot from the umpire assignment queue.', 1)
+ON DUPLICATE KEY UPDATE
+  subject_template = VALUES(subject_template),
+  body_template = VALUES(body_template),
+  is_active = VALUES(is_active);
 
 -- Record migration completion
 INSERT IGNORE INTO schema_migrations (version) VALUES ('041');

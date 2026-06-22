@@ -343,10 +343,12 @@ register_test('23.2 getGameAssignmentDrawer merges aggregate current game load c
     $mock->fetchOneRows = [
         ['game_id' => 10, 'game_status' => 'Scheduled'],
         ['id' => 7],
+        ['program_id' => 0],
     ];
     $mock->queryRows = [
         [],
         [['id' => 101, 'first_name' => 'Ann', 'last_name' => 'Blue', 'email' => 'a@example.test', 'phone' => '555', 'status' => 'active', 'umpire_level' => 'Blue Shirt', 'is_under_18' => 0, 'date_of_birth' => null]],
+        [],
         [['umpire_user_id' => 101, 'current_game_load' => 3]],
     ];
     Database::setInstance($mock);
@@ -373,6 +375,7 @@ register_test('23.2 saveSlot rejects inactive or non-profile umpire', function (
     $mock = new UmpireAssignmentMockDb();
     $mock->fetchOneRows = [
         ['game_id' => 10, 'game_status' => 'Scheduled'],
+        ['program_id' => 0],
         ['id' => 7],
         false,
     ];
@@ -391,6 +394,7 @@ register_test('23.2 saveSlot rejects Published existing slot', function () {
     $mock = new UmpireAssignmentMockDb();
     $mock->fetchOneRows = [
         ['game_id' => 10, 'game_status' => 'Scheduled'],
+        ['program_id' => 0],
         ['id' => 7],
         ['id' => 101, 'status' => 'active', 'umpire_level' => 'Black Shirt'],
         ['is_under_18' => 0, 'date_of_birth' => null],
@@ -412,6 +416,7 @@ register_test('23.2 saveSlot rejects same umpire in another active slot on the s
     $mock = new UmpireAssignmentMockDb();
     $mock->fetchOneRows = [
         ['game_id' => 10, 'game_status' => 'Scheduled'],
+        ['program_id' => 0],
         ['id' => 7],
         ['id' => 101, 'status' => 'active', 'umpire_level' => 'Black Shirt'],
         ['is_under_18' => 0, 'date_of_birth' => null],
@@ -438,6 +443,7 @@ register_test('23.6 saveSlot allows current slot umpire when duplicate guard sca
     $mock = new UmpireAssignmentMockDb();
     $mock->fetchOneRows = [
         ['game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Scheduled', 'game_date' => '2026-07-01', 'game_time' => '18:00:00'],
+        ['program_id' => 0],
         ['id' => 7],
         ['id' => 101, 'status' => 'active', 'umpire_level' => 'Black Shirt'],
         ['is_under_18' => 0, 'date_of_birth' => null],
@@ -462,6 +468,7 @@ register_test('23.3 saveSlot rejects conflicting assignment with structured 409 
     $mock = new UmpireAssignmentMockDb();
     $mock->fetchOneRows = [
         ['game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Scheduled', 'game_date' => '2026-07-01', 'game_time' => '18:00:00'],
+        ['program_id' => 0],
         ['id' => 7],
         ['id' => 101, 'status' => 'active', 'umpire_level' => 'Black Shirt'],
         ['is_under_18' => 0, 'date_of_birth' => null],
@@ -497,6 +504,7 @@ register_test('23.3 saveSlot allows admin conflict override and logs PII-free co
     $mock = new UmpireAssignmentMockDb();
     $mock->fetchOneRows = [
         ['game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Scheduled', 'game_date' => '2026-07-01', 'game_time' => '18:00:00'],
+        ['program_id' => 0],
         ['id' => 7],
         ['id' => 101, 'first_name' => 'Pat', 'last_name' => 'Blue', 'email' => 'pat@example.test', 'phone' => '555', 'status' => 'active', 'umpire_level' => 'Black Shirt'],
         ['is_under_18' => 0, 'date_of_birth' => null],
@@ -528,6 +536,7 @@ register_test('23.3 saveSlot legacy admin writes NULL assigned_by_user_id and lo
     $mock = new UmpireAssignmentMockDb();
     $mock->fetchOneRows = [
         ['game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Scheduled', 'game_date' => '2026-07-01', 'game_time' => '18:00:00'],
+        ['program_id' => 0],
         ['id' => 7],
         ['id' => 101, 'status' => 'active', 'umpire_level' => 'Black Shirt'],
         ['is_under_18' => 0, 'date_of_birth' => null],
@@ -560,6 +569,7 @@ register_test('23.2 saveSlot upserts Draft assignment and logs normal assignment
     $mock = new UmpireAssignmentMockDb();
     $mock->fetchOneRows = [
         ['game_id' => 10, 'game_status' => 'Scheduled'],
+        ['program_id' => 0],
         ['id' => 7],
         ['id' => 101, 'status' => 'active', 'umpire_level' => 'Black Shirt'],
         ['is_under_18' => 0, 'date_of_birth' => null],
@@ -583,6 +593,7 @@ register_test('23.2 saveSlot stores migration mode flag when enabled', function 
     $mock = new UmpireAssignmentMockDb();
     $mock->fetchOneRows = [
         ['game_id' => 10, 'game_status' => 'Scheduled'],
+        ['program_id' => 0],
         ['id' => 7],
         ['id' => 101, 'status' => 'active', 'umpire_level' => 'Black Shirt'],
         ['is_under_18' => 0, 'date_of_birth' => null],
@@ -1195,4 +1206,240 @@ register_test('24.1 umpire logout rejects non-POST before CSRF logout', function
     assert_true(strpos($source, "header('Allow: POST')") !== false, 'Expected Allow header for rejected methods');
     assert_true(strpos($source, 'http_response_code(405)') !== false, 'Expected 405 for non-POST logout');
     assert_true(strpos($source, 'Auth::verifyCSRFToken($token)') !== false, 'Expected POST CSRF validation');
+});
+
+// ---------------------------------------------------------------------------
+// Tests: Story 24.2 umpire decline workflow
+// ---------------------------------------------------------------------------
+
+register_test('24.2 declineAssignment marks Published assignment Declined, clears notification state, emails assignor, and logs hours', function () {
+    $GLOBALS['_test_settings'] = [
+        'umpire_decline_lockout_hours' => '48',
+        'umpire_slot_1_label' => 'Plate',
+    ];
+    $futureDate = date('Y-m-d', strtotime('+7 days'));
+    $mock = new UmpireAssignmentMockDb();
+    $mock->nextInsertId = 9300;
+    $mock->fetchOneRows = [
+        [
+            'assignment_id' => '501',
+            'game_id' => '77',
+            'umpire_user_id' => '42',
+            'slot_index' => '0',
+            'assignment_status' => 'Published',
+            'published' => '1',
+            'assigned_by_user_id' => '5',
+            'game_number' => 'G077',
+            'game_status' => 'Scheduled',
+            'division_name' => 'Junior',
+            'home_team' => 'Hawks',
+            'away_team' => 'Eagles',
+            'game_date' => $futureDate,
+            'game_time' => '18:30:00',
+            'location_name' => 'Field A',
+            'umpire_first_name' => 'Pat',
+            'umpire_last_name' => 'Blue',
+            'umpire_email' => 'pat@example.test',
+            'assignor_first_name' => 'Alex',
+            'assignor_last_name' => 'Assignor',
+            'assignor_email' => 'assignor@example.test',
+            'assignor_phone' => '555-0100',
+            'filled_slots' => '2',
+        ],
+        [
+            'template_name' => 'umpire_decline_alert',
+            'subject_template' => 'Declined {game_date} {game_time} {slot_label}',
+            'body_template' => '{umpire_name} declined {division_name} at {location}; {hours_until_game_start} hours remain.',
+            'is_active' => 1,
+        ],
+    ];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->declineAssignment(501, 42);
+
+    assert_equals($result['assignment_id'], 501, 'Expected returned assignment id');
+    assert_equals($result['assignment_status'], 'Declined', 'Expected declined status in result');
+    assert_true(($result['hours_until_game_start'] ?? 0) > 48, 'Expected outside lockout window');
+    assert_equals($result['assignor']['name'] ?? null, 'Alex Assignor', 'Expected assignor contact in result');
+
+    $sqlLog = implode("\n", $mock->lastSql);
+    assert_true(strpos($sqlLog, "assignment_status = 'Declined'") !== false, 'Expected Declined update');
+    assert_true(strpos($sqlLog, 'published = 0') !== false, 'Expected published cleared');
+    assert_true(strpos($sqlLog, 'last_notified_at = NULL') !== false, 'Expected notification timestamp cleared');
+    assert_true(strpos($sqlLog, 'last_notified_hash = NULL') !== false, 'Expected notification hash cleared');
+
+    $queue = $mock->insertRows[0] ?? null;
+    assert_equals($queue['table'] ?? null, 'email_queue', 'Expected email_queue insert');
+    assert_equals($queue['data']['template_name'] ?? null, 'umpire_decline_alert', 'Expected decline template');
+    assert_equals($queue['data']['reply_to_email'] ?? null, 'assignor@example.test', 'Expected Reply-To assignor email');
+    assert_equals($queue['data']['reply_to_name'] ?? null, 'Alex Assignor', 'Expected Reply-To assignor name');
+    assert_true(strpos($queue['data']['body'] ?? '', 'Pat Blue') !== false, 'Expected umpire name in body');
+    assert_true(strpos($queue['data']['body'] ?? '', 'Field A') !== false, 'Expected field in body');
+
+    $logs = array_values(array_filter($mock->lastParams, static function ($p) {
+        return ($p['event'] ?? '') === 'umpire.declined';
+    }));
+    assert_equals(count($logs), 1, 'Expected one decline audit event');
+    $context = json_decode($logs[0]['context'], true);
+    assert_equals($context['assignment_id'] ?? null, 501, 'Expected assignment id in audit context');
+    assert_equals($context['game_id'] ?? null, 77, 'Expected game id in audit context');
+    assert_equals($context['slot_index'] ?? null, 0, 'Expected slot index in audit context');
+    assert_equals($context['umpire_user_id'] ?? null, 42, 'Expected umpire id in audit context');
+    assert_true(($context['hours_until_game_start'] ?? 0) > 48, 'Expected hours in audit context');
+    assert_true(!isset($context['email']) && !isset($context['phone']) && !isset($context['first_name']) && !isset($context['last_name']), 'Expected PII-free decline audit context');
+
+    unset($GLOBALS['_test_settings']);
+});
+
+register_test('24.2 declineAssignment rejects assignments inside configured lockout with structured payload', function () {
+    $GLOBALS['_test_settings']['umpire_decline_lockout_hours'] = '48';
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [[
+        'assignment_id' => '502',
+        'game_id' => '78',
+        'umpire_user_id' => '42',
+        'slot_index' => '1',
+        'assignment_status' => 'Published',
+        'published' => '1',
+        'assigned_by_user_id' => '5',
+        'game_status' => 'Scheduled',
+        'game_date' => date('Y-m-d', strtotime('+12 hours')),
+        'game_time' => date('H:i:s', strtotime('+12 hours')),
+        'location_name' => 'Field B',
+        'division_name' => 'Intermediate',
+        'umpire_first_name' => 'Pat',
+        'umpire_last_name' => 'Blue',
+        'assignor_first_name' => 'Alex',
+        'assignor_last_name' => 'Assignor',
+        'assignor_email' => 'assignor@example.test',
+        'assignor_phone' => '555-0100',
+        'filled_slots' => '1',
+    ]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+
+    $threw = false;
+    try {
+        $svc->declineAssignment(502, 42);
+    } catch (\RuntimeException $e) {
+        $threw = true;
+        assert_equals($e->getCode(), 409, 'Expected HTTP 409 code');
+        assert_true(method_exists($e, 'getPayload'), 'Expected structured lockout payload');
+        $payload = $e->getPayload();
+        assert_equals($payload['lockout_hours'] ?? null, 48, 'Expected configured lockout hours');
+        assert_true(($payload['hours_until_game_start'] ?? 99) <= 48, 'Expected hours until game in payload');
+        assert_true(strpos($payload['assignor_contact'] ?? '', 'assignor@example.test') !== false, 'Expected assignor contact in payload');
+    }
+    assert_true($threw, 'Expected lockout exception');
+    assert_true(strpos(implode("\n", $mock->lastSql), "assignment_status = 'Declined'") === false, 'Expected no decline update during lockout');
+    unset($GLOBALS['_test_settings']['umpire_decline_lockout_hours']);
+});
+
+register_test('24.2 declineAssignment rejects wrong umpire and non-Published assignment', function () {
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [[
+        'assignment_id' => '503',
+        'game_id' => '79',
+        'umpire_user_id' => '99',
+        'slot_index' => '0',
+        'assignment_status' => 'Published',
+        'published' => '1',
+        'game_status' => 'Scheduled',
+        'game_date' => date('Y-m-d', strtotime('+7 days')),
+        'game_time' => '18:00:00',
+    ]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $threw = false;
+    try {
+        $svc->declineAssignment(503, 42);
+    } catch (\InvalidArgumentException $e) {
+        $threw = true;
+    }
+    assert_true($threw, 'Expected wrong umpire to reject');
+
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [[
+        'assignment_id' => '504',
+        'game_id' => '80',
+        'umpire_user_id' => '42',
+        'slot_index' => '0',
+        'assignment_status' => 'Draft',
+        'published' => '0',
+        'game_status' => 'Scheduled',
+        'game_date' => date('Y-m-d', strtotime('+7 days')),
+        'game_time' => '18:00:00',
+    ]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $threw = false;
+    try {
+        $svc->declineAssignment(504, 42);
+    } catch (\InvalidArgumentException $e) {
+        $threw = true;
+    }
+    assert_true($threw, 'Expected non-Published assignment to reject');
+});
+
+register_test('24.2 getUmpireAssignments returns assignment id and decline availability metadata', function () {
+    $GLOBALS['_test_settings']['umpire_decline_lockout_hours'] = '48';
+    $mock = new UmpireAssignmentMockDb();
+    Database::setInstance($mock);
+    $mock->queryRows = [[
+        [
+            'assignment_id' => '501',
+            'game_id' => '10',
+            'game_number' => 'G-101',
+            'game_date' => date('Y-m-d', strtotime('+7 days')),
+            'game_time' => '10:00:00',
+            'location_name' => 'Field A',
+            'division_name' => 'Intermediate',
+            'home_team' => 'Hawks',
+            'away_team' => 'Eagles',
+            'slot_index' => '0',
+            'assigned_by_user_id' => '5',
+            'assignor_first_name' => 'Jane',
+            'assignor_last_name' => 'Assignor',
+            'assignor_email' => 'jane@test.com',
+            'assignor_phone' => '555-0100',
+            'filled_slots' => '2',
+        ],
+    ]];
+    $svc = new UmpireAssignmentService();
+    $result = $svc->getUmpireAssignments(42);
+
+    assert_equals($result[0]['assignment_id'] ?? null, 501, 'Expected assignment id for decline link');
+    assert_true($result[0]['decline_allowed'] ?? false, 'Expected decline outside lockout');
+    assert_equals($result[0]['decline_lockout_hours'] ?? null, 48, 'Expected lockout metadata');
+    assert_true(($result[0]['hours_until_game_start'] ?? 0) > 48, 'Expected computed hours metadata');
+    unset($GLOBALS['_test_settings']['umpire_decline_lockout_hours']);
+});
+
+register_test('24.2 decline page source has role gate, CSRF 403, accessible button, lockout copy, and 44px touch target', function () {
+    $source = file_get_contents(__DIR__ . '/../../public/umpires/decline.php');
+    assert_true(strpos($source, "PermissionGuard::requireRole('umpire', '/login.php')") !== false, 'Expected umpire role gate');
+    assert_true(strpos($source, "Auth::verifyCSRFToken(\$_POST['csrf_token'] ?? '')") !== false, 'Expected CSRF verification');
+    assert_true(strpos($source, 'http_response_code(403)') !== false, 'Expected invalid CSRF 403');
+    assert_true(strpos($source, 'name="assignment_id"') !== false, 'Expected assignment_id form input');
+    assert_true(strpos($source, '<button') !== false && strpos($source, 'type="submit"') !== false, 'Expected native submit button');
+    assert_true(strpos($source, 'min-height: 44px') !== false, 'Expected 44px touch target CSS');
+    assert_true(strpos($source, 'Decline not available within') !== false, 'Expected lockout message');
+    assert_true(strpos($source, 'assignor_contact') !== false, 'Expected assignor contact rendering');
+});
+
+register_test('24.2 migration seeds active decline alert template body', function () {
+    $source = file_get_contents(__DIR__ . '/../../database/migrations/049_update_umpire_decline_alert_template.sql');
+    $line = '';
+    foreach (explode("\n", $source) as $candidate) {
+        if (strpos($candidate, "'umpire_decline_alert'") !== false) {
+            $line = $candidate;
+            break;
+        }
+    }
+    assert_true($line !== '', 'Expected decline alert template seed');
+    assert_true(strpos($line, '[Stub') === false, 'Expected real decline alert template body, not stub');
+    assert_true(strpos($source, '{umpire_name}') !== false, 'Expected umpire_name token');
+    assert_true(strpos($source, '{hours_until_game_start}') !== false, 'Expected hours token');
+    assert_true(strpos($source, 'is_active = VALUES(is_active)') !== false, 'Expected duplicate update to activate template');
+    assert_true(strpos($source, "INSERT IGNORE INTO schema_migrations (version) VALUES ('049')") !== false, 'Expected migration tracking row');
 });

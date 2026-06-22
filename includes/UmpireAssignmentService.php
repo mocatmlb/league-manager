@@ -48,6 +48,21 @@ if (!class_exists('UmpireAssignmentPublishConfirmationRequiredException')) {
     }
 }
 
+if (!class_exists('UmpireAssignmentDeclineLockoutException')) {
+    class UmpireAssignmentDeclineLockoutException extends \RuntimeException {
+        private array $payload;
+
+        public function __construct(string $message, array $payload = []) {
+            parent::__construct($message, 409);
+            $this->payload = $payload;
+        }
+
+        public function getPayload(): array {
+            return $this->payload;
+        }
+    }
+}
+
 class UmpireAssignmentService {
 
     private Database $db;
@@ -583,8 +598,72 @@ class UmpireAssignmentService {
         }
     }
 
+    public function getDeclineAssignmentPreview(int $assignmentId, int $umpireUserId): array {
+        $assignment = $this->fetchDeclinableAssignment($assignmentId);
+        $this->assertDeclineActorAndStatus($assignment, $umpireUserId);
+        $lockout = $this->declineLockoutContext($assignment);
+        $assignment['assignment_id'] = (int) $assignment['assignment_id'];
+        $assignment['game_id'] = (int) $assignment['game_id'];
+        $assignment['slot_index'] = (int) $assignment['slot_index'];
+        $assignment['umpire_user_id'] = (int) $assignment['umpire_user_id'];
+        $assignment['slot_label'] = $this->slotLabel((int) $assignment['slot_index']);
+        $assignment['assignor_contact'] = $this->assignorContactText($assignment);
+        $assignment['assignor'] = $this->assignorContact($assignment);
+        $assignment['hours_until_game_start'] = $lockout['hours_until_game_start'];
+        $assignment['decline_lockout_hours'] = $lockout['lockout_hours'];
+        $assignment['decline_allowed'] = $lockout['hours_until_game_start'] > $lockout['lockout_hours'];
+        return $assignment;
+    }
+
+    public function declineAssignment(int $assignmentId, int $umpireUserId): array {
+        $assignment = $this->getDeclineAssignmentPreview($assignmentId, $umpireUserId);
+
+        if (!$assignment['decline_allowed']) {
+            throw new UmpireAssignmentDeclineLockoutException(
+                'Decline not available within ' . $assignment['decline_lockout_hours'] . ' hours of game start.',
+                [
+                    'hours_until_game_start' => $assignment['hours_until_game_start'],
+                    'lockout_hours' => $assignment['decline_lockout_hours'],
+                    'assignor_contact' => $assignment['assignor_contact'],
+                ]
+            );
+        }
+
+        $this->db->query(
+            "UPDATE game_umpire_assignments
+             SET assignment_status = 'Declined',
+                 published = 0,
+                 last_notified_hash = NULL,
+                 last_notified_at = NULL,
+                 modified_at = NOW()
+             WHERE assignment_id = :assignment_id
+               AND umpire_user_id = :umpire_user_id
+               AND assignment_status = 'Published'",
+            [
+                'assignment_id' => $assignment['assignment_id'],
+                'umpire_user_id' => $umpireUserId,
+            ]
+        );
+
+        $this->sendDeclineAlert($assignment);
+
+        ActivityLogger::log('umpire.declined', [
+            'assignment_id' => $assignment['assignment_id'],
+            'game_id' => $assignment['game_id'],
+            'slot_index' => $assignment['slot_index'],
+            'umpire_user_id' => $umpireUserId,
+            'hours_until_game_start' => $assignment['hours_until_game_start'],
+            'actor_user_id' => $umpireUserId,
+        ]);
+
+        $assignment['assignment_status'] = 'Declined';
+        $assignment['published'] = 0;
+        return $assignment;
+    }
+
     public function getUmpireAssignments(int $umpireUserId): array {
         $sql = "SELECT
+                    gua.assignment_id,
                     g.game_id, g.game_number,
                     s.game_date, s.game_time,
                     l.location_name,
@@ -627,6 +706,7 @@ class UmpireAssignmentService {
             0 => getSetting('umpire_slot_1_label', 'Umpire 1'),
             1 => getSetting('umpire_slot_2_label', 'Umpire 2'),
         ];
+        $lockoutHours = $this->declineLockoutHours();
 
         $results = [];
         foreach ($rows as $row) {
@@ -634,8 +714,10 @@ class UmpireAssignmentService {
             $assignorName = trim(($row['assignor_first_name'] ?? '') . ' ' . ($row['assignor_last_name'] ?? ''));
             $phone = (string) ($row['assignor_phone'] ?? '');
             $filledCrew = (int) ($row['filled_slots'] ?? 0);
+            $hoursUntilGameStart = $this->hoursUntilGameStart($row);
 
             $results[] = [
+                'assignment_id' => (int) ($row['assignment_id'] ?? 0),
                 'game_id' => (int) ($row['game_id'] ?? 0),
                 'game_number' => (string) ($row['game_number'] ?? ''),
                 'game_date' => (string) ($row['game_date'] ?? ''),
@@ -651,10 +733,157 @@ class UmpireAssignmentService {
                 'assignor_phone' => $phone ?: '',
                 'assignor_phone_tel' => $this->telHref($phone),
                 'assignor_email' => (string) ($row['assignor_email'] ?? ''),
+                'hours_until_game_start' => $hoursUntilGameStart,
+                'decline_lockout_hours' => $lockoutHours,
+                'decline_allowed' => $hoursUntilGameStart > $lockoutHours,
             ];
         }
 
         return $results;
+    }
+
+    private function fetchDeclinableAssignment(int $assignmentId): array {
+        $this->validatePositiveId($assignmentId, 'Assignment');
+        $row = $this->db->fetchOne(
+            "SELECT
+                gua.assignment_id, gua.game_id, gua.umpire_user_id, gua.slot_index,
+                gua.assignment_status, gua.published, gua.assigned_by_user_id,
+                g.game_number, g.game_status,
+                d.division_name,
+                ht.team_name AS home_team,
+                at.team_name AS away_team,
+                s.game_date, s.game_time,
+                l.location_name,
+                u.first_name AS umpire_first_name,
+                u.last_name AS umpire_last_name,
+                u.email AS umpire_email,
+                a.first_name AS assignor_first_name,
+                a.last_name AS assignor_last_name,
+                a.email AS assignor_email,
+                a.phone AS assignor_phone,
+                (SELECT COUNT(DISTINCT gua2.slot_index) FROM game_umpire_assignments gua2
+                 WHERE gua2.game_id = gua.game_id
+                   AND gua2.slot_index IN (0, 1)
+                   AND gua2.assignment_status = 'Published') AS filled_slots
+             FROM game_umpire_assignments gua
+             JOIN games g ON gua.game_id = g.game_id
+             JOIN schedules s ON s.schedule_id = (
+                SELECT s2.schedule_id
+                FROM schedules s2
+                WHERE s2.game_id = g.game_id
+                ORDER BY s2.modified_date DESC, s2.schedule_id DESC
+                LIMIT 1
+             )
+             LEFT JOIN locations l ON s.location_id = l.location_id
+             LEFT JOIN divisions d ON g.division_id = d.division_id
+             JOIN teams ht ON g.home_team_id = ht.team_id
+             JOIN teams at ON g.away_team_id = at.team_id
+             LEFT JOIN users u ON u.id = gua.umpire_user_id
+             LEFT JOIN users a ON gua.assigned_by_user_id = a.id
+             WHERE gua.assignment_id = :assignment_id
+             LIMIT 1",
+            ['assignment_id' => $assignmentId]
+        );
+        if ($row === false || $row === null) {
+            throw new \InvalidArgumentException('Assignment not found.');
+        }
+        if (in_array((string) ($row['game_status'] ?? ''), ['Cancelled', 'Postponed'], true)) {
+            throw new \InvalidArgumentException('Cancelled or postponed assignments cannot be declined.');
+        }
+        return $row;
+    }
+
+    private function assertDeclineActorAndStatus(array $assignment, int $umpireUserId): void {
+        $this->validatePositiveId($umpireUserId, 'Umpire');
+        if ((int) ($assignment['umpire_user_id'] ?? 0) !== $umpireUserId) {
+            throw new \InvalidArgumentException('Assignment does not belong to the authenticated umpire.');
+        }
+        if ((string) ($assignment['assignment_status'] ?? '') !== 'Published') {
+            throw new \InvalidArgumentException('Only published assignments can be declined.');
+        }
+    }
+
+    private function declineLockoutContext(array $assignment): array {
+        return [
+            'hours_until_game_start' => $this->hoursUntilGameStart($assignment),
+            'lockout_hours' => $this->declineLockoutHours(),
+        ];
+    }
+
+    private function declineLockoutHours(): int {
+        return max(0, (int) getSetting('umpire_decline_lockout_hours', '48'));
+    }
+
+    private function hoursUntilGameStart(array $game): float {
+        $date = (string) ($game['game_date'] ?? '');
+        $time = (string) (($game['game_time'] ?? '') ?: '00:00:00');
+        try {
+            $gameStart = new \DateTime(trim($date . ' ' . $time));
+        } catch (\Exception $e) {
+            return 0.0;
+        }
+        $now = new \DateTime();
+        return round(max(0, ($gameStart->getTimestamp() - $now->getTimestamp()) / 3600), 1);
+    }
+
+    private function assignorContact(array $assignment): array {
+        $name = trim(($assignment['assignor_first_name'] ?? '') . ' ' . ($assignment['assignor_last_name'] ?? ''));
+        return [
+            'name' => $name ?: 'District 8 Assignor',
+            'email' => (string) ($assignment['assignor_email'] ?? ''),
+            'phone' => (string) ($assignment['assignor_phone'] ?? ''),
+        ];
+    }
+
+    private function assignorContactText(array $assignment): string {
+        $assignor = $this->assignorContact($assignment);
+        $parts = [];
+        if ($assignor['name'] !== '') {
+            $parts[] = $assignor['name'];
+        }
+        if ($assignor['email'] !== '') {
+            $parts[] = $assignor['email'];
+        }
+        if ($assignor['phone'] !== '') {
+            $parts[] = $assignor['phone'];
+        }
+        return !empty($parts) ? implode(' - ', $parts) : 'Contact your assignor.';
+    }
+
+    private function slotLabel(int $slotIndex): string {
+        return getSetting($slotIndex === 0 ? 'umpire_slot_1_label' : 'umpire_slot_2_label', 'Umpire ' . ($slotIndex + 1));
+    }
+
+    private function sendDeclineAlert(array $assignment): void {
+        $assignor = $assignment['assignor'] ?? $this->assignorContact($assignment);
+        $email = (string) ($assignor['email'] ?? '');
+        if ($email === '') {
+            return;
+        }
+
+        $emailService = new EmailService();
+        $result = $emailService->sendTemplateToAddressWithMetadata(
+            'umpire_decline_alert',
+            $email,
+            [
+                'game_id' => (int) ($assignment['game_id'] ?? 0),
+                'umpire_name' => trim(($assignment['umpire_first_name'] ?? '') . ' ' . ($assignment['umpire_last_name'] ?? '')) ?: 'Umpire',
+                'game_date' => !empty($assignment['game_date']) ? date('m/d/Y', strtotime((string) $assignment['game_date'])) : 'TBD',
+                'game_time' => !empty($assignment['game_time']) ? date('g:i A', strtotime((string) $assignment['game_time'])) : 'TBD',
+                'location' => (string) (($assignment['location_name'] ?? '') ?: 'TBD'),
+                'division_name' => (string) (($assignment['division_name'] ?? '') ?: 'TBD'),
+                'slot_label' => (string) ($assignment['slot_label'] ?? $this->slotLabel((int) ($assignment['slot_index'] ?? 0))),
+                'hours_until_game_start' => (string) ($assignment['hours_until_game_start'] ?? $this->hoursUntilGameStart($assignment)),
+            ],
+            [
+                'reply_to_email' => $email,
+                'reply_to_name' => (string) ($assignor['name'] ?? 'District 8 Assignor'),
+                'include_configured_recipients' => true,
+            ]
+        );
+        if (!($result['success'] ?? false)) {
+            throw new \RuntimeException('Decline alert email could not be queued.');
+        }
     }
 
     private function fetchGame(int $gameId): array {
