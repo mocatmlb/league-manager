@@ -505,7 +505,7 @@ class UmpireAssignmentService {
                 $queueId = (int) $email['queue_id'];
             }
 
-            $this->markSlotPublished($gameId, $slotIndex, $hash, $migrationMode);
+            $this->markSlotPublished($gameId, $slotIndex, $hash, $migrationMode, $actorUserId);
             $published++;
 
             $context = [
@@ -581,6 +581,80 @@ class UmpireAssignmentService {
                 . ' trigger_ref=' . $triggerRef . ' error=' . $e->getMessage());
             return false;
         }
+    }
+
+    public function getUmpireAssignments(int $umpireUserId): array {
+        $sql = "SELECT
+                    g.game_id, g.game_number,
+                    s.game_date, s.game_time,
+                    l.location_name,
+                    d.division_name,
+                    ht.team_name AS home_team,
+                    at.team_name AS away_team,
+                    gua.slot_index,
+                    gua.assigned_by_user_id,
+                    a.first_name AS assignor_first_name,
+                    a.last_name AS assignor_last_name,
+                    a.email AS assignor_email,
+                    a.phone AS assignor_phone,
+                    (SELECT COUNT(DISTINCT gua2.slot_index) FROM game_umpire_assignments gua2
+                     WHERE gua2.game_id = g.game_id
+                       AND gua2.slot_index IN (0, 1)
+                       AND gua2.assignment_status = 'Published') AS filled_slots
+                FROM game_umpire_assignments gua
+                JOIN games g ON gua.game_id = g.game_id
+                JOIN schedules s ON s.schedule_id = (
+                    SELECT s2.schedule_id
+                    FROM schedules s2
+                    WHERE s2.game_id = g.game_id
+                    ORDER BY s2.modified_date DESC, s2.schedule_id DESC
+                    LIMIT 1
+                )
+                LEFT JOIN locations l ON s.location_id = l.location_id
+                LEFT JOIN divisions d ON g.division_id = d.division_id
+                JOIN teams ht ON g.home_team_id = ht.team_id
+                JOIN teams at ON g.away_team_id = at.team_id
+                LEFT JOIN users a ON gua.assigned_by_user_id = a.id
+                WHERE gua.umpire_user_id = :uid
+                  AND gua.assignment_status = 'Published'
+                  AND g.game_status NOT IN ('Cancelled', 'Postponed')
+                ORDER BY s.game_date ASC, s.game_time ASC";
+
+        $stmt = $this->db->query($sql, ['uid' => $umpireUserId]);
+        $rows = ($stmt && method_exists($stmt, 'fetchAll')) ? $stmt->fetchAll() : [];
+
+        $slotLabels = [
+            0 => getSetting('umpire_slot_1_label', 'Umpire 1'),
+            1 => getSetting('umpire_slot_2_label', 'Umpire 2'),
+        ];
+
+        $results = [];
+        foreach ($rows as $row) {
+            $slotIndex = (int) ($row['slot_index'] ?? 0);
+            $assignorName = trim(($row['assignor_first_name'] ?? '') . ' ' . ($row['assignor_last_name'] ?? ''));
+            $phone = (string) ($row['assignor_phone'] ?? '');
+            $filledCrew = (int) ($row['filled_slots'] ?? 0);
+
+            $results[] = [
+                'game_id' => (int) ($row['game_id'] ?? 0),
+                'game_number' => (string) ($row['game_number'] ?? ''),
+                'game_date' => (string) ($row['game_date'] ?? ''),
+                'game_time' => (string) ($row['game_time'] ?? ''),
+                'location_name' => (string) ($row['location_name'] ?? ''),
+                'division_name' => (string) ($row['division_name'] ?? ''),
+                'home_team' => (string) ($row['home_team'] ?? ''),
+                'away_team' => (string) ($row['away_team'] ?? ''),
+                'slot_index' => $slotIndex,
+                'slot_label' => $slotLabels[$slotIndex] ?? ('Umpire ' . ($slotIndex + 1)),
+                'fee_text' => $this->feePerTeamText((string) ($row['division_name'] ?? ''), $filledCrew),
+                'assignor_name' => $assignorName ?: 'Contact your assignor',
+                'assignor_phone' => $phone ?: '',
+                'assignor_phone_tel' => $this->telHref($phone),
+                'assignor_email' => (string) ($row['assignor_email'] ?? ''),
+            ];
+        }
+
+        return $results;
     }
 
     private function fetchGame(int $gameId): array {
@@ -744,19 +818,24 @@ class UmpireAssignmentService {
         throw new \InvalidArgumentException('Assignor contact information not found.');
     }
 
-    private function markSlotPublished(int $gameId, int $slotIndex, ?string $hash, bool $migrationMode): void {
+    private function markSlotPublished(int $gameId, int $slotIndex, ?string $hash, bool $migrationMode, ?int $actorUserId = null): void {
         if ($migrationMode) {
             $this->db->query(
                 "UPDATE game_umpire_assignments
                  SET assignment_status = 'Published',
                      published = 1,
+                     assigned_by_user_id = COALESCE(:actor_user_id, assigned_by_user_id),
                      last_notified_at = NULL,
                      last_notified_hash = NULL,
                      modified_at = NOW()
                  WHERE game_id = :game_id
                    AND slot_index = :slot_index
                    AND assignment_status = 'Draft'",
-                ['game_id' => $gameId, 'slot_index' => $slotIndex]
+                [
+                    'actor_user_id' => $actorUserId,
+                    'game_id' => $gameId,
+                    'slot_index' => $slotIndex,
+                ]
             );
             return;
         }
@@ -765,6 +844,7 @@ class UmpireAssignmentService {
             "UPDATE game_umpire_assignments
              SET assignment_status = 'Published',
                  published = 1,
+                 assigned_by_user_id = COALESCE(:actor_user_id, assigned_by_user_id),
                  last_notified_at = NOW(),
                  last_notified_hash = :last_notified_hash,
                  modified_at = NOW()
@@ -772,6 +852,7 @@ class UmpireAssignmentService {
                AND slot_index = :slot_index
                AND assignment_status = 'Draft'",
             [
+                'actor_user_id' => $actorUserId,
                 'last_notified_hash' => $hash,
                 'game_id' => $gameId,
                 'slot_index' => $slotIndex,

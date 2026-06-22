@@ -742,6 +742,11 @@ register_test('23.4 publishGame publishes filled Draft slots, queues email, upda
     $sqlLog = implode("\n", $mock->lastSql);
     assert_true(strpos($sqlLog, "assignment_status = 'Published'") !== false, 'Expected Published update SQL');
     assert_true(strpos($sqlLog, 'last_notified_hash = :last_notified_hash') !== false, 'Expected notification hash update');
+    assert_true(strpos($sqlLog, 'assigned_by_user_id = COALESCE(:actor_user_id, assigned_by_user_id)') !== false, 'Expected publish actor to be stored when available');
+    $publishUpdateParams = array_values(array_filter($mock->lastParams, static function ($params) {
+        return array_key_exists('last_notified_hash', $params);
+    }));
+    assert_equals(5, $publishUpdateParams[0]['actor_user_id'] ?? null, 'Expected users-table publish actor id in slot update');
 
     $publishedLogs = array_values(array_filter($mock->lastParams, static function ($p) {
         return ($p['event'] ?? '') === 'umpire.published';
@@ -1017,4 +1022,177 @@ register_test('23.5 live trigger sources call onScheduleChanged before commit an
             assert_true(strpos($source, $notification) !== false, 'Expected existing notification ' . $notification . ' to remain in ' . basename($check['file']));
         }
     }
+});
+
+// ---------------------------------------------------------------------------
+// Tests: 24.1 getUmpireAssignments
+// ---------------------------------------------------------------------------
+
+register_test('24.1 getUmpireAssignments returns formatted assignment rows', function () {
+    $GLOBALS['_test_settings'] = [
+        'umpire_slot_1_label' => 'Umpire 1',
+        'umpire_slot_2_label' => 'Umpire 2',
+    ];
+    $mock = new UmpireAssignmentMockDb();
+    Database::setInstance($mock);
+    $mock->queryRows = [
+        [
+            [
+                'game_id' => '10',
+                'game_number' => 'G-101',
+                'game_date' => '2026-07-15',
+                'game_time' => '10:00:00',
+                'location_name' => 'Field A',
+                'division_name' => 'Intermediate',
+                'home_team' => 'Hawks',
+                'away_team' => 'Eagles',
+                'slot_index' => '0',
+                'assigned_by_user_id' => '5',
+                'assignor_first_name' => 'Jane',
+                'assignor_last_name' => 'Assignor',
+                'assignor_email' => 'jane@test.com',
+                'assignor_phone' => '555-0100',
+                'filled_slots' => '2',
+            ],
+        ],
+    ];
+    $svc = new UmpireAssignmentService();
+    $result = $svc->getUmpireAssignments(42);
+
+    assert_equals(1, count($result), 'Expected 1 assignment row');
+    $row = $result[0];
+    assert_equals(10, $row['game_id'], 'Expected game_id');
+    assert_equals('G-101', $row['game_number'], 'Expected game_number');
+    assert_equals('2026-07-15', $row['game_date'], 'Expected game_date');
+    assert_equals('10:00:00', $row['game_time'], 'Expected game_time');
+    assert_equals('Field A', $row['location_name'], 'Expected location_name');
+    assert_equals('Intermediate', $row['division_name'], 'Expected division_name');
+    assert_equals(0, $row['slot_index'], 'Expected slot_index 0');
+    assert_equals('Umpire 1', $row['slot_label'], 'Expected slot label from setting');
+    assert_equals('$50 per team', $row['fee_text'], 'Expected fee for 2-umpire Intermediate');
+    assert_equals('Jane Assignor', $row['assignor_name'], 'Expected assignor name');
+    assert_equals('555-0100', $row['assignor_phone'], 'Expected assignor phone');
+    assert_equals('tel:5550100', $row['assignor_phone_tel'], 'Expected tel link');
+    assert_equals('jane@test.com', $row['assignor_email'], 'Expected assignor email');
+
+    unset($GLOBALS['_test_settings']);
+});
+
+register_test('24.1 getUmpireAssignments SQL filters by umpire_user_id and Published status', function () {
+    $mock = new UmpireAssignmentMockDb();
+    Database::setInstance($mock);
+    $mock->queryRows = [[]];
+    $svc = new UmpireAssignmentService();
+    $svc->getUmpireAssignments(42);
+
+    $sql = $mock->lastSql[0] ?? '';
+    assert_true(strpos($sql, 'gua.umpire_user_id = :uid') !== false, 'Expected umpire_user_id filter');
+    assert_true(strpos($sql, "assignment_status = 'Published'") !== false, 'Expected Published filter');
+    $params = $mock->lastParams[0] ?? [];
+    assert_equals(42, $params['uid'] ?? null, 'Expected uid param 42');
+});
+
+register_test('24.1 getUmpireAssignments counts only distinct Published crew slots for fee', function () {
+    $mock = new UmpireAssignmentMockDb();
+    Database::setInstance($mock);
+    $mock->queryRows = [[]];
+    $svc = new UmpireAssignmentService();
+    $svc->getUmpireAssignments(42);
+
+    $sql = $mock->lastSql[0] ?? '';
+    assert_true(strpos($sql, 'COUNT(DISTINCT gua2.slot_index)') !== false, 'Expected distinct slot count');
+    assert_true(strpos($sql, "gua2.assignment_status = 'Published'") !== false, 'Expected fee crew count to ignore Draft slots');
+});
+
+register_test('24.1 getUmpireAssignments uses a single latest schedule row per game', function () {
+    $mock = new UmpireAssignmentMockDb();
+    Database::setInstance($mock);
+    $mock->queryRows = [[]];
+    $svc = new UmpireAssignmentService();
+    $svc->getUmpireAssignments(42);
+
+    $sql = $mock->lastSql[0] ?? '';
+    assert_true(strpos($sql, 'JOIN schedules s ON s.schedule_id = (') !== false, 'Expected schedule join through one selected schedule row');
+    assert_true(strpos($sql, 'ORDER BY s2.modified_date DESC, s2.schedule_id DESC') !== false, 'Expected latest schedule selection');
+    assert_true(strpos($sql, 'LIMIT 1') !== false, 'Expected single schedule row selection');
+});
+
+register_test('24.1 getUmpireAssignments excludes Cancelled and Postponed games', function () {
+    $mock = new UmpireAssignmentMockDb();
+    Database::setInstance($mock);
+    $mock->queryRows = [[]];
+    $svc = new UmpireAssignmentService();
+    $svc->getUmpireAssignments(1);
+
+    $sql = $mock->lastSql[0] ?? '';
+    assert_true(strpos($sql, "NOT IN ('Cancelled', 'Postponed')") !== false, 'Expected Cancelled/Postponed exclusion');
+});
+
+register_test('24.1 getUmpireAssignments orders by game_date ASC, game_time ASC', function () {
+    $mock = new UmpireAssignmentMockDb();
+    Database::setInstance($mock);
+    $mock->queryRows = [[]];
+    $svc = new UmpireAssignmentService();
+    $svc->getUmpireAssignments(1);
+
+    $sql = $mock->lastSql[0] ?? '';
+    assert_true(strpos($sql, 'ORDER BY s.game_date ASC, s.game_time ASC') !== false, 'Expected date/time ordering');
+});
+
+register_test('24.1 getUmpireAssignments returns empty array when no results', function () {
+    $mock = new UmpireAssignmentMockDb();
+    Database::setInstance($mock);
+    $mock->queryRows = [[]];
+    $svc = new UmpireAssignmentService();
+    $result = $svc->getUmpireAssignments(999);
+    assert_equals([], $result, 'Expected empty array');
+});
+
+register_test('24.1 getUmpireAssignments fee uses division fallback text', function () {
+    $mock = new UmpireAssignmentMockDb();
+    Database::setInstance($mock);
+    $mock->queryRows = [
+        [
+            [
+                'game_id' => '11',
+                'game_date' => '2026-07-20',
+                'game_time' => '14:00:00',
+                'location_name' => 'Field B',
+                'division_name' => 'Unknown Division',
+                'home_team' => 'Titans',
+                'away_team' => 'Spartans',
+                'slot_index' => '1',
+                'assigned_by_user_id' => '5',
+                'assignor_first_name' => null,
+                'assignor_last_name' => null,
+                'assignor_email' => null,
+                'assignor_phone' => null,
+                'filled_slots' => '1',
+            ],
+        ],
+    ];
+    $svc = new UmpireAssignmentService();
+    $result = $svc->getUmpireAssignments(1);
+    assert_equals(1, count($result), 'Expected 1 row');
+    assert_equals('Confirm fee with assignor', $result[0]['fee_text'], 'Expected fallback fee text');
+    assert_equals('Contact your assignor', $result[0]['assignor_name'], 'Expected fallback assignor name');
+    assert_equals('', $result[0]['assignor_phone'], 'Expected empty phone fallback');
+    assert_equals('', $result[0]['assignor_email'], 'Expected empty email fallback');
+});
+
+register_test('24.1 umpire portal source denies missing session user id and formats invalid dates as TBD', function () {
+    $source = file_get_contents(__DIR__ . '/../../public/umpires/index.php');
+    assert_true(strpos($source, '$userId <= 0') !== false, 'Expected missing users-table id guard');
+    assert_true(strpos($source, "header('Location: /login.php')") !== false, 'Expected invalid session redirect');
+    assert_true(strpos($source, 'function formatAssignmentDate') !== false, 'Expected safe date formatter');
+    assert_true(strpos($source, 'function formatAssignmentTime') !== false, 'Expected safe time formatter');
+    assert_true(strpos($source, "return \$timestamp !== false ? date('g:i A', \$timestamp) : 'TBD';") !== false, 'Expected invalid time fallback');
+});
+
+register_test('24.1 umpire logout rejects non-POST before CSRF logout', function () {
+    $source = file_get_contents(__DIR__ . '/../../public/umpires/logout.php');
+    assert_true(strpos($source, "\$_SERVER['REQUEST_METHOD'] !== 'POST'") !== false, 'Expected POST-only method guard');
+    assert_true(strpos($source, "header('Allow: POST')") !== false, 'Expected Allow header for rejected methods');
+    assert_true(strpos($source, 'http_response_code(405)') !== false, 'Expected 405 for non-POST logout');
+    assert_true(strpos($source, 'Auth::verifyCSRFToken($token)') !== false, 'Expected POST CSRF validation');
 });
