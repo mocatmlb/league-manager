@@ -700,7 +700,15 @@ class UmpireAssignmentService {
                     partner.first_name AS partner_first_name,
                     partner.last_name AS partner_last_name,
                     partner.email AS partner_email,
-                    partner.phone AS partner_phone
+                    partner.phone AS partner_phone,
+                    COALESCE(hcoach.first_name, ht.manager_first_name) AS home_coach_first_name,
+                    COALESCE(hcoach.last_name, ht.manager_last_name) AS home_coach_last_name,
+                    COALESCE(hcoach.email, ht.manager_email) AS home_coach_email,
+                    COALESCE(hcoach.phone, ht.manager_phone) AS home_coach_phone,
+                    COALESCE(acoach.first_name, at.manager_first_name) AS away_coach_first_name,
+                    COALESCE(acoach.last_name, at.manager_last_name) AS away_coach_last_name,
+                    COALESCE(acoach.email, at.manager_email) AS away_coach_email,
+                    COALESCE(acoach.phone, at.manager_phone) AS away_coach_phone
                 FROM game_umpire_assignments gua
                 JOIN games g ON gua.game_id = g.game_id
                 JOIN schedules s ON s.schedule_id = (
@@ -722,6 +730,10 @@ class UmpireAssignmentService {
                     AND gua_partner.assignment_status = 'Published'
                     AND gua_partner.umpire_user_id IS NOT NULL
                 LEFT JOIN users partner ON partner.id = gua_partner.umpire_user_id
+                LEFT JOIN team_owners hto ON hto.team_id = g.home_team_id
+                LEFT JOIN users hcoach ON hcoach.id = hto.user_id
+                LEFT JOIN team_owners ato ON ato.team_id = g.away_team_id
+                LEFT JOIN users acoach ON acoach.id = ato.user_id
                 WHERE gua.umpire_user_id = :uid
                   AND gua.assignment_status = 'Published'
                   AND g.game_status NOT IN ('Cancelled', 'Postponed')
@@ -749,6 +761,11 @@ class UmpireAssignmentService {
 
             $partnerUserId = (int) ($row['partner_user_id'] ?? 0);
 
+            $homeCoachName = trim(($row['home_coach_first_name'] ?? '') . ' ' . ($row['home_coach_last_name'] ?? ''));
+            $homeCoachPhone = (string) ($row['home_coach_phone'] ?? '');
+            $awayCoachName = trim(($row['away_coach_first_name'] ?? '') . ' ' . ($row['away_coach_last_name'] ?? ''));
+            $awayCoachPhone = (string) ($row['away_coach_phone'] ?? '');
+
             $results[] = [
                 'assignment_id' => (int) ($row['assignment_id'] ?? 0),
                 'game_id' => (int) ($row['game_id'] ?? 0),
@@ -771,9 +788,95 @@ class UmpireAssignmentService {
                 'partner_email' => (string) ($row['partner_email'] ?? ''),
                 'partner_phone' => $partnerPhone ?: '',
                 'partner_phone_tel' => $this->telHref($partnerPhone),
+                'home_coach_name' => $homeCoachName ?: '',
+                'home_coach_email' => (string) ($row['home_coach_email'] ?? ''),
+                'home_coach_phone' => $homeCoachPhone ?: '',
+                'home_coach_phone_tel' => $this->telHref($homeCoachPhone),
+                'away_coach_name' => $awayCoachName ?: '',
+                'away_coach_email' => (string) ($row['away_coach_email'] ?? ''),
+                'away_coach_phone' => $awayCoachPhone ?: '',
+                'away_coach_phone_tel' => $this->telHref($awayCoachPhone),
                 'hours_until_game_start' => $hoursUntilGameStart,
                 'decline_lockout_hours' => $lockoutHours,
                 'decline_allowed' => $hoursUntilGameStart > $lockoutHours,
+            ];
+        }
+
+        return $results;
+    }
+
+    public function getUmpireAssignmentsGrouped(int $umpireUserId): array {
+        $all = $this->getUmpireAssignments($umpireUserId);
+        $today = date('Y-m-d');
+        $buckets = ['today' => [], 'future' => [], 'past' => []];
+
+        foreach ($all as $a) {
+            $gameDate = (string) ($a['game_date'] ?? '');
+            if ($gameDate === $today) {
+                $buckets['today'][] = $a;
+            } elseif ($gameDate > $today) {
+                $buckets['future'][] = $a;
+            } else {
+                $buckets['past'][] = $a;
+            }
+        }
+
+        return [
+            'today' => $buckets['today'],
+            'future' => $buckets['future'],
+            'past' => array_reverse($buckets['past']),
+        ];
+    }
+
+    public function getUmpireDeclineLog(int $umpireUserId): array {
+        $sql = "SELECT
+                    al.log_id,
+                    al.created_at AS declined_at,
+                    JSON_UNQUOTE(JSON_EXTRACT(al.context, '$.hours_until_game_start')) AS hours_until_game_start,
+                    JSON_UNQUOTE(JSON_EXTRACT(al.context, '$.slot_index')) AS ctx_slot_index,
+                    g.game_id,
+                    g.game_number,
+                    s.game_date,
+                    s.game_time,
+                    l.location_name,
+                    d.division_name
+                FROM activity_log al
+                JOIN games g ON g.game_id = JSON_UNQUOTE(JSON_EXTRACT(al.context, '$.game_id'))
+                LEFT JOIN schedules s ON s.schedule_id = (
+                    SELECT s2.schedule_id
+                    FROM schedules s2
+                    WHERE s2.game_id = g.game_id
+                    ORDER BY s2.modified_date DESC, s2.schedule_id DESC
+                    LIMIT 1
+                )
+                LEFT JOIN locations l ON s.location_id = l.location_id
+                LEFT JOIN divisions d ON g.division_id = d.division_id
+                WHERE al.event = 'umpire.declined'
+                  AND JSON_UNQUOTE(JSON_EXTRACT(al.context, '$.umpire_user_id')) = :uid
+                ORDER BY s.game_date DESC, s.game_time DESC";
+
+        $stmt = $this->db->query($sql, ['uid' => $umpireUserId]);
+        $rows = ($stmt && method_exists($stmt, 'fetchAll')) ? $stmt->fetchAll() : [];
+
+        $slotLabels = [
+            0 => getSetting('umpire_slot_1_label', 'Umpire 1'),
+            1 => getSetting('umpire_slot_2_label', 'Umpire 2'),
+        ];
+
+        $results = [];
+        foreach ($rows as $row) {
+            $slotIndex = (int) ($row['ctx_slot_index'] ?? 0);
+            $results[] = [
+                'log_id' => (int) ($row['log_id'] ?? 0),
+                'game_id' => (int) ($row['game_id'] ?? 0),
+                'game_number' => (string) ($row['game_number'] ?? ''),
+                'game_date' => (string) ($row['game_date'] ?? ''),
+                'game_time' => (string) ($row['game_time'] ?? ''),
+                'location_name' => (string) ($row['location_name'] ?? ''),
+                'division_name' => (string) ($row['division_name'] ?? ''),
+                'slot_label' => $slotLabels[$slotIndex] ?? 'Umpire ' . ($slotIndex + 1),
+                'declined_at' => (string) ($row['declined_at'] ?? ''),
+                'hours_until_game_start' => (float) ($row['hours_until_game_start'] ?? 0),
             ];
         }
 

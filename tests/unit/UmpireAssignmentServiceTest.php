@@ -1195,9 +1195,9 @@ register_test('24.1 umpire portal source denies missing session user id and form
     $source = file_get_contents(__DIR__ . '/../../public/umpires/index.php');
     assert_true(strpos($source, '$userId <= 0') !== false, 'Expected missing users-table id guard');
     assert_true(strpos($source, "header('Location: /login.php')") !== false, 'Expected invalid session redirect');
-    assert_true(strpos($source, 'function formatAssignmentDate') !== false, 'Expected safe date formatter');
-    assert_true(strpos($source, 'function formatAssignmentTime') !== false, 'Expected safe time formatter');
-    assert_true(strpos($source, "return \$timestamp !== false ? date('g:i A', \$timestamp) : 'TBD';") !== false, 'Expected invalid time fallback');
+    assert_true(strpos($source, 'function formatDate') !== false, 'Expected safe date formatter');
+    assert_true(strpos($source, 'function formatTime') !== false, 'Expected safe time formatter');
+    assert_true(strpos($source, "return \$ts !== false ? date('g:i A', \$ts) : 'TBD';") !== false, 'Expected invalid time fallback');
 });
 
 register_test('24.1 umpire logout rejects non-POST before CSRF logout', function () {
@@ -1425,6 +1425,197 @@ register_test('24.2 decline page source has role gate, CSRF 403, accessible butt
     assert_true(strpos($source, 'min-height: 44px') !== false, 'Expected 44px touch target CSS');
     assert_true(strpos($source, 'Decline not available within') !== false, 'Expected lockout message');
     assert_true(strpos($source, 'assignor_contact') !== false, 'Expected assignor contact rendering');
+});
+
+register_test('24.1 getUmpireAssignmentsGrouped buckets assignments into today, future, past', function () {
+    $today = date('Y-m-d');
+    $future = date('Y-m-d', strtotime('+5 days'));
+    $past = date('Y-m-d', strtotime('-5 days'));
+    $GLOBALS['_test_settings']['umpire_decline_lockout_hours'] = '48';
+    $mock = new UmpireAssignmentMockDb();
+    Database::setInstance($mock);
+    $mock->rows = [
+        [
+            'assignment_id' => '1',
+            'game_id' => '10',
+            'game_date' => $today,
+            'game_time' => '10:00:00',
+            'location_name' => 'Field A',
+            'division_name' => 'Intermediate',
+            'slot_index' => '0',
+            'assigned_by_user_id' => '5',
+            'assignor_first_name' => 'Jane',
+            'assignor_last_name' => 'Assignor',
+            'assignor_email' => 'jane@test.com',
+            'assignor_phone' => '555-0100',
+            'filled_slots' => '2',
+            'home_team' => 'A',
+            'away_team' => 'B',
+        ],
+        [
+            'assignment_id' => '2',
+            'game_id' => '20',
+            'game_date' => $future,
+            'game_time' => '14:00:00',
+            'location_name' => 'Field B',
+            'division_name' => 'Junior',
+            'slot_index' => '1',
+            'assigned_by_user_id' => '5',
+            'assignor_first_name' => 'Jane',
+            'assignor_last_name' => 'Assignor',
+            'assignor_email' => 'jane@test.com',
+            'assignor_phone' => '555-0100',
+            'filled_slots' => '2',
+            'home_team' => 'C',
+            'away_team' => 'D',
+        ],
+        [
+            'assignment_id' => '3',
+            'game_id' => '30',
+            'game_date' => $past,
+            'game_time' => '09:00:00',
+            'location_name' => 'Field C',
+            'division_name' => 'Senior',
+            'slot_index' => '0',
+            'assigned_by_user_id' => '5',
+            'assignor_first_name' => 'Jane',
+            'assignor_last_name' => 'Assignor',
+            'assignor_email' => 'jane@test.com',
+            'assignor_phone' => '555-0100',
+            'filled_slots' => '2',
+            'home_team' => 'E',
+            'away_team' => 'F',
+        ],
+    ];
+    $svc = new UmpireAssignmentService();
+    $result = $svc->getUmpireAssignmentsGrouped(42);
+
+    assert_true(isset($result['today'], $result['future'], $result['past']), 'Expected all three buckets');
+    assert_equals(count($result['today']), 1, 'Expected 1 today assignment');
+    assert_equals(count($result['future']), 1, 'Expected 1 future assignment');
+    assert_equals(count($result['past']), 1, 'Expected 1 past assignment');
+    assert_equals((int) $result['today'][0]['assignment_id'], 1, 'Expected today assignment id 1');
+    assert_equals((int) $result['future'][0]['assignment_id'], 2, 'Expected future assignment id 2');
+    assert_equals((int) $result['past'][0]['assignment_id'], 3, 'Expected past assignment id 3');
+    unset($GLOBALS['_test_settings']['umpire_decline_lockout_hours']);
+});
+
+register_test('24.1 getUmpireAssignmentsGrouped returns empty buckets when no assignments', function () {
+    $mock = new UmpireAssignmentMockDb();
+    Database::setInstance($mock);
+    $mock->rows = [];
+    $svc = new UmpireAssignmentService();
+    $result = $svc->getUmpireAssignmentsGrouped(42);
+
+    assert_equals(count($result['today']), 0, 'Expected empty today');
+    assert_equals(count($result['future']), 0, 'Expected empty future');
+    assert_equals(count($result['past']), 0, 'Expected empty past');
+});
+
+register_test('24.1 getUmpireAssignmentsGrouped past bucket is reversed (DESC order)', function () {
+    $today = date('Y-m-d');
+    $past1 = date('Y-m-d', strtotime('-10 days'));
+    $past2 = date('Y-m-d', strtotime('-5 days'));
+    $GLOBALS['_test_settings']['umpire_decline_lockout_hours'] = '48';
+    $mock = new UmpireAssignmentMockDb();
+    Database::setInstance($mock);
+    $mock->rows = [
+        [
+            'assignment_id' => '1',
+            'game_id' => '10',
+            'game_date' => $past1,
+            'game_time' => '10:00:00',
+            'location_name' => 'Field A',
+            'division_name' => 'Intermediate',
+            'slot_index' => '0',
+            'assigned_by_user_id' => '5',
+            'assignor_first_name' => 'Jane',
+            'assignor_last_name' => 'Assignor',
+            'assignor_email' => 'jane@test.com',
+            'assignor_phone' => '555-0100',
+            'filled_slots' => '2',
+            'home_team' => 'A',
+            'away_team' => 'B',
+        ],
+        [
+            'assignment_id' => '2',
+            'game_id' => '20',
+            'game_date' => $past2,
+            'game_time' => '14:00:00',
+            'location_name' => 'Field B',
+            'division_name' => 'Junior',
+            'slot_index' => '1',
+            'assigned_by_user_id' => '5',
+            'assignor_first_name' => 'Jane',
+            'assignor_last_name' => 'Assignor',
+            'assignor_email' => 'jane@test.com',
+            'assignor_phone' => '555-0100',
+            'filled_slots' => '2',
+            'home_team' => 'C',
+            'away_team' => 'D',
+        ],
+    ];
+    $svc = new UmpireAssignmentService();
+    $result = $svc->getUmpireAssignmentsGrouped(42);
+
+    assert_equals(count($result['past']), 2, 'Expected 2 past assignments');
+    assert_equals((int) $result['past'][0]['assignment_id'], 2, 'Expected most recent past first (DESC)');
+    assert_equals((int) $result['past'][1]['assignment_id'], 1, 'Expected older past second');
+    assert_equals(count($result['today']), 0, 'Expected no today');
+    assert_equals(count($result['future']), 0, 'Expected no future');
+    unset($GLOBALS['_test_settings']['umpire_decline_lockout_hours']);
+});
+
+register_test('24.1 getUmpireDeclineLog returns decline entries from activity_log', function () {
+    $today = date('Y-m-d');
+    $mock = new UmpireAssignmentMockDb();
+    Database::setInstance($mock);
+    $mock->rows = [
+        [
+            'log_id' => '100',
+            'declined_at' => '2026-06-20 14:30:00',
+            'hours_until_game_start' => '72.5',
+            'ctx_slot_index' => '1',
+            'game_id' => '10',
+            'game_number' => 'G-101',
+            'game_date' => $today,
+            'game_time' => '10:00:00',
+            'location_name' => 'Field A',
+            'division_name' => 'Intermediate',
+        ],
+    ];
+    $svc = new UmpireAssignmentService();
+    $result = $svc->getUmpireDeclineLog(42);
+
+    assert_equals(count($result), 1, 'Expected 1 decline entry');
+    assert_equals((int) $result[0]['log_id'], 100, 'Expected log_id 100');
+    assert_equals($result[0]['game_date'], $today, 'Expected game date');
+    assert_equals($result[0]['slot_label'], 'Umpire 2', 'Expected slot 2 label');
+    assert_equals($result[0]['hours_until_game_start'], 72.5, 'Expected hours until game start');
+});
+
+register_test('24.1 getUmpireDeclineLog returns empty array when no declines', function () {
+    $mock = new UmpireAssignmentMockDb();
+    Database::setInstance($mock);
+    $mock->rows = [];
+    $svc = new UmpireAssignmentService();
+    $result = $svc->getUmpireDeclineLog(999);
+
+    assert_equals(count($result), 0, 'Expected empty decline log');
+});
+
+register_test('24.1 getUmpireDeclineLog SQL filters by event and umpire_user_id', function () {
+    $mock = new UmpireAssignmentMockDb();
+    Database::setInstance($mock);
+    $mock->rows = [];
+    $svc = new UmpireAssignmentService();
+    $svc->getUmpireDeclineLog(42);
+
+    $sql = $mock->lastSql[0] ?? '';
+    assert_true(strpos($sql, "event = 'umpire.declined'") !== false, 'Expected event filter');
+    assert_true(strpos($sql, 'umpire_user_id') !== false, 'Expected umpire_user_id filter');
+    assert_true(in_array(42, $mock->lastParams[0] ?? [], true)
+        || strpos(implode(' ', $mock->lastParams[0] ?? []), '42') !== false, 'Expected uid param 42');
 });
 
 register_test('24.2 migration seeds active decline alert template body', function () {
