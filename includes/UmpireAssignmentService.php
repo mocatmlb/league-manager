@@ -695,7 +695,12 @@ class UmpireAssignmentService {
                     (SELECT COUNT(DISTINCT gua2.slot_index) FROM game_umpire_assignments gua2
                      WHERE gua2.game_id = g.game_id
                        AND gua2.slot_index IN (0, 1)
-                       AND gua2.assignment_status = 'Published') AS filled_slots
+                       AND gua2.assignment_status = 'Published') AS filled_slots,
+                    gua_partner.umpire_user_id AS partner_user_id,
+                    partner.first_name AS partner_first_name,
+                    partner.last_name AS partner_last_name,
+                    partner.email AS partner_email,
+                    partner.phone AS partner_phone
                 FROM game_umpire_assignments gua
                 JOIN games g ON gua.game_id = g.game_id
                 JOIN schedules s ON s.schedule_id = (
@@ -710,6 +715,13 @@ class UmpireAssignmentService {
                 JOIN teams ht ON g.home_team_id = ht.team_id
                 JOIN teams at ON g.away_team_id = at.team_id
                 LEFT JOIN users a ON gua.assigned_by_user_id = a.id
+                LEFT JOIN game_umpire_assignments gua_partner
+                    ON gua_partner.game_id = g.game_id
+                    AND gua_partner.slot_index IN (0, 1)
+                    AND gua_partner.slot_index != gua.slot_index
+                    AND gua_partner.assignment_status = 'Published'
+                    AND gua_partner.umpire_user_id IS NOT NULL
+                LEFT JOIN users partner ON partner.id = gua_partner.umpire_user_id
                 WHERE gua.umpire_user_id = :uid
                   AND gua.assignment_status = 'Published'
                   AND g.game_status NOT IN ('Cancelled', 'Postponed')
@@ -732,6 +744,11 @@ class UmpireAssignmentService {
             $filledCrew = (int) ($row['filled_slots'] ?? 0);
             $hoursUntilGameStart = $this->hoursUntilGameStart($row);
 
+            $partnerName = trim(($row['partner_first_name'] ?? '') . ' ' . ($row['partner_last_name'] ?? ''));
+            $partnerPhone = (string) ($row['partner_phone'] ?? '');
+
+            $partnerUserId = (int) ($row['partner_user_id'] ?? 0);
+
             $results[] = [
                 'assignment_id' => (int) ($row['assignment_id'] ?? 0),
                 'game_id' => (int) ($row['game_id'] ?? 0),
@@ -749,6 +766,11 @@ class UmpireAssignmentService {
                 'assignor_phone' => $phone ?: '',
                 'assignor_phone_tel' => $this->telHref($phone),
                 'assignor_email' => (string) ($row['assignor_email'] ?? ''),
+                'partner_user_id' => $partnerUserId,
+                'partner_name' => $partnerName ?: '',
+                'partner_email' => (string) ($row['partner_email'] ?? ''),
+                'partner_phone' => $partnerPhone ?: '',
+                'partner_phone_tel' => $this->telHref($partnerPhone),
                 'hours_until_game_start' => $hoursUntilGameStart,
                 'decline_lockout_hours' => $lockoutHours,
                 'decline_allowed' => $hoursUntilGameStart > $lockoutHours,

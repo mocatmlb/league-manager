@@ -291,6 +291,12 @@ $rootPath = getPathToRoot();
                                         <i class="fas fa-clipboard-list"></i> My Assignments
                                     </a>
                                 </li>
+                                <li>
+                                    <a class="dropdown-item <?php echo isActiveNav('roster', 'umpires'); ?>"
+                                       href="<?php echo $rootPath; ?>umpires/roster.php">
+                                        <i class="fas fa-users"></i> Umpire Roster
+                                    </a>
+                                </li>
                             </ul>
                         </li>
                     <?php endif; ?>

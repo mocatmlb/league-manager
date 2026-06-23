@@ -92,6 +92,7 @@ function formatAssignmentTime(?string $time): string {
                                 <th>Role</th>
                                 <th>Fee</th>
                                 <th>Assignor</th>
+                                <th>Partner Umpire</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -112,6 +113,19 @@ function formatAssignmentTime(?string $time): string {
                                     <?php endif; ?>
                                     <?php if (!empty($a['assignor_phone'])): ?>
                                         <br><small><a href="<?= htmlspecialchars($a['assignor_phone_tel']) ?>"><?= htmlspecialchars($a['assignor_phone']) ?></a></small>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if (!empty($a['partner_user_id'])): ?>
+                                        <?= htmlspecialchars($a['partner_name'] ?: 'Partner Umpire') ?>
+                                        <?php if (!empty($a['partner_email'])): ?>
+                                            <br><small><a href="mailto:<?= htmlspecialchars($a['partner_email']) ?>"><?= htmlspecialchars($a['partner_email']) ?></a></small>
+                                        <?php endif; ?>
+                                        <?php if (!empty($a['partner_phone'])): ?>
+                                            <br><small><a href="<?= htmlspecialchars($a['partner_phone_tel']) ?>"><?= htmlspecialchars($a['partner_phone']) ?></a></small>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <span class="text-muted">Not yet assigned</span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
