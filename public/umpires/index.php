@@ -42,6 +42,17 @@ function umpirePortalFormatDateTime(?string $datetime): string {
     $ts = $datetime !== null && trim($datetime) !== '' ? strtotime($datetime) : false;
     return $ts !== false ? date('m/d/Y g:i A', $ts) : 'TBD';
 }
+
+function umpirePortalMapsUrl(array $a): string {
+    $parts = [];
+    if (!empty($a['location_name'])) $parts[] = $a['location_name'];
+    if (!empty($a['address'])) $parts[] = $a['address'];
+    if (!empty($a['city'])) $parts[] = $a['city'];
+    if (!empty($a['state'])) $parts[] = $a['state'];
+    if (!empty($a['zip_code'])) $parts[] = $a['zip_code'];
+    if (empty($parts)) return '';
+    return 'https://maps.google.com/?q=' . urlencode(implode(', ', $parts));
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -123,7 +134,13 @@ foreach ($sections as $key => $section):
                                 <span class="badge bg-info"><?= htmlspecialchars($a['slot_label'] ?? '') ?></span>
                             </div>
                             <div class="game-meta">
-                                <?= htmlspecialchars($a['location_name'] ?? '') ?>
+                                <?php $mapsUrl = umpirePortalMapsUrl($a); if ($mapsUrl): ?>
+                                    <a href="<?= $mapsUrl ?>" target="_blank" rel="noopener noreferrer">
+                                        <i class="fas fa-map-marker-alt text-danger me-1"></i><?= htmlspecialchars($a['location_name'] ?? '') ?>
+                                    </a>
+                                <?php else: ?>
+                                    <?= htmlspecialchars($a['location_name'] ?? '') ?>
+                                <?php endif; ?>
                                 &middot; <?= htmlspecialchars($a['division_name'] ?? '') ?>
                                 &middot; <?= htmlspecialchars($a['fee_text'] ?? '') ?>
                             </div>
@@ -218,7 +235,13 @@ foreach ($sections as $key => $section):
                                 <tr>
                                     <td><?= htmlspecialchars(umpirePortalFormatDate($a['game_date'] ?? null)) ?></td>
                                     <td><?= htmlspecialchars(umpirePortalFormatTime($a['game_time'] ?? null)) ?></td>
-                                    <td><?= htmlspecialchars($a['location_name'] ?? '') ?></td>
+                                    <td><?php $mapsUrl = umpirePortalMapsUrl($a); if ($mapsUrl): ?>
+                                        <a href="<?= $mapsUrl ?>" target="_blank" rel="noopener noreferrer">
+                                            <i class="fas fa-map-marker-alt text-danger me-1"></i><?= htmlspecialchars($a['location_name'] ?? '') ?>
+                                        </a>
+                                    <?php else: ?>
+                                        <?= htmlspecialchars($a['location_name'] ?? '') ?>
+                                    <?php endif; ?>
                                     <td><?= htmlspecialchars($a['division_name'] ?? '') ?></td>
                                     <td><?= htmlspecialchars($a['slot_label'] ?? '') ?></td>
                                     <td><?= htmlspecialchars($a['fee_text'] ?? '') ?></td>
