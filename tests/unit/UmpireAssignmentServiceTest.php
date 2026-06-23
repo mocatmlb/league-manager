@@ -1080,7 +1080,7 @@ register_test('24.1 getUmpireAssignments returns formatted assignment rows', fun
     assert_equals('Intermediate', $row['division_name'], 'Expected division_name');
     assert_equals(0, $row['slot_index'], 'Expected slot_index 0');
     assert_equals('Umpire 1', $row['slot_label'], 'Expected slot label from setting');
-    assert_equals('$50 per team', $row['fee_text'], 'Expected fee for 2-umpire Intermediate');
+    assert_equals('$50', $row['fee_text'], 'Expected fee for 2-umpire Intermediate');
     assert_equals('Jane Assignor', $row['assignor_name'], 'Expected assignor name');
     assert_equals('555-0100', $row['assignor_phone'], 'Expected assignor phone');
     assert_equals('tel:5550100', $row['assignor_phone_tel'], 'Expected tel link');

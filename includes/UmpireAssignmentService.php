@@ -744,7 +744,7 @@ class UmpireAssignmentService {
                 'away_team' => (string) ($row['away_team'] ?? ''),
                 'slot_index' => $slotIndex,
                 'slot_label' => $slotLabels[$slotIndex] ?? ('Umpire ' . ($slotIndex + 1)),
-                'fee_text' => $this->feePerTeamText((string) ($row['division_name'] ?? ''), $filledCrew),
+                'fee_text' => $this->feeText((string) ($row['division_name'] ?? ''), $filledCrew),
                 'assignor_name' => $assignorName ?: 'Contact your assignor',
                 'assignor_phone' => $phone ?: '',
                 'assignor_phone_tel' => $this->telHref($phone),
@@ -1123,7 +1123,7 @@ class UmpireAssignmentService {
             'location' => (string) (($game['location_name'] ?? '') ?: 'TBD'),
             'division_name' => (string) (($game['division_name'] ?? '') ?: 'TBD'),
             'slot_label' => $slotLabel,
-            'fee_per_team' => $this->feePerTeamText((string) ($game['division_name'] ?? ''), $filledCrewCount),
+            'fee_per_team' => $this->feeText((string) ($game['division_name'] ?? ''), $filledCrewCount),
             'assignor_name' => (string) ($assignor['name'] ?? 'District 8 Assignor'),
             'assignor_phone' => $phone !== '' ? $phone : 'Not provided',
             'assignor_phone_tel' => $this->telHref($phone),
@@ -1138,14 +1138,14 @@ class UmpireAssignmentService {
         return 2;
     }
 
-    private function feePerTeamText(string $divisionName, int $filledCrewCount): string {
+    private function feeText(string $divisionName, int $filledCrewCount): string {
         $crew = $filledCrewCount >= 2 ? 2 : 1;
         $division = strtolower($divisionName);
         if (str_contains($division, 'intermediate')) {
-            return $crew === 1 ? '$35 per team' : '$50 per team';
+            return $crew === 1 ? '$70' : '$50';
         }
         if (str_contains($division, 'junior') || str_contains($division, 'senior')) {
-            return $crew === 1 ? '$50 per team' : '$80 per team';
+            return $crew === 1 ? '$100' : '$80';
         }
         return 'Confirm fee with assignor';
     }
