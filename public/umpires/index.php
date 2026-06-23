@@ -112,7 +112,91 @@ foreach ($sections as $key => $section):
 <?php if (empty($items)): ?>
                     <div class="alert alert-info py-2">No games <?= $key === 'today' ? 'today' : ($key === 'future' ? 'upcoming' : 'in the past') ?>.</div>
 <?php else: ?>
-                    <div class="table-responsive">
+                    <div class="d-lg-none">
+<?php foreach ($items as $a): ?>
+                        <div class="mobile-game-card">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong><?= htmlspecialchars(umpirePortalFormatDate($a['game_date'] ?? null)) ?></strong><br>
+                                    <small class="text-muted"><?= htmlspecialchars(umpirePortalFormatTime($a['game_time'] ?? null)) ?></small>
+                                </div>
+                                <span class="badge bg-info"><?= htmlspecialchars($a['slot_label'] ?? '') ?></span>
+                            </div>
+                            <div class="game-meta">
+                                <?= htmlspecialchars($a['location_name'] ?? '') ?>
+                                &middot; <?= htmlspecialchars($a['division_name'] ?? '') ?>
+                                &middot; <?= htmlspecialchars($a['fee_text'] ?? '') ?>
+                            </div>
+                            <div class="small mt-1">
+                                <strong>Assignor:</strong>
+                                <?php $assignorName = htmlspecialchars($a['assignor_name'] ?? 'Contact your assignor'); ?>
+                                <?= $assignorName ?>
+                                <?php if (!empty($a['assignor_email'])): ?>
+                                    &middot; <a href="mailto:<?= htmlspecialchars($a['assignor_email']) ?>"><?= htmlspecialchars($a['assignor_email']) ?></a>
+                                <?php endif; ?>
+                                <?php if (!empty($a['assignor_phone'])): ?>
+                                    &middot; <a href="<?= htmlspecialchars($a['assignor_phone_tel']) ?>"><?= htmlspecialchars($a['assignor_phone']) ?></a>
+                                <?php endif; ?>
+                            </div>
+                            <div class="small">
+                                <strong>Partner:</strong>
+                                <?php if (!empty($a['partner_user_id'])): ?>
+                                    <?= htmlspecialchars($a['partner_name'] ?: 'Partner Umpire') ?>
+                                    <?php if (!empty($a['partner_email'])): ?>
+                                        &middot; <a href="mailto:<?= htmlspecialchars($a['partner_email']) ?>"><?= htmlspecialchars($a['partner_email']) ?></a>
+                                    <?php endif; ?>
+                                    <?php if (!empty($a['partner_phone'])): ?>
+                                        &middot; <a href="<?= htmlspecialchars($a['partner_phone_tel']) ?>"><?= htmlspecialchars($a['partner_phone']) ?></a>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <span class="text-muted">Not yet assigned</span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="small">
+                                <strong>Home:</strong>
+                                <?php if (!empty($a['home_coach_name'])): ?>
+                                    <?= htmlspecialchars($a['home_coach_name']) ?>
+                                    <?php if (!empty($a['home_coach_email'])): ?>
+                                        &middot; <a href="mailto:<?= htmlspecialchars($a['home_coach_email']) ?>"><?= htmlspecialchars($a['home_coach_email']) ?></a>
+                                    <?php endif; ?>
+                                    <?php if (!empty($a['home_coach_phone'])): ?>
+                                        &middot; <a href="<?= htmlspecialchars($a['home_coach_phone_tel']) ?>"><?= htmlspecialchars($a['home_coach_phone']) ?></a>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <span class="text-muted">N/A</span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="small">
+                                <strong>Away:</strong>
+                                <?php if (!empty($a['away_coach_name'])): ?>
+                                    <?= htmlspecialchars($a['away_coach_name']) ?>
+                                    <?php if (!empty($a['away_coach_email'])): ?>
+                                        &middot; <a href="mailto:<?= htmlspecialchars($a['away_coach_email']) ?>"><?= htmlspecialchars($a['away_coach_email']) ?></a>
+                                    <?php endif; ?>
+                                    <?php if (!empty($a['away_coach_phone'])): ?>
+                                        &middot; <a href="<?= htmlspecialchars($a['away_coach_phone_tel']) ?>"><?= htmlspecialchars($a['away_coach_phone']) ?></a>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <span class="text-muted">N/A</span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="mt-2">
+                                <?php if (!empty($a['decline_allowed'])): ?>
+                                    <a class="btn btn-outline-danger btn-sm decline-action d-inline-flex align-items-center"
+                                       href="/umpires/decline.php?assignment_id=<?= htmlspecialchars((string) ($a['assignment_id'] ?? 0), ENT_QUOTES, 'UTF-8') ?>">
+                                        <i class="fas fa-times-circle me-1"></i>Decline
+                                    </a>
+                                <?php else: ?>
+                                    <span class="d-block small text-muted mb-1" tabindex="0">
+                                        Decline not available within <?= htmlspecialchars((string) ($a['decline_lockout_hours'] ?? 48), ENT_QUOTES, 'UTF-8') ?> hours. Contact your assignor.
+                                    </span>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm decline-action" disabled aria-disabled="true">Decline</button>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+<?php endforeach; ?>
+                    </div>
+                    <div class="table-responsive d-none d-lg-block">
                         <table class="table table-striped table-hover">
                             <thead>
                                 <tr>
@@ -217,7 +301,28 @@ foreach ($sections as $key => $section):
                         Decline History
                         <span class="badge bg-secondary rounded-pill"><?= count($declineLog) ?></span>
                     </h2>
-                    <div class="table-responsive">
+                    <div class="d-lg-none">
+<?php foreach ($declineLog as $d): ?>
+                        <div class="mobile-game-card">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong><?= htmlspecialchars(umpirePortalFormatDate($d['game_date'] ?? null)) ?></strong><br>
+                                    <small class="text-muted"><?= htmlspecialchars(umpirePortalFormatTime($d['game_time'] ?? null)) ?></small>
+                                </div>
+                                <span class="badge bg-secondary"><?= htmlspecialchars($d['slot_label'] ?? '') ?></span>
+                            </div>
+                            <div class="game-meta">
+                                <?= htmlspecialchars($d['location_name'] ?? '') ?>
+                                &middot; <?= htmlspecialchars($d['division_name'] ?? '') ?>
+                            </div>
+                            <div class="small mt-1">
+                                <strong>Declined:</strong> <?= htmlspecialchars(umpirePortalFormatDateTime($d['declined_at'] ?? null)) ?>
+                                &middot; <?= htmlspecialchars((string) ($d['hours_until_game_start'] ?? 0)) ?>h before game
+                            </div>
+                        </div>
+<?php endforeach; ?>
+                    </div>
+                    <div class="table-responsive d-none d-lg-block">
                         <table class="table table-striped table-hover">
                             <thead>
                                 <tr>

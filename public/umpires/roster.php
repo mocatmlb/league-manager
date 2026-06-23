@@ -51,7 +51,23 @@ $name = htmlspecialchars(trim(($currentUser['first_name'] ?? '') . ' ' . ($curre
 <?php if (empty($roster)): ?>
                 <div class="alert alert-info">No umpires found.</div>
 <?php else: ?>
-                <div class="table-responsive">
+                <div class="d-lg-none">
+<?php foreach ($roster as $u): ?>
+                    <div class="mobile-game-card">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <strong><?= htmlspecialchars(trim(($u['first_name'] ?? '') . ' ' . ($u['last_name'] ?? ''))) ?></strong>
+                            <span class="badge bg-secondary"><?= htmlspecialchars($u['umpire_level'] ?? '') ?></span>
+                        </div>
+                        <div class="game-meta mt-1">
+                            <a href="mailto:<?= htmlspecialchars($u['email'] ?? '') ?>"><?= htmlspecialchars($u['email'] ?? '') ?></a>
+                            <?php if (!empty($u['phone'])): ?>
+                                &middot; <?= htmlspecialchars($u['phone'] ?? '') ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+<?php endforeach; ?>
+                </div>
+                <div class="table-responsive d-none d-lg-block">
                     <table class="table table-striped table-hover">
                         <thead>
                             <tr>
