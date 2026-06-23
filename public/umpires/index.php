@@ -214,98 +214,103 @@ foreach ($sections as $key => $section):
 <?php endforeach; ?>
                     </div>
                     <div class="table-responsive d-none d-lg-block">
-                        <table class="table table-striped table-hover">
+                        <table class="table umpire-assignments-table">
                             <thead>
                                 <tr>
+                                    <th style="width:20px"></th>
                                     <th>Date</th>
                                     <th>Time</th>
                                     <th>Location</th>
-                                    <th>Division</th>
+                                    <th>Div</th>
                                     <th>Role</th>
                                     <th>Fee</th>
-                                    <th>Assignor</th>
-                                    <th>Partner Umpire</th>
-                                    <th>Home Coach</th>
-                                    <th>Away Coach</th>
-                                    <th>Actions</th>
+                                    <th style="width:90px">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
 <?php foreach ($items as $a): ?>
-                                <tr>
-                                    <td><?= htmlspecialchars(umpirePortalFormatDate($a['game_date'] ?? null)) ?></td>
+                                <tr class="core-row" tabindex="0" role="button" aria-expanded="false" onclick="toggleAssignmentDetail(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleAssignmentDetail(this)}">
+                                    <td><i class="fas fa-chevron-right expand-toggle" aria-hidden="true"></i></td>
+                                    <td style="font-weight:500"><?= htmlspecialchars(umpirePortalFormatDate($a['game_date'] ?? null)) ?></td>
                                     <td><?= htmlspecialchars(umpirePortalFormatTime($a['game_time'] ?? null)) ?></td>
                                     <td><?php $mapsUrl = umpirePortalMapsUrl($a); if ($mapsUrl): ?>
-                                        <a href="<?= $mapsUrl ?>" target="_blank" rel="noopener noreferrer">
+                                        <a href="<?= $mapsUrl ?>" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">
                                             <i class="fas fa-map-marker-alt text-danger me-1"></i><?= htmlspecialchars($a['location_name'] ?? '') ?>
                                         </a>
                                     <?php else: ?>
                                         <?= htmlspecialchars($a['location_name'] ?? '') ?>
                                     <?php endif; ?>
+                                    </td>
                                     <td><?= htmlspecialchars($a['division_name'] ?? '') ?></td>
-                                    <td><?= htmlspecialchars($a['slot_label'] ?? '') ?></td>
+                                    <td><span class="badge bg-info"><?= htmlspecialchars($a['slot_label'] ?? '') ?></span></td>
                                     <td><?= htmlspecialchars($a['fee_text'] ?? '') ?></td>
-                                    <td>
-                                        <?php $assignorName = htmlspecialchars($a['assignor_name'] ?? 'Contact your assignor'); ?>
-                                        <?= $assignorName ?>
-                                        <?php if (!empty($a['assignor_email'])): ?>
-                                            <br><small><a href="mailto:<?= htmlspecialchars($a['assignor_email']) ?>"><?= htmlspecialchars($a['assignor_email']) ?></a></small>
-                                        <?php endif; ?>
-                                        <?php if (!empty($a['assignor_phone'])): ?>
-                                            <br><small><a href="<?= htmlspecialchars($a['assignor_phone_tel']) ?>"><?= htmlspecialchars($a['assignor_phone']) ?></a></small>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <?php if (!empty($a['partner_user_id'])): ?>
-                                            <?= htmlspecialchars($a['partner_name'] ?: 'Partner Umpire') ?>
-                                            <?php if (!empty($a['partner_email'])): ?>
-                                                <br><small><a href="mailto:<?= htmlspecialchars($a['partner_email']) ?>"><?= htmlspecialchars($a['partner_email']) ?></a></small>
-                                            <?php endif; ?>
-                                            <?php if (!empty($a['partner_phone'])): ?>
-                                                <br><small><a href="<?= htmlspecialchars($a['partner_phone_tel']) ?>"><?= htmlspecialchars($a['partner_phone']) ?></a></small>
-                                            <?php endif; ?>
-                                        <?php else: ?>
-                                            <span class="text-muted">Not yet assigned</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <?php if (!empty($a['home_coach_name'])): ?>
-                                            <?= htmlspecialchars($a['home_coach_name']) ?>
-                                            <?php if (!empty($a['home_coach_email'])): ?>
-                                                <br><small><a href="mailto:<?= htmlspecialchars($a['home_coach_email']) ?>"><?= htmlspecialchars($a['home_coach_email']) ?></a></small>
-                                            <?php endif; ?>
-                                            <?php if (!empty($a['home_coach_phone'])): ?>
-                                                <br><small><a href="<?= htmlspecialchars($a['home_coach_phone_tel']) ?>"><?= htmlspecialchars($a['home_coach_phone']) ?></a></small>
-                                            <?php endif; ?>
-                                        <?php else: ?>
-                                            <span class="text-muted">N/A</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <?php if (!empty($a['away_coach_name'])): ?>
-                                            <?= htmlspecialchars($a['away_coach_name']) ?>
-                                            <?php if (!empty($a['away_coach_email'])): ?>
-                                                <br><small><a href="mailto:<?= htmlspecialchars($a['away_coach_email']) ?>"><?= htmlspecialchars($a['away_coach_email']) ?></a></small>
-                                            <?php endif; ?>
-                                            <?php if (!empty($a['away_coach_phone'])): ?>
-                                                <br><small><a href="<?= htmlspecialchars($a['away_coach_phone_tel']) ?>"><?= htmlspecialchars($a['away_coach_phone']) ?></a></small>
-                                            <?php endif; ?>
-                                        <?php else: ?>
-                                            <span class="text-muted">N/A</span>
-                                        <?php endif; ?>
-                                    </td>
                                     <td>
                                         <?php if (!empty($a['decline_allowed'])): ?>
                                             <a class="btn btn-outline-danger btn-sm decline-action d-inline-flex align-items-center"
-                                               href="/umpires/decline.php?assignment_id=<?= htmlspecialchars((string) ($a['assignment_id'] ?? 0), ENT_QUOTES, 'UTF-8') ?>">
+                                               href="/umpires/decline.php?assignment_id=<?= htmlspecialchars((string) ($a['assignment_id'] ?? 0), ENT_QUOTES, 'UTF-8') ?>"
+                                               onclick="event.stopPropagation()">
                                                 <i class="fas fa-times-circle me-1"></i>Decline
                                             </a>
                                         <?php else: ?>
                                             <span class="d-block small text-muted mb-1" tabindex="0">
                                                 Decline not available within <?= htmlspecialchars((string) ($a['decline_lockout_hours'] ?? 48), ENT_QUOTES, 'UTF-8') ?> hours. Contact your assignor.
                                             </span>
-                                            <button type="button" class="btn btn-outline-secondary btn-sm decline-action" disabled aria-disabled="true">Decline</button>
+                                            <button type="button" class="btn btn-outline-secondary btn-sm decline-action" disabled aria-disabled="true" onclick="event.stopPropagation()">Decline</button>
                                         <?php endif; ?>
+                                    </td>
+                                </tr>
+                                <tr class="detail-row" aria-hidden="true">
+                                    <td colspan="8">
+                                        <div class="detail-grid">
+                                            <div class="detail-card">
+                                                <h6><i class="fas fa-user-tie me-1"></i>Assignor</h6>
+                                                <div class="contact-name"><?= htmlspecialchars($a['assignor_name'] ?? 'Contact your assignor') ?></div>
+                                                <?php if (!empty($a['assignor_email'])): ?>
+                                                <div class="contact-line"><a href="mailto:<?= htmlspecialchars($a['assignor_email']) ?>"><?= htmlspecialchars($a['assignor_email']) ?></a></div>
+                                                <?php endif; ?>
+                                                <?php if (!empty($a['assignor_phone'])): ?>
+                                                <div class="contact-line"><a href="<?= htmlspecialchars($a['assignor_phone_tel']) ?>"><?= htmlspecialchars($a['assignor_phone']) ?></a></div>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="detail-card">
+                                                <h6><i class="fas fa-handshake me-1"></i>Partner Umpire</h6>
+                                                <?php if (!empty($a['partner_user_id'])): ?>
+                                                <div class="contact-name"><?= htmlspecialchars($a['partner_name'] ?: 'Partner Umpire') ?></div>
+                                                    <?php if (!empty($a['partner_email'])): ?>
+                                                <div class="contact-line"><a href="mailto:<?= htmlspecialchars($a['partner_email']) ?>"><?= htmlspecialchars($a['partner_email']) ?></a></div>
+                                                    <?php endif; ?>
+                                                    <?php if (!empty($a['partner_phone'])): ?>
+                                                <div class="contact-line"><a href="<?= htmlspecialchars($a['partner_phone_tel']) ?>"><?= htmlspecialchars($a['partner_phone']) ?></a></div>
+                                                    <?php endif; ?>
+                                                <?php else: ?>
+                                                <div class="contact-line text-muted">Not yet assigned</div>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="detail-card">
+                                                <h6><i class="fas fa-users me-1"></i>Matchup</h6>
+                                                <div class="contact-name" style="font-size:0.85rem;overflow-wrap:break-word;"><?= htmlspecialchars($a['home_team'] ?? '') ?> vs <?= htmlspecialchars($a['away_team'] ?? '') ?></div>
+                                                <div class="contact-line" style="margin-top:0.2rem;">
+                                                    <strong>Home:</strong>
+                                                    <?php if (!empty($a['home_coach_name'])): ?>
+                                                        <?= htmlspecialchars($a['home_coach_name']) ?>
+                                                        <?php if (!empty($a['home_coach_email'])): ?> &middot; <a href="mailto:<?= htmlspecialchars($a['home_coach_email']) ?>"><?= htmlspecialchars($a['home_coach_email']) ?></a><?php endif; ?>
+                                                        <?php if (!empty($a['home_coach_phone'])): ?> &middot; <a href="<?= htmlspecialchars($a['home_coach_phone_tel']) ?>"><?= htmlspecialchars($a['home_coach_phone']) ?></a><?php endif; ?>
+                                                    <?php else: ?>
+                                                        <span class="text-muted">N/A</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <div class="contact-line">
+                                                    <strong>Away:</strong>
+                                                    <?php if (!empty($a['away_coach_name'])): ?>
+                                                        <?= htmlspecialchars($a['away_coach_name']) ?>
+                                                        <?php if (!empty($a['away_coach_email'])): ?> &middot; <a href="mailto:<?= htmlspecialchars($a['away_coach_email']) ?>"><?= htmlspecialchars($a['away_coach_email']) ?></a><?php endif; ?>
+                                                        <?php if (!empty($a['away_coach_phone'])): ?> &middot; <a href="<?= htmlspecialchars($a['away_coach_phone_tel']) ?>"><?= htmlspecialchars($a['away_coach_phone']) ?></a><?php endif; ?>
+                                                    <?php else: ?>
+                                                        <span class="text-muted">N/A</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </td>
                                 </tr>
 <?php endforeach; ?>
@@ -387,5 +392,20 @@ foreach ($sections as $key => $section):
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    function toggleAssignmentDetail(row) {
+        var detail = row.nextElementSibling;
+        var icon = row.querySelector('.expand-toggle');
+        if (detail && detail.classList.contains('detail-row')) {
+            var expanded = detail.classList.toggle('show');
+            row.classList.toggle('active-row');
+            row.setAttribute('aria-expanded', expanded);
+            detail.setAttribute('aria-hidden', !expanded);
+            if (icon) {
+                icon.classList.toggle('open');
+            }
+        }
+    }
+    </script>
 </body>
 </html>

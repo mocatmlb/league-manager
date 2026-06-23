@@ -1391,6 +1391,100 @@ a.hero-stat.hero-stat-alert:hover {
     letter-spacing: 0.05em;
 }
 
+/* ── Umpire My Assignments: Expandable Rows (V1) ── */
+.umpire-assignments-table .core-row {
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.umpire-assignments-table .core-row:hover {
+    background: #f0f4ff !important;
+}
+.umpire-assignments-table .core-row.active-row {
+    background: #e8f0fe !important;
+}
+.umpire-assignments-table .core-row.active-row + .detail-row td {
+    background: #f5f8ff;
+}
+.umpire-assignments-table .detail-row {
+    display: none;
+}
+.umpire-assignments-table .detail-row.show {
+    display: table-row;
+}
+.umpire-assignments-table .detail-row td {
+    padding: 0.75rem 0.5rem;
+    background: #fff;
+    border-bottom: 2px solid #dee2e6;
+}
+.umpire-assignments-table .expand-toggle {
+    cursor: pointer;
+    color: #6c757d;
+    transition: transform 0.2s;
+    font-size: 0.8rem;
+}
+.umpire-assignments-table .expand-toggle:hover {
+    color: #0d6efd;
+}
+.umpire-assignments-table .expand-toggle.open {
+    transform: rotate(90deg);
+}
+.umpire-assignments-table .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.75rem;
+}
+.umpire-assignments-table .detail-card {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid #e9ecef;
+}
+.umpire-assignments-table .detail-card h6 {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6c757d;
+    margin-bottom: 0.25rem;
+}
+.umpire-assignments-table .detail-card .contact-name {
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+.umpire-assignments-table .detail-card .contact-line {
+    font-size: 0.8rem;
+    color: #495057;
+}
+.umpire-assignments-table .detail-card .contact-line a {
+    color: #0d6efd;
+    text-decoration: none;
+}
+.umpire-assignments-table .detail-card .contact-line a:hover {
+    text-decoration: underline;
+}
+.umpire-assignments-table th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6c757d;
+    border-top: none;
+    white-space: nowrap;
+    padding: 0.5rem 0.4rem;
+}
+.umpire-assignments-table td {
+    padding: 0.5rem 0.4rem;
+    vertical-align: middle;
+}
+@media (max-width: 1199px) {
+    .umpire-assignments-table .detail-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+@media (max-width: 991px) {
+    .umpire-assignments-table .detail-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* ── Footer ── */
 /* Use footer.bg-light to match Bootstrap's class-level specificity and win */
 footer,
