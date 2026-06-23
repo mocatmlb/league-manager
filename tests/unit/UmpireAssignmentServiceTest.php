@@ -1195,8 +1195,8 @@ register_test('24.1 umpire portal source denies missing session user id and form
     $source = file_get_contents(__DIR__ . '/../../public/umpires/index.php');
     assert_true(strpos($source, '$userId <= 0') !== false, 'Expected missing users-table id guard');
     assert_true(strpos($source, "header('Location: /login.php')") !== false, 'Expected invalid session redirect');
-    assert_true(strpos($source, 'function formatDate') !== false, 'Expected safe date formatter');
-    assert_true(strpos($source, 'function formatTime') !== false, 'Expected safe time formatter');
+    assert_true(strpos($source, 'function umpirePortalFormatDate') !== false, 'Expected safe date formatter');
+    assert_true(strpos($source, 'function umpirePortalFormatTime') !== false, 'Expected safe time formatter');
     assert_true(strpos($source, "return \$ts !== false ? date('g:i A', \$ts) : 'TBD';") !== false, 'Expected invalid time fallback');
 });
 

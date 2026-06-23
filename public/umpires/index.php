@@ -28,17 +28,17 @@ unset($_SESSION['flash_success'], $_SESSION['flash_error']);
 $currentUser = Auth::getCurrentUser();
 $name = htmlspecialchars(trim(($currentUser['first_name'] ?? '') . ' ' . ($currentUser['last_name'] ?? '')));
 
-function formatDate(?string $date): string {
+function umpirePortalFormatDate(?string $date): string {
     $ts = $date !== null && trim($date) !== '' ? strtotime($date) : false;
     return $ts !== false ? date('m/d/Y', $ts) : 'TBD';
 }
 
-function formatTime(?string $time): string {
+function umpirePortalFormatTime(?string $time): string {
     $ts = $time !== null && trim($time) !== '' ? strtotime($time) : false;
     return $ts !== false ? date('g:i A', $ts) : 'TBD';
 }
 
-function formatDateTime(?string $datetime): string {
+function umpirePortalFormatDateTime(?string $datetime): string {
     $ts = $datetime !== null && trim($datetime) !== '' ? strtotime($datetime) : false;
     return $ts !== false ? date('m/d/Y g:i A', $ts) : 'TBD';
 }
@@ -132,8 +132,8 @@ foreach ($sections as $key => $section):
                             <tbody>
 <?php foreach ($items as $a): ?>
                                 <tr>
-                                    <td><?= htmlspecialchars(formatDate($a['game_date'] ?? null)) ?></td>
-                                    <td><?= htmlspecialchars(formatTime($a['game_time'] ?? null)) ?></td>
+                                    <td><?= htmlspecialchars(umpirePortalFormatDate($a['game_date'] ?? null)) ?></td>
+                                    <td><?= htmlspecialchars(umpirePortalFormatTime($a['game_time'] ?? null)) ?></td>
                                     <td><?= htmlspecialchars($a['location_name'] ?? '') ?></td>
                                     <td><?= htmlspecialchars($a['division_name'] ?? '') ?></td>
                                     <td><?= htmlspecialchars($a['slot_label'] ?? '') ?></td>
@@ -233,12 +233,12 @@ foreach ($sections as $key => $section):
                             <tbody>
 <?php foreach ($declineLog as $d): ?>
                                 <tr>
-                                    <td><?= htmlspecialchars(formatDate($d['game_date'] ?? null)) ?></td>
-                                    <td><?= htmlspecialchars(formatTime($d['game_time'] ?? null)) ?></td>
+                                    <td><?= htmlspecialchars(umpirePortalFormatDate($d['game_date'] ?? null)) ?></td>
+                                    <td><?= htmlspecialchars(umpirePortalFormatTime($d['game_time'] ?? null)) ?></td>
                                     <td><?= htmlspecialchars($d['location_name'] ?? '') ?></td>
                                     <td><?= htmlspecialchars($d['division_name'] ?? '') ?></td>
                                     <td><?= htmlspecialchars($d['slot_label'] ?? '') ?></td>
-                                    <td><?= htmlspecialchars(formatDateTime($d['declined_at'] ?? null)) ?></td>
+                                    <td><?= htmlspecialchars(umpirePortalFormatDateTime($d['declined_at'] ?? null)) ?></td>
                                     <td><?= htmlspecialchars((string) ($d['hours_until_game_start'] ?? 0)) ?></td>
                                 </tr>
 <?php endforeach; ?>
