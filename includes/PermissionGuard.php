@@ -73,8 +73,8 @@ class PermissionGuard {
         if (!empty($_SESSION['force_password_change'])) {
             $currentScript = basename($_SERVER['SCRIPT_NAME'] ?? '');
             if ($currentScript !== 'force-change-password.php') {
-                $basePath = dirname($loginUrl);
-                header('Location: ' . $basePath . '/force-change-password.php');
+                $forceChangeUrl = EnvLoader::isProduction() ? '/coaches/force-change-password.php' : '/public/coaches/force-change-password.php';
+                header('Location: ' . $forceChangeUrl);
                 exit;
             }
         }
