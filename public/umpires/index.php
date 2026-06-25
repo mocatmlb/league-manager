@@ -45,11 +45,16 @@ function umpirePortalFormatDateTime(?string $datetime): string {
 
 function umpirePortalMapsUrl(array $a): string {
     $parts = [];
-    if (!empty($a['location_name'])) $parts[] = $a['location_name'];
-    if (!empty($a['address'])) $parts[] = $a['address'];
-    if (!empty($a['city'])) $parts[] = $a['city'];
-    if (!empty($a['state'])) $parts[] = $a['state'];
-    if (!empty($a['zip_code'])) $parts[] = $a['zip_code'];
+    if (!empty($a['address'])) {
+        $parts[] = $a['address'];
+        if (!empty($a['city'])) $parts[] = $a['city'];
+        if (!empty($a['state'])) $parts[] = $a['state'];
+        if (!empty($a['zip_code'])) $parts[] = $a['zip_code'];
+    } else {
+        if (!empty($a['location_name'])) $parts[] = $a['location_name'];
+        if (!empty($a['city'])) $parts[] = $a['city'];
+        if (!empty($a['state'])) $parts[] = $a['state'];
+    }
     if (empty($parts)) return '';
     return 'https://maps.google.com/?q=' . urlencode(implode(', ', $parts));
 }

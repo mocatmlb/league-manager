@@ -158,7 +158,7 @@
             var addrEl  = block ? block.querySelector('.location-address-input') : null;
             var name    = nameEl ? nameEl.value.trim() : '';
             var address = addrEl ? addrEl.value.trim() : '';
-            var query   = name + (address ? ' ' + address : '');
+            var query   = address ? address : name;
             if (!query) return;
             window.open('https://maps.google.com/?q=' + encodeURIComponent(query), '_blank', 'noopener');
         });
