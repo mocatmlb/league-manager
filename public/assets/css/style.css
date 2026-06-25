@@ -1415,3 +1415,134 @@ footer a:hover,
 footer a.text-muted:hover {
     color: rgba(255,255,255,0.9) !important;
 }
+
+/* ── Umpire My Assignments: Revised Detail Cards (Option 1) ── */
+.assignment-detail-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    overflow: hidden;
+}
+.assignment-detail-card__header {
+    background: #e9edf2;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #495057;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+.assignment-detail-card__header i {
+    color: #6c757d;
+    font-size: 0.72rem;
+}
+.assignment-detail-card__body {
+    padding: 0.65rem 0.75rem;
+}
+.assignment-detail-card__body .contact-name {
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+.assignment-detail-card__body .contact-name-matchup {
+    font-weight: 600;
+    font-size: 0.85rem;
+    overflow-wrap: break-word;
+}
+.assignment-detail-card__body .contact-line {
+    font-size: 0.8rem;
+    color: #495057;
+}
+.assignment-detail-card__body .contact-line a {
+    color: #0d6efd;
+    text-decoration: none;
+}
+.assignment-detail-card__body .contact-line a:hover {
+    text-decoration: underline;
+}
+.assignment-detail-card__body .contact-sub {
+    margin-top: 0.2rem;
+}
+.assignment-action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.75rem 0 0 0;
+}
+.assignment-action-row .btn {
+    font-size: 0.8rem;
+}
+.assignment-panel {
+    display: none;
+    margin-top: 0.75rem;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background: #fff;
+    padding: 0.75rem;
+}
+.assignment-panel.open {
+    display: block;
+}
+.assignment-panel__title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #212529;
+}
+.assignment-panel__row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+.assignment-panel__row:last-child {
+    border-bottom: none;
+}
+.assignment-panel__row-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #6c757d;
+    min-width: 80px;
+}
+.assignment-panel__row-name {
+    font-size: 0.85rem;
+    flex: 1;
+}
+.assignment-panel__row-phone a {
+    font-size: 0.85rem;
+    color: #0d6efd;
+    text-decoration: none;
+}
+.assignment-panel__row-phone a:hover {
+    text-decoration: underline;
+}
+.assignment-panel__empty {
+    font-size: 0.8rem;
+    color: #6c757d;
+    font-style: italic;
+}
+.assignment-decline-confirm .confirm-game-detail {
+    font-size: 0.8rem;
+    color: #495057;
+    margin-bottom: 0.75rem;
+}
+.assignment-mobile-details {
+    margin-top: 0.5rem;
+}
+.assignment-mobile-details .assignment-detail-card {
+    margin-bottom: 0.5rem;
+}
+.assignment-mobile-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+@media (max-width: 991px) {
+    .umpire-assignments-table .detail-grid {
+        grid-template-columns: 1fr;
+    }
+}
