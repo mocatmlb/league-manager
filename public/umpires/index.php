@@ -124,7 +124,25 @@ foreach ($sections as $key => $section):
                     <div class="alert alert-info py-2">No games <?= $key === 'today' ? 'today' : ($key === 'future' ? 'upcoming' : 'in the past') ?>.</div>
 <?php else: ?>
                     <div class="d-lg-none">
-<?php foreach ($items as $a): ?>
+<?php foreach ($items as $a):
+    $aId = (int) ($a['assignment_id'] ?? 0);
+    $mapsUrl = umpirePortalMapsUrl($a);
+    $pickDeclineLocked = empty($a['decline_allowed']);
+    $lockoutMsg = 'Decline not available within ' . htmlspecialchars((string) ($a['decline_lockout_hours'] ?? 48), ENT_QUOTES, 'UTF-8') . ' hours. Contact your assignor.';
+    $callContacts = [];
+    if (!empty($a['assignor_phone'])) {
+        $callContacts[] = ['label' => 'Assignor', 'name' => $a['assignor_name'] ?? '', 'tel' => $a['assignor_phone_tel'] ?? '', 'phone' => $a['assignor_phone'] ?? ''];
+    }
+    if (!empty($a['partner_user_id']) && !empty($a['partner_phone'])) {
+        $callContacts[] = ['label' => 'Partner', 'name' => $a['partner_name'] ?? '', 'tel' => $a['partner_phone_tel'] ?? '', 'phone' => $a['partner_phone'] ?? ''];
+    }
+    if (!empty($a['home_coach_phone'])) {
+        $callContacts[] = ['label' => 'Home Coach', 'name' => $a['home_coach_name'] ?? '', 'tel' => $a['home_coach_phone_tel'] ?? '', 'phone' => $a['home_coach_phone'] ?? ''];
+    }
+    if (!empty($a['away_coach_phone'])) {
+        $callContacts[] = ['label' => 'Away Coach', 'name' => $a['away_coach_name'] ?? '', 'tel' => $a['away_coach_phone_tel'] ?? '', 'phone' => $a['away_coach_phone'] ?? ''];
+    }
+?>
                         <div class="mobile-game-card">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
@@ -134,7 +152,7 @@ foreach ($sections as $key => $section):
                                 <span class="badge bg-info"><?= htmlspecialchars($a['slot_label'] ?? '') ?></span>
                             </div>
                             <div class="game-meta">
-                                <?php $mapsUrl = umpirePortalMapsUrl($a); if ($mapsUrl): ?>
+                                <?php if ($mapsUrl): ?>
                                     <a href="<?= $mapsUrl ?>" target="_blank" rel="noopener noreferrer">
                                         <i class="fas fa-map-marker-alt text-danger me-1"></i><?= htmlspecialchars($a['location_name'] ?? '') ?>
                                     </a>
@@ -144,71 +162,104 @@ foreach ($sections as $key => $section):
                                 &middot; <?= htmlspecialchars($a['division_name'] ?? '') ?>
                                 &middot; <?= htmlspecialchars($a['fee_text'] ?? '') ?>
                             </div>
-                            <div class="small mt-1">
-                                <strong>Assignor:</strong>
-                                <?php $assignorName = htmlspecialchars($a['assignor_name'] ?? 'Contact your assignor'); ?>
-                                <?= $assignorName ?>
-                                <?php if (!empty($a['assignor_email'])): ?>
-                                    &middot; <a href="mailto:<?= htmlspecialchars($a['assignor_email']) ?>"><?= htmlspecialchars($a['assignor_email']) ?></a>
-                                <?php endif; ?>
-                                <?php if (!empty($a['assignor_phone'])): ?>
-                                    &middot; <a href="<?= htmlspecialchars($a['assignor_phone_tel']) ?>"><?= htmlspecialchars($a['assignor_phone']) ?></a>
-                                <?php endif; ?>
+                            <div class="assignment-mobile-details">
+                                <div class="assignment-detail-card">
+                                    <div class="assignment-detail-card__header"><i class="fas fa-user-tie"></i> Assignor</div>
+                                    <div class="assignment-detail-card__body">
+                                        <div class="contact-name"><?= htmlspecialchars($a['assignor_name'] ?? 'Contact your assignor') ?></div>
+                                        <?php if (!empty($a['assignor_email'])): ?>
+                                        <div class="contact-line"><a href="mailto:<?= htmlspecialchars($a['assignor_email']) ?>"><?= htmlspecialchars($a['assignor_email']) ?></a></div>
+                                        <?php endif; ?>
+                                        <?php if (!empty($a['assignor_phone'])): ?>
+                                        <div class="contact-line"><a href="<?= htmlspecialchars($a['assignor_phone_tel']) ?>"><?= htmlspecialchars($a['assignor_phone']) ?></a></div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                <div class="assignment-detail-card">
+                                    <div class="assignment-detail-card__header"><i class="fas fa-handshake"></i> Partner</div>
+                                    <div class="assignment-detail-card__body">
+                                        <?php if (!empty($a['partner_user_id'])): ?>
+                                        <div class="contact-name"><?= htmlspecialchars($a['partner_name'] ?: 'Partner Umpire') ?></div>
+                                        <?php if (!empty($a['partner_email'])): ?>
+                                        <div class="contact-line"><a href="mailto:<?= htmlspecialchars($a['partner_email']) ?>"><?= htmlspecialchars($a['partner_email']) ?></a></div>
+                                        <?php endif; ?>
+                                        <?php if (!empty($a['partner_phone'])): ?>
+                                        <div class="contact-line"><a href="<?= htmlspecialchars($a['partner_phone_tel']) ?>"><?= htmlspecialchars($a['partner_phone']) ?></a></div>
+                                        <?php endif; ?>
+                                        <?php else: ?>
+                                        <div class="contact-line text-muted">Not yet assigned</div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                <div class="assignment-detail-card">
+                                    <div class="assignment-detail-card__header"><i class="fas fa-users"></i> Game</div>
+                                    <div class="assignment-detail-card__body">
+                                        <div class="contact-name-matchup"><?= htmlspecialchars($a['home_team'] ?? '') ?> vs <?= htmlspecialchars($a['away_team'] ?? '') ?></div>
+                                        <div class="contact-line contact-sub">
+                                            <strong>Home:</strong>
+                                            <?php if (!empty($a['home_coach_name'])): ?>
+                                                <?= htmlspecialchars($a['home_coach_name']) ?>
+                                                <?php if (!empty($a['home_coach_email'])): ?> &middot; <a href="mailto:<?= htmlspecialchars($a['home_coach_email']) ?>"><?= htmlspecialchars($a['home_coach_email']) ?></a><?php endif; ?>
+                                                <?php if (!empty($a['home_coach_phone'])): ?> &middot; <a href="<?= htmlspecialchars($a['home_coach_phone_tel']) ?>"><?= htmlspecialchars($a['home_coach_phone']) ?></a><?php endif; ?>
+                                            <?php else: ?><span class="text-muted">N/A</span><?php endif; ?>
+                                        </div>
+                                        <div class="contact-line">
+                                            <strong>Away:</strong>
+                                            <?php if (!empty($a['away_coach_name'])): ?>
+                                                <?= htmlspecialchars($a['away_coach_name']) ?>
+                                                <?php if (!empty($a['away_coach_email'])): ?> &middot; <a href="mailto:<?= htmlspecialchars($a['away_coach_email']) ?>"><?= htmlspecialchars($a['away_coach_email']) ?></a><?php endif; ?>
+                                                <?php if (!empty($a['away_coach_phone'])): ?> &middot; <a href="<?= htmlspecialchars($a['away_coach_phone_tel']) ?>"><?= htmlspecialchars($a['away_coach_phone']) ?></a><?php endif; ?>
+                                            <?php else: ?><span class="text-muted">N/A</span><?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="small">
-                                <strong>Partner:</strong>
-                                <?php if (!empty($a['partner_user_id'])): ?>
-                                    <?= htmlspecialchars($a['partner_name'] ?: 'Partner Umpire') ?>
-                                    <?php if (!empty($a['partner_email'])): ?>
-                                        &middot; <a href="mailto:<?= htmlspecialchars($a['partner_email']) ?>"><?= htmlspecialchars($a['partner_email']) ?></a>
-                                    <?php endif; ?>
-                                    <?php if (!empty($a['partner_phone'])): ?>
-                                        &middot; <a href="<?= htmlspecialchars($a['partner_phone_tel']) ?>"><?= htmlspecialchars($a['partner_phone']) ?></a>
-                                    <?php endif; ?>
+                            <div class="assignment-mobile-actions">
+                                <?php if ($mapsUrl): ?>
+                                <a class="btn btn-outline-secondary btn-sm" href="<?= $mapsUrl ?>" target="_blank" rel="noopener noreferrer">
+                                    <i class="fas fa-map-marker-alt me-1"></i>Map
+                                </a>
+                                <?php endif; ?>
+                                <button class="btn btn-outline-secondary btn-sm" type="button" onclick="toggleCallPicker(<?= $aId ?>)">
+                                    <i class="fas fa-phone me-1"></i>Call
+                                </button>
+                                <?php if (!$pickDeclineLocked): ?>
+                                <button class="btn btn-outline-danger btn-sm" type="button" onclick="toggleDeclineConfirm(<?= $aId ?>)">
+                                    <i class="fas fa-times-circle me-1"></i>Decline
+                                </button>
                                 <?php else: ?>
-                                    <span class="text-muted">Not yet assigned</span>
+                                <span class="d-block small text-muted w-100" tabindex="0"><?= $lockoutMsg ?></span>
                                 <?php endif; ?>
                             </div>
-                            <div class="small">
-                                <strong>Home:</strong>
-                                <?php if (!empty($a['home_coach_name'])): ?>
-                                    <?= htmlspecialchars($a['home_coach_name']) ?>
-                                    <?php if (!empty($a['home_coach_email'])): ?>
-                                        &middot; <a href="mailto:<?= htmlspecialchars($a['home_coach_email']) ?>"><?= htmlspecialchars($a['home_coach_email']) ?></a>
-                                    <?php endif; ?>
-                                    <?php if (!empty($a['home_coach_phone'])): ?>
-                                        &middot; <a href="<?= htmlspecialchars($a['home_coach_phone_tel']) ?>"><?= htmlspecialchars($a['home_coach_phone']) ?></a>
-                                    <?php endif; ?>
+                            <div class="assignment-panel" id="call-picker-<?= $aId ?>">
+                                <div class="assignment-panel__title"><i class="fas fa-phone me-1"></i>Call someone about this game</div>
+                                <?php if (!empty($callContacts)): ?>
+                                <?php foreach ($callContacts as $cc): ?>
+                                <div class="assignment-panel__row">
+                                    <span class="assignment-panel__row-label"><?= htmlspecialchars($cc['label']) ?></span>
+                                    <span class="assignment-panel__row-name"><?= htmlspecialchars($cc['name']) ?></span>
+                                    <span class="assignment-panel__row-phone"><a href="<?= htmlspecialchars($cc['tel']) ?>"><?= htmlspecialchars($cc['phone']) ?></a></span>
+                                </div>
+                                <?php endforeach; ?>
                                 <?php else: ?>
-                                    <span class="text-muted">N/A</span>
+                                <div class="assignment-panel__empty">No phone numbers available for this assignment.</div>
                                 <?php endif; ?>
                             </div>
-                            <div class="small">
-                                <strong>Away:</strong>
-                                <?php if (!empty($a['away_coach_name'])): ?>
-                                    <?= htmlspecialchars($a['away_coach_name']) ?>
-                                    <?php if (!empty($a['away_coach_email'])): ?>
-                                        &middot; <a href="mailto:<?= htmlspecialchars($a['away_coach_email']) ?>"><?= htmlspecialchars($a['away_coach_email']) ?></a>
-                                    <?php endif; ?>
-                                    <?php if (!empty($a['away_coach_phone'])): ?>
-                                        &middot; <a href="<?= htmlspecialchars($a['away_coach_phone_tel']) ?>"><?= htmlspecialchars($a['away_coach_phone']) ?></a>
-                                    <?php endif; ?>
-                                <?php else: ?>
-                                    <span class="text-muted">N/A</span>
-                                <?php endif; ?>
-                            </div>
-                            <div class="mt-2">
-                                <?php if (!empty($a['decline_allowed'])): ?>
-                                    <a class="btn btn-outline-danger btn-sm decline-action d-inline-flex align-items-center"
-                                       href="/umpires/decline.php?assignment_id=<?= htmlspecialchars((string) ($a['assignment_id'] ?? 0), ENT_QUOTES, 'UTF-8') ?>">
-                                        <i class="fas fa-times-circle me-1"></i>Decline
+                            <div class="assignment-panel assignment-decline-confirm" id="decline-confirm-<?= $aId ?>">
+                                <div class="assignment-panel__title">Decline this assignment?</div>
+                                <div class="confirm-game-detail">
+                                    <?= htmlspecialchars($a['home_team'] ?? '') ?> vs <?= htmlspecialchars($a['away_team'] ?? '') ?><br>
+                                    <?= htmlspecialchars(umpirePortalFormatDate($a['game_date'] ?? null)) ?> at <?= htmlspecialchars(umpirePortalFormatTime($a['game_time'] ?? null)) ?><br>
+                                    <?= htmlspecialchars($a['location_name'] ?? '') ?>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <a class="btn btn-danger btn-sm" href="/umpires/decline.php?assignment_id=<?= $aId ?>">
+                                        <i class="fas fa-check-circle me-1"></i>Yes, decline
                                     </a>
-                                <?php else: ?>
-                                    <span class="d-block small text-muted mb-1" tabindex="0">
-                                        Decline not available within <?= htmlspecialchars((string) ($a['decline_lockout_hours'] ?? 48), ENT_QUOTES, 'UTF-8') ?> hours. Contact your assignor.
-                                    </span>
-                                    <button type="button" class="btn btn-outline-secondary btn-sm decline-action" disabled aria-disabled="true">Decline</button>
-                                <?php endif; ?>
+                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="toggleDeclineConfirm(<?= $aId ?>)">
+                                        <i class="fas fa-times me-1"></i>Keep assignment
+                                    </button>
+                                </div>
                             </div>
                         </div>
 <?php endforeach; ?>
@@ -228,12 +279,30 @@ foreach ($sections as $key => $section):
                                 </tr>
                             </thead>
                             <tbody>
-<?php foreach ($items as $a): ?>
+<?php foreach ($items as $a):
+    $aId = (int) ($a['assignment_id'] ?? 0);
+    $mapsUrl = umpirePortalMapsUrl($a);
+    $pickDeclineLocked = empty($a['decline_allowed']);
+    $lockoutMsg = 'Decline not available within ' . htmlspecialchars((string) ($a['decline_lockout_hours'] ?? 48), ENT_QUOTES, 'UTF-8') . ' hours. Contact your assignor.';
+    $callContacts = [];
+    if (!empty($a['assignor_phone'])) {
+        $callContacts[] = ['label' => 'Assignor', 'name' => $a['assignor_name'] ?? '', 'tel' => $a['assignor_phone_tel'] ?? '', 'phone' => $a['assignor_phone'] ?? ''];
+    }
+    if (!empty($a['partner_user_id']) && !empty($a['partner_phone'])) {
+        $callContacts[] = ['label' => 'Partner', 'name' => $a['partner_name'] ?? '', 'tel' => $a['partner_phone_tel'] ?? '', 'phone' => $a['partner_phone'] ?? ''];
+    }
+    if (!empty($a['home_coach_phone'])) {
+        $callContacts[] = ['label' => 'Home Coach', 'name' => $a['home_coach_name'] ?? '', 'tel' => $a['home_coach_phone_tel'] ?? '', 'phone' => $a['home_coach_phone'] ?? ''];
+    }
+    if (!empty($a['away_coach_phone'])) {
+        $callContacts[] = ['label' => 'Away Coach', 'name' => $a['away_coach_name'] ?? '', 'tel' => $a['away_coach_phone_tel'] ?? '', 'phone' => $a['away_coach_phone'] ?? ''];
+    }
+?>
                                 <tr class="core-row" tabindex="0" role="button" aria-expanded="false" onclick="toggleAssignmentDetail(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleAssignmentDetail(this)}">
                                     <td><i class="fas fa-chevron-right expand-toggle" aria-hidden="true"></i></td>
                                     <td style="font-weight:500"><?= htmlspecialchars(umpirePortalFormatDate($a['game_date'] ?? null)) ?></td>
                                     <td><?= htmlspecialchars(umpirePortalFormatTime($a['game_time'] ?? null)) ?></td>
-                                    <td><?php $mapsUrl = umpirePortalMapsUrl($a); if ($mapsUrl): ?>
+                                    <td><?php if ($mapsUrl): ?>
                                         <a href="<?= $mapsUrl ?>" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">
                                             <i class="fas fa-map-marker-alt text-danger me-1"></i><?= htmlspecialchars($a['location_name'] ?? '') ?>
                                         </a>
@@ -262,53 +331,107 @@ foreach ($sections as $key => $section):
                                 <tr class="detail-row" aria-hidden="true">
                                     <td colspan="8">
                                         <div class="detail-grid">
-                                            <div class="detail-card">
-                                                <h6><i class="fas fa-user-tie me-1"></i>Assignor</h6>
-                                                <div class="contact-name"><?= htmlspecialchars($a['assignor_name'] ?? 'Contact your assignor') ?></div>
-                                                <?php if (!empty($a['assignor_email'])): ?>
-                                                <div class="contact-line"><a href="mailto:<?= htmlspecialchars($a['assignor_email']) ?>"><?= htmlspecialchars($a['assignor_email']) ?></a></div>
-                                                <?php endif; ?>
-                                                <?php if (!empty($a['assignor_phone'])): ?>
-                                                <div class="contact-line"><a href="<?= htmlspecialchars($a['assignor_phone_tel']) ?>"><?= htmlspecialchars($a['assignor_phone']) ?></a></div>
-                                                <?php endif; ?>
+                                            <div class="assignment-detail-card">
+                                                <div class="assignment-detail-card__header"><i class="fas fa-user-tie"></i> Assignor</div>
+                                                <div class="assignment-detail-card__body">
+                                                    <div class="contact-name"><?= htmlspecialchars($a['assignor_name'] ?? 'Contact your assignor') ?></div>
+                                                    <?php if (!empty($a['assignor_email'])): ?>
+                                                    <div class="contact-line"><a href="mailto:<?= htmlspecialchars($a['assignor_email']) ?>"><?= htmlspecialchars($a['assignor_email']) ?></a></div>
+                                                    <?php endif; ?>
+                                                    <?php if (!empty($a['assignor_phone'])): ?>
+                                                    <div class="contact-line"><a href="<?= htmlspecialchars($a['assignor_phone_tel']) ?>"><?= htmlspecialchars($a['assignor_phone']) ?></a></div>
+                                                    <?php endif; ?>
+                                                </div>
                                             </div>
-                                            <div class="detail-card">
-                                                <h6><i class="fas fa-handshake me-1"></i>Partner Umpire</h6>
-                                                <?php if (!empty($a['partner_user_id'])): ?>
-                                                <div class="contact-name"><?= htmlspecialchars($a['partner_name'] ?: 'Partner Umpire') ?></div>
+                                            <div class="assignment-detail-card">
+                                                <div class="assignment-detail-card__header"><i class="fas fa-handshake"></i> Partner</div>
+                                                <div class="assignment-detail-card__body">
+                                                    <?php if (!empty($a['partner_user_id'])): ?>
+                                                    <div class="contact-name"><?= htmlspecialchars($a['partner_name'] ?: 'Partner Umpire') ?></div>
                                                     <?php if (!empty($a['partner_email'])): ?>
-                                                <div class="contact-line"><a href="mailto:<?= htmlspecialchars($a['partner_email']) ?>"><?= htmlspecialchars($a['partner_email']) ?></a></div>
+                                                    <div class="contact-line"><a href="mailto:<?= htmlspecialchars($a['partner_email']) ?>"><?= htmlspecialchars($a['partner_email']) ?></a></div>
                                                     <?php endif; ?>
                                                     <?php if (!empty($a['partner_phone'])): ?>
-                                                <div class="contact-line"><a href="<?= htmlspecialchars($a['partner_phone_tel']) ?>"><?= htmlspecialchars($a['partner_phone']) ?></a></div>
+                                                    <div class="contact-line"><a href="<?= htmlspecialchars($a['partner_phone_tel']) ?>"><?= htmlspecialchars($a['partner_phone']) ?></a></div>
                                                     <?php endif; ?>
-                                                <?php else: ?>
-                                                <div class="contact-line text-muted">Not yet assigned</div>
-                                                <?php endif; ?>
+                                                    <?php else: ?>
+                                                    <div class="contact-line text-muted">Not yet assigned</div>
+                                                    <?php endif; ?>
+                                                </div>
                                             </div>
-                                            <div class="detail-card">
-                                                <h6><i class="fas fa-users me-1"></i>Matchup</h6>
-                                                <div class="contact-name" style="font-size:0.85rem;overflow-wrap:break-word;"><?= htmlspecialchars($a['home_team'] ?? '') ?> vs <?= htmlspecialchars($a['away_team'] ?? '') ?></div>
-                                                <div class="contact-line" style="margin-top:0.2rem;">
-                                                    <strong>Home:</strong>
-                                                    <?php if (!empty($a['home_coach_name'])): ?>
-                                                        <?= htmlspecialchars($a['home_coach_name']) ?>
-                                                        <?php if (!empty($a['home_coach_email'])): ?> &middot; <a href="mailto:<?= htmlspecialchars($a['home_coach_email']) ?>"><?= htmlspecialchars($a['home_coach_email']) ?></a><?php endif; ?>
-                                                        <?php if (!empty($a['home_coach_phone'])): ?> &middot; <a href="<?= htmlspecialchars($a['home_coach_phone_tel']) ?>"><?= htmlspecialchars($a['home_coach_phone']) ?></a><?php endif; ?>
-                                                    <?php else: ?>
-                                                        <span class="text-muted">N/A</span>
-                                                    <?php endif; ?>
+                                            <div class="assignment-detail-card">
+                                                <div class="assignment-detail-card__header"><i class="fas fa-users"></i> Matchup</div>
+                                                <div class="assignment-detail-card__body">
+                                                    <div class="contact-name-matchup"><?= htmlspecialchars($a['home_team'] ?? '') ?> vs <?= htmlspecialchars($a['away_team'] ?? '') ?></div>
+                                                    <div class="contact-line contact-sub">
+                                                        <strong>Home:</strong>
+                                                        <?php if (!empty($a['home_coach_name'])): ?>
+                                                            <?= htmlspecialchars($a['home_coach_name']) ?>
+                                                            <?php if (!empty($a['home_coach_email'])): ?> &middot; <a href="mailto:<?= htmlspecialchars($a['home_coach_email']) ?>"><?= htmlspecialchars($a['home_coach_email']) ?></a><?php endif; ?>
+                                                            <?php if (!empty($a['home_coach_phone'])): ?> &middot; <a href="<?= htmlspecialchars($a['home_coach_phone_tel']) ?>"><?= htmlspecialchars($a['home_coach_phone']) ?></a><?php endif; ?>
+                                                        <?php else: ?><span class="text-muted">N/A</span><?php endif; ?>
+                                                    </div>
+                                                    <div class="contact-line">
+                                                        <strong>Away:</strong>
+                                                        <?php if (!empty($a['away_coach_name'])): ?>
+                                                            <?= htmlspecialchars($a['away_coach_name']) ?>
+                                                            <?php if (!empty($a['away_coach_email'])): ?> &middot; <a href="mailto:<?= htmlspecialchars($a['away_coach_email']) ?>"><?= htmlspecialchars($a['away_coach_email']) ?></a><?php endif; ?>
+                                                            <?php if (!empty($a['away_coach_phone'])): ?> &middot; <a href="<?= htmlspecialchars($a['away_coach_phone_tel']) ?>"><?= htmlspecialchars($a['away_coach_phone']) ?></a><?php endif; ?>
+                                                        <?php else: ?><span class="text-muted">N/A</span><?php endif; ?>
+                                                    </div>
                                                 </div>
-                                                <div class="contact-line">
-                                                    <strong>Away:</strong>
-                                                    <?php if (!empty($a['away_coach_name'])): ?>
-                                                        <?= htmlspecialchars($a['away_coach_name']) ?>
-                                                        <?php if (!empty($a['away_coach_email'])): ?> &middot; <a href="mailto:<?= htmlspecialchars($a['away_coach_email']) ?>"><?= htmlspecialchars($a['away_coach_email']) ?></a><?php endif; ?>
-                                                        <?php if (!empty($a['away_coach_phone'])): ?> &middot; <a href="<?= htmlspecialchars($a['away_coach_phone_tel']) ?>"><?= htmlspecialchars($a['away_coach_phone']) ?></a><?php endif; ?>
-                                                    <?php else: ?>
-                                                        <span class="text-muted">N/A</span>
-                                                    <?php endif; ?>
-                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="assignment-action-row">
+                                            <?php if ($mapsUrl): ?>
+                                            <a class="btn btn-outline-secondary btn-sm" href="<?= $mapsUrl ?>" target="_blank" rel="noopener noreferrer">
+                                                <i class="fas fa-map-marker-alt me-1"></i>Open Map
+                                            </a>
+                                            <?php endif; ?>
+                                            <?php if (!empty($a['assignor_email'])): ?>
+                                            <a class="btn btn-outline-secondary btn-sm" href="mailto:<?= htmlspecialchars($a['assignor_email']) ?>">
+                                                <i class="fas fa-envelope me-1"></i>Email Assignor
+                                            </a>
+                                            <?php endif; ?>
+                                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="toggleCallPicker(<?= $aId ?>)">
+                                                <i class="fas fa-phone me-1"></i>Call
+                                            </button>
+                                            <?php if (!$pickDeclineLocked): ?>
+                                            <button class="btn btn-outline-danger btn-sm" type="button" onclick="toggleDeclineConfirm(<?= $aId ?>)">
+                                                <i class="fas fa-times-circle me-1"></i>Decline assignment
+                                            </button>
+                                            <?php else: ?>
+                                            <span class="d-block small text-muted" tabindex="0"><?= $lockoutMsg ?></span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="assignment-panel" id="call-picker-desktop-<?= $aId ?>">
+                                            <div class="assignment-panel__title"><i class="fas fa-phone me-1"></i>Call someone about this game</div>
+                                            <?php if (!empty($callContacts)): ?>
+                                            <?php foreach ($callContacts as $cc): ?>
+                                            <div class="assignment-panel__row">
+                                                <span class="assignment-panel__row-label"><?= htmlspecialchars($cc['label']) ?></span>
+                                                <span class="assignment-panel__row-name"><?= htmlspecialchars($cc['name']) ?></span>
+                                                <span class="assignment-panel__row-phone"><a href="<?= htmlspecialchars($cc['tel']) ?>"><?= htmlspecialchars($cc['phone']) ?></a></span>
+                                            </div>
+                                            <?php endforeach; ?>
+                                            <?php else: ?>
+                                            <div class="assignment-panel__empty">No phone numbers available for this assignment.</div>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="assignment-panel assignment-decline-confirm" id="decline-confirm-desktop-<?= $aId ?>">
+                                            <div class="assignment-panel__title">Decline this assignment?</div>
+                                            <div class="confirm-game-detail">
+                                                <?= htmlspecialchars($a['home_team'] ?? '') ?> vs <?= htmlspecialchars($a['away_team'] ?? '') ?><br>
+                                                <?= htmlspecialchars(umpirePortalFormatDate($a['game_date'] ?? null)) ?> at <?= htmlspecialchars(umpirePortalFormatTime($a['game_time'] ?? null)) ?><br>
+                                                <?= htmlspecialchars($a['location_name'] ?? '') ?>
+                                            </div>
+                                            <div class="d-flex gap-2">
+                                                <a class="btn btn-danger btn-sm" href="/umpires/decline.php?assignment_id=<?= $aId ?>">
+                                                    <i class="fas fa-check-circle me-1"></i>Yes, decline
+                                                </a>
+                                                <button class="btn btn-outline-secondary btn-sm" type="button" onclick="toggleDeclineConfirm(<?= $aId ?>)">
+                                                    <i class="fas fa-times me-1"></i>Keep assignment
+                                                </button>
                                             </div>
                                         </div>
                                     </td>
@@ -404,7 +527,37 @@ foreach ($sections as $key => $section):
             if (icon) {
                 icon.classList.toggle('open');
             }
+            if (!expanded) {
+                closeAllPanels(detail);
+            }
         }
+    }
+    function closeAllPanels(container) {
+        var panels = container.querySelectorAll('.assignment-panel.open');
+        for (var i = 0; i < panels.length; i++) {
+            panels[i].classList.remove('open');
+        }
+    }
+    function getPanel(id) {
+        return document.getElementById(id);
+    }
+    function toggleCallPicker(aId) {
+        var picker = getPanel('call-picker-' + aId);
+        var pickerD = getPanel('call-picker-desktop-' + aId);
+        var decline = getPanel('decline-confirm-' + aId);
+        var declineD = getPanel('decline-confirm-desktop-' + aId);
+        if (!picker && !pickerD) return;
+        [decline, declineD].forEach(function(p) { if (p) p.classList.remove('open'); });
+        [picker, pickerD].forEach(function(p) { if (p) p.classList.toggle('open'); });
+    }
+    function toggleDeclineConfirm(aId) {
+        var decline = getPanel('decline-confirm-' + aId);
+        var declineD = getPanel('decline-confirm-desktop-' + aId);
+        var picker = getPanel('call-picker-' + aId);
+        var pickerD = getPanel('call-picker-desktop-' + aId);
+        if (!decline && !declineD) return;
+        [picker, pickerD].forEach(function(p) { if (p) p.classList.remove('open'); });
+        [decline, declineD].forEach(function(p) { if (p) p.classList.toggle('open'); });
     }
     </script>
 </body>
