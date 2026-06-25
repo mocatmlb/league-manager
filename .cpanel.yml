@@ -21,12 +21,13 @@ deployment:
 
       cp -R vendor/* $TARGETDIR/vendor/
       cp -R includes/* $TARGETDIR/includes/
-      echo "--- Copying public/* to $TARGETDIR/ ---"
-      ls -la public/assets/css/ 2>&1
-      cp -vR public/* $TARGETDIR/ 2>&1
-      echo "--- Checking result ---"
-      ls -la $TARGETDIR/assets/css/ 2>&1
-      wc -l $TARGETDIR/assets/css/style.css 2>&1
+      echo "=== CSS deploy debug ==="
+      ls -la public/assets/css/
+      cp -f public/assets/css/style.css $TARGETDIR/assets/css/style.css 2>&1
+      echo "Copy exit code: $?"
+      wc -l $TARGETDIR/assets/css/style.css
+      echo "=== End CSS debug ==="
+      cp -R public/* $TARGETDIR/
       cp -f includes/$CONFIG $TARGETDIR/includes/config.php
       CALVER=$(date +%Y.%-m.%-d)
       sed -i "s/CALVER_STAMP/$CALVER/" $TARGETDIR/includes/config.php
