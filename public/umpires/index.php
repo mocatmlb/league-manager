@@ -148,15 +148,17 @@ foreach ($sections as $key => $section):
         $callContacts[] = ['label' => 'Away Coach', 'name' => $a['away_coach_name'] ?? '', 'tel' => $a['away_coach_phone_tel'] ?? '', 'phone' => $a['away_coach_phone'] ?? ''];
     }
 ?>
-                        <div class="mobile-game-card">
-                            <div class="d-flex justify-content-between align-items-start">
+                        <div class="mobile-game-card assignment-mobile-card">
+                            <div class="assignment-mobile-header" onclick="toggleMobileAssignmentCardFromHeader(event, this)">
+                                <div class="assignment-mobile-summary">
+                                    <div class="d-flex justify-content-between align-items-start">
                                 <div>
                                     <strong><?= htmlspecialchars(umpirePortalFormatDate($a['game_date'] ?? null)) ?></strong><br>
                                     <small class="text-muted"><?= htmlspecialchars(umpirePortalFormatTime($a['game_time'] ?? null)) ?></small>
                                 </div>
                                 <span class="badge bg-info"><?= htmlspecialchars($a['slot_label'] ?? '') ?></span>
-                            </div>
-                            <div class="game-meta">
+                                    </div>
+                                    <div class="game-meta">
                                 <?php if ($mapsUrl): ?>
                                     <a href="<?= $mapsUrl ?>" target="_blank" rel="noopener noreferrer">
                                         <i class="fas fa-map-marker-alt text-danger me-1"></i><?= htmlspecialchars($a['location_name'] ?? '') ?>
@@ -166,7 +168,14 @@ foreach ($sections as $key => $section):
                                 <?php endif; ?>
                                 &middot; <?= htmlspecialchars($a['division_name'] ?? '') ?>
                                 &middot; <?= htmlspecialchars($a['fee_text'] ?? '') ?>
+                                    </div>
+                                </div>
+                                <button class="assignment-mobile-toggle" type="button" aria-expanded="false" aria-controls="assignment-mobile-details-<?= $aId ?>" onclick="toggleMobileAssignmentCard(this)">
+                                    <i class="fas fa-chevron-down assignment-mobile-toggle__icon" aria-hidden="true"></i>
+                                    <span class="visually-hidden">Toggle assignment details</span>
+                                </button>
                             </div>
+                            <div class="assignment-mobile-card-body" id="assignment-mobile-details-<?= $aId ?>" hidden>
                             <div class="assignment-mobile-details">
                                 <div class="assignment-detail-card">
                                     <div class="assignment-detail-card__header"><i class="fas fa-user-tie"></i> Assignor</div>
@@ -265,6 +274,7 @@ foreach ($sections as $key => $section):
                                         <i class="fas fa-times me-1"></i>Keep assignment
                                     </button>
                                 </div>
+                            </div>
                             </div>
                         </div>
 <?php endforeach; ?>
@@ -535,6 +545,26 @@ foreach ($sections as $key => $section):
             if (!expanded) {
                 closeAllPanels(detail);
             }
+        }
+    }
+    function toggleMobileAssignmentCard(button) {
+        var bodyId = button.getAttribute('aria-controls');
+        var body = bodyId ? document.getElementById(bodyId) : null;
+        if (!body) return;
+
+        var expanded = button.getAttribute('aria-expanded') === 'true';
+        button.setAttribute('aria-expanded', !expanded);
+        body.hidden = expanded;
+
+        if (expanded) {
+            closeAllPanels(body);
+        }
+    }
+    function toggleMobileAssignmentCardFromHeader(event, header) {
+        if (event.target.closest('a, button')) return;
+        var button = header.querySelector('.assignment-mobile-toggle');
+        if (button) {
+            toggleMobileAssignmentCard(button);
         }
     }
     function closeAllPanels(container) {
