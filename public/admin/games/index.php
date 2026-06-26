@@ -678,6 +678,8 @@ $filters = FilterHelpers::getFilterValues();
 $showInactive = filter_input(INPUT_GET, 'show_inactive', FILTER_VALIDATE_BOOLEAN) ?: false;
 $gameStatusOptions = ['Active', 'Created', 'Scheduled', 'Pending Change', 'Completed', 'Cancelled', 'Postponed'];
 $gameNumberFilter = substr(trim((string)($_GET['game_number'] ?? '')), 0, 50);
+$gameNumberDigits = preg_replace('/\D+/', '', $gameNumberFilter);
+$isNumericGameNumberSearch = preg_match('/^#?\s*\d+$/', $gameNumberFilter) === 1;
 $dateFromFilter = trim((string)($_GET['date_from'] ?? ''));
 $dateToFilter = trim((string)($_GET['date_to'] ?? ''));
 $locationFilter = filter_input(INPUT_GET, 'location', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
@@ -725,8 +727,16 @@ $conditions = $filterSql['conditions'];
 $params = $filterSql['params'];
 
 if ($gameNumberFilter !== '') {
-    $conditions .= " AND g.game_number LIKE ? ESCAPE '!'";
-    $params[] = '%' . $escapeLikeFilter($gameNumberFilter) . '%';
+    if ($isNumericGameNumberSearch && strlen($gameNumberDigits) <= 4) {
+        $conditions .= " AND g.game_number REGEXP '^[0-9]{8}$' AND RIGHT(g.game_number, 4) = ?";
+        $params[] = str_pad($gameNumberDigits, 4, '0', STR_PAD_LEFT);
+    } elseif ($isNumericGameNumberSearch) {
+        $conditions .= " AND g.game_number = ?";
+        $params[] = $gameNumberDigits;
+    } else {
+        $conditions .= " AND g.game_number LIKE ? ESCAPE '!'";
+        $params[] = '%' . $escapeLikeFilter($gameNumberFilter) . '%';
+    }
 }
 
 if ($filterWarning === '' && $dateFromFilter !== '') {
