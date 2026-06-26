@@ -31,6 +31,7 @@ unset($__dir, $__found, $__i, $__candidate);
 @include_once EnvLoader::getPath('includes/admin_bootstrap.php');
 require_once EnvLoader::getPath('includes/ConflictDetectionService.php');
 require_once EnvLoader::getPath('includes/UmpireAssignmentService.php');
+require_once EnvLoader::getPath('includes/GameStatusEligibility.php');
 
 // Require admin authentication
 Auth::requireAdmin();
@@ -478,6 +479,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $reason = sanitize($_POST['cancel_reason']);
                     
                     $db->beginTransaction();
+
+                    $game = $db->fetchOne(
+                        "SELECT game_status, home_score, away_score FROM games WHERE game_id = ? FOR UPDATE",
+                        [$gameId]
+                    );
+
+                    if (!$game) {
+                        throw new Exception('Game not found.');
+                    }
+
+                    if (!GameStatusEligibility::canAdminCancel($game)) {
+                        throw new Exception('Only unplayed games can be cancelled.');
+                    }
                     
                     // Update game status
                     $gameData = [
@@ -935,14 +949,22 @@ $pageTitle = "Games Management - " . APP_NAME;
                                                             <i class="fas fa-cog"></i> Edit Game Details
                                                         </a></li>
                                                         
-                                                        <?php if ($game['game_status'] === 'Scheduled' || $game['game_status'] === 'Created' || $game['game_status'] === 'Pending Change'): ?>
+                                                        <?php
+                                                        $canPostponeGame = $game['game_status'] === 'Scheduled' || $game['game_status'] === 'Created' || $game['game_status'] === 'Pending Change';
+                                                        $canCancelGame = GameStatusEligibility::canAdminCancel($game);
+                                                        ?>
+                                                        <?php if ($canPostponeGame || $canCancelGame): ?>
                                                             <li><hr class="dropdown-divider"></li>
-                                                            <li><a class="dropdown-item" href="#" onclick="postponeGame(<?php echo $game['game_id']; ?>, '<?php echo addslashes($game['game_number']); ?>')">
-                                                                <i class="fas fa-clock"></i> Postpone Game
-                                                            </a></li>
-                                                            <li><a class="dropdown-item text-danger" href="#" onclick="cancelGame(<?php echo $game['game_id']; ?>, '<?php echo addslashes($game['game_number']); ?>')">
-                                                                <i class="fas fa-times"></i> Cancel Game
-                                                            </a></li>
+                                                            <?php if ($canPostponeGame): ?>
+                                                                <li><a class="dropdown-item" href="#" onclick="postponeGame(<?php echo $game['game_id']; ?>, '<?php echo addslashes($game['game_number']); ?>')">
+                                                                    <i class="fas fa-clock"></i> Postpone Game
+                                                                </a></li>
+                                                            <?php endif; ?>
+                                                            <?php if ($canCancelGame): ?>
+                                                                <li><a class="dropdown-item text-danger" href="#" onclick="cancelGame(<?php echo $game['game_id']; ?>, '<?php echo addslashes($game['game_number']); ?>')">
+                                                                    <i class="fas fa-times"></i> Cancel Game
+                                                                </a></li>
+                                                            <?php endif; ?>
                                                         <?php endif; ?>
                                                         <li><hr class="dropdown-divider"></li>
                                                         <li><a class="dropdown-item text-danger" href="#" onclick="deleteGame(<?php echo (int)$game['game_id']; ?>, '<?php echo addslashes($game['game_number']); ?>', '<?php echo addslashes($game['away_team_name']); ?>', '<?php echo addslashes($game['home_team_name']); ?>'); return false;">
