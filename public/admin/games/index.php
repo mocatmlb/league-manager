@@ -676,15 +676,101 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 FilterHelpers::init();
 $filters = FilterHelpers::getFilterValues();
 $showInactive = filter_input(INPUT_GET, 'show_inactive', FILTER_VALIDATE_BOOLEAN) ?: false;
+$gameStatusOptions = ['Active', 'Created', 'Scheduled', 'Pending Change', 'Completed', 'Cancelled', 'Postponed'];
+$gameNumberFilter = substr(trim((string)($_GET['game_number'] ?? '')), 0, 50);
+$dateFromFilter = trim((string)($_GET['date_from'] ?? ''));
+$dateToFilter = trim((string)($_GET['date_to'] ?? ''));
+$locationFilter = filter_input(INPUT_GET, 'location', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
+$teamFilter = substr(trim((string)($_GET['team'] ?? '')), 0, 100);
+$statusFilter = trim((string)($_GET['status'] ?? ''));
+$filterWarning = '';
+$isValidDateFilter = static function (string $value): bool {
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+        return false;
+    }
+    [$year, $month, $day] = array_map('intval', explode('-', $value));
+    return checkdate($month, $day, $year);
+};
+
+if (!$isValidDateFilter($dateFromFilter)) {
+    $dateFromFilter = '';
+}
+if (!$isValidDateFilter($dateToFilter)) {
+    $dateToFilter = '';
+}
+if (!in_array($statusFilter, $gameStatusOptions, true)) {
+    $statusFilter = '';
+}
+if ($dateFromFilter !== '' && $dateToFilter !== '' && $dateFromFilter > $dateToFilter) {
+    $filterWarning = 'Date From must be on or before Date To. Adjust the date filters and try again.';
+}
+$escapeLikeFilter = static fn(string $value): string => str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $value);
+$hasFilterValue = static fn($value): bool => $value !== null && $value !== '';
+
+$gameFilters = [
+    'game_number' => $gameNumberFilter,
+    'date_from' => $dateFromFilter,
+    'date_to' => $dateToFilter,
+    'location_id' => $locationFilter,
+    'team' => $teamFilter,
+    'status' => $statusFilter,
+];
+$hasActiveGameFilters = $showInactive
+    || array_filter($filters, fn($value, $key) => $key !== 'tab' && $hasFilterValue($value), ARRAY_FILTER_USE_BOTH)
+    || array_filter($gameFilters, $hasFilterValue);
 
 // Build filter conditions
 $filterSql = FilterHelpers::buildFilterConditions($filters);
 $conditions = $filterSql['conditions'];
 $params = $filterSql['params'];
 
+if ($gameNumberFilter !== '') {
+    $conditions .= " AND g.game_number LIKE ? ESCAPE '!'";
+    $params[] = '%' . $escapeLikeFilter($gameNumberFilter) . '%';
+}
+
+if ($filterWarning === '' && $dateFromFilter !== '') {
+    $conditions .= " AND sch.game_date >= ?";
+    $params[] = $dateFromFilter;
+}
+
+if ($filterWarning === '' && $dateToFilter !== '') {
+    $conditions .= " AND sch.game_date <= ?";
+    $params[] = $dateToFilter;
+}
+
+if ($locationFilter) {
+    $conditions .= " AND sch.location_id = ?";
+    $params[] = $locationFilter;
+}
+
+if ($teamFilter !== '') {
+    $teamLike = '%' . $escapeLikeFilter($teamFilter) . '%';
+    $conditions .= " AND (
+        CASE
+            WHEN ht.team_name IS NOT NULL AND ht.team_name != '' THEN ht.team_name
+            ELSE CONCAT(COALESCE(ht.league_name, ''), '-', COALESCE(ht.manager_last_name, ''))
+        END LIKE ? ESCAPE '!'
+        OR CASE
+            WHEN at.team_name IS NOT NULL AND at.team_name != '' THEN at.team_name
+            ELSE CONCAT(COALESCE(at.league_name, ''), '-', COALESCE(at.manager_last_name, ''))
+        END LIKE ? ESCAPE '!'
+    )";
+    $params[] = $teamLike;
+    $params[] = $teamLike;
+}
+
+if ($statusFilter !== '') {
+    $conditions .= " AND g.game_status = ?";
+    $params[] = $statusFilter;
+}
+
 // Add season status condition if not showing inactive
 if (!$showInactive) {
     $conditions .= " AND s.season_status IN ('Active', 'Planning', 'Registration')";
+}
+if ($filterWarning !== '') {
+    $conditions .= " AND 1=0";
 }
 
 // Get games with team names, schedule info, and change counts
@@ -735,6 +821,7 @@ $teams = $db->fetchAll("
     ORDER BY display_name
 ");
 $locations = $db->fetchAll("SELECT location_id, location_name, address, city, state, zip_code FROM locations WHERE active_status = 'Active' ORDER BY location_name");
+$enableGameFilters = true;
 
 $pageTitle = "Games Management - " . APP_NAME;
 ?>
@@ -846,7 +933,25 @@ $pageTitle = "Games Management - " . APP_NAME;
                 unset($__filter);
                 ?>
 
+                <?php if ($filterWarning !== ''): ?>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i> <?php echo sanitize($filterWarning); ?>
+                    </div>
+                <?php endif; ?>
+
+                <?php if (empty($games)): ?>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <?php if ($hasActiveGameFilters): ?>
+                            No games found for the selected filters. Change the filter parameters and try again.
+                        <?php else: ?>
+                            No games found.
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+
                 <!-- Games Table -->
+                <?php if (!empty($games)): ?>
                 <div class="card">
                     <div class="card-body">
                         <div class="table-responsive">
@@ -976,7 +1081,7 @@ $pageTitle = "Games Management - " . APP_NAME;
                                         </td>
                                     </tr>
                                     <tr id="details-<?php echo $game['game_id']; ?>" class="schedule-history" style="display: none;">
-                                        <td colspan="10">
+                                        <td colspan="12">
                                             <div class="p-3">
                                                 <h6><i class="fas fa-history"></i> Schedule History & Change Details</h6>
                                                 <div id="history-content-<?php echo $game['game_id']; ?>">
@@ -996,6 +1101,7 @@ $pageTitle = "Games Management - " . APP_NAME;
                         </div><!-- /.table-responsive -->
                     </div>
                 </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -1497,19 +1603,21 @@ $pageTitle = "Games Management - " . APP_NAME;
             console.log('formatTimeTZ available:', typeof formatTimeTZ);
             console.log('appTimezone:', typeof appTimezone !== 'undefined' ? appTimezone : 'undefined');
             
-            $('#gamesTable').DataTable({
-                order: [[4, 'asc'], [5, 'asc'], [8, 'asc']], // Sort by Date, Time, Location ascending
-                pageLength: 25,
-                columnDefs: [
-                    { orderable: false, targets: [0, 11] }, // Expand icon and Actions columns
-                    { width: "30px", targets: [0] }, // Fixed width for expand icon column
-                    { width: "120px", targets: [2] }, // Program column
-                    { width: "150px", targets: [3] }, // Season column
-                    { width: "100px", targets: [4, 5] } // Date and Time columns
-                ],
-                stateSave: false,
-                stateDuration: 0 // Session storage (cleared when browser closes)
-            });
+            if ($('#gamesTable').length) {
+                $('#gamesTable').DataTable({
+                    order: [[4, 'asc'], [5, 'asc'], [8, 'asc']], // Sort by Date, Time, Location ascending
+                    pageLength: 25,
+                    columnDefs: [
+                        { orderable: false, targets: [0, 11] }, // Expand icon and Actions columns
+                        { width: "30px", targets: [0] }, // Fixed width for expand icon column
+                        { width: "120px", targets: [2] }, // Program column
+                        { width: "150px", targets: [3] }, // Season column
+                        { width: "100px", targets: [4, 5] } // Date and Time columns
+                    ],
+                    stateSave: false,
+                    stateDuration: 0 // Session storage (cleared when browser closes)
+                });
+            }
 
             $('#addLocationSelect').on('change', function() {
                 toggleLocationFields('addLocationSelect', 'addLocationFields', 'addLocationNameNew', 'addLocationCityNew', 'addLocationStateNew');
