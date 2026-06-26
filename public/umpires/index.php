@@ -336,9 +336,6 @@ foreach ($sections as $key => $section):
                                                 <i class="fas fa-times-circle me-1"></i>Decline
                                             </a>
                                         <?php else: ?>
-                                            <span class="d-block small text-muted mb-1" tabindex="0">
-                                                Decline not available within <?= htmlspecialchars((string) ($a['decline_lockout_hours'] ?? 48), ENT_QUOTES, 'UTF-8') ?> hours. Contact your assignor.
-                                            </span>
                                             <button type="button" class="btn btn-outline-secondary btn-sm decline-action" disabled aria-disabled="true" onclick="event.stopPropagation()">Decline</button>
                                         <?php endif; ?>
                                     </td>
