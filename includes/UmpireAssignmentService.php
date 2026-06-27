@@ -13,6 +13,9 @@ if (!class_exists('UmpireConflictChecker')) {
 if (!class_exists('EmailService')) {
     require_once __DIR__ . '/EmailService.php';
 }
+if (!class_exists('UmpireAvailabilityService')) {
+    require_once __DIR__ . '/UmpireAvailabilityService.php';
+}
 
 if (!class_exists('UmpireAssignmentOverrideRequiredException')) {
     class UmpireAssignmentOverrideRequiredException extends \RuntimeException {
@@ -352,11 +355,20 @@ class UmpireAssignmentService {
         }
         unset($umpire);
 
+        // Story 25.2: Mark availability pool membership per umpire (AC #1, #3, #4, #5)
+        $poolIds = $this->computeAvailabilityPoolIds($game);
+        $poolIdSet = array_flip($poolIds);
+        foreach ($roster as &$umpire) {
+            $umpire['in_pool'] = isset($poolIdSet[(int) ($umpire['id'] ?? 0)]);
+        }
+        unset($umpire);
+
         return [
             'game' => $game,
             'slot_labels' => $this->getSlotLabels(),
             'slots' => $slots,
             'roster' => $roster,
+            'availability_pool_count' => count($poolIds),
             'migration_mode' => $rosterService->isMigrationMode(),
             'warnings' => $this->collectAssignmentQualityWarnings($gameId, $slots, $game),
         ];
@@ -1244,6 +1256,16 @@ class UmpireAssignmentService {
         );
         if (!($result['success'] ?? false)) {
             throw new \RuntimeException('Decline alert email could not be queued.');
+        }
+    }
+
+    private function computeAvailabilityPoolIds(array $game): array {
+        try {
+            [$start, $end] = $this->assignmentWindow($game);
+            $availService = new UmpireAvailabilityService();
+            return $availService->getAvailableUmpireIdsForWindow($start, $end);
+        } catch (\Throwable $e) {
+            return [];
         }
     }
 

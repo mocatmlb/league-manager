@@ -17,6 +17,7 @@
     var activePickerSlotIndex = null;
     var pickerFilter = 'all';
     var pickerSearch = '';
+    var pickerMode = 'pool';
     var returnFocusSlotIndex = null;
     var pendingPublishFeedback = null;
 
@@ -202,6 +203,7 @@
         activePickerSlotIndex = null;
         pickerFilter = 'all';
         pickerSearch = '';
+        pickerMode = 'pool';
         renderCurrentDrawer();
     }
 
@@ -525,6 +527,7 @@
         activePickerSlotIndex = slotIndex;
         pickerFilter = 'all';
         pickerSearch = '';
+        pickerMode = 'pool';
         returnFocusSlotIndex = slotIndex;
         renderCurrentDrawer();
     }
@@ -583,6 +586,28 @@
         search.setAttribute('data-assignment-picker-search', '1');
         panel.appendChild(search);
 
+        var modeGroup = document.createElement('div');
+        modeGroup.className = 'btn-group mb-2 w-100';
+        modeGroup.setAttribute('role', 'group');
+        modeGroup.setAttribute('aria-label', 'Roster view');
+        [
+            ['pool', 'Available'],
+            ['all', 'All Umpires']
+        ].forEach(function (entry) {
+            var modeBtn = document.createElement('button');
+            modeBtn.type = 'button';
+            modeBtn.className = 'btn btn-sm ' + (pickerMode === entry[0] ? 'btn-primary' : 'btn-outline-primary');
+            modeBtn.textContent = entry[1];
+            modeBtn.setAttribute('aria-pressed', pickerMode === entry[0] ? 'true' : 'false');
+            modeBtn.setAttribute('data-pool-mode', entry[0]);
+            modeBtn.addEventListener('click', function () {
+                pickerMode = entry[0];
+                renderCurrentDrawer();
+            });
+            modeGroup.appendChild(modeBtn);
+        });
+        panel.appendChild(modeGroup);
+
         var filters = document.createElement('div');
         filters.className = 'btn-group flex-wrap mb-3';
         filters.setAttribute('role', 'group');
@@ -622,14 +647,30 @@
 
         function updateResults() {
             pickerSearch = search.value;
-            var roster = pickerRoster(slotIndex);
-            var filtered = filterPickerRoster(roster);
+            var fullRoster = pickerRoster(slotIndex);
+            var baseRoster = pickerMode === 'pool'
+                ? fullRoster.filter(function (u) { return u.in_pool; })
+                : fullRoster;
+            var filtered = filterPickerRoster(baseRoster);
             var visible = filtered.slice(0, 75);
             results.textContent = '';
-            count.textContent = filtered.length + ' available of ' + roster.length + ' umpires';
+
+            if (pickerMode === 'pool') {
+                count.textContent = filtered.length + ' available of ' + fullRoster.length + ' eligible umpires';
+            } else {
+                count.textContent = filtered.length + ' of ' + fullRoster.length + ' roster umpires';
+            }
 
             if (visible.length === 0) {
-                appendText(results, 'div', 'text-muted py-2', 'No matching umpires.');
+                if (pickerMode === 'pool' && !pickerSearch.trim() && pickerFilter === 'all') {
+                    var emptyWrap = document.createElement('div');
+                    emptyWrap.className = 'text-muted py-2';
+                    appendText(emptyWrap, 'div', '', 'No umpires are available for this game time.');
+                    appendText(emptyWrap, 'div', 'small mt-1', 'Switch to All Umpires to see the full roster.');
+                    results.appendChild(emptyWrap);
+                } else {
+                    appendText(results, 'div', 'text-muted py-2', 'No matching umpires.');
+                }
                 return;
             }
 
