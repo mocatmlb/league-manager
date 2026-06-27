@@ -763,6 +763,30 @@ class UmpireAssignmentService {
                 ]);
             }
 
+            if (preg_match('/^SCR-[1-9][0-9]*$/', $triggerRef) === 1) {
+                $publishedAssignments = array_values(array_filter($assignments, static function ($row) {
+                    return (string) ($row['assignment_status'] ?? '') === 'Published';
+                }));
+                if (!empty($publishedAssignments)) {
+                    $anchor = $publishedAssignments[0];
+                    $notificationId = $this->insertPendingAssignorAlert($anchor, $triggerRef);
+                    ActivityLogger::log('umpire.assignor_scr_alert_queued', [
+                        'game_id' => $gameId,
+                        'trigger_event_ref' => $triggerRef,
+                        'notification_id' => $notificationId,
+                        'released_assignment_ids' => array_map(static function ($row) {
+                            return (int) $row['assignment_id'];
+                        }, $publishedAssignments),
+                        'released_umpire_user_ids' => array_map(static function ($row) {
+                            return (int) $row['umpire_user_id'];
+                        }, $publishedAssignments),
+                        'actor_user_id' => isset($options['actor_user_id']) ? (int) $options['actor_user_id'] : null,
+                        'actor_admin_id' => isset($options['actor_admin_id']) ? (int) $options['actor_admin_id'] : null,
+                        'source' => isset($options['source']) ? (string) $options['source'] : null,
+                    ]);
+                }
+            }
+
             return true;
         } catch (\Throwable $e) {
             error_log('[UmpireAssignmentService::onScheduleChanged] Cascade cancellation failed game_id=' . $gameId
@@ -1511,6 +1535,16 @@ class UmpireAssignmentService {
             'assignment_id' => (int) $assignment['assignment_id'],
             'umpire_user_id' => (int) $assignment['umpire_user_id'],
             'notification_type' => 'cascade_cancelled',
+            'trigger_event_ref' => $triggerRef,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    private function insertPendingAssignorAlert(array $assignment, string $triggerRef): int {
+        return (int) $this->db->insert('umpire_pending_notifications', [
+            'assignment_id' => (int) $assignment['assignment_id'],
+            'umpire_user_id' => (int) $assignment['umpire_user_id'],
+            'notification_type' => 'assignor_alert',
             'trigger_event_ref' => $triggerRef,
             'created_at' => date('Y-m-d H:i:s'),
         ]);

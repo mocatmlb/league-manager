@@ -54,6 +54,7 @@ class UmpireAssignmentMockDb extends Database {
     public array $insertRows   = [];
     public array $updateRows   = [];
     public array $throwOnInsertTables = [];
+    public ?string $throwOnInsertNotificationType = null;
     public bool $transactionStarted = false;
     public bool $transactionCommitted = false;
     public bool $transactionRolledBack = false;
@@ -80,6 +81,11 @@ class UmpireAssignmentMockDb extends Database {
     public function insert($table, $data) {
         if (in_array($table, $this->throwOnInsertTables, true)) {
             throw new RuntimeException('Mock insert failure for ' . $table);
+        }
+        if ($table === 'umpire_pending_notifications'
+            && $this->throwOnInsertNotificationType !== null
+            && (($data['notification_type'] ?? '') === $this->throwOnInsertNotificationType)) {
+            throw new RuntimeException('Mock insert failure for notification type ' . $this->throwOnInsertNotificationType);
         }
         $this->insertRows[] = ['table' => $table, 'data' => $data];
         return $this->nextInsertId++;
@@ -1290,9 +1296,15 @@ register_test('23.5 onScheduleChanged cancels active assignments, inserts pendin
     $pendingRows = array_values(array_filter($mock->insertRows, static function ($row) {
         return ($row['table'] ?? '') === 'umpire_pending_notifications';
     }));
-    assert_equals(count($pendingRows), 2, 'Expected one pending notification per affected assignment');
+    assert_equals(count($pendingRows), 3, 'Expected cascade rows plus one assignor alert');
     assert_equals($pendingRows[0]['data']['notification_type'] ?? null, 'cascade_cancelled', 'Expected cascade notification type');
     assert_equals($pendingRows[0]['data']['trigger_event_ref'] ?? null, 'SCR-55', 'Expected trigger ref');
+    $assignorRows = array_values(array_filter($pendingRows, static function ($row) {
+        return ($row['data']['notification_type'] ?? '') === 'assignor_alert';
+    }));
+    assert_equals(count($assignorRows), 1, 'Expected one assignor alert row');
+    assert_equals($assignorRows[0]['data']['trigger_event_ref'] ?? null, 'SCR-55', 'Expected assignor alert trigger ref');
+    assert_equals($assignorRows[0]['data']['umpire_user_id'] ?? null, 202, 'Expected anchor published umpire user id');
 
     $logs = array_values(array_filter($mock->lastParams, static function ($p) {
         return ($p['event'] ?? '') === 'umpire.cascade_cancelled';
@@ -1302,6 +1314,16 @@ register_test('23.5 onScheduleChanged cancels active assignments, inserts pendin
     assert_equals($context['notification_id'] ?? null, 9100, 'Expected notification id in audit context');
     assert_equals($context['trigger_event_ref'] ?? null, 'SCR-55', 'Expected trigger ref in audit context');
     assert_true(!isset($context['email']) && !isset($context['phone']) && !isset($context['first_name']) && !isset($context['last_name']), 'Expected PII-free cascade audit context');
+
+    $alertLogs = array_values(array_filter($mock->lastParams, static function ($p) {
+        return ($p['event'] ?? '') === 'umpire.assignor_scr_alert_queued';
+    }));
+    assert_equals(count($alertLogs), 1, 'Expected one assignor alert audit event');
+    $alertContext = json_decode($alertLogs[0]['context'], true);
+    assert_equals($alertContext['trigger_event_ref'] ?? null, 'SCR-55', 'Expected assignor alert trigger ref in audit context');
+    assert_equals($alertContext['released_assignment_ids'] ?? null, [1011], 'Expected only published assignment ids in audit context');
+    assert_equals($alertContext['released_umpire_user_ids'] ?? null, [202], 'Expected only published umpire ids in audit context');
+    assert_true(!isset($alertContext['email']) && !isset($alertContext['first_name']) && !isset($alertContext['last_name']), 'Expected PII-free assignor alert audit context');
 });
 
 register_test('23.5 onScheduleChanged returns true without rows when no active assigned slots are affected', function () {
@@ -1378,6 +1400,125 @@ register_test('23.5 live trigger sources call onScheduleChanged before commit an
             assert_true(strpos($source, $notification) !== false, 'Expected existing notification ' . $notification . ' to remain in ' . basename($check['file']));
         }
     }
+});
+
+// ---------------------------------------------------------------------------
+// Tests: Story 24.6 assignor SCR alert queuing
+// ---------------------------------------------------------------------------
+
+register_test('24.6 onScheduleChanged queues one assignor alert for SCR with published releases', function () {
+    $mock = new UmpireAssignmentMockDb();
+    $mock->nextInsertId = 9200;
+    $mock->fetchOneRows = [[
+        'game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Scheduled',
+        'game_date' => '2026-07-08', 'game_time' => '18:00:00',
+    ]];
+    $mock->queryRows = [[
+        ['assignment_id' => 1010, 'game_id' => 10, 'umpire_user_id' => 201, 'slot_index' => 0, 'assignment_status' => 'Published'],
+        ['assignment_id' => 1011, 'game_id' => 10, 'umpire_user_id' => 202, 'slot_index' => 1, 'assignment_status' => 'Published'],
+    ]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->onScheduleChanged(10, 'SCR-77', ['actor_user_id' => 5]);
+
+    assert_true($result, 'Expected SCR cascade success');
+    $pendingRows = array_values(array_filter($mock->insertRows, static function ($row) {
+        return ($row['table'] ?? '') === 'umpire_pending_notifications';
+    }));
+    $cascadeRows = array_values(array_filter($pendingRows, static function ($row) {
+        return ($row['data']['notification_type'] ?? '') === 'cascade_cancelled';
+    }));
+    $assignorRows = array_values(array_filter($pendingRows, static function ($row) {
+        return ($row['data']['notification_type'] ?? '') === 'assignor_alert';
+    }));
+    assert_equals(count($cascadeRows), 2, 'Expected cascade rows for both published assignments');
+    assert_equals(count($assignorRows), 1, 'Expected exactly one assignor alert row');
+    assert_equals($assignorRows[0]['data']['trigger_event_ref'] ?? null, 'SCR-77', 'Expected SCR trigger ref on assignor alert');
+});
+
+register_test('24.6 onScheduleChanged skips assignor alert for draft-only SCR cascade', function () {
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [[
+        'game_id' => 10, 'game_status' => 'Scheduled',
+        'game_date' => '2026-07-01', 'game_time' => '18:00:00',
+    ]];
+    $mock->queryRows = [[
+        ['assignment_id' => 1010, 'game_id' => 10, 'umpire_user_id' => 201, 'slot_index' => 0, 'assignment_status' => 'Draft'],
+        ['assignment_id' => 1011, 'game_id' => 10, 'umpire_user_id' => 202, 'slot_index' => 1, 'assignment_status' => 'Draft'],
+    ]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->onScheduleChanged(10, 'SCR-88');
+
+    assert_true($result, 'Expected draft-only SCR cascade success');
+    $assignorRows = array_values(array_filter($mock->insertRows, static function ($row) {
+        return ($row['table'] ?? '') === 'umpire_pending_notifications'
+            && ($row['data']['notification_type'] ?? '') === 'assignor_alert';
+    }));
+    assert_equals(count($assignorRows), 0, 'Expected no assignor alert for draft-only cascade');
+});
+
+register_test('24.6 onScheduleChanged skips assignor alert when no assignments are affected', function () {
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [[
+        'game_id' => 10, 'game_status' => 'Scheduled',
+        'game_date' => '2026-07-01', 'game_time' => '18:00:00',
+    ]];
+    $mock->queryRows = [[]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->onScheduleChanged(10, 'SCR-99');
+
+    assert_true($result, 'Expected no-op SCR cascade success');
+    assert_equals(count($mock->insertRows), 0, 'Expected no pending rows');
+});
+
+register_test('24.6 onScheduleChanged skips assignor alert for non-SCR triggers', function () {
+    foreach (['GAME-CANCELLED-10', 'DIRECT-SCHEDULE-12'] as $triggerRef) {
+        $mock = new UmpireAssignmentMockDb();
+        $mock->fetchOneRows = [[
+            'game_id' => 10, 'game_status' => 'Cancelled',
+            'game_date' => '2026-07-01', 'game_time' => '18:00:00',
+        ]];
+        $mock->queryRows = [[
+            ['assignment_id' => 1010, 'game_id' => 10, 'umpire_user_id' => 201, 'slot_index' => 0, 'assignment_status' => 'Published'],
+        ]];
+        Database::setInstance($mock);
+        $svc = new UmpireAssignmentService();
+
+        $result = $svc->onScheduleChanged(10, $triggerRef);
+        assert_true($result, 'Expected non-SCR cascade success for ' . $triggerRef);
+        $assignorRows = array_values(array_filter($mock->insertRows, static function ($row) {
+            return ($row['data']['notification_type'] ?? '') === 'assignor_alert';
+        }));
+        assert_equals(count($assignorRows), 0, 'Expected no assignor alert for ' . $triggerRef);
+        $cascadeRows = array_values(array_filter($mock->insertRows, static function ($row) {
+            return ($row['data']['notification_type'] ?? '') === 'cascade_cancelled';
+        }));
+        assert_equals(count($cascadeRows), 1, 'Expected cascade row for ' . $triggerRef);
+    }
+});
+
+register_test('24.6 onScheduleChanged returns false when assignor alert insert fails after cascade rows queue', function () {
+    $mock = new UmpireAssignmentMockDb();
+    $mock->throwOnInsertNotificationType = 'assignor_alert';
+    $mock->fetchOneRows = [[
+        'game_id' => 10, 'game_status' => 'Postponed',
+        'game_date' => '2026-07-01', 'game_time' => '18:00:00',
+    ]];
+    $mock->queryRows = [[
+        ['assignment_id' => 1010, 'game_id' => 10, 'umpire_user_id' => 201, 'slot_index' => 0, 'assignment_status' => 'Published'],
+    ]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->onScheduleChanged(10, 'SCR-55');
+
+    assert_true(!$result, 'Expected assignor alert insert failure to return false');
+    $pendingRows = array_values(array_filter($mock->insertRows, static function ($row) {
+        return ($row['table'] ?? '') === 'umpire_pending_notifications';
+    }));
+    assert_equals(count($pendingRows), 1, 'Expected cascade row queued before assignor alert failure');
+    assert_equals($pendingRows[0]['data']['notification_type'] ?? null, 'cascade_cancelled', 'Expected cascade row before assignor alert failure');
 });
 
 // ---------------------------------------------------------------------------
