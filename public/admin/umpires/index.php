@@ -22,81 +22,8 @@ $flashMessage = $_SESSION['flash_message'] ?? '';
 $flashError   = $_SESSION['flash_error']   ?? '';
 unset($_SESSION['flash_message'], $_SESSION['flash_error']);
 
-$pageError = '';
-
-// ─── POST handler ─────────────────────────────────────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
-
-    if ($action === 'save_settings') {
-        if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-            $pageError = 'Invalid security token. Please try again.';
-        } else {
-            $raw = $_POST['unassigned_queue_days'] ?? '';
-            if (!ctype_digit((string) $raw) || $raw === '') {
-                $pageError = 'Queue window must be a non-negative integer.';
-            } else {
-                $days = (int) $raw;
-                try {
-                    $svc->saveQueueWindowDays($days, $actorUserId);
-                    $_SESSION['flash_message'] = 'Queue window updated.';
-                    header('Location: index.php'); exit;
-                } catch (\InvalidArgumentException $e) {
-                    $pageError = htmlspecialchars($e->getMessage());
-                } catch (\Throwable $e) {
-                    $pageError = 'An unexpected error occurred. Please try again.';
-                    error_log('[index.php] saveQueueWindowDays error: ' . $e->getMessage());
-                }
-            }
-        }
-    }
-
-    if ($action === 'save_decline_lockout') {
-        if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-            $pageError = 'Invalid security token. Please try again.';
-        } else {
-            $raw = $_POST['decline_lockout_hours'] ?? '';
-            if (!ctype_digit((string) $raw) || $raw === '') {
-                $pageError = 'Decline lockout hours must be a non-negative integer.';
-            } else {
-                $hours = (int) $raw;
-                try {
-                    $svc->saveDeclineLockoutHours($hours, $actorUserId);
-                    $_SESSION['flash_message'] = 'Decline lockout hours updated.';
-                    header('Location: index.php'); exit;
-                } catch (\InvalidArgumentException $e) {
-                    $pageError = htmlspecialchars($e->getMessage());
-                } catch (\Throwable $e) {
-                    $pageError = 'An unexpected error occurred. Please try again.';
-                    error_log('[index.php] saveDeclineLockoutHours error: ' . $e->getMessage());
-                }
-            }
-        }
-    }
-
-    if ($action === 'save_slot_labels') {
-        if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-            $pageError = 'Invalid security token. Please try again.';
-        } else {
-            $slot1Label = trim((string) ($_POST['umpire_slot_1_label'] ?? ''));
-            $slot2Label = trim((string) ($_POST['umpire_slot_2_label'] ?? ''));
-            try {
-                $svc->saveSlotLabels($slot1Label, $slot2Label, $actorUserId);
-                $_SESSION['flash_message'] = 'Slot labels updated.';
-                header('Location: index.php'); exit;
-            } catch (\InvalidArgumentException $e) {
-                $pageError = htmlspecialchars($e->getMessage());
-            } catch (\Throwable $e) {
-                $pageError = 'An unexpected error occurred. Please try again.';
-                error_log('[index.php] saveSlotLabels error: ' . $e->getMessage());
-            }
-        }
-    }
-}
-
 // ─── GET: load queue ──────────────────────────────────────────────────────────
 $windowDays = $svc->getQueueWindowDays();
-$slotLabels = $svc->getSlotLabels();
 $games      = $svc->getUnassignedQueue($windowDays);
 $csrfToken  = Auth::generateCSRFToken();
 ?>
@@ -136,78 +63,15 @@ unset($__nav);
         </div>
     <?php endif; ?>
 
-    <?php if ($pageError): ?>
-        <div class="alert alert-danger" role="alert">
-            <?= $pageError ?>
-        </div>
-    <?php endif; ?>
-
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2 class="mb-0"><i class="fas fa-list-check me-2"></i>Unassigned Games Queue</h2>
-        <a href="board.php" class="btn btn-outline-secondary btn-sm">
-            <i class="fas fa-table-columns me-1"></i> Assignment Board
-        </a>
-    </div>
-
-    <!-- Assignment Settings -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <h5 class="card-title mb-3">Assignment Settings</h5>
-            <form method="POST" action="index.php" class="row g-2 align-items-end">
-                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                <input type="hidden" name="action" value="save_settings">
-                <div class="col-auto">
-                    <label class="form-label mb-1 fw-semibold">Queue Window</label>
-                    <div class="input-group">
-                        <span class="input-group-text">Show games up to</span>
-                        <input type="number" name="unassigned_queue_days" class="form-control"
-                            style="width:80px" min="0" step="1"
-                            value="<?= (int) $windowDays ?>">
-                        <span class="input-group-text">days ahead</span>
-                        <button type="submit" class="btn btn-primary">Save</button>
-                    </div>
-                    <div class="form-text">Set to 0 to show all games with open slots regardless of date.</div>
-                </div>
-            </form>
-            <hr class="my-3">
-            <form method="POST" action="index.php" class="row g-2 align-items-end">
-                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                <input type="hidden" name="action" value="save_decline_lockout">
-                <div class="col-auto">
-                    <label class="form-label mb-1 fw-semibold">Decline Lockout</label>
-                    <div class="input-group">
-                        <span class="input-group-text">Block decline within</span>
-                        <div style="width:80px">
-                            <input type="number" name="decline_lockout_hours" class="form-control"
-                                min="0" step="1"
-                                value="<?= (int) $svc->getDeclineLockoutHours() ?>">
-                        </div>
-                        <span class="input-group-text">hours of game start</span>
-                        <button type="submit" class="btn btn-primary">Save</button>
-                    </div>
-                    <div class="form-text">Umpires cannot decline a published assignment within this window. They'll see a lockout message with assignor contact.</div>
-                </div>
-            </form>
-            <hr class="my-3">
-            <form method="POST" action="index.php" class="row g-2 align-items-end">
-                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                <input type="hidden" name="action" value="save_slot_labels">
-                <div class="col-auto">
-                    <label class="form-label mb-1 fw-semibold">Slot Labels</label>
-                    <div class="input-group">
-                        <span class="input-group-text">Slot 1</span>
-                        <input type="text" name="umpire_slot_1_label" class="form-control"
-                            style="width:140px" maxlength="64" required
-                            value="<?= htmlspecialchars($slotLabels[0] ?? 'Umpire 1') ?>">
-                        <span class="input-group-text">Slot 2</span>
-                        <input type="text" name="umpire_slot_2_label" class="form-control"
-                            style="width:140px" maxlength="64" required
-                            value="<?= htmlspecialchars($slotLabels[1] ?? 'Umpire 2') ?>">
-                        <button type="submit" class="btn btn-primary">Save</button>
-                    </div>
-                    <div class="form-text">Labels appear on the assignment board, drawer, umpire portal, and assignment emails.</div>
-                </div>
-            </form>
+        <div class="d-flex gap-2">
+            <a href="settings.php" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-cog me-1"></i> Settings
+            </a>
+            <a href="board.php" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-table-columns me-1"></i> Assignment Board
+            </a>
         </div>
     </div>
 

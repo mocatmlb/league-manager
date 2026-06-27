@@ -1917,15 +1917,38 @@ register_test('24.3 publishGame email context uses customized slot labels via ge
     unset($GLOBALS['_test_settings']['umpire_slot_1_label'], $GLOBALS['_test_settings']['umpire_slot_2_label']);
 });
 
-register_test('24.3 assignor settings source exposes slot label POST action with CSRF and input names', function () {
-    $source = file_get_contents(__DIR__ . '/../../public/admin/umpires/index.php');
+register_test('24.3 umpire settings source exposes settings POST actions with CSRF and input names', function () {
+    $source = file_get_contents(__DIR__ . '/../../public/admin/umpires/settings.php');
     assert_true(strpos($source, "PermissionGuard::requireRole(['admin', 'umpire_assignor'], '/login.php')") !== false, 'Expected role gate');
+    assert_true(strpos($source, "'save_settings'") !== false, 'Expected save_settings action');
+    assert_true(strpos($source, "'save_decline_lockout'") !== false, 'Expected save_decline_lockout action');
     assert_true(strpos($source, "'save_slot_labels'") !== false, 'Expected save_slot_labels action');
     assert_true(strpos($source, 'Auth::verifyCSRFToken($_POST[\'csrf_token\']') !== false, 'Expected CSRF guard on slot label save');
+    assert_true(strpos($source, 'name="unassigned_queue_days"') !== false, 'Expected queue window input name');
+    assert_true(strpos($source, 'name="decline_lockout_hours"') !== false, 'Expected decline lockout input name');
     assert_true(strpos($source, 'name="umpire_slot_1_label"') !== false, 'Expected slot 1 input name');
     assert_true(strpos($source, 'name="umpire_slot_2_label"') !== false, 'Expected slot 2 input name');
     assert_true(strpos($source, 'Assignment Settings') !== false, 'Expected inclusive settings card heading');
+    assert_true(strpos($source, 'saveQueueWindowDays') !== false, 'Expected queue window save path');
     assert_true(strpos($source, 'saveDeclineLockoutHours') !== false, 'Expected decline lockout save path preserved');
+});
+
+register_test('24.3 assignment queue source no longer owns settings forms', function () {
+    $source = file_get_contents(__DIR__ . '/../../public/admin/umpires/index.php');
+    assert_true(strpos($source, "'save_settings'") === false, 'Queue page should not handle settings saves');
+    assert_true(strpos($source, "'save_decline_lockout'") === false, 'Queue page should not handle decline lockout saves');
+    assert_true(strpos($source, "'save_slot_labels'") === false, 'Queue page should not handle slot label saves');
+    assert_true(strpos($source, 'name="unassigned_queue_days"') === false, 'Queue page should not render queue window settings input');
+    assert_true(strpos($source, 'name="decline_lockout_hours"') === false, 'Queue page should not render decline lockout settings input');
+    assert_true(strpos($source, 'name="umpire_slot_1_label"') === false, 'Queue page should not render slot label settings input');
+    assert_true(strpos($source, 'href="settings.php"') !== false, 'Queue page should link to the dedicated settings page');
+});
+
+register_test('24.3 navigation exposes umpire settings for admin and assignor menus', function () {
+    $source = file_get_contents(__DIR__ . '/../../includes/nav.php');
+    assert_true(substr_count($source, 'admin/umpires/settings.php') >= 2, 'Expected settings link in admin and assignor menus');
+    assert_true(substr_count($source, "isActiveNav('settings', 'umpires')") >= 2, 'Expected active nav handling for settings links');
+    assert_true(substr_count($source, 'Umpire Settings') >= 2, 'Expected visible Umpire Settings labels');
 });
 
 register_test('24.3 assignment board source renders configured slot labels in headers', function () {
