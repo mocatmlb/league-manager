@@ -198,6 +198,8 @@ register_test('Story 25.1 migration uses compatible FK and rerun-safe index plac
     assert_true(!str_contains($sql, '`umpire_user_id` INT UNSIGNED'), 'FK column should not be unsigned');
     assert_true(str_contains($sql, 'INDEX `idx_umpire_availability_user_window`'), 'User/window index should be declared in table');
     assert_true(!str_contains($sql, 'CREATE INDEX `idx_umpire_availability_user_window`'), 'Should not use standalone CREATE INDEX after IF NOT EXISTS table');
+    assert_true(str_contains($sql, "INSERT IGNORE INTO `schema_migrations` (`version`) VALUES ('051')"), 'Migration should use schema_migrations version-only insert');
+    assert_true(!str_contains($sql, 'run_at'), 'Migration should not reference nonexistent run_at column');
 });
 
 register_test('Story 25.1 portal supports update action and modal controls', function() {

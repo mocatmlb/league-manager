@@ -16,4 +16,4 @@ CREATE TABLE IF NOT EXISTS `umpire_availability_windows` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Record migration
-INSERT INTO `schema_migrations` (`version`) VALUES ('051') ON DUPLICATE KEY UPDATE `run_at` = CURRENT_TIMESTAMP;
+INSERT IGNORE INTO `schema_migrations` (`version`) VALUES ('051');
