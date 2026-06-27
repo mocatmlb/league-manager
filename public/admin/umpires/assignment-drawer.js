@@ -18,6 +18,7 @@
     var pickerFilter = 'all';
     var pickerSearch = '';
     var returnFocusSlotIndex = null;
+    var pendingPublishFeedback = null;
 
     function setStaticState(message, type) {
         body.textContent = '';
@@ -185,7 +186,8 @@
             method: 'POST',
             body: form,
             credentials: 'same-origin'
-        }).then(function () {
+        }).then(function (data) {
+            pendingPublishFeedback = data;
             return requestJson('ajax/get-drawer.php?game_id=' + encodeURIComponent(activeGameId), {
                 credentials: 'same-origin'
             });
@@ -217,6 +219,7 @@
         }
 
         body.appendChild(renderGameSummary(game));
+        body.appendChild(renderAdvisoryWarnings(data.warnings || []));
 
         if (activePickerSlotIndex === 0 || activePickerSlotIndex === 1) {
             body.appendChild(renderPickerView(activePickerSlotIndex));
@@ -237,12 +240,46 @@
         }
     }
 
+    function renderAdvisoryWarnings(warnings) {
+        var section = document.createElement('section');
+        section.className = 'mb-3';
+        section.setAttribute('data-advisory-warnings', '');
+
+        if (!warnings || warnings.length === 0) {
+            section.classList.add('d-none');
+            return section;
+        }
+
+        warnings.forEach(function (warning) {
+            var alert = document.createElement('div');
+            alert.className = 'alert alert-warning py-2 mb-2';
+            appendText(alert, 'div', 'fw-semibold', warning.message || 'Assignment quality warning');
+            if (warning.conflict) {
+                appendText(alert, 'div', 'small mt-1', [
+                    warning.conflict.game_date,
+                    warning.conflict.game_time,
+                    warning.conflict.location_name
+                ].filter(Boolean).join(' | '));
+            }
+            section.appendChild(alert);
+        });
+
+        return section;
+    }
+
     function renderGameSummary(game) {
         var summary = document.createElement('section');
         summary.className = 'mb-3';
         appendText(summary, 'h6', 'text-uppercase text-muted small mb-2', 'Game Details');
         appendText(summary, 'div', 'fw-semibold', (game.away_team || '-') + ' at ' + (game.home_team || '-'));
         appendText(summary, 'div', 'small text-muted', [game.game_date, game.game_time, game.location_name, game.division_name].filter(Boolean).join(' | '));
+        if (game.has_pending_scr) {
+            var tentative = document.createElement('div');
+            tentative.className = 'mt-2';
+            badge(tentative, 'Tentative', 'bg-warning text-dark');
+            appendText(tentative, 'span', 'small text-muted ms-2', 'Schedule change pending — game details may change.');
+            summary.appendChild(tentative);
+        }
         return summary;
     }
 
@@ -264,35 +301,92 @@
         });
     }
 
+    function hasFilledPublishedSlot(slots) {
+        return [slots[0], slots[1]].some(function (slot) {
+            return slot && slot.status === 'Published' && slot.umpire_user_id;
+        });
+    }
+
+    function hasPublishableFilledSlot(slots) {
+        return hasFilledDraftSlot(slots) || hasFilledPublishedSlot(slots);
+    }
+
+    function renderPublishSuccessMessage(statusNode, publishData) {
+        var notified = Number((publishData && publishData.notified) || 0);
+        var suppressed = Number((publishData && publishData.suppressed) || 0);
+        var published = Number((publishData && publishData.published) || 0);
+
+        if (notified === 0 && suppressed > 0) {
+            statusNode.className = 'small text-muted mb-2';
+            statusNode.textContent = 'No changes to notify — all slots up to date.';
+            return;
+        }
+
+        var parts = [];
+        if (published > 0) {
+            parts.push(published + ' slot' + (published === 1 ? '' : 's') + ' published');
+        }
+        if (notified > 0) {
+            parts.push(notified + ' assignment email' + (notified === 1 ? '' : 's') + ' queued');
+        }
+        if (suppressed > 0) {
+            parts.push(suppressed + ' unchanged slot' + (suppressed === 1 ? '' : 's') + ' skipped');
+        }
+
+        statusNode.className = 'small text-success mb-2';
+        statusNode.textContent = parts.length ? parts.join('. ') + '.' : 'Publish complete.';
+    }
+
     function renderPublishPanel(slots) {
-        if (!hasFilledDraftSlot(slots || {})) {
+        if (!hasPublishableFilledSlot(slots || {})) {
             return null;
         }
 
+        var isRepublish = !hasFilledDraftSlot(slots || {}) && hasFilledPublishedSlot(slots || {});
         var panel = document.createElement('section');
         panel.className = 'border rounded p-3 mb-3 bg-light';
 
-        appendText(panel, 'h6', 'mb-2', 'Publish Assignments');
-        appendText(panel, 'p', 'small text-muted mb-2', 'Send assignment email for filled draft slots and mark them Published.');
+        appendText(panel, 'h6', 'mb-2', isRepublish ? 'Re-Publish Assignments' : 'Publish Assignments');
+        appendText(
+            panel,
+            'p',
+            'small text-muted mb-2',
+            isRepublish
+                ? 'Re-send assignment email only for changed slots or schedule updates.'
+                : 'Send assignment email for filled draft slots and mark them Published.'
+        );
 
         var status = document.createElement('div');
         status.className = 'small mb-2';
         panel.appendChild(status);
+        if (pendingPublishFeedback) {
+            renderPublishSuccessMessage(status, pendingPublishFeedback);
+            pendingPublishFeedback = null;
+        }
 
         var publish = document.createElement('button');
         publish.type = 'button';
         publish.className = 'btn btn-success btn-sm';
-        publish.textContent = 'Publish';
+        publish.textContent = isRepublish ? 'Re-Publish' : 'Publish';
+
+        function resetPublishButton() {
+            publish.disabled = false;
+            publish.textContent = isRepublish ? 'Re-Publish' : 'Publish';
+        }
 
         function attempt(confirmPartial) {
             status.className = 'small text-muted mb-2';
-            status.textContent = confirmPartial ? 'Publishing partial crew...' : 'Publishing...';
+            status.textContent = confirmPartial
+                ? (isRepublish ? 'Re-publishing partial crew...' : 'Publishing partial crew...')
+                : (isRepublish ? 'Re-publishing...' : 'Publishing...');
             publish.disabled = true;
-            publish.textContent = 'Publishing...';
-            return postPublish(confirmPartial).catch(function (error) {
+            publish.textContent = isRepublish ? 'Re-Publishing...' : 'Publishing...';
+            return postPublish(confirmPartial).then(function () {
+                resetPublishButton();
+            }).catch(function (error) {
                 var payload = error.payload || {};
-                publish.disabled = false;
-                publish.textContent = 'Publish';
+                pendingPublishFeedback = null;
+                resetPublishButton();
                 if (payload.requires_confirmation) {
                     renderPartialPublishWarning(status, payload, function () {
                         return attempt(true);
@@ -640,6 +734,21 @@
         return row;
     }
 
+    function syncTentativeBadge(cell, hasPendingScr, attributeName) {
+        if (!cell) {
+            return;
+        }
+        var existing = cell.querySelector('[' + attributeName + ']');
+        if (hasPendingScr) {
+            if (!existing) {
+                var tentativeBadge = badge(cell, 'Tentative', 'bg-warning text-dark ms-1');
+                tentativeBadge.setAttribute(attributeName, '');
+            }
+        } else if (existing) {
+            existing.remove();
+        }
+    }
+
     function updatePageRow(data) {
         var game = data.game || {};
         var row = document.querySelector('[data-game-id="' + game.game_id + '"]');
@@ -651,12 +760,14 @@
         var filled = [slots[0], slots[1]].filter(function (slot) {
             return slot && slot.status && slot.status !== 'Open' && slot.umpire_user_id;
         }).length;
+        var hasPendingScr = Boolean(game.has_pending_scr);
 
         if (pageMode === 'queue') {
             var count = row.querySelector('[data-slot-count]');
             if (count) {
                 count.textContent = filled + '/2';
             }
+            syncTentativeBadge(row.querySelector('td'), hasPendingScr, 'data-queue-tentative');
             row.classList.toggle('d-none', filled >= 2);
             return;
         }
@@ -687,6 +798,7 @@
                 var className = filled === 0 ? 'bg-secondary' : (published === 2 ? 'bg-success' : (draft > 0 ? 'bg-warning text-dark' : 'bg-info'));
                 statusCell.textContent = '';
                 badge(statusCell, label, className);
+                syncTentativeBadge(statusCell, hasPendingScr, 'data-board-tentative');
             }
         }
     }

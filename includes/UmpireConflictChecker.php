@@ -3,6 +3,7 @@ if (!defined('D8TL_APP')) { die('Direct access not permitted'); }
 
 final class UmpireConflictChecker {
     private const DEFAULT_ASSIGNMENT_WINDOW_MINUTES = 180;
+    private const TRAVEL_WARNING_GAP_MINUTES = 45;
 
     public static function assignmentWindowSeconds(): int {
         $minutes = self::configuredWindowMinutes();
@@ -13,7 +14,9 @@ final class UmpireConflictChecker {
         int $umpireUserId,
         \DateTime $start,
         \DateTime $end,
-        ?int $excludeAssignmentId = null
+        ?int $excludeAssignmentId = null,
+        ?int $targetLocationId = null,
+        ?string $targetLocationName = null
     ): ?array {
         if ($umpireUserId < 1) {
             throw new \InvalidArgumentException('Umpire ID must be positive.');
@@ -32,6 +35,7 @@ final class UmpireConflictChecker {
                 g.game_number,
                 s.game_date,
                 s.game_time,
+                s.location_id,
                 ht.team_name AS home_team,
                 at.team_name AS away_team,
                 l.location_name
@@ -50,8 +54,7 @@ final class UmpireConflictChecker {
                     TIMESTAMP(s.game_date, COALESCE(s.game_time, '00:00:00')),
                     INTERVAL " . $windowSeconds . " SECOND
                ) > :target_start
-             ORDER BY s.game_date ASC, s.game_time ASC, gua.assignment_id ASC
-             LIMIT 1",
+             ORDER BY s.game_date ASC, s.game_time ASC, gua.assignment_id ASC",
             [
                 'umpire_user_id' => $umpireUserId,
                 'exclude_assignment_id_is_null' => $excludeAssignmentId !== null && $excludeAssignmentId > 0 ? $excludeAssignmentId : null,
@@ -65,22 +68,90 @@ final class UmpireConflictChecker {
             return null;
         }
 
-        $row = $stmt->fetch();
-        if ($row === false || $row === null) {
-            return null;
+        while (($row = $stmt->fetch()) !== false) {
+            if ($row === false || $row === null) {
+                continue;
+            }
+
+            $otherDate = (string) ($row['game_date'] ?? '');
+            $otherTime = (string) (($row['game_time'] ?? '') ?: '00:00:00');
+            $otherStart = new \DateTime(trim($otherDate . ' ' . $otherTime));
+            $otherEnd = (clone $otherStart)->modify('+' . $windowSeconds . ' seconds');
+
+            if (self::isProximityOnlyExemption(
+                $start,
+                $end,
+                $otherStart,
+                $otherEnd,
+                $targetLocationId,
+                $targetLocationName,
+                isset($row['location_id']) ? (int) $row['location_id'] : null,
+                isset($row['location_name']) ? (string) $row['location_name'] : null
+            )) {
+                continue;
+            }
+
+            return [
+                'assignment_id' => (int) ($row['assignment_id'] ?? 0),
+                'game_id' => (int) ($row['game_id'] ?? 0),
+                'game_number' => $row['game_number'] ?? null,
+                'game_date' => $row['game_date'] ?? null,
+                'game_time' => $row['game_time'] ?? null,
+                'home_team' => $row['home_team'] ?? null,
+                'away_team' => $row['away_team'] ?? null,
+                'location_name' => $row['location_name'] ?? null,
+                'assignment_status' => $row['assignment_status'] ?? null,
+            ];
         }
 
-        return [
-            'assignment_id' => (int) ($row['assignment_id'] ?? 0),
-            'game_id' => (int) ($row['game_id'] ?? 0),
-            'game_number' => $row['game_number'] ?? null,
-            'game_date' => $row['game_date'] ?? null,
-            'game_time' => $row['game_time'] ?? null,
-            'home_team' => $row['home_team'] ?? null,
-            'away_team' => $row['away_team'] ?? null,
-            'location_name' => $row['location_name'] ?? null,
-            'assignment_status' => $row['assignment_status'] ?? null,
-        ];
+        return null;
+    }
+
+    private static function isProximityOnlyExemption(
+        \DateTime $targetStart,
+        \DateTime $targetEnd,
+        \DateTime $otherStart,
+        \DateTime $otherEnd,
+        ?int $targetLocationId,
+        ?string $targetLocationName,
+        ?int $otherLocationId,
+        ?string $otherLocationName
+    ): bool {
+        if ($otherStart < $targetEnd && $otherEnd > $targetStart) {
+            return false;
+        }
+
+        $gapMinutes = abs($targetStart->getTimestamp() - $otherStart->getTimestamp()) / 60;
+        if ($gapMinutes >= self::TRAVEL_WARNING_GAP_MINUTES) {
+            return false;
+        }
+
+        return self::locationsDiffer(
+            $targetLocationId,
+            $targetLocationName,
+            $otherLocationId,
+            $otherLocationName
+        );
+    }
+
+    private static function locationsDiffer(
+        ?int $targetLocationId,
+        ?string $targetLocationName,
+        ?int $otherLocationId,
+        ?string $otherLocationName
+    ): bool {
+        if ($targetLocationId !== null && $otherLocationId !== null
+            && (int) $targetLocationId > 0 && (int) $otherLocationId > 0) {
+            return (int) $targetLocationId !== (int) $otherLocationId;
+        }
+
+        $targetName = trim((string) $targetLocationName);
+        $otherName = trim((string) $otherLocationName);
+        if ($targetName === '' || $otherName === '') {
+            return false;
+        }
+
+        return strcasecmp($targetName, $otherName) !== 0;
     }
 
     private static function configuredWindowMinutes(): int {

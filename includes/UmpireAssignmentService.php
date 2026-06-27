@@ -48,6 +48,21 @@ if (!class_exists('UmpireAssignmentPublishConfirmationRequiredException')) {
     }
 }
 
+if (!class_exists('UmpireAssignmentDeclineLockoutException')) {
+    class UmpireAssignmentDeclineLockoutException extends \RuntimeException {
+        private array $payload;
+
+        public function __construct(string $message, array $payload = []) {
+            parent::__construct($message, 409);
+            $this->payload = $payload;
+        }
+
+        public function getPayload(): array {
+            return $this->payload;
+        }
+    }
+}
+
 class UmpireAssignmentService {
 
     private Database $db;
@@ -60,7 +75,55 @@ class UmpireAssignmentService {
         return (int) getSetting('unassigned_queue_days', '14');
     }
 
+    public function getSlotLabels(): array {
+        return [
+            0 => $this->settingLabel('umpire_slot_1_label', 'Umpire 1'),
+            1 => $this->settingLabel('umpire_slot_2_label', 'Umpire 2'),
+        ];
+    }
+
+    public function saveSlotLabels(string $slot1Label, string $slot2Label, int $actorUserId): void {
+        $this->assertSettingsWriteAllowed($actorUserId);
+
+        $slot1Label = trim($slot1Label);
+        $slot2Label = trim($slot2Label);
+        if ($slot1Label === '' || $slot2Label === '') {
+            throw new \InvalidArgumentException('Slot labels cannot be empty.');
+        }
+        if ($this->labelLength($slot1Label) > 64 || $this->labelLength($slot2Label) > 64) {
+            throw new \InvalidArgumentException('Slot labels must be 64 characters or fewer.');
+        }
+
+        $changed = [];
+        $current = $this->getSlotLabels();
+        if ($current[0] === $slot1Label && $current[1] === $slot2Label) {
+            return;
+        }
+
+        $this->db->beginTransaction();
+        try {
+            if ($current[0] !== $slot1Label) {
+                updateSetting('umpire_slot_1_label', $slot1Label);
+                $changed[] = 'umpire_slot_1_label';
+            }
+            if ($current[1] !== $slot2Label) {
+                updateSetting('umpire_slot_2_label', $slot2Label);
+                $changed[] = 'umpire_slot_2_label';
+            }
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+
+        ActivityLogger::log('umpire.settings_changed', [
+            'setting'       => implode(',', $changed),
+            'actor_user_id' => $actorUserId,
+        ]);
+    }
+
     public function saveQueueWindowDays(int $days, int $actorUserId): void {
+        $this->assertSettingsWriteAllowed($actorUserId);
         if ($days < 0) {
             throw new \InvalidArgumentException('Queue window must be a non-negative integer.');
         }
@@ -68,6 +131,23 @@ class UmpireAssignmentService {
         ActivityLogger::log('umpire.settings_changed', [
             'setting'       => 'unassigned_queue_days',
             'new_value'     => $days,
+            'actor_user_id' => $actorUserId,
+        ]);
+    }
+
+    public function getDeclineLockoutHours(): int {
+        return max(0, (int) getSetting('umpire_decline_lockout_hours', '48'));
+    }
+
+    public function saveDeclineLockoutHours(int $hours, int $actorUserId): void {
+        $this->assertSettingsWriteAllowed($actorUserId);
+        if ($hours < 0) {
+            throw new \InvalidArgumentException('Decline lockout hours must be a non-negative integer.');
+        }
+        updateSetting('umpire_decline_lockout_hours', (string) $hours);
+        ActivityLogger::log('umpire.settings_changed', [
+            'setting'       => 'umpire_decline_lockout_hours',
+            'new_value'     => $hours,
             'actor_user_id' => $actorUserId,
         ]);
     }
@@ -95,7 +175,10 @@ class UmpireAssignmentService {
                     (SELECT COUNT(*) FROM game_umpire_assignments gua
                      WHERE gua.game_id = g.game_id
                        AND gua.slot_index IN (0, 1)
-                       AND gua.assignment_status IN ('Draft', 'Published')) AS filled_slots
+                       AND gua.assignment_status IN ('Draft', 'Published')) AS filled_slots,
+                    (SELECT COUNT(*) FROM schedule_change_requests scr
+                     WHERE scr.game_id = g.game_id
+                       AND scr.request_status = 'Pending') AS pending_scr_count
                 FROM games g
                 JOIN schedules s ON g.game_id = s.game_id
                 LEFT JOIN locations l ON s.location_id = l.location_id
@@ -113,7 +196,15 @@ class UmpireAssignmentService {
                 ORDER BY s.game_date ASC, s.game_time ASC";
 
         $stmt = $this->db->query($sql, $params);
-        return ($stmt && method_exists($stmt, 'fetchAll')) ? $stmt->fetchAll() : [];
+        $games = ($stmt && method_exists($stmt, 'fetchAll')) ? $stmt->fetchAll() : [];
+        foreach ($games as &$game) {
+            $pendingScrCount = (int) ($game['pending_scr_count'] ?? 0);
+            $game['pending_scr_count'] = $pendingScrCount;
+            $game['has_pending_scr'] = $pendingScrCount > 0;
+        }
+        unset($game);
+
+        return $games;
     }
 
     public function getAssignmentBoard(): array {
@@ -145,7 +236,10 @@ class UmpireAssignmentService {
                      WHERE gua.game_id = g.game_id
                        AND gua.slot_index IN (0, 1)
                        AND gua.assignment_status IN ('Draft', 'Published')
-                    ) AS slot_summary
+                    ) AS slot_summary,
+                    (SELECT COUNT(*) FROM schedule_change_requests scr
+                     WHERE scr.game_id = g.game_id
+                       AND scr.request_status = 'Pending') AS pending_scr_count
                 FROM games g
                 JOIN schedules s ON g.game_id = s.game_id
                 LEFT JOIN locations l ON s.location_id = l.location_id
@@ -163,6 +257,9 @@ class UmpireAssignmentService {
             $published = (int) $game['published_slots'];
             $total     = $draft + $published;
             $game['filled_slots'] = $total;
+            $pendingScrCount = (int) ($game['pending_scr_count'] ?? 0);
+            $game['pending_scr_count'] = $pendingScrCount;
+            $game['has_pending_scr'] = $pendingScrCount > 0;
 
             if ($total === 0) {
                 $game['board_status'] = 'Unassigned';
@@ -257,14 +354,63 @@ class UmpireAssignmentService {
 
         return [
             'game' => $game,
-            'slot_labels' => [
-                0 => getSetting('umpire_slot_1_label', 'Umpire 1'),
-                1 => getSetting('umpire_slot_2_label', 'Umpire 2'),
-            ],
+            'slot_labels' => $this->getSlotLabels(),
             'slots' => $slots,
             'roster' => $roster,
             'migration_mode' => $rosterService->isMigrationMode(),
+            'warnings' => $this->collectAssignmentQualityWarnings($gameId, $slots, $game),
         ];
+    }
+
+    public function collectAssignmentQualityWarnings(int $gameId, ?array $slots = null, ?array $game = null): array {
+        if ($game === null) {
+            $game = $this->fetchGame($gameId);
+        }
+        $warnings = [];
+
+        if ($slots === null) {
+            $slots = [
+                0 => $this->openSlot(0),
+                1 => $this->openSlot(1),
+            ];
+            $stmt = $this->db->query(
+                "SELECT gua.slot_index, gua.umpire_user_id
+                 FROM game_umpire_assignments gua
+                 WHERE gua.game_id = :game_id
+                   AND gua.slot_index IN (0, 1)
+                   AND gua.assignment_status IN ('Draft', 'Published')
+                   AND gua.umpire_user_id IS NOT NULL",
+                ['game_id' => $gameId]
+            );
+            $rows = ($stmt && method_exists($stmt, 'fetchAll')) ? $stmt->fetchAll() : [];
+            foreach ($rows as $row) {
+                $idx = (int) ($row['slot_index'] ?? -1);
+                if ($idx !== 0 && $idx !== 1) {
+                    continue;
+                }
+                $slots[$idx]['umpire_user_id'] = (int) ($row['umpire_user_id'] ?? 0);
+            }
+        }
+
+        foreach ([0, 1] as $slotIndex) {
+            $umpireUserId = (int) ($slots[$slotIndex]['umpire_user_id'] ?? 0);
+            if ($umpireUserId > 0) {
+                $currentAssignmentId = isset($slots[$slotIndex]['assignment_id'])
+                    ? (int) $slots[$slotIndex]['assignment_id']
+                    : null;
+                $warnings = array_merge(
+                    $warnings,
+                    $this->collectBackToBackTravelWarnings($game, $umpireUserId, $slotIndex, $currentAssignmentId)
+                );
+            }
+        }
+
+        $dualUnder18 = $this->collectDualUnder18Warning($gameId);
+        if ($dualUnder18 !== null) {
+            $warnings[] = $dualUnder18;
+        }
+
+        return $warnings;
     }
 
     public function saveSlot(
@@ -307,11 +453,15 @@ class UmpireAssignmentService {
         $this->assertUmpireNotAssignedToOtherSlot($gameId, $slotIndex, $umpireUserId);
 
         [$targetStart, $targetEnd] = $this->assignmentWindow($game);
+        $targetLocationId = isset($game['location_id']) ? (int) $game['location_id'] : null;
+        $targetLocationName = (string) ($game['location_name'] ?? '');
         $conflict = UmpireConflictChecker::check(
             $umpireUserId,
             $targetStart,
             $targetEnd,
-            $existing && isset($existing['assignment_id']) ? (int) $existing['assignment_id'] : null
+            $existing && isset($existing['assignment_id']) ? (int) $existing['assignment_id'] : null,
+            $targetLocationId > 0 ? $targetLocationId : null,
+            $targetLocationName
         );
 
         if (($conflict !== null || $publishedMutation) && !$hasOverride) {
@@ -360,16 +510,31 @@ class UmpireAssignmentService {
             ]);
         }
 
+        $savedSlots = [
+            0 => $this->openSlot(0),
+            1 => $this->openSlot(1),
+        ];
+        $savedSlots[$slotIndex] = [
+            'assignment_id' => $existing && isset($existing['assignment_id']) ? (int) $existing['assignment_id'] : null,
+            'slot_index' => $slotIndex,
+            'status' => 'Draft',
+            'umpire_user_id' => $umpireUserId,
+            'umpire' => $umpire,
+            'published' => 0,
+            'migration_mode' => $migrationMode,
+        ];
+        $otherSlotIndex = $slotIndex === 0 ? 1 : 0;
+        $otherSlot = $this->fetchSlot($gameId, $otherSlotIndex);
+        if ($otherSlot && !empty($otherSlot['umpire_user_id'])
+            && in_array((string) ($otherSlot['assignment_status'] ?? ''), ['Draft', 'Published'], true)) {
+            $savedSlots[$otherSlotIndex]['assignment_id'] = isset($otherSlot['assignment_id']) ? (int) $otherSlot['assignment_id'] : null;
+            $savedSlots[$otherSlotIndex]['umpire_user_id'] = (int) $otherSlot['umpire_user_id'];
+        }
+
         return [
             'game_id' => $gameId,
-            'slot' => [
-                'slot_index' => $slotIndex,
-                'status' => 'Draft',
-                'umpire_user_id' => $umpireUserId,
-                'umpire' => $umpire,
-                'published' => 0,
-                'migration_mode' => $migrationMode,
-            ],
+            'slot' => $savedSlots[$slotIndex],
+            'warnings' => $this->collectAssignmentQualityWarnings($gameId, $savedSlots, $game),
         ];
     }
 
@@ -451,13 +616,14 @@ class UmpireAssignmentService {
                 && (int) ($slot['umpire_user_id'] ?? 0) > 0;
         }));
 
-        if (count($filledDraftSlots) === 0) {
-            throw new \InvalidArgumentException('At least one filled Draft slot is required before publishing.');
+        if (count($filledSlots) === 0) {
+            throw new \InvalidArgumentException('At least one filled Draft or Published slot is required before publishing.');
         }
 
         $expectedCrewSize = $this->expectedCrewSize($game);
         $filledCrewCount = count($filledSlots);
-        $warned = $filledCrewCount < $expectedCrewSize;
+        $hasDraftToPublish = count($filledDraftSlots) > 0;
+        $warned = $hasDraftToPublish && $filledCrewCount < $expectedCrewSize;
         if ($warned && !$confirmPartial) {
             throw new UmpireAssignmentPublishConfirmationRequiredException(
                 'This game has fewer filled slots than the expected crew size.',
@@ -472,57 +638,79 @@ class UmpireAssignmentService {
         }
 
         $assignor = $this->fetchAssignor($actorUserId, $actorAdminId);
-        $slotLabels = [
-            0 => getSetting('umpire_slot_1_label', 'Umpire 1'),
-            1 => getSetting('umpire_slot_2_label', 'Umpire 2'),
-        ];
+        $slotLabels = $this->getSlotLabels();
         $scheduledAt = $this->scheduledAt($game);
+        $locationId = (int) ($game['location_id'] ?? 0);
         $published = 0;
+        $notified = 0;
+        $suppressed = 0;
         $emailService = null;
 
-        foreach ($filledDraftSlots as $slot) {
+        foreach ($filledSlots as $slot) {
             $slotIndex = (int) $slot['slot_index'];
+            $isDraft = (string) ($slot['assignment_status'] ?? '') === 'Draft';
             $migrationMode = (int) ($slot['migration_mode'] ?? 0) === 1;
-            $queueId = null;
-            $hash = null;
 
-            if (!$migrationMode) {
-                $emailService = $emailService ?: new EmailService();
-                $hash = $this->notificationHash($gameId, $slotIndex, (int) $slot['umpire_user_id'], $scheduledAt);
-                $email = $emailService->sendTemplateToAddressWithMetadata(
-                    'umpire_assignment_published',
-                    (string) ($slot['email'] ?? ''),
-                    $this->assignmentEmailContext($game, $slot, $slotLabels[$slotIndex] ?? ('Umpire ' . ($slotIndex + 1)), $assignor, $filledCrewCount),
-                    [
-                        'reply_to_email' => $assignor['email'] ?? '',
-                        'reply_to_name' => $assignor['name'] ?? '',
-                        'include_configured_recipients' => true,
-                    ]
-                );
-                if (!($email['success'] ?? false) || empty($email['queue_id'])) {
-                    throw new \RuntimeException('Assignment email could not be queued.');
+            if ($migrationMode) {
+                if ($isDraft) {
+                    $this->markSlotPublished($gameId, $slotIndex, null, true, $actorUserId);
+                    $published++;
                 }
-                $queueId = (int) $email['queue_id'];
+                continue;
             }
 
-            $this->markSlotPublished($gameId, $slotIndex, $hash, $migrationMode);
-            $published++;
+            $umpireUserId = (int) $slot['umpire_user_id'];
+            $hash = $this->notificationHash($gameId, $slotIndex, $umpireUserId, $scheduledAt, $locationId);
+            $storedHash = trim((string) ($slot['last_notified_hash'] ?? ''));
+
+            if ($storedHash !== '' && hash_equals($storedHash, $hash)) {
+                $suppressed++;
+                continue;
+            }
+
+            $emailService = $emailService ?: new EmailService();
+            $email = $emailService->sendTemplateToAddressWithMetadata(
+                'umpire_assignment_published',
+                (string) ($slot['email'] ?? ''),
+                $this->assignmentEmailContext($game, $slot, $slotLabels[$slotIndex] ?? ('Umpire ' . ($slotIndex + 1)), $assignor, $filledCrewCount),
+                [
+                    'reply_to_email' => $assignor['email'] ?? '',
+                    'reply_to_name' => $assignor['name'] ?? '',
+                    'include_configured_recipients' => true,
+                ]
+            );
+            if (!($email['success'] ?? false) || empty($email['queue_id'])) {
+                throw new \RuntimeException('Assignment email could not be queued.');
+            }
+            $queueId = (int) $email['queue_id'];
+            $notified++;
+
+            if ($isDraft) {
+                $this->markSlotPublished($gameId, $slotIndex, $hash, false, $actorUserId);
+                $published++;
+            } else {
+                $this->markSlotNotified($gameId, $slotIndex, $hash, $actorUserId);
+            }
 
             $context = [
                 'game_id' => $gameId,
                 'slot_index' => $slotIndex,
-                'umpire_user_id' => (int) $slot['umpire_user_id'],
+                'umpire_user_id' => $umpireUserId,
                 'email_queue_id' => $queueId,
                 'actor_user_id' => $actorUserId,
                 'actor_admin_id' => $actorAdminId,
             ];
-            ActivityLogger::log('umpire.assigned', $context);
+            if ($isDraft) {
+                ActivityLogger::log('umpire.assigned', $context);
+            }
             ActivityLogger::log('umpire.published', $context);
         }
 
         return [
             'published' => $published,
             'warned' => $warned,
+            'notified' => $notified,
+            'suppressed' => $suppressed,
         ];
     }
 
@@ -575,11 +763,487 @@ class UmpireAssignmentService {
                 ]);
             }
 
+            if (preg_match('/^SCR-[1-9][0-9]*$/', $triggerRef) === 1) {
+                $publishedAssignments = array_values(array_filter($assignments, static function ($row) {
+                    return (string) ($row['assignment_status'] ?? '') === 'Published';
+                }));
+                if (!empty($publishedAssignments)) {
+                    $anchor = $publishedAssignments[0];
+                    $notificationId = $this->insertPendingAssignorAlert($anchor, $triggerRef);
+                    ActivityLogger::log('umpire.assignor_scr_alert_queued', [
+                        'game_id' => $gameId,
+                        'trigger_event_ref' => $triggerRef,
+                        'notification_id' => $notificationId,
+                        'released_assignment_ids' => array_map(static function ($row) {
+                            return (int) $row['assignment_id'];
+                        }, $publishedAssignments),
+                        'released_umpire_user_ids' => array_map(static function ($row) {
+                            return (int) $row['umpire_user_id'];
+                        }, $publishedAssignments),
+                        'actor_user_id' => isset($options['actor_user_id']) ? (int) $options['actor_user_id'] : null,
+                        'actor_admin_id' => isset($options['actor_admin_id']) ? (int) $options['actor_admin_id'] : null,
+                        'source' => isset($options['source']) ? (string) $options['source'] : null,
+                    ]);
+                }
+            }
+
             return true;
         } catch (\Throwable $e) {
             error_log('[UmpireAssignmentService::onScheduleChanged] Cascade cancellation failed game_id=' . $gameId
                 . ' trigger_ref=' . $triggerRef . ' error=' . $e->getMessage());
             return false;
+        }
+    }
+
+    public function getDeclineAssignmentPreview(int $assignmentId, int $umpireUserId): array {
+        $assignment = $this->fetchDeclinableAssignment($assignmentId);
+        $this->assertDeclineActorAndStatus($assignment, $umpireUserId);
+        $lockout = $this->declineLockoutContext($assignment);
+        $assignment['assignment_id'] = (int) $assignment['assignment_id'];
+        $assignment['game_id'] = (int) $assignment['game_id'];
+        $assignment['slot_index'] = (int) $assignment['slot_index'];
+        $assignment['umpire_user_id'] = (int) $assignment['umpire_user_id'];
+        $assignment['slot_label'] = $this->slotLabel((int) $assignment['slot_index']);
+        $assignment['assignor_contact'] = $this->assignorContactText($assignment);
+        $assignment['assignor'] = $this->assignorContact($assignment);
+        $assignment['hours_until_game_start'] = $lockout['hours_until_game_start'];
+        $assignment['decline_lockout_hours'] = $lockout['lockout_hours'];
+        $assignment['decline_allowed'] = $lockout['hours_until_game_start'] > $lockout['lockout_hours'];
+        return $assignment;
+    }
+
+    public function declineAssignment(int $assignmentId, int $umpireUserId): array {
+        $assignment = $this->getDeclineAssignmentPreview($assignmentId, $umpireUserId);
+
+        if (!$assignment['decline_allowed']) {
+            throw new UmpireAssignmentDeclineLockoutException(
+                'Decline not available within ' . $assignment['decline_lockout_hours'] . ' hours of game start.',
+                [
+                    'hours_until_game_start' => $assignment['hours_until_game_start'],
+                    'lockout_hours' => $assignment['decline_lockout_hours'],
+                    'assignor_contact' => $assignment['assignor_contact'],
+                ]
+            );
+        }
+
+        $this->db->query(
+            "UPDATE game_umpire_assignments
+             SET assignment_status = 'Declined',
+                 published = 0,
+                 last_notified_hash = NULL,
+                 last_notified_at = NULL,
+                 modified_at = NOW()
+             WHERE assignment_id = :assignment_id
+               AND umpire_user_id = :umpire_user_id
+               AND assignment_status = 'Published'",
+            [
+                'assignment_id' => $assignment['assignment_id'],
+                'umpire_user_id' => $umpireUserId,
+            ]
+        );
+
+        $this->sendDeclineAlert($assignment);
+
+        ActivityLogger::log('umpire.declined', [
+            'assignment_id' => $assignment['assignment_id'],
+            'game_id' => $assignment['game_id'],
+            'slot_index' => $assignment['slot_index'],
+            'umpire_user_id' => $umpireUserId,
+            'hours_until_game_start' => $assignment['hours_until_game_start'],
+            'actor_user_id' => $umpireUserId,
+        ]);
+
+        $assignment['assignment_status'] = 'Declined';
+        $assignment['published'] = 0;
+        return $assignment;
+    }
+
+    public function getUmpireAssignments(int $umpireUserId): array {
+        $sql = "SELECT
+                    gua.assignment_id,
+                    g.game_id, g.game_number,
+                    s.game_date, s.game_time,
+                    l.location_name, l.address, l.city, l.state, l.zip_code,
+                    d.division_name,
+                    ht.team_name AS home_team,
+                    at.team_name AS away_team,
+                    gua.slot_index,
+                    gua.assigned_by_user_id,
+                    a.first_name AS assignor_first_name,
+                    a.last_name AS assignor_last_name,
+                    a.email AS assignor_email,
+                    a.phone AS assignor_phone,
+                    (SELECT COUNT(DISTINCT gua2.slot_index) FROM game_umpire_assignments gua2
+                     WHERE gua2.game_id = g.game_id
+                       AND gua2.slot_index IN (0, 1)
+                       AND gua2.assignment_status = 'Published') AS filled_slots,
+                    gua_partner.umpire_user_id AS partner_user_id,
+                    partner.first_name AS partner_first_name,
+                    partner.last_name AS partner_last_name,
+                    partner.email AS partner_email,
+                    partner.phone AS partner_phone,
+                    COALESCE(hcoach.first_name, ht.manager_first_name) AS home_coach_first_name,
+                    COALESCE(hcoach.last_name, ht.manager_last_name) AS home_coach_last_name,
+                    COALESCE(hcoach.email, ht.manager_email) AS home_coach_email,
+                    COALESCE(hcoach.phone, ht.manager_phone) AS home_coach_phone,
+                    COALESCE(acoach.first_name, at.manager_first_name) AS away_coach_first_name,
+                    COALESCE(acoach.last_name, at.manager_last_name) AS away_coach_last_name,
+                    COALESCE(acoach.email, at.manager_email) AS away_coach_email,
+                    COALESCE(acoach.phone, at.manager_phone) AS away_coach_phone
+                FROM game_umpire_assignments gua
+                JOIN games g ON gua.game_id = g.game_id
+                JOIN schedules s ON s.schedule_id = (
+                    SELECT s2.schedule_id
+                    FROM schedules s2
+                    WHERE s2.game_id = g.game_id
+                    ORDER BY s2.modified_date DESC, s2.schedule_id DESC
+                    LIMIT 1
+                )
+                LEFT JOIN locations l ON s.location_id = l.location_id
+                LEFT JOIN divisions d ON g.division_id = d.division_id
+                JOIN teams ht ON g.home_team_id = ht.team_id
+                JOIN teams at ON g.away_team_id = at.team_id
+                LEFT JOIN users a ON gua.assigned_by_user_id = a.id
+                LEFT JOIN game_umpire_assignments gua_partner
+                    ON gua_partner.game_id = g.game_id
+                    AND gua_partner.slot_index IN (0, 1)
+                    AND gua_partner.slot_index != gua.slot_index
+                    AND gua_partner.assignment_status = 'Published'
+                    AND gua_partner.umpire_user_id IS NOT NULL
+                LEFT JOIN users partner ON partner.id = gua_partner.umpire_user_id
+                LEFT JOIN team_owners hto ON hto.team_id = g.home_team_id
+                LEFT JOIN users hcoach ON hcoach.id = hto.user_id
+                LEFT JOIN team_owners ato ON ato.team_id = g.away_team_id
+                LEFT JOIN users acoach ON acoach.id = ato.user_id
+                WHERE gua.umpire_user_id = :uid
+                  AND gua.assignment_status = 'Published'
+                  AND g.game_status NOT IN ('Cancelled', 'Postponed')
+                ORDER BY s.game_date ASC, s.game_time ASC";
+
+        $stmt = $this->db->query($sql, ['uid' => $umpireUserId]);
+        $rows = ($stmt && method_exists($stmt, 'fetchAll')) ? $stmt->fetchAll() : [];
+
+        $slotLabels = $this->getSlotLabels();
+        $lockoutHours = $this->declineLockoutHours();
+
+        $results = [];
+        foreach ($rows as $row) {
+            $slotIndex = (int) ($row['slot_index'] ?? 0);
+            $assignorName = trim(($row['assignor_first_name'] ?? '') . ' ' . ($row['assignor_last_name'] ?? ''));
+            $phone = (string) ($row['assignor_phone'] ?? '');
+            $filledCrew = (int) ($row['filled_slots'] ?? 0);
+            $hoursUntilGameStart = $this->hoursUntilGameStart($row);
+
+            $partnerName = trim(($row['partner_first_name'] ?? '') . ' ' . ($row['partner_last_name'] ?? ''));
+            $partnerPhone = (string) ($row['partner_phone'] ?? '');
+
+            $partnerUserId = (int) ($row['partner_user_id'] ?? 0);
+
+            $homeCoachName = trim(($row['home_coach_first_name'] ?? '') . ' ' . ($row['home_coach_last_name'] ?? ''));
+            $homeCoachPhone = (string) ($row['home_coach_phone'] ?? '');
+            $awayCoachName = trim(($row['away_coach_first_name'] ?? '') . ' ' . ($row['away_coach_last_name'] ?? ''));
+            $awayCoachPhone = (string) ($row['away_coach_phone'] ?? '');
+
+            $results[] = [
+                'assignment_id' => (int) ($row['assignment_id'] ?? 0),
+                'game_id' => (int) ($row['game_id'] ?? 0),
+                'game_number' => (string) ($row['game_number'] ?? ''),
+                'game_date' => (string) ($row['game_date'] ?? ''),
+                'game_time' => (string) ($row['game_time'] ?? ''),
+                'location_name' => (string) ($row['location_name'] ?? ''),
+                'address' => (string) ($row['address'] ?? ''),
+                'city' => (string) ($row['city'] ?? ''),
+                'state' => (string) ($row['state'] ?? ''),
+                'zip_code' => (string) ($row['zip_code'] ?? ''),
+                'division_name' => (string) ($row['division_name'] ?? ''),
+                'home_team' => (string) ($row['home_team'] ?? ''),
+                'away_team' => (string) ($row['away_team'] ?? ''),
+                'slot_index' => $slotIndex,
+                'slot_label' => $slotLabels[$slotIndex] ?? ('Umpire ' . ($slotIndex + 1)),
+                'fee_text' => $this->feeText((string) ($row['division_name'] ?? ''), $filledCrew),
+                'assignor_name' => $assignorName ?: 'Contact your assignor',
+                'assignor_phone' => $phone ?: '',
+                'assignor_phone_tel' => $this->telHref($phone),
+                'assignor_email' => (string) ($row['assignor_email'] ?? ''),
+                'partner_user_id' => $partnerUserId,
+                'partner_name' => $partnerName ?: '',
+                'partner_email' => (string) ($row['partner_email'] ?? ''),
+                'partner_phone' => $partnerPhone ?: '',
+                'partner_phone_tel' => $this->telHref($partnerPhone),
+                'home_coach_name' => $homeCoachName ?: '',
+                'home_coach_email' => (string) ($row['home_coach_email'] ?? ''),
+                'home_coach_phone' => $homeCoachPhone ?: '',
+                'home_coach_phone_tel' => $this->telHref($homeCoachPhone),
+                'away_coach_name' => $awayCoachName ?: '',
+                'away_coach_email' => (string) ($row['away_coach_email'] ?? ''),
+                'away_coach_phone' => $awayCoachPhone ?: '',
+                'away_coach_phone_tel' => $this->telHref($awayCoachPhone),
+                'hours_until_game_start' => $hoursUntilGameStart,
+                'decline_lockout_hours' => $lockoutHours,
+                'decline_allowed' => $hoursUntilGameStart > $lockoutHours,
+            ];
+        }
+
+        return $results;
+    }
+
+    public function getUmpireAssignmentsGrouped(int $umpireUserId): array {
+        $all = $this->getUmpireAssignments($umpireUserId);
+        $today = date('Y-m-d');
+        $buckets = ['today' => [], 'future' => [], 'past' => []];
+
+        foreach ($all as $a) {
+            $gameDate = (string) ($a['game_date'] ?? '');
+            if ($gameDate === $today) {
+                $buckets['today'][] = $a;
+            } elseif ($gameDate > $today) {
+                $buckets['future'][] = $a;
+            } else {
+                $buckets['past'][] = $a;
+            }
+        }
+
+        return [
+            'today' => $buckets['today'],
+            'future' => $buckets['future'],
+            'past' => array_reverse($buckets['past']),
+        ];
+    }
+
+    public function getUmpireDeclineLog(int $umpireUserId): array {
+        $sql = "SELECT
+                    al.log_id,
+                    al.created_at AS declined_at,
+                    JSON_UNQUOTE(JSON_EXTRACT(al.context, '$.hours_until_game_start')) AS hours_until_game_start,
+                    JSON_UNQUOTE(JSON_EXTRACT(al.context, '$.slot_index')) AS ctx_slot_index,
+                    g.game_id,
+                    g.game_number,
+                    s.game_date,
+                    s.game_time,
+                    l.location_name, l.address, l.city, l.state, l.zip_code,
+                    d.division_name
+                FROM activity_log al
+                JOIN games g ON g.game_id = JSON_UNQUOTE(JSON_EXTRACT(al.context, '$.game_id'))
+                LEFT JOIN schedules s ON s.schedule_id = (
+                    SELECT s2.schedule_id
+                    FROM schedules s2
+                    WHERE s2.game_id = g.game_id
+                    ORDER BY s2.modified_date DESC, s2.schedule_id DESC
+                    LIMIT 1
+                )
+                LEFT JOIN locations l ON s.location_id = l.location_id
+                LEFT JOIN divisions d ON g.division_id = d.division_id
+                WHERE al.event = 'umpire.declined'
+                  AND JSON_UNQUOTE(JSON_EXTRACT(al.context, '$.umpire_user_id')) = :uid
+                ORDER BY s.game_date DESC, s.game_time DESC";
+
+        $stmt = $this->db->query($sql, ['uid' => $umpireUserId]);
+        $rows = ($stmt && method_exists($stmt, 'fetchAll')) ? $stmt->fetchAll() : [];
+
+        $slotLabels = $this->getSlotLabels();
+
+        $results = [];
+        foreach ($rows as $row) {
+            $slotIndex = (int) ($row['ctx_slot_index'] ?? 0);
+            $results[] = [
+                'log_id' => (int) ($row['log_id'] ?? 0),
+                'game_id' => (int) ($row['game_id'] ?? 0),
+                'game_number' => (string) ($row['game_number'] ?? ''),
+                'game_date' => (string) ($row['game_date'] ?? ''),
+                'game_time' => (string) ($row['game_time'] ?? ''),
+                'location_name' => (string) ($row['location_name'] ?? ''),
+                'address' => (string) ($row['address'] ?? ''),
+                'city' => (string) ($row['city'] ?? ''),
+                'state' => (string) ($row['state'] ?? ''),
+                'zip_code' => (string) ($row['zip_code'] ?? ''),
+                'division_name' => (string) ($row['division_name'] ?? ''),
+                'slot_label' => $slotLabels[$slotIndex] ?? 'Umpire ' . ($slotIndex + 1),
+                'declined_at' => (string) ($row['declined_at'] ?? ''),
+                'hours_until_game_start' => (float) ($row['hours_until_game_start'] ?? 0),
+            ];
+        }
+
+        return $results;
+    }
+
+    private function fetchDeclinableAssignment(int $assignmentId): array {
+        $this->validatePositiveId($assignmentId, 'Assignment');
+        $row = $this->db->fetchOne(
+            "SELECT
+                gua.assignment_id, gua.game_id, gua.umpire_user_id, gua.slot_index,
+                gua.assignment_status, gua.published, gua.assigned_by_user_id,
+                g.game_number, g.game_status,
+                d.division_name,
+                ht.team_name AS home_team,
+                at.team_name AS away_team,
+                s.game_date, s.game_time,
+                l.location_name,
+                u.first_name AS umpire_first_name,
+                u.last_name AS umpire_last_name,
+                u.email AS umpire_email,
+                a.first_name AS assignor_first_name,
+                a.last_name AS assignor_last_name,
+                a.email AS assignor_email,
+                a.phone AS assignor_phone,
+                (SELECT COUNT(DISTINCT gua2.slot_index) FROM game_umpire_assignments gua2
+                 WHERE gua2.game_id = gua.game_id
+                   AND gua2.slot_index IN (0, 1)
+                   AND gua2.assignment_status = 'Published') AS filled_slots
+             FROM game_umpire_assignments gua
+             JOIN games g ON gua.game_id = g.game_id
+             JOIN schedules s ON s.schedule_id = (
+                SELECT s2.schedule_id
+                FROM schedules s2
+                WHERE s2.game_id = g.game_id
+                ORDER BY s2.modified_date DESC, s2.schedule_id DESC
+                LIMIT 1
+             )
+             LEFT JOIN locations l ON s.location_id = l.location_id
+             LEFT JOIN divisions d ON g.division_id = d.division_id
+             JOIN teams ht ON g.home_team_id = ht.team_id
+             JOIN teams at ON g.away_team_id = at.team_id
+             LEFT JOIN users u ON u.id = gua.umpire_user_id
+             LEFT JOIN users a ON gua.assigned_by_user_id = a.id
+             WHERE gua.assignment_id = :assignment_id
+             LIMIT 1",
+            ['assignment_id' => $assignmentId]
+        );
+        if ($row === false || $row === null) {
+            throw new \InvalidArgumentException('Assignment not found.');
+        }
+        if (in_array((string) ($row['game_status'] ?? ''), ['Cancelled', 'Postponed'], true)) {
+            throw new \InvalidArgumentException('Cancelled or postponed assignments cannot be declined.');
+        }
+        return $row;
+    }
+
+    private function assertDeclineActorAndStatus(array $assignment, int $umpireUserId): void {
+        $this->validatePositiveId($umpireUserId, 'Umpire');
+        if ((int) ($assignment['umpire_user_id'] ?? 0) !== $umpireUserId) {
+            throw new \InvalidArgumentException('Assignment does not belong to the authenticated umpire.');
+        }
+        if ((string) ($assignment['assignment_status'] ?? '') !== 'Published') {
+            throw new \InvalidArgumentException('Only published assignments can be declined.');
+        }
+    }
+
+    private function declineLockoutContext(array $assignment): array {
+        return [
+            'hours_until_game_start' => $this->hoursUntilGameStart($assignment),
+            'lockout_hours' => $this->declineLockoutHours(),
+        ];
+    }
+
+    private function declineLockoutHours(): int {
+        return $this->getDeclineLockoutHours();
+    }
+
+    private function hoursUntilGameStart(array $game): float {
+        $date = (string) ($game['game_date'] ?? '');
+        $time = (string) (($game['game_time'] ?? '') ?: '00:00:00');
+        try {
+            $gameStart = new \DateTime(trim($date . ' ' . $time));
+        } catch (\Exception $e) {
+            return 0.0;
+        }
+        $now = new \DateTime();
+        return round(max(0, ($gameStart->getTimestamp() - $now->getTimestamp()) / 3600), 1);
+    }
+
+    private function assignorContact(array $assignment): array {
+        $name = trim(($assignment['assignor_first_name'] ?? '') . ' ' . ($assignment['assignor_last_name'] ?? ''));
+        return [
+            'name' => $name ?: 'District 8 Assignor',
+            'email' => (string) ($assignment['assignor_email'] ?? ''),
+            'phone' => (string) ($assignment['assignor_phone'] ?? ''),
+        ];
+    }
+
+    private function assignorContactText(array $assignment): string {
+        $assignor = $this->assignorContact($assignment);
+        $parts = [];
+        if ($assignor['name'] !== '') {
+            $parts[] = $assignor['name'];
+        }
+        if ($assignor['email'] !== '') {
+            $parts[] = $assignor['email'];
+        }
+        if ($assignor['phone'] !== '') {
+            $parts[] = $assignor['phone'];
+        }
+        return !empty($parts) ? implode(' - ', $parts) : 'Contact your assignor.';
+    }
+
+    private function slotLabel(int $slotIndex): string {
+        return $this->getSlotLabels()[$slotIndex] ?? ('Umpire ' . ($slotIndex + 1));
+    }
+
+    private function settingLabel(string $key, string $default): string {
+        $label = trim((string) getSetting($key, $default));
+        return $label !== '' ? $label : $default;
+    }
+
+    private function labelLength(string $label): int {
+        if (function_exists('mb_strlen')) {
+            return mb_strlen($label, 'UTF-8');
+        }
+
+        if (preg_match_all('/./us', $label, $matches) !== false) {
+            return count($matches[0]);
+        }
+
+        return strlen($label);
+    }
+
+    private function assertSettingsWriteAllowed(int $actorUserId): void {
+        if ($actorUserId < 1) {
+            throw new \RuntimeException('Settings update is not permitted.');
+        }
+
+        $row = $this->db->fetchOne(
+            "SELECT r.name AS role_name
+             FROM users u
+             INNER JOIN roles r ON r.id = u.role_id
+             WHERE u.id = :id
+               AND u.status = 'active'
+             LIMIT 1",
+            ['id' => $actorUserId]
+        );
+        $role = (string) ($row['role_name'] ?? '');
+        if (!in_array($role, ['administrator', 'umpire_assignor'], true)) {
+            throw new \RuntimeException('Settings update is not permitted.');
+        }
+    }
+
+    private function sendDeclineAlert(array $assignment): void {
+        $assignor = $assignment['assignor'] ?? $this->assignorContact($assignment);
+        $email = (string) ($assignor['email'] ?? '');
+        if ($email === '') {
+            return;
+        }
+
+        $emailService = new EmailService();
+        $result = $emailService->sendTemplateToAddressWithMetadata(
+            'umpire_decline_alert',
+            $email,
+            [
+                'game_id' => (int) ($assignment['game_id'] ?? 0),
+                'umpire_name' => trim(($assignment['umpire_first_name'] ?? '') . ' ' . ($assignment['umpire_last_name'] ?? '')) ?: 'Umpire',
+                'game_date' => !empty($assignment['game_date']) ? date('m/d/Y', strtotime((string) $assignment['game_date'])) : 'TBD',
+                'game_time' => !empty($assignment['game_time']) ? date('g:i A', strtotime((string) $assignment['game_time'])) : 'TBD',
+                'location' => (string) (($assignment['location_name'] ?? '') ?: 'TBD'),
+                'division_name' => (string) (($assignment['division_name'] ?? '') ?: 'TBD'),
+                'slot_label' => (string) ($assignment['slot_label'] ?? $this->slotLabel((int) ($assignment['slot_index'] ?? 0))),
+                'hours_until_game_start' => (string) ($assignment['hours_until_game_start'] ?? $this->hoursUntilGameStart($assignment)),
+            ],
+            [
+                'reply_to_email' => $email,
+                'reply_to_name' => (string) ($assignor['name'] ?? 'District 8 Assignor'),
+                'include_configured_recipients' => true,
+            ]
+        );
+        if (!($result['success'] ?? false)) {
+            throw new \RuntimeException('Decline alert email could not be queued.');
         }
     }
 
@@ -590,8 +1254,11 @@ class UmpireAssignmentService {
                 d.division_name,
                 ht.team_name AS home_team,
                 at.team_name AS away_team,
-                s.game_date, s.game_time,
-                l.location_name
+                s.game_date, s.game_time, s.location_id,
+                l.location_name,
+                (SELECT COUNT(*) FROM schedule_change_requests scr
+                 WHERE scr.game_id = g.game_id
+                   AND scr.request_status = 'Pending') AS pending_scr_count
              FROM games g
              JOIN schedules s ON g.game_id = s.game_id
              LEFT JOIN locations l ON s.location_id = l.location_id
@@ -609,7 +1276,190 @@ class UmpireAssignmentService {
         if ($status === 'Cancelled' || $status === 'Postponed') {
             throw new \InvalidArgumentException(ucfirst(strtolower($status)) . ' games cannot be assigned.');
         }
+
+        $scrMeta = $this->normalizePendingScrMetadata($row);
+        $row['pending_scr_count'] = $scrMeta['pending_scr_count'];
+        $row['has_pending_scr'] = $scrMeta['has_pending_scr'];
+
         return $row;
+    }
+
+    private function normalizePendingScrMetadata(array $row): array {
+        $count = (int) ($row['pending_scr_count'] ?? 0);
+        return [
+            'pending_scr_count' => $count,
+            'has_pending_scr' => $count > 0,
+        ];
+    }
+
+    private function fetchPendingScrMetadata(int $gameId): array {
+        $row = $this->db->fetchOne(
+            "SELECT COUNT(*) AS pending_scr_count
+             FROM schedule_change_requests scr
+             WHERE scr.game_id = :game_id
+               AND scr.request_status = 'Pending'",
+            ['game_id' => $gameId]
+        );
+        $count = 0;
+        if ($row !== false && $row !== null) {
+            $count = (int) ($row['pending_scr_count'] ?? 0);
+        }
+
+        return [
+            'pending_scr_count' => $count,
+            'has_pending_scr' => $count > 0,
+        ];
+    }
+
+    private function collectBackToBackTravelWarnings(array $game, int $umpireUserId, int $slotIndex, ?int $currentAssignmentId = null): array {
+        $targetDate = (string) ($game['game_date'] ?? '');
+        $targetTime = (string) (($game['game_time'] ?? '') ?: '00:00:00');
+        $targetLocationId = isset($game['location_id']) ? (int) $game['location_id'] : null;
+        $targetLocationName = (string) ($game['location_name'] ?? '');
+        $gameId = (int) ($game['game_id'] ?? 0);
+
+        $stmt = $this->db->query(
+            "SELECT
+                gua.assignment_id,
+                gua.game_id,
+                gua.slot_index,
+                s.game_date,
+                s.game_time,
+                s.location_id,
+                l.location_name
+             FROM game_umpire_assignments gua
+             JOIN games g ON g.game_id = gua.game_id
+             JOIN schedules s ON s.game_id = g.game_id
+             LEFT JOIN locations l ON l.location_id = s.location_id
+             WHERE gua.umpire_user_id = :umpire_user_id
+               AND gua.assignment_status IN ('Draft', 'Published')
+               AND gua.umpire_user_id IS NOT NULL
+               AND g.game_status NOT IN ('Cancelled', 'Postponed')
+               AND (gua.game_id <> :game_id OR gua.slot_index <> :slot_index)
+               AND ABS(TIMESTAMPDIFF(
+                    MINUTE,
+                    TIMESTAMP(s.game_date, COALESCE(s.game_time, '00:00:00')),
+                    TIMESTAMP(:target_date, COALESCE(:target_time, '00:00:00'))
+               )) < 45
+             ORDER BY s.game_date ASC, s.game_time ASC, gua.assignment_id ASC",
+            [
+                'umpire_user_id' => $umpireUserId,
+                'game_id' => $gameId,
+                'slot_index' => $slotIndex,
+                'target_date' => $targetDate,
+                'target_time' => $targetTime,
+            ]
+        );
+
+        $rows = ($stmt && method_exists($stmt, 'fetchAll')) ? $stmt->fetchAll() : [];
+        $warnings = [];
+        foreach ($rows as $row) {
+            $otherLocationId = isset($row['location_id']) ? (int) $row['location_id'] : null;
+            $otherLocationName = (string) ($row['location_name'] ?? '');
+            if (!$this->locationsDifferForTravelWarning(
+                $targetLocationId > 0 ? $targetLocationId : null,
+                $targetLocationName,
+                $otherLocationId > 0 ? $otherLocationId : null,
+                $otherLocationName
+            )) {
+                continue;
+            }
+
+            $warnings[] = [
+                'type' => 'back_to_back_travel',
+                'severity' => 'warning',
+                'message' => 'Back-to-back assignment at a different location within 45 minutes.',
+                'assignment_id' => $currentAssignmentId,
+                'conflict' => [
+                    'assignment_id' => (int) ($row['assignment_id'] ?? 0),
+                    'game_id' => (int) ($row['game_id'] ?? 0),
+                    'game_date' => $row['game_date'] ?? null,
+                    'game_time' => $row['game_time'] ?? null,
+                    'location_name' => $row['location_name'] ?? null,
+                ],
+            ];
+        }
+
+        return $warnings;
+    }
+
+    private function collectDualUnder18Warning(int $gameId): ?array {
+        $rosterService = new UmpireRosterService();
+        $assignedUmpireIds = $this->fetchActiveGameSlotUmpireIds($gameId);
+        foreach ($assignedUmpireIds as $assignedUmpireId) {
+            $rosterService->reconcileUnder18Flag($assignedUmpireId);
+        }
+
+        $stmt = $this->db->query(
+            "SELECT gua.slot_index, p.is_under_18
+             FROM game_umpire_assignments gua
+             JOIN umpire_profiles p ON p.user_id = gua.umpire_user_id
+             WHERE gua.game_id = :game_id
+               AND gua.slot_index IN (0, 1)
+               AND gua.assignment_status IN ('Draft', 'Published')
+               AND gua.umpire_user_id IS NOT NULL
+             ORDER BY gua.slot_index ASC",
+            ['game_id' => $gameId]
+        );
+        $rows = ($stmt && method_exists($stmt, 'fetchAll')) ? $stmt->fetchAll() : [];
+        $under18Count = 0;
+        foreach ($rows as $row) {
+            if ((int) ($row['is_under_18'] ?? 0) === 1) {
+                $under18Count++;
+            }
+        }
+
+        if ($under18Count < 2) {
+            return null;
+        }
+
+        return [
+            'type' => 'dual_under_18',
+            'severity' => 'warning',
+            'message' => 'Both assigned umpires are under 18 - a supervising adult may be required',
+        ];
+    }
+
+    private function fetchActiveGameSlotUmpireIds(int $gameId): array {
+        $stmt = $this->db->query(
+            "SELECT DISTINCT gua.umpire_user_id
+             FROM game_umpire_assignments gua
+             WHERE gua.game_id = :game_id
+               AND gua.slot_index IN (0, 1)
+               AND gua.assignment_status IN ('Draft', 'Published')
+               AND gua.umpire_user_id IS NOT NULL",
+            ['game_id' => $gameId]
+        );
+        $rows = ($stmt && method_exists($stmt, 'fetchAll')) ? $stmt->fetchAll() : [];
+        $ids = [];
+        foreach ($rows as $row) {
+            $id = (int) ($row['umpire_user_id'] ?? 0);
+            if ($id > 0) {
+                $ids[$id] = $id;
+            }
+        }
+
+        return array_values($ids);
+    }
+
+    private function locationsDifferForTravelWarning(
+        ?int $targetLocationId,
+        ?string $targetLocationName,
+        ?int $otherLocationId,
+        ?string $otherLocationName
+    ): bool {
+        if ($targetLocationId !== null && $otherLocationId !== null
+            && $targetLocationId > 0 && $otherLocationId > 0) {
+            return $targetLocationId !== $otherLocationId;
+        }
+
+        $targetName = trim($targetLocationName);
+        $otherName = trim($otherLocationName);
+        if ($targetName === '' || $otherName === '') {
+            return false;
+        }
+
+        return strcasecmp($targetName, $otherName) !== 0;
     }
 
     private function fetchCascadeGame(int $gameId): array {
@@ -690,11 +1540,22 @@ class UmpireAssignmentService {
         ]);
     }
 
+    private function insertPendingAssignorAlert(array $assignment, string $triggerRef): int {
+        return (int) $this->db->insert('umpire_pending_notifications', [
+            'assignment_id' => (int) $assignment['assignment_id'],
+            'umpire_user_id' => (int) $assignment['umpire_user_id'],
+            'notification_type' => 'assignor_alert',
+            'trigger_event_ref' => $triggerRef,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+    }
+
     private function fetchPublishableSlots(int $gameId): array {
         $stmt = $this->db->query(
             "SELECT
                 gua.assignment_id, gua.game_id, gua.umpire_user_id, gua.slot_index,
                 gua.assignment_status, gua.published, gua.migration_mode,
+                gua.last_notified_at, gua.last_notified_hash,
                 u.first_name, u.last_name, u.email, u.phone
              FROM game_umpire_assignments gua
              LEFT JOIN users u ON u.id = gua.umpire_user_id
@@ -744,19 +1605,43 @@ class UmpireAssignmentService {
         throw new \InvalidArgumentException('Assignor contact information not found.');
     }
 
-    private function markSlotPublished(int $gameId, int $slotIndex, ?string $hash, bool $migrationMode): void {
+    private function markSlotNotified(int $gameId, int $slotIndex, string $hash, ?int $actorUserId = null): void {
+        $this->db->query(
+            "UPDATE game_umpire_assignments
+             SET last_notified_at = NOW(),
+                 last_notified_hash = :last_notified_hash,
+                 assigned_by_user_id = COALESCE(:actor_user_id, assigned_by_user_id),
+                 modified_at = NOW()
+             WHERE game_id = :game_id
+               AND slot_index = :slot_index
+               AND assignment_status = 'Published'",
+            [
+                'actor_user_id' => $actorUserId,
+                'last_notified_hash' => $hash,
+                'game_id' => $gameId,
+                'slot_index' => $slotIndex,
+            ]
+        );
+    }
+
+    private function markSlotPublished(int $gameId, int $slotIndex, ?string $hash, bool $migrationMode, ?int $actorUserId = null): void {
         if ($migrationMode) {
             $this->db->query(
                 "UPDATE game_umpire_assignments
                  SET assignment_status = 'Published',
                      published = 1,
+                     assigned_by_user_id = COALESCE(:actor_user_id, assigned_by_user_id),
                      last_notified_at = NULL,
                      last_notified_hash = NULL,
                      modified_at = NOW()
                  WHERE game_id = :game_id
                    AND slot_index = :slot_index
                    AND assignment_status = 'Draft'",
-                ['game_id' => $gameId, 'slot_index' => $slotIndex]
+                [
+                    'actor_user_id' => $actorUserId,
+                    'game_id' => $gameId,
+                    'slot_index' => $slotIndex,
+                ]
             );
             return;
         }
@@ -765,6 +1650,7 @@ class UmpireAssignmentService {
             "UPDATE game_umpire_assignments
              SET assignment_status = 'Published',
                  published = 1,
+                 assigned_by_user_id = COALESCE(:actor_user_id, assigned_by_user_id),
                  last_notified_at = NOW(),
                  last_notified_hash = :last_notified_hash,
                  modified_at = NOW()
@@ -772,6 +1658,7 @@ class UmpireAssignmentService {
                AND slot_index = :slot_index
                AND assignment_status = 'Draft'",
             [
+                'actor_user_id' => $actorUserId,
                 'last_notified_hash' => $hash,
                 'game_id' => $gameId,
                 'slot_index' => $slotIndex,
@@ -779,8 +1666,18 @@ class UmpireAssignmentService {
         );
     }
 
-    private function notificationHash(int $gameId, int $slotIndex, int $umpireUserId, string $scheduledAt): string {
-        return hash('sha256', implode('|', [$gameId, $slotIndex, $umpireUserId, $scheduledAt]));
+    /**
+     * Canonical delta signature for assignment notification state.
+     * Components: game_id|slot_index|umpire_user_id|scheduled_at|location_id (0 when unset).
+     */
+    private function notificationHash(
+        int $gameId,
+        int $slotIndex,
+        int $umpireUserId,
+        string $scheduledAt,
+        int $locationId = 0
+    ): string {
+        return hash('sha256', implode('|', [$gameId, $slotIndex, $umpireUserId, $scheduledAt, $locationId]));
     }
 
     private function scheduledAt(array $game): string {
@@ -797,7 +1694,7 @@ class UmpireAssignmentService {
             'location' => (string) (($game['location_name'] ?? '') ?: 'TBD'),
             'division_name' => (string) (($game['division_name'] ?? '') ?: 'TBD'),
             'slot_label' => $slotLabel,
-            'fee_per_team' => $this->feePerTeamText((string) ($game['division_name'] ?? ''), $filledCrewCount),
+            'fee_per_team' => $this->feeText((string) ($game['division_name'] ?? ''), $filledCrewCount),
             'assignor_name' => (string) ($assignor['name'] ?? 'District 8 Assignor'),
             'assignor_phone' => $phone !== '' ? $phone : 'Not provided',
             'assignor_phone_tel' => $this->telHref($phone),
@@ -812,14 +1709,14 @@ class UmpireAssignmentService {
         return 2;
     }
 
-    private function feePerTeamText(string $divisionName, int $filledCrewCount): string {
+    private function feeText(string $divisionName, int $filledCrewCount): string {
         $crew = $filledCrewCount >= 2 ? 2 : 1;
         $division = strtolower($divisionName);
         if (str_contains($division, 'intermediate')) {
-            return $crew === 1 ? '$35 per team' : '$50 per team';
+            return $crew === 1 ? '$70' : '$50';
         }
         if (str_contains($division, 'junior') || str_contains($division, 'senior')) {
-            return $crew === 1 ? '$50 per team' : '$80 per team';
+            return $crew === 1 ? '$100' : '$80';
         }
         return 'Confirm fee with assignor';
     }
@@ -1014,6 +1911,7 @@ class UmpireAssignmentService {
         return [
             'slot_index' => $slotIndex,
             'status' => $status,
+            'assignment_id' => (int) ($row['assignment_id'] ?? 0),
             'umpire_user_id' => (int) $row['umpire_user_id'],
             'umpire' => [
                 'id' => (int) $row['umpire_user_id'],

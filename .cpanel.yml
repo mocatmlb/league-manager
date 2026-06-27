@@ -21,6 +21,12 @@ deployment:
 
       cp -R vendor/* $TARGETDIR/vendor/
       cp -R includes/* $TARGETDIR/includes/
+      echo "=== CSS deploy debug ==="
+      ls -la public/assets/css/
+      cp -f public/assets/css/style.css $TARGETDIR/assets/css/style.css 2>&1
+      echo "Copy exit code: $?"
+      wc -l $TARGETDIR/assets/css/style.css
+      echo "=== End CSS debug ==="
       cp -R public/* $TARGETDIR/
       cp -f includes/$CONFIG $TARGETDIR/includes/config.php
       CALVER=$(date +%Y.%-m.%-d)

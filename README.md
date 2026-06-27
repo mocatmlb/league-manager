@@ -223,6 +223,6 @@ See [docs/SECURITY.md](./docs/SECURITY.md) for details.
 
 ---
 
-## License
+## License 123
 
 Proprietary — developed for the District 8 Travel League. All rights reserved.

@@ -1062,6 +1062,87 @@ a.hero-stat.hero-stat-alert:hover {
     text-transform: uppercase;
 }
 
+/* ── Mega Menu ── */
+#main-navbar .mega-dropdown {
+    position: static;
+}
+
+#main-navbar .mega-dropdown .dropdown-menu.mega-menu {
+    width: 100%;
+    border: none;
+    border-top: 3px solid var(--bb-red);
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    padding: 1.25rem 1.5rem;
+    margin-top: 0;
+    background: #fff;
+    left: 0;
+    right: 0;
+}
+
+#main-navbar .mega-dropdown .mega-section-header {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    color: var(--bb-red);
+    padding-bottom: 0.4rem;
+    margin-bottom: 0.4rem;
+    border-bottom: 2px solid var(--bb-red);
+}
+
+#main-navbar .mega-dropdown .dropdown-item {
+    padding: 0.35rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    color: #333;
+}
+
+#main-navbar .mega-dropdown .dropdown-item i {
+    width: 20px;
+    text-align: center;
+    margin-right: 8px;
+    color: var(--bb-navy);
+}
+
+#main-navbar .mega-dropdown .dropdown-item:hover {
+    background: #f0f3f8;
+    color: var(--bb-navy);
+}
+
+#main-navbar .mega-dropdown .dropdown-item.active {
+    background: #eef2f7;
+    color: var(--bb-navy);
+    font-weight: 600;
+}
+
+#main-navbar .mega-dropdown .mega-section-header.mt-3 {
+    margin-top: 1rem !important;
+    padding-top: 0.5rem;
+}
+
+@media (max-width: 991.98px) {
+    #main-navbar .mega-dropdown {
+        position: relative;
+    }
+    #main-navbar .mega-dropdown .dropdown-menu.mega-menu {
+        width: auto;
+        left: auto;
+        right: auto;
+        padding: 0.5rem;
+    }
+    #main-navbar .mega-dropdown .mega-menu .row {
+        display: block;
+    }
+    #main-navbar .mega-dropdown .mega-menu [class*="col-"] {
+        width: 100%;
+        flex: none;
+        margin-bottom: 0.75rem;
+    }
+}
+
 /* ── Jumbotron / Hero ── */
 .jumbotron {
     background: linear-gradient(160deg, var(--bb-green-2) 0%, var(--bb-green) 55%, var(--bb-navy) 100%);
@@ -1310,6 +1391,100 @@ a.hero-stat.hero-stat-alert:hover {
     letter-spacing: 0.05em;
 }
 
+/* ── Umpire My Assignments: Expandable Rows (V1) ── */
+.umpire-assignments-table .core-row {
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.umpire-assignments-table .core-row:hover {
+    background: #f0f4ff !important;
+}
+.umpire-assignments-table .core-row.active-row {
+    background: #e8f0fe !important;
+}
+.umpire-assignments-table .core-row.active-row + .detail-row td {
+    background: #f5f8ff;
+}
+.umpire-assignments-table .detail-row {
+    display: none;
+}
+.umpire-assignments-table .detail-row.show {
+    display: table-row;
+}
+.umpire-assignments-table .detail-row td {
+    padding: 0.75rem 0.5rem;
+    background: #fff;
+    border-bottom: 2px solid #dee2e6;
+}
+.umpire-assignments-table .expand-toggle {
+    cursor: pointer;
+    color: #6c757d;
+    transition: transform 0.2s;
+    font-size: 0.8rem;
+}
+.umpire-assignments-table .expand-toggle:hover {
+    color: #0d6efd;
+}
+.umpire-assignments-table .expand-toggle.open {
+    transform: rotate(90deg);
+}
+.umpire-assignments-table .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.75rem;
+}
+.umpire-assignments-table .detail-card {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid #e9ecef;
+}
+.umpire-assignments-table .detail-card h6 {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6c757d;
+    margin-bottom: 0.25rem;
+}
+.umpire-assignments-table .detail-card .contact-name {
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+.umpire-assignments-table .detail-card .contact-line {
+    font-size: 0.8rem;
+    color: #495057;
+}
+.umpire-assignments-table .detail-card .contact-line a {
+    color: #0d6efd;
+    text-decoration: none;
+}
+.umpire-assignments-table .detail-card .contact-line a:hover {
+    text-decoration: underline;
+}
+.umpire-assignments-table th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6c757d;
+    border-top: none;
+    white-space: nowrap;
+    padding: 0.5rem 0.4rem;
+}
+.umpire-assignments-table td {
+    padding: 0.5rem 0.4rem;
+    vertical-align: middle;
+}
+@media (max-width: 1199px) {
+    .umpire-assignments-table .detail-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+@media (max-width: 991px) {
+    .umpire-assignments-table .detail-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* ── Footer ── */
 /* Use footer.bg-light to match Bootstrap's class-level specificity and win */
 footer,
@@ -1333,4 +1508,135 @@ footer a.text-muted {
 footer a:hover,
 footer a.text-muted:hover {
     color: rgba(255,255,255,0.9) !important;
+}
+
+/* ── Umpire My Assignments: Revised Detail Cards (Option 1) ── */
+.assignment-detail-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    overflow: hidden;
+}
+.assignment-detail-card__header {
+    background: #e9edf2;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #495057;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+.assignment-detail-card__header i {
+    color: #6c757d;
+    font-size: 0.72rem;
+}
+.assignment-detail-card__body {
+    padding: 0.65rem 0.75rem;
+}
+.assignment-detail-card__body .contact-name {
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+.assignment-detail-card__body .contact-name-matchup {
+    font-weight: 600;
+    font-size: 0.85rem;
+    overflow-wrap: break-word;
+}
+.assignment-detail-card__body .contact-line {
+    font-size: 0.8rem;
+    color: #495057;
+}
+.assignment-detail-card__body .contact-line a {
+    color: #0d6efd;
+    text-decoration: none;
+}
+.assignment-detail-card__body .contact-line a:hover {
+    text-decoration: underline;
+}
+.assignment-detail-card__body .contact-sub {
+    margin-top: 0.2rem;
+}
+.assignment-action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.75rem 0 0 0;
+}
+.assignment-action-row .btn {
+    font-size: 0.8rem;
+}
+.assignment-panel {
+    display: none;
+    margin-top: 0.75rem;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background: #fff;
+    padding: 0.75rem;
+}
+.assignment-panel.open {
+    display: block;
+}
+.assignment-panel__title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #212529;
+}
+.assignment-panel__row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+.assignment-panel__row:last-child {
+    border-bottom: none;
+}
+.assignment-panel__row-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #6c757d;
+    min-width: 80px;
+}
+.assignment-panel__row-name {
+    font-size: 0.85rem;
+    flex: 1;
+}
+.assignment-panel__row-phone a {
+    font-size: 0.85rem;
+    color: #0d6efd;
+    text-decoration: none;
+}
+.assignment-panel__row-phone a:hover {
+    text-decoration: underline;
+}
+.assignment-panel__empty {
+    font-size: 0.8rem;
+    color: #6c757d;
+    font-style: italic;
+}
+.assignment-decline-confirm .confirm-game-detail {
+    font-size: 0.8rem;
+    color: #495057;
+    margin-bottom: 0.75rem;
+}
+.assignment-mobile-details {
+    margin-top: 0.5rem;
+}
+.assignment-mobile-details .assignment-detail-card {
+    margin-bottom: 0.5rem;
+}
+.assignment-mobile-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+@media (max-width: 991px) {
+    .umpire-assignments-table .detail-grid {
+        grid-template-columns: 1fr;
+    }
 }

@@ -14,6 +14,10 @@ $filters = FilterHelpers::getFilterValues();
 
 // Add show_inactive filter
 $showInactive = filter_input(INPUT_GET, 'show_inactive', FILTER_VALIDATE_BOOLEAN) ?: false;
+$enableGameFilters = !empty($enableGameFilters);
+$gameFilters = $gameFilters ?? [];
+$gameStatusOptions = $gameStatusOptions ?? [];
+$gameFilterLocations = $locations ?? [];
 
 // Get filter options
 $programs = FilterHelpers::getActivePrograms();
@@ -76,6 +80,65 @@ $baseUrl = strtok($_SERVER["REQUEST_URI"], '?');
                         <?php endforeach; ?>
                     </select>
                 </div>
+
+                <?php if ($enableGameFilters): ?>
+                    <!-- Game Number Filter -->
+                    <div class="col-md-2">
+                        <label for="game_number" class="form-label">Game #</label>
+                        <input type="text" name="game_number" id="game_number" class="form-control"
+                               value="<?php echo sanitize($gameFilters['game_number'] ?? ''); ?>"
+                               placeholder="Any game #">
+                    </div>
+
+                    <!-- Date Range Filters -->
+                    <div class="col-md-2">
+                        <label for="date_from" class="form-label">Date From</label>
+                        <input type="date" name="date_from" id="date_from" class="form-control"
+                               value="<?php echo sanitize($gameFilters['date_from'] ?? ''); ?>">
+                    </div>
+
+                    <div class="col-md-2">
+                        <label for="date_to" class="form-label">Date To</label>
+                        <input type="date" name="date_to" id="date_to" class="form-control"
+                               value="<?php echo sanitize($gameFilters['date_to'] ?? ''); ?>">
+                    </div>
+
+                    <!-- Location Filter -->
+                    <div class="col-md-3">
+                        <label for="location" class="form-label">Location</label>
+                        <select name="location" id="location" class="form-select">
+                            <option value="">All Locations</option>
+                            <?php foreach ($gameFilterLocations as $location): ?>
+                                <option value="<?php echo (int)$location['location_id']; ?>"
+                                        <?php echo (int)($gameFilters['location_id'] ?? 0) === (int)$location['location_id'] ? 'selected' : ''; ?>>
+                                    <?php echo sanitize($location['location_name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <!-- Team Filter -->
+                    <div class="col-md-3">
+                        <label for="team" class="form-label">Team</label>
+                        <input type="text" name="team" id="team" class="form-control"
+                               value="<?php echo sanitize($gameFilters['team'] ?? ''); ?>"
+                               placeholder="Home or away team">
+                    </div>
+
+                    <!-- Game Status Filter -->
+                    <div class="col-md-3">
+                        <label for="status" class="form-label">Game Status</label>
+                        <select name="status" id="status" class="form-select">
+                            <option value="">All Statuses</option>
+                            <?php foreach ($gameStatusOptions as $status): ?>
+                                <option value="<?php echo sanitize($status); ?>"
+                                        <?php echo ($gameFilters['status'] ?? '') === $status ? 'selected' : ''; ?>>
+                                    <?php echo sanitize($status); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                <?php endif; ?>
 
                 <!-- Show Inactive Toggle -->
                 <div class="col-md-3">

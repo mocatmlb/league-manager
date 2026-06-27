@@ -3,6 +3,7 @@
  * Unit Tests: UmpireConflictChecker
  *
  * Story 23.3 - double-book detection.
+ * Story 24.5 - proximity-only exemption for travel warnings.
  */
 
 if (!defined('D8TL_APP')) {
@@ -39,7 +40,13 @@ class UmpireConflictCheckerMockStmt {
     private array $rows;
     public function __construct(array $rows) { $this->rows = $rows; }
     public function fetch($mode = null) {
-        return $this->rows[0] ?? false;
+        if (empty($this->rows)) {
+            return false;
+        }
+        return array_shift($this->rows);
+    }
+    public function fetchAll($mode = null): array {
+        return $this->rows;
     }
 }
 
@@ -51,6 +58,7 @@ register_test('23.3 conflict checker returns Draft/Published overlap payload', f
         'game_number' => 'G099',
         'game_date' => '2026-07-01',
         'game_time' => '18:00:00',
+        'location_id' => 1,
         'home_team' => 'Home',
         'away_team' => 'Away',
         'location_name' => 'Field 1',
@@ -60,9 +68,11 @@ register_test('23.3 conflict checker returns Draft/Published overlap payload', f
 
     $result = UmpireConflictChecker::check(
         101,
-        new DateTime('2026-07-01 18:30:00'),
-        new DateTime('2026-07-01 20:30:00'),
-        null
+        new DateTime('2026-07-01 18:00:00'),
+        new DateTime('2026-07-01 20:00:00'),
+        null,
+        1,
+        'Field 1'
     );
 
     assert_equals($result['assignment_id'], 55, 'Expected assignment id in conflict payload');
@@ -96,6 +106,94 @@ register_test('23.3 conflict checker returns null for adjacent/non-overlap', fun
     assert_equals($params['exclude_assignment_id_value'] ?? null, 55, 'Expected excluded assignment value param');
     assert_equals($params['target_start'] ?? null, '2026-07-01 20:00:00', 'Expected start param');
     assert_equals($params['target_end'] ?? null, '2026-07-01 22:00:00', 'Expected end param');
+});
+
+register_test('24.5 conflict checker blocks true overlapping different-location assignments', function () {
+    $mock = new UmpireConflictCheckerMockDb();
+    $mock->rows = [[
+        'assignment_id' => 55,
+        'game_id' => 99,
+        'game_number' => 'G099',
+        'game_date' => '2026-07-01',
+        'game_time' => '18:00:00',
+        'location_id' => 1,
+        'home_team' => 'Home',
+        'away_team' => 'Away',
+        'location_name' => 'Field 1',
+        'assignment_status' => 'Draft',
+    ]];
+    Database::setInstance($mock);
+
+    $result = UmpireConflictChecker::check(
+        101,
+        new DateTime('2026-07-01 18:30:00'),
+        new DateTime('2026-07-01 20:30:00'),
+        null,
+        2,
+        'Field 2'
+    );
+
+    assert_equals($result['assignment_id'], 55, 'Expected true different-location overlap to stay blocking');
+});
+
+register_test('24.5 conflict checker exempts proximity-only different-location non-overlap', function () {
+    $mock = new UmpireConflictCheckerMockDb();
+    $mock->rows = [[
+        'assignment_id' => 55,
+        'game_id' => 99,
+        'game_number' => 'G099',
+        'game_date' => '2026-07-01',
+        'game_time' => '18:00:00',
+        'location_id' => 1,
+        'home_team' => 'Home',
+        'away_team' => 'Away',
+        'location_name' => 'Field 1',
+        'assignment_status' => 'Draft',
+    ]];
+    Database::setInstance($mock);
+    $GLOBALS['_test_settings']['conflict_window_minutes'] = '20';
+
+    $result = UmpireConflictChecker::check(
+        101,
+        new DateTime('2026-07-01 18:30:00'),
+        new DateTime('2026-07-01 18:50:00'),
+        null,
+        2,
+        'Field 2'
+    );
+
+    assert_null($result, 'Expected non-overlapping different-location proximity to be advisory only');
+    unset($GLOBALS['_test_settings']['conflict_window_minutes']);
+});
+
+register_test('24.5 conflict checker keeps exact 45-minute boundary blocking when windows overlap', function () {
+    $mock = new UmpireConflictCheckerMockDb();
+    $mock->rows = [[
+        'assignment_id' => 55,
+        'game_id' => 99,
+        'game_number' => 'G099',
+        'game_date' => '2026-07-01',
+        'game_time' => '18:00:00',
+        'location_id' => 1,
+        'home_team' => 'Home',
+        'away_team' => 'Away',
+        'location_name' => 'Field 1',
+        'assignment_status' => 'Draft',
+    ]];
+    Database::setInstance($mock);
+    $GLOBALS['_test_settings']['conflict_window_minutes'] = '60';
+
+    $result = UmpireConflictChecker::check(
+        101,
+        new DateTime('2026-07-01 18:45:00'),
+        new DateTime('2026-07-01 19:45:00'),
+        null,
+        2,
+        'Field 2'
+    );
+
+    assert_equals($result['assignment_id'], 55, 'Expected exact 45-minute overlapping boundary to stay blocking');
+    unset($GLOBALS['_test_settings']['conflict_window_minutes']);
 });
 
 register_test('23.3 conflict checker honors configured conflict window setting', function () {

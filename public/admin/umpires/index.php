@@ -22,36 +22,6 @@ $flashMessage = $_SESSION['flash_message'] ?? '';
 $flashError   = $_SESSION['flash_error']   ?? '';
 unset($_SESSION['flash_message'], $_SESSION['flash_error']);
 
-$pageError = '';
-
-// ─── POST handler ─────────────────────────────────────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
-
-    if ($action === 'save_settings') {
-        if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-            $pageError = 'Invalid security token. Please try again.';
-        } else {
-            $raw = $_POST['unassigned_queue_days'] ?? '';
-            if (!ctype_digit((string) $raw) || $raw === '') {
-                $pageError = 'Queue window must be a non-negative integer.';
-            } else {
-                $days = (int) $raw;
-                try {
-                    $svc->saveQueueWindowDays($days, $actorUserId);
-                    $_SESSION['flash_message'] = 'Queue window updated.';
-                    header('Location: index.php'); exit;
-                } catch (\InvalidArgumentException $e) {
-                    $pageError = htmlspecialchars($e->getMessage());
-                } catch (\Throwable $e) {
-                    $pageError = 'An unexpected error occurred. Please try again.';
-                    error_log('[index.php] saveQueueWindowDays error: ' . $e->getMessage());
-                }
-            }
-        }
-    }
-}
-
 // ─── GET: load queue ──────────────────────────────────────────────────────────
 $windowDays = $svc->getQueueWindowDays();
 $games      = $svc->getUnassignedQueue($windowDays);
@@ -93,38 +63,15 @@ unset($__nav);
         </div>
     <?php endif; ?>
 
-    <?php if ($pageError): ?>
-        <div class="alert alert-danger" role="alert">
-            <?= $pageError ?>
-        </div>
-    <?php endif; ?>
-
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2 class="mb-0"><i class="fas fa-list-check me-2"></i>Unassigned Games Queue</h2>
-        <a href="board.php" class="btn btn-outline-secondary btn-sm">
-            <i class="fas fa-table-columns me-1"></i> Assignment Board
-        </a>
-    </div>
-
-    <!-- Queue Window Settings -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <form method="POST" action="index.php" class="row g-2 align-items-end">
-                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                <input type="hidden" name="action" value="save_settings">
-                <div class="col-auto">
-                    <label class="form-label mb-1 fw-semibold">Queue Window</label>
-                    <div class="input-group">
-                        <span class="input-group-text">Show games up to</span>
-                        <input type="number" name="unassigned_queue_days" class="form-control"
-                            style="width:80px" min="0" step="1"
-                            value="<?= (int) $windowDays ?>">
-                        <span class="input-group-text">days ahead</span>
-                        <button type="submit" class="btn btn-primary">Save</button>
-                    </div>
-                    <div class="form-text">Set to 0 to show all games with open slots regardless of date.</div>
-                </div>
-            </form>
+        <div class="d-flex gap-2">
+            <a href="settings.php" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-cog me-1"></i> Settings
+            </a>
+            <a href="board.php" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-table-columns me-1"></i> Assignment Board
+            </a>
         </div>
     </div>
 
@@ -157,7 +104,12 @@ unset($__nav);
                         <tbody>
                             <?php foreach ($games as $game): ?>
                                 <tr data-game-id="<?= (int) $game['game_id'] ?>">
-                                    <td><?= htmlspecialchars($game['game_date'] ?? '') ?></td>
+                                    <td>
+                                        <?= htmlspecialchars($game['game_date'] ?? '') ?>
+                                        <?php if (!empty($game['has_pending_scr'])): ?>
+                                            <span class="badge bg-warning text-dark ms-1" data-queue-tentative>Tentative</span>
+                                        <?php endif; ?>
+                                    </td>
                                     <td><?= htmlspecialchars($game['game_time'] ?? '') ?></td>
                                     <td><?= htmlspecialchars($game['home_team'] ?? '') ?></td>
                                     <td><?= htmlspecialchars($game['away_team'] ?? '') ?></td>

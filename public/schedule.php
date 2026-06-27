@@ -228,12 +228,17 @@ foreach (['upcoming' => $gamesUpcoming, 'completed' => $gamesCompleted,
 
 function buildMapsUrl($game) {
     $parts = [];
-    $name = $game['loc_name'] ?? '';
-    if (!empty($name)) $parts[] = $name;
-    if (!empty($game['address'])) $parts[] = $game['address'];
-    if (!empty($game['city'])) $parts[] = $game['city'];
-    if (!empty($game['state'])) $parts[] = $game['state'];
-    if (!empty($game['zip_code'])) $parts[] = $game['zip_code'];
+    if (!empty($game['address'])) {
+        $parts[] = $game['address'];
+        if (!empty($game['city'])) $parts[] = $game['city'];
+        if (!empty($game['state'])) $parts[] = $game['state'];
+        if (!empty($game['zip_code'])) $parts[] = $game['zip_code'];
+    } else {
+        $name = $game['loc_name'] ?? '';
+        if (!empty($name)) $parts[] = $name;
+        if (!empty($game['city'])) $parts[] = $game['city'];
+        if (!empty($game['state'])) $parts[] = $game['state'];
+    }
     if (empty($parts)) return '';
     return 'https://maps.google.com/?q=' . urlencode(implode(', ', $parts));
 }

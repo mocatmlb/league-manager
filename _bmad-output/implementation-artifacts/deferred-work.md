@@ -178,6 +178,19 @@ These are race conditions, missing transactions, and performance issues. See [10
 - INSERT ... ON DUPLICATE KEY UPDATE overkill in updateProfile() [`includes/UmpireRosterService.php:203`] — Profile should exist if umpire was created correctly, but the UPSERT handles missing rows gracefully at the cost of slight complexity.
 - Lack of explicit transaction around deactivate/activate [`includes/UmpireRosterService.php:220,232`] — These are single-query updates, but transactions would be safer if logging or other side effects are added.
 
+## Deferred from: code review of spec-umpire-mobile-responsive (2026-06-22)
+
+- **XSS via tel: href injection** — `public/umpires/index.php:138,149,163,177` — `htmlspecialchars` does not validate URI schemes; `javascript:` URIs in `phone_tel` fields would pass through. Pre-existing in the original code.
+- **Inconsistent `htmlspecialchars` encoding flags** — `public/umpires/index.php:186` uses explicit `ENT_QUOTES, 'UTF-8'` while other escape calls use default args. Pre-existing divergence.
+- **`tabindex="0"` on non-interactive lockout span** — `public/umpires/index.php:190` creates a keyboard focus trap with no `role` or handler. Pre-existing.
+- **Disabled Decline button lacks `aria-describedby`** — `public/umpires/index.php:193` — screen-reader users hear "Decline button disabled" without explanation. Pre-existing.
+- **Dangling `&middot;` when `fee_text` is empty** — `public/umpires/index.php:128` — trailing separator if any meta field is empty. Pre-existing in the original table.
+- **Mid-template variable assignment (`$assignorName`) fragile** — `public/umpires/index.php:132` — unused intermediate variable, should inline. Pre-existing pattern.
+- **Hardcoded fallback `48` for lockout hours** — `public/umpires/index.php:191` — if backend omits `decline_lockout_hours`, UI shows wrong value. Pre-existing.
+- **Empty email produces broken `mailto:` link** — `public/umpires/roster.php:62` — `<a href="mailto:">` when email is null/empty. Pre-existing in the original table.
+- **Roster phone not a `tel:` link** — `public/umpires/roster.php:64` — mobile users cannot tap to dial. Pre-existing in the original table.
+- **Decline link is GET, not POST** — `public/umpires/index.php:185` — state-changing operation via GET link, no CSRF protection. Pre-existing design.
+
 ## Deferred from: code review of 23-2-assignment-drawer-assign-unassign-slots.md (2026-06-15)
 
 - Bootstrap CDN loaded without SRI integrity hash — `public/admin/umpires/board.php` and `index.php` load Bootstrap 5.1.3 from jsDelivr without `integrity="sha384-..."`. Pre-existing across all pages; CDN tampering would allow arbitrary JS execution on mutation pages.
