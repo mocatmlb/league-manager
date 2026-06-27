@@ -104,7 +104,12 @@ unset($__nav);
                         <tbody>
                             <?php foreach ($games as $game): ?>
                                 <tr data-game-id="<?= (int) $game['game_id'] ?>">
-                                    <td><?= htmlspecialchars($game['game_date'] ?? '') ?></td>
+                                    <td>
+                                        <?= htmlspecialchars($game['game_date'] ?? '') ?>
+                                        <?php if (!empty($game['has_pending_scr'])): ?>
+                                            <span class="badge bg-warning text-dark ms-1" data-queue-tentative>Tentative</span>
+                                        <?php endif; ?>
+                                    </td>
                                     <td><?= htmlspecialchars($game['game_time'] ?? '') ?></td>
                                     <td><?= htmlspecialchars($game['home_team'] ?? '') ?></td>
                                     <td><?= htmlspecialchars($game['away_team'] ?? '') ?></td>

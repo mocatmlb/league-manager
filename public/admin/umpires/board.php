@@ -136,6 +136,9 @@ unset($__nav);
                                         <span class="badge bg-<?= htmlspecialchars($game['status_class']) ?>">
                                             <?= htmlspecialchars($game['board_status']) ?>
                                         </span>
+                                        <?php if (!empty($game['has_pending_scr'])): ?>
+                                            <span class="badge bg-warning text-dark ms-1" data-board-tentative>Tentative</span>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>

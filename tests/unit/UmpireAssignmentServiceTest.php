@@ -118,7 +118,12 @@ class UmpireAssignmentMockDb extends Database {
 class UmpireAssignmentMockStmt {
     private array $rows;
     public function __construct(array $rows) { $this->rows = $rows; }
-    public function fetch($mode = null) { return $this->rows[0] ?? false; }
+    public function fetch($mode = null) {
+        if (empty($this->rows)) {
+            return false;
+        }
+        return array_shift($this->rows);
+    }
     public function fetchAll($mode = null): array { return $this->rows; }
 }
 
@@ -524,7 +529,7 @@ register_test('23.3 saveSlot rejects conflicting assignment with structured 409 
     $GLOBALS['_test_settings']['conflict_window_minutes'] = '90';
     $mock = new UmpireAssignmentMockDb();
     $mock->fetchOneRows = [
-        ['game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Scheduled', 'game_date' => '2026-07-01', 'game_time' => '18:00:00'],
+        ['game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Scheduled', 'game_date' => '2026-07-01', 'game_time' => '18:00:00', 'location_id' => 1, 'location_name' => 'Field 1'],
         ['program_id' => 0],
         ['id' => 7],
         ['id' => 101, 'status' => 'active', 'umpire_level' => 'Black Shirt'],
@@ -532,7 +537,7 @@ register_test('23.3 saveSlot rejects conflicting assignment with structured 409 
         ['assignment_id' => 22, 'assignment_status' => 'Draft', 'umpire_user_id' => 202],
     ];
     $mock->queryRows = [[
-        ['assignment_id' => 55, 'game_id' => 99, 'game_number' => 'G099', 'game_date' => '2026-07-01', 'game_time' => '18:30:00', 'home_team' => 'Home', 'away_team' => 'Away', 'location_name' => 'Field 1', 'assignment_status' => 'Draft'],
+        ['assignment_id' => 55, 'game_id' => 99, 'game_number' => 'G099', 'game_date' => '2026-07-01', 'game_time' => '18:00:00', 'location_id' => 1, 'home_team' => 'Home', 'away_team' => 'Away', 'location_name' => 'Field 1', 'assignment_status' => 'Draft'],
     ]];
     Database::setInstance($mock);
     $svc = new UmpireAssignmentService();
@@ -556,19 +561,72 @@ register_test('23.3 saveSlot rejects conflicting assignment with structured 409 
     unset($GLOBALS['_test_settings']['conflict_window_minutes']);
 });
 
+register_test('24.5 saveSlot allows proximity-only different-location overlap with travel warning', function () {
+    unset($_SESSION['umpire_migration_mode']);
+    $GLOBALS['_test_settings']['conflict_window_minutes'] = '20';
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [
+        ['game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Scheduled', 'game_date' => '2026-07-01', 'game_time' => '18:30:00', 'location_id' => 2, 'location_name' => 'Field 2', 'pending_scr_count' => 0],
+        ['program_id' => 0],
+        ['id' => 7],
+        ['id' => 101, 'status' => 'active', 'umpire_level' => 'Black Shirt'],
+        ['is_under_18' => 0, 'date_of_birth' => null],
+        false,
+        false,
+        false,
+    ];
+    $mock->queryRows = [
+        [[
+            'assignment_id' => 55,
+            'game_id' => 99,
+            'slot_index' => 0,
+            'game_date' => '2026-07-01',
+            'game_time' => '18:00:00',
+            'location_id' => 1,
+            'location_name' => 'Field 1',
+            'assignment_status' => 'Draft',
+        ]],
+        [],
+        [],
+        [[
+            'assignment_id' => 55,
+            'game_id' => 99,
+            'slot_index' => 0,
+            'game_date' => '2026-07-01',
+            'game_time' => '18:00:00',
+            'location_id' => 1,
+            'location_name' => 'Field 1',
+        ]],
+        [[
+            'umpire_user_id' => 101,
+        ]],
+        [],
+        [],
+    ];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->saveSlot(10, 0, 101, 1);
+
+    assert_equals($result['slot']['umpire_user_id'], 101, 'Expected proximity-only save to succeed');
+    $warnings = $result['warnings'] ?? [];
+    assert_true(count($warnings) > 0, 'Expected travel warning payload');
+    assert_equals($warnings[0]['type'] ?? null, 'back_to_back_travel', 'Expected back-to-back travel warning type');
+    unset($GLOBALS['_test_settings']['conflict_window_minutes']);
+});
+
 register_test('23.3 saveSlot allows admin conflict override and logs PII-free context', function () {
     unset($_SESSION['umpire_migration_mode']);
     $mock = new UmpireAssignmentMockDb();
     $mock->fetchOneRows = [
-        ['game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Scheduled', 'game_date' => '2026-07-01', 'game_time' => '18:00:00'],
+        ['game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Scheduled', 'game_date' => '2026-07-01', 'game_time' => '18:00:00', 'location_id' => 1, 'location_name' => 'Field 1'],
         ['program_id' => 0],
         ['id' => 7],
-        ['id' => 101, 'first_name' => 'Pat', 'last_name' => 'Blue', 'email' => 'pat@example.test', 'phone' => '555', 'status' => 'active', 'umpire_level' => 'Black Shirt'],
+        ['id' => 101, 'status' => 'active', 'umpire_level' => 'Black Shirt'],
         ['is_under_18' => 0, 'date_of_birth' => null],
         ['assignment_id' => 22, 'assignment_status' => 'Draft', 'umpire_user_id' => 202],
     ];
     $mock->queryRows = [[
-        ['assignment_id' => 55, 'game_id' => 99, 'game_number' => 'G099', 'game_date' => '2026-07-01', 'game_time' => '18:30:00', 'home_team' => 'Home', 'away_team' => 'Away', 'location_name' => 'Field 1', 'assignment_status' => 'Published'],
+        ['assignment_id' => 55, 'game_id' => 99, 'game_number' => 'G099', 'game_date' => '2026-07-01', 'game_time' => '18:00:00', 'location_id' => 1, 'home_team' => 'Home', 'away_team' => 'Away', 'location_name' => 'Field 1', 'assignment_status' => 'Published'],
     ]];
     Database::setInstance($mock);
     $svc = new UmpireAssignmentService();
@@ -2214,4 +2272,139 @@ register_test('24.3 assignment board source renders configured slot labels in he
     assert_true(strpos($source, 'htmlspecialchars($slotLabels[0]') !== false, 'Expected escaped slot 1 header');
     assert_true(strpos($source, 'htmlspecialchars($slotLabels[1]') !== false, 'Expected escaped slot 2 header');
     assert_true(strpos($source, 'data-board-slot') !== false, 'Expected board slot behavior preserved');
+});
+
+// ---------------------------------------------------------------------------
+// Tests: Story 24.5 assignment quality warnings
+// ---------------------------------------------------------------------------
+
+register_test('24.5 collectAssignmentQualityWarnings returns dual under-18 warning', function () {
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [
+        ['game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Scheduled', 'game_date' => '2026-07-01', 'game_time' => '18:00:00', 'location_id' => 1, 'location_name' => 'Field 1', 'pending_scr_count' => 0],
+        ['is_under_18' => 1, 'date_of_birth' => '2010-01-01'],
+        ['is_under_18' => 1, 'date_of_birth' => '2011-01-01'],
+    ];
+    $mock->queryRows = [
+        [
+            ['slot_index' => 0, 'umpire_user_id' => 201],
+            ['slot_index' => 1, 'umpire_user_id' => 202],
+        ],
+        [],
+        [],
+        [
+            ['umpire_user_id' => 201],
+            ['umpire_user_id' => 202],
+        ],
+        [
+            ['slot_index' => 0, 'is_under_18' => 1],
+            ['slot_index' => 1, 'is_under_18' => 1],
+        ],
+    ];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $warnings = $svc->collectAssignmentQualityWarnings(10);
+
+    assert_equals(count($warnings), 1, 'Expected one dual under-18 warning');
+    assert_equals($warnings[0]['type'] ?? null, 'dual_under_18', 'Expected dual under-18 warning type');
+    assert_equals(
+        $warnings[0]['message'] ?? null,
+        'Both assigned umpires are under 18 - a supervising adult may be required',
+        'Expected dual under-18 message'
+    );
+});
+
+register_test('24.5 collectAssignmentQualityWarnings omits travel warning at exact 45-minute boundary', function () {
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [
+        ['game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Scheduled', 'game_date' => '2026-07-01', 'game_time' => '18:45:00', 'location_id' => 2, 'location_name' => 'Field 2', 'pending_scr_count' => 0],
+        ['is_under_18' => 0, 'date_of_birth' => null],
+    ];
+    $mock->queryRows = [
+        [
+            ['slot_index' => 0, 'umpire_user_id' => 201],
+        ],
+        [],
+        [
+            ['umpire_user_id' => 201],
+        ],
+        [],
+    ];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $warnings = $svc->collectAssignmentQualityWarnings(10);
+
+    assert_equals(count($warnings), 0, 'Expected no travel warning at exact 45-minute boundary');
+});
+
+register_test('24.5 getGameAssignmentDrawer includes warnings and pending SCR metadata', function () {
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [
+        ['game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Scheduled', 'division_name' => 'Junior', 'home_team' => 'Home', 'away_team' => 'Away', 'game_date' => '2026-07-01', 'game_time' => '18:00:00', 'location_id' => 1, 'location_name' => 'Field 1', 'pending_scr_count' => 2],
+        ['program_id' => 0],
+        ['id' => 7],
+    ];
+    $mock->queryRows = [
+        [[
+            'assignment_id' => 1010, 'game_id' => 10, 'umpire_user_id' => 201, 'slot_index' => 0,
+            'assignment_status' => 'Draft', 'published' => 0, 'migration_mode' => 0,
+            'first_name' => 'Pat', 'last_name' => 'Blue', 'email' => 'pat@example.test', 'phone' => '555',
+            'umpire_level' => 'Black Shirt', 'is_under_18' => 0,
+        ]],
+        [['id' => 201, 'first_name' => 'Pat', 'last_name' => 'Blue', 'email' => 'pat@example.test', 'phone' => '555', 'status' => 'active', 'umpire_level' => 'Black Shirt', 'is_under_18' => 0, 'date_of_birth' => null]],
+        [],
+        [],
+        [],
+    ];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->getGameAssignmentDrawer(10);
+
+    assert_true(isset($result['warnings']), 'Expected warnings array in drawer payload');
+    assert_true($result['game']['has_pending_scr'] ?? false, 'Expected pending SCR flag on game');
+    assert_equals($result['game']['pending_scr_count'] ?? null, 2, 'Expected pending SCR count on game');
+});
+
+register_test('24.5 getAssignmentBoard includes pending SCR metadata', function () {
+    $mock = new UmpireAssignmentMockDb();
+    $mock->queryRows = [[
+        [
+            'game_id' => 10,
+            'game_number' => 'G010',
+            'game_status' => 'Scheduled',
+            'division_name' => 'Junior',
+            'home_team' => 'Home',
+            'away_team' => 'Away',
+            'game_date' => '2026-07-01',
+            'game_time' => '18:00:00',
+            'location_name' => 'Field 1',
+            'draft_slots' => 1,
+            'published_slots' => 0,
+            'slot_summary' => 'Pat Blue|0|Draft',
+            'pending_scr_count' => 1,
+        ],
+    ]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->getAssignmentBoard();
+
+    assert_equals($result[0]['has_pending_scr'] ?? null, true, 'Expected board row pending SCR flag');
+    assert_equals($result[0]['pending_scr_count'] ?? null, 1, 'Expected board row pending SCR count');
+});
+
+register_test('24.5 assignment drawer source renders advisory warnings and tentative sync', function () {
+    $source = file_get_contents(__DIR__ . '/../../public/admin/umpires/assignment-drawer.js');
+    assert_true(strpos($source, 'function renderAdvisoryWarnings(warnings)') !== false, 'Expected advisory warnings renderer');
+    assert_true(strpos($source, 'data-advisory-warnings') !== false, 'Expected advisory warnings container marker');
+    assert_true(strpos($source, 'syncTentativeBadge') !== false, 'Expected tentative badge sync helper');
+    assert_true(strpos($source, 'data-board-tentative') !== false, 'Expected board tentative marker');
+    assert_true(strpos($source, 'data-queue-tentative') !== false, 'Expected queue tentative marker');
+    assert_true(strpos($source, 'has_pending_scr') !== false, 'Expected pending SCR client handling');
+});
+
+register_test('24.5 board and queue sources render tentative badges', function () {
+    $board = file_get_contents(__DIR__ . '/../../public/admin/umpires/board.php');
+    $queue = file_get_contents(__DIR__ . '/../../public/admin/umpires/index.php');
+    assert_true(strpos($board, 'data-board-tentative') !== false, 'Expected board tentative badge');
+    assert_true(strpos($queue, 'data-queue-tentative') !== false, 'Expected queue tentative badge');
 });
