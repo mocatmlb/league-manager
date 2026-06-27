@@ -292,13 +292,19 @@ $rootPath = getPathToRoot();
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle <?php echo $currentDir === 'umpires' ? 'active' : ''; ?>"
                                href="#" id="umpirePortalDropdown" role="button" data-bs-toggle="dropdown">
-                                <i class="fas fa-whistle"></i> My Assignments
+                                <i class="fas fa-whistle"></i> My Portal
                             </a>
                             <ul class="dropdown-menu">
                                 <li>
                                     <a class="dropdown-item <?php echo isActiveNav('index', 'umpires'); ?>"
                                        href="<?php echo $rootPath; ?>umpires/index.php">
                                         <i class="fas fa-clipboard-list"></i> My Assignments
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item <?php echo isActiveNav('availability', 'umpires'); ?>"
+                                       href="<?php echo $rootPath; ?>umpires/availability.php">
+                                        <i class="fas fa-calendar-check"></i> My Availability
                                     </a>
                                 </li>
                                 <li>
