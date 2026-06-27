@@ -99,6 +99,7 @@ register_test('UmpireAvailabilityService: Create window validation', function() 
     $id = $service->createWindow(123, '2026-07-01 08:00:00', '2026-07-01 12:00:00', 'Testing');
     assert_equals($id, 5000, 'Returns new insert ID');
     assert_equals($db->insertRows[0]['data']['umpire_user_id'], 123, 'Correct user ID in insert');
+    assert_equals($db->insertRows[0]['data']['starts_at'], '2026-07-01 08:00:00', 'Start datetime is normalized');
     
     // Invalid: starts_at >= ends_at
     try {
@@ -114,6 +115,14 @@ register_test('UmpireAvailabilityService: Create window validation', function() 
         assert_true(false, 'Should throw for blank starts_at');
     } catch (InvalidArgumentException $e) {
         assert_true(str_contains($e->getMessage(), 'cannot be blank'), 'Correct error message');
+    }
+
+    // Invalid: malformed datetime
+    try {
+        $service->createWindow(123, 'not-a-date', '2026-07-01 12:00:00');
+        assert_true(false, 'Should throw for malformed starts_at');
+    } catch (InvalidArgumentException $e) {
+        assert_true(str_contains($e->getMessage(), 'valid date and time'), 'Correct malformed datetime message');
     }
 });
 
@@ -165,8 +174,39 @@ register_test('UmpireAvailabilityService: Pool query (int[] contract)', function
     $ids = $service->getAvailableUmpireIdsForWindow(new DateTime('2026-07-01 10:00:00'), new DateTime('2026-07-01 12:00:00'));
     
     assert_equals($ids, [1, 3, 5], 'Returns int[] array');
-    assert_true(str_contains($db->lastSql[0], 'umpire_availability_windows'), 'Queries availability table');
-    assert_true(str_contains($db->lastSql[0], 'game_umpire_assignments'), 'Excludes overlapping assignments');
+    $sql = $db->lastSql[0];
+    assert_true(str_contains($sql, 'umpire_availability_windows'), 'Queries availability table');
+    assert_true(str_contains($sql, 'game_umpire_assignments'), 'Excludes overlapping assignments');
+    assert_true(str_contains($sql, "JOIN roles r ON r.id = u.role_id AND r.name = 'umpire'"), 'Restricts pool to umpire role');
+    assert_true(str_contains($sql, 'JOIN schedules s ON s.game_id = gua.game_id'), 'Uses schedules.game_id join');
+    assert_true(str_contains($sql, 'gua.assignment_status'), 'Uses assignment_status column');
+    assert_true(str_contains($sql, "TIMESTAMP(s.game_date, COALESCE(s.game_time, '00:00:00'))"), 'Builds schedule datetime from game_date and game_time');
+    assert_true(!str_contains($sql, 'game_date_time'), 'Does not reference nonexistent game_date_time column');
+    assert_true(!str_contains($sql, 'gua.status'), 'Does not reference nonexistent gua.status column');
+
+    try {
+        $service->getAvailableUmpireIdsForWindow(new DateTime('2026-07-01 12:00:00'), new DateTime('2026-07-01 12:00:00'));
+        assert_true(false, 'Should throw for zero-length requested window');
+    } catch (InvalidArgumentException $e) {
+        assert_true(str_contains($e->getMessage(), 'must end after it starts'), 'Correct requested window message');
+    }
+});
+
+register_test('Story 25.1 migration uses compatible FK and rerun-safe index placement', function() {
+    $sql = file_get_contents(__DIR__ . '/../../database/migrations/051_create_umpire_availability_windows.sql');
+    assert_true(str_contains($sql, '`umpire_user_id` INT NOT NULL'), 'FK column should match signed users.id');
+    assert_true(!str_contains($sql, '`umpire_user_id` INT UNSIGNED'), 'FK column should not be unsigned');
+    assert_true(str_contains($sql, 'INDEX `idx_umpire_availability_user_window`'), 'User/window index should be declared in table');
+    assert_true(!str_contains($sql, 'CREATE INDEX `idx_umpire_availability_user_window`'), 'Should not use standalone CREATE INDEX after IF NOT EXISTS table');
+});
+
+register_test('Story 25.1 portal supports update action and modal controls', function() {
+    $php = file_get_contents(__DIR__ . '/../../public/umpires/availability.php');
+    assert_true(str_contains($php, "\$action === 'update'"), 'POST handler should support update');
+    assert_true(str_contains($php, '$service->updateWindow('), 'Update action should call service updateWindow');
+    assert_true(str_contains($php, 'Edit Availability Window'), 'Page should render edit modal');
+    assert_true(str_contains($php, 'data-bs-dismiss="modal"'), 'Cancel buttons should dismiss modals');
+    assert_true(str_contains($php, "Unsupported availability action"), 'Unsupported POST actions should not silently succeed');
 });
 
 // Implementation of service will follow to make these pass

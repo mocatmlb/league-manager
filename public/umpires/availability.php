@@ -50,10 +50,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $service->createWindow($userId, $startsAt, $endsAt, $notes);
             $_SESSION['flash_success'] = 'Availability window added.';
+        } elseif ($action === 'update') {
+            $availabilityId = (int) ($_POST['availability_id'] ?? 0);
+            $startsAt = trim($_POST['starts_at'] ?? '');
+            $endsAt = trim($_POST['ends_at'] ?? '');
+            $notes = trim($_POST['notes'] ?? '');
+
+            // Normalization from datetime-local YYYY-MM-DDTHH:MM to MySQL YYYY-MM-DD HH:MM:SS
+            $startsAt = str_replace('T', ' ', $startsAt);
+            $endsAt = str_replace('T', ' ', $endsAt);
+            if (strlen($startsAt) === 16) $startsAt .= ':00';
+            if (strlen($endsAt) === 16) $endsAt .= ':00';
+
+            $service->updateWindow($availabilityId, $userId, $startsAt, $endsAt, $notes);
+            $_SESSION['flash_success'] = 'Availability window updated.';
         } elseif ($action === 'delete') {
             $availabilityId = (int) ($_POST['availability_id'] ?? 0);
             $service->deleteWindow($availabilityId, $userId);
             $_SESSION['flash_success'] = 'Availability window removed.';
+        } else {
+            throw new InvalidArgumentException('Unsupported availability action.');
         }
 
         header('Location: /umpires/availability.php');
@@ -69,6 +85,11 @@ $csrfToken = Auth::generateCSRFToken();
 function availabilityFormatDateTime(?string $datetime): string {
     $ts = $datetime !== null && trim($datetime) !== '' ? strtotime($datetime) : false;
     return $ts !== false ? date('m/d/Y g:i A', $ts) : 'TBD';
+}
+
+function availabilityFormatDateTimeLocal(?string $datetime): string {
+    $ts = $datetime !== null && trim($datetime) !== '' ? strtotime($datetime) : false;
+    return $ts !== false ? date('Y-m-d\TH:i', $ts) : '';
 }
 ?>
 <!DOCTYPE html>
@@ -151,6 +172,9 @@ function availabilityFormatDateTime(?string $datetime): string {
                                                 <td><?= htmlspecialchars(availabilityFormatDateTime($w['ends_at']), ENT_QUOTES, 'UTF-8') ?></td>
                                                 <td class="text-muted small"><?= htmlspecialchars($w['notes'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
                                                 <td class="text-end">
+                                                    <button type="button" class="btn btn-sm btn-outline-primary" title="Edit Window" data-bs-toggle="modal" data-bs-target="#editWindowModal<?= (int)$w['availability_id'] ?>">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
                                                     <form method="post" onsubmit="return confirm('Are you sure you want to remove this availability window?');" style="display:inline;">
                                                         <input type="hidden" name="action" value="delete">
                                                         <input type="hidden" name="availability_id" value="<?= (int)$w['availability_id'] ?>">
@@ -159,6 +183,40 @@ function availabilityFormatDateTime(?string $datetime): string {
                                                             <i class="fas fa-trash-alt"></i>
                                                         </button>
                                                     </form>
+
+                                                    <div class="modal fade text-start" id="editWindowModal<?= (int)$w['availability_id'] ?>" tabindex="-1" aria-labelledby="editWindowModalLabel<?= (int)$w['availability_id'] ?>" aria-hidden="true">
+                                                        <div class="modal-dialog">
+                                                            <div class="modal-content">
+                                                                <form method="post" class="needs-validation">
+                                                                    <input type="hidden" name="action" value="update">
+                                                                    <input type="hidden" name="availability_id" value="<?= (int)$w['availability_id'] ?>">
+                                                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                                                                    <div class="modal-header">
+                                                                        <h5 class="modal-title" id="editWindowModalLabel<?= (int)$w['availability_id'] ?>">Edit Availability Window</h5>
+                                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                                    </div>
+                                                                    <div class="modal-body">
+                                                                        <div class="mb-3">
+                                                                            <label for="edit_starts_at_<?= (int)$w['availability_id'] ?>" class="form-label">Starts At</label>
+                                                                            <input type="datetime-local" class="form-control" id="edit_starts_at_<?= (int)$w['availability_id'] ?>" name="starts_at" value="<?= htmlspecialchars(availabilityFormatDateTimeLocal($w['starts_at'] ?? null), ENT_QUOTES, 'UTF-8') ?>" required>
+                                                                        </div>
+                                                                        <div class="mb-3">
+                                                                            <label for="edit_ends_at_<?= (int)$w['availability_id'] ?>" class="form-label">Ends At</label>
+                                                                            <input type="datetime-local" class="form-control" id="edit_ends_at_<?= (int)$w['availability_id'] ?>" name="ends_at" value="<?= htmlspecialchars(availabilityFormatDateTimeLocal($w['ends_at'] ?? null), ENT_QUOTES, 'UTF-8') ?>" required>
+                                                                        </div>
+                                                                        <div class="mb-3">
+                                                                            <label for="edit_notes_<?= (int)$w['availability_id'] ?>" class="form-label">Notes (Optional)</label>
+                                                                            <textarea class="form-control" id="edit_notes_<?= (int)$w['availability_id'] ?>" name="notes" rows="2"><?= htmlspecialchars($w['notes'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="modal-footer">
+                                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                                                                    </div>
+                                                                </form>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>
@@ -204,7 +262,7 @@ function availabilityFormatDateTime(?string $datetime): string {
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-toggle="modal">Cancel</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-primary">Save Window</button>
                     </div>
                 </form>
@@ -215,14 +273,18 @@ function availabilityFormatDateTime(?string $datetime): string {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Simple client-side validation for start < end
-        document.querySelector('form.needs-validation').addEventListener('submit', function (event) {
-            const start = new Date(document.getElementById('starts_at').value);
-            const end = new Date(document.getElementById('ends_at').value);
+        document.querySelectorAll('form.needs-validation').forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                const startInput = form.querySelector('input[name="starts_at"]');
+                const endInput = form.querySelector('input[name="ends_at"]');
+                const start = new Date(startInput.value);
+                const end = new Date(endInput.value);
             
-            if (start >= end) {
-                event.preventDefault();
-                alert('End time must be after start time.');
-            }
+                if (start >= end) {
+                    event.preventDefault();
+                    alert('End time must be after start time.');
+                }
+            });
         });
     </script>
 </body>

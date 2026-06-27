@@ -32,7 +32,7 @@ final class UmpireAvailabilityService {
      * @throws InvalidArgumentException if validation fails.
      */
     public function createWindow(int $umpireUserId, string $startsAt, string $endsAt, ?string $notes = null): int {
-        $this->validateWindow($startsAt, $endsAt);
+        [$startsAt, $endsAt] = $this->validateWindow($startsAt, $endsAt);
 
         $db = Database::getInstance();
         $id = $db->insert('umpire_availability_windows', [
@@ -58,7 +58,7 @@ final class UmpireAvailabilityService {
      */
     public function updateWindow(int $availabilityId, int $umpireUserId, string $startsAt, string $endsAt, ?string $notes = null): void {
         $this->validateOwnership($availabilityId, $umpireUserId);
-        $this->validateWindow($startsAt, $endsAt);
+        [$startsAt, $endsAt] = $this->validateWindow($startsAt, $endsAt);
 
         $db = Database::getInstance();
         $db->update(
@@ -104,6 +104,10 @@ final class UmpireAvailabilityService {
      * @return int[]
      */
     public function getAvailableUmpireIdsForWindow(DateTimeInterface $startsAt, DateTimeInterface $endsAt): array {
+        if ($startsAt >= $endsAt) {
+            throw new InvalidArgumentException('Requested availability window must end after it starts.');
+        }
+
         $db = Database::getInstance();
         
         $startStr = $startsAt->format('Y-m-d H:i:s');
@@ -116,6 +120,7 @@ final class UmpireAvailabilityService {
         $sql = "
             SELECT DISTINCT u.id as umpire_user_id
             FROM users u
+            JOIN roles r ON r.id = u.role_id AND r.name = 'umpire'
             JOIN umpire_profiles up ON u.id = up.user_id
             JOIN umpire_availability_windows aw ON u.id = aw.umpire_user_id
             WHERE u.status = 'active'
@@ -124,11 +129,13 @@ final class UmpireAvailabilityService {
               AND NOT EXISTS (
                   SELECT 1 
                   FROM game_umpire_assignments gua
-                  JOIN schedules s ON gua.game_id = s.id
+                  JOIN games g ON g.game_id = gua.game_id
+                  JOIN schedules s ON s.game_id = gua.game_id
                   WHERE gua.umpire_user_id = u.id
-                    AND gua.status != 'Cancelled'
-                    AND s.game_date_time < :overlap_end
-                    AND DATE_ADD(s.game_date_time, INTERVAL 3 HOUR) > :overlap_start
+                    AND gua.assignment_status != 'Cancelled'
+                    AND g.game_status NOT IN ('Cancelled', 'Postponed')
+                    AND TIMESTAMP(s.game_date, COALESCE(s.game_time, '00:00:00')) < :overlap_end
+                    AND DATE_ADD(TIMESTAMP(s.game_date, COALESCE(s.game_time, '00:00:00')), INTERVAL 3 HOUR) > :overlap_start
               )
         ";
 
@@ -149,13 +156,30 @@ final class UmpireAvailabilityService {
         return $ids;
     }
 
-    private function validateWindow(string $startsAt, string $endsAt): void {
+    private function validateWindow(string $startsAt, string $endsAt): array {
         if (empty($startsAt) || empty($endsAt)) {
             throw new InvalidArgumentException("Start and end times cannot be blank.");
         }
-        if ($startsAt >= $endsAt) {
+        $start = $this->parseLocalDateTime($startsAt, 'Start time');
+        $end = $this->parseLocalDateTime($endsAt, 'End time');
+        if ($start >= $end) {
             throw new InvalidArgumentException("Start time must be before end time.");
         }
+
+        return [$start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s')];
+    }
+
+    private function parseLocalDateTime(string $value, string $label): DateTimeImmutable {
+        $formats = ['Y-m-d H:i:s', 'Y-m-d H:i'];
+        foreach ($formats as $format) {
+            $parsed = DateTimeImmutable::createFromFormat('!' . $format, $value);
+            $errors = DateTimeImmutable::getLastErrors();
+            if ($parsed instanceof DateTimeImmutable && ($errors === false || ($errors['warning_count'] === 0 && $errors['error_count'] === 0))) {
+                return $parsed;
+            }
+        }
+
+        throw new InvalidArgumentException($label . ' must be a valid date and time.');
     }
 
     private function validateOwnership(int $availabilityId, int $umpireUserId): void {
