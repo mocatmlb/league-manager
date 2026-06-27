@@ -75,7 +75,55 @@ class UmpireAssignmentService {
         return (int) getSetting('unassigned_queue_days', '14');
     }
 
+    public function getSlotLabels(): array {
+        return [
+            0 => $this->settingLabel('umpire_slot_1_label', 'Umpire 1'),
+            1 => $this->settingLabel('umpire_slot_2_label', 'Umpire 2'),
+        ];
+    }
+
+    public function saveSlotLabels(string $slot1Label, string $slot2Label, int $actorUserId): void {
+        $this->assertSettingsWriteAllowed($actorUserId);
+
+        $slot1Label = trim($slot1Label);
+        $slot2Label = trim($slot2Label);
+        if ($slot1Label === '' || $slot2Label === '') {
+            throw new \InvalidArgumentException('Slot labels cannot be empty.');
+        }
+        if ($this->labelLength($slot1Label) > 64 || $this->labelLength($slot2Label) > 64) {
+            throw new \InvalidArgumentException('Slot labels must be 64 characters or fewer.');
+        }
+
+        $changed = [];
+        $current = $this->getSlotLabels();
+        if ($current[0] === $slot1Label && $current[1] === $slot2Label) {
+            return;
+        }
+
+        $this->db->beginTransaction();
+        try {
+            if ($current[0] !== $slot1Label) {
+                updateSetting('umpire_slot_1_label', $slot1Label);
+                $changed[] = 'umpire_slot_1_label';
+            }
+            if ($current[1] !== $slot2Label) {
+                updateSetting('umpire_slot_2_label', $slot2Label);
+                $changed[] = 'umpire_slot_2_label';
+            }
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+
+        ActivityLogger::log('umpire.settings_changed', [
+            'setting'       => implode(',', $changed),
+            'actor_user_id' => $actorUserId,
+        ]);
+    }
+
     public function saveQueueWindowDays(int $days, int $actorUserId): void {
+        $this->assertSettingsWriteAllowed($actorUserId);
         if ($days < 0) {
             throw new \InvalidArgumentException('Queue window must be a non-negative integer.');
         }
@@ -92,6 +140,7 @@ class UmpireAssignmentService {
     }
 
     public function saveDeclineLockoutHours(int $hours, int $actorUserId): void {
+        $this->assertSettingsWriteAllowed($actorUserId);
         if ($hours < 0) {
             throw new \InvalidArgumentException('Decline lockout hours must be a non-negative integer.');
         }
@@ -288,10 +337,7 @@ class UmpireAssignmentService {
 
         return [
             'game' => $game,
-            'slot_labels' => [
-                0 => getSetting('umpire_slot_1_label', 'Umpire 1'),
-                1 => getSetting('umpire_slot_2_label', 'Umpire 2'),
-            ],
+            'slot_labels' => $this->getSlotLabels(),
             'slots' => $slots,
             'roster' => $roster,
             'migration_mode' => $rosterService->isMigrationMode(),
@@ -503,10 +549,7 @@ class UmpireAssignmentService {
         }
 
         $assignor = $this->fetchAssignor($actorUserId, $actorAdminId);
-        $slotLabels = [
-            0 => getSetting('umpire_slot_1_label', 'Umpire 1'),
-            1 => getSetting('umpire_slot_2_label', 'Umpire 2'),
-        ];
+        $slotLabels = $this->getSlotLabels();
         $scheduledAt = $this->scheduledAt($game);
         $published = 0;
         $emailService = null;
@@ -742,10 +785,7 @@ class UmpireAssignmentService {
         $stmt = $this->db->query($sql, ['uid' => $umpireUserId]);
         $rows = ($stmt && method_exists($stmt, 'fetchAll')) ? $stmt->fetchAll() : [];
 
-        $slotLabels = [
-            0 => getSetting('umpire_slot_1_label', 'Umpire 1'),
-            1 => getSetting('umpire_slot_2_label', 'Umpire 2'),
-        ];
+        $slotLabels = $this->getSlotLabels();
         $lockoutHours = $this->declineLockoutHours();
 
         $results = [];
@@ -862,10 +902,7 @@ class UmpireAssignmentService {
         $stmt = $this->db->query($sql, ['uid' => $umpireUserId]);
         $rows = ($stmt && method_exists($stmt, 'fetchAll')) ? $stmt->fetchAll() : [];
 
-        $slotLabels = [
-            0 => getSetting('umpire_slot_1_label', 'Umpire 1'),
-            1 => getSetting('umpire_slot_2_label', 'Umpire 2'),
-        ];
+        $slotLabels = $this->getSlotLabels();
 
         $results = [];
         foreach ($rows as $row) {
@@ -1000,7 +1037,44 @@ class UmpireAssignmentService {
     }
 
     private function slotLabel(int $slotIndex): string {
-        return getSetting($slotIndex === 0 ? 'umpire_slot_1_label' : 'umpire_slot_2_label', 'Umpire ' . ($slotIndex + 1));
+        return $this->getSlotLabels()[$slotIndex] ?? ('Umpire ' . ($slotIndex + 1));
+    }
+
+    private function settingLabel(string $key, string $default): string {
+        $label = trim((string) getSetting($key, $default));
+        return $label !== '' ? $label : $default;
+    }
+
+    private function labelLength(string $label): int {
+        if (function_exists('mb_strlen')) {
+            return mb_strlen($label, 'UTF-8');
+        }
+
+        if (preg_match_all('/./us', $label, $matches) !== false) {
+            return count($matches[0]);
+        }
+
+        return strlen($label);
+    }
+
+    private function assertSettingsWriteAllowed(int $actorUserId): void {
+        if ($actorUserId < 1) {
+            throw new \RuntimeException('Settings update is not permitted.');
+        }
+
+        $row = $this->db->fetchOne(
+            "SELECT r.name AS role_name
+             FROM users u
+             INNER JOIN roles r ON r.id = u.role_id
+             WHERE u.id = :id
+               AND u.status = 'active'
+             LIMIT 1",
+            ['id' => $actorUserId]
+        );
+        $role = (string) ($row['role_name'] ?? '');
+        if (!in_array($role, ['administrator', 'umpire_assignor'], true)) {
+            throw new \RuntimeException('Settings update is not permitted.');
+        }
     }
 
     private function sendDeclineAlert(array $assignment): void {

@@ -33,6 +33,9 @@ if (!function_exists('getSetting')) {
 
 if (!function_exists('updateSetting')) {
     function updateSetting(string $key, string $value): void {
+        if (($GLOBALS['__updateSetting_throw_on_key'] ?? null) === $key) {
+            throw new RuntimeException('Mock updateSetting failure for ' . $key);
+        }
         $GLOBALS['__updateSetting_calls'][] = ['key' => $key, 'value' => $value];
     }
 }
@@ -51,6 +54,9 @@ class UmpireAssignmentMockDb extends Database {
     public array $insertRows   = [];
     public array $updateRows   = [];
     public array $throwOnInsertTables = [];
+    public bool $transactionStarted = false;
+    public bool $transactionCommitted = false;
+    public bool $transactionRolledBack = false;
     public int $nextInsertId   = 1000;
 
     public function __construct() {}
@@ -90,6 +96,23 @@ class UmpireAssignmentMockDb extends Database {
         $this->lastParams[] = array_merge($data, $whereParams);
         return new UmpireAssignmentMockStmt([]);
     }
+
+    public function beginTransaction() {
+        $this->transactionStarted = true;
+        $this->transactionCommitted = false;
+        $this->transactionRolledBack = false;
+        return true;
+    }
+
+    public function commit() {
+        $this->transactionCommitted = true;
+        return true;
+    }
+
+    public function rollBack() {
+        $this->transactionRolledBack = true;
+        return true;
+    }
 }
 
 class UmpireAssignmentMockStmt {
@@ -97,6 +120,10 @@ class UmpireAssignmentMockStmt {
     public function __construct(array $rows) { $this->rows = $rows; }
     public function fetch($mode = null) { return $this->rows[0] ?? false; }
     public function fetchAll($mode = null): array { return $this->rows; }
+}
+
+function umpire_assignment_seed_settings_actor(UmpireAssignmentMockDb $mock, string $role = 'administrator'): void {
+    array_unshift($mock->fetchOneRows, ['role_name' => $role]);
 }
 
 // ---------------------------------------------------------------------------
@@ -132,6 +159,7 @@ register_test('23.1 getQueueWindowDays defaults to 14 when setting absent', func
 
 register_test('23.1 saveQueueWindowDays rejects negative days (AC 7)', function () {
     $mock = new UmpireAssignmentMockDb();
+    umpire_assignment_seed_settings_actor($mock);
     Database::setInstance($mock);
     $svc = new UmpireAssignmentService();
     $threw = false;
@@ -146,6 +174,7 @@ register_test('23.1 saveQueueWindowDays rejects negative days (AC 7)', function 
 register_test('23.1 saveQueueWindowDays accepts zero (AC 2 + AC 6)', function () {
     $GLOBALS['__updateSetting_calls'] = [];
     $mock = new UmpireAssignmentMockDb();
+    umpire_assignment_seed_settings_actor($mock);
     Database::setInstance($mock);
     $svc = new UmpireAssignmentService();
     $svc->saveQueueWindowDays(0, 1);
@@ -158,6 +187,7 @@ register_test('23.1 saveQueueWindowDays accepts zero (AC 2 + AC 6)', function ()
 register_test('23.1 saveQueueWindowDays writes positive value to settings (AC 6)', function () {
     $GLOBALS['__updateSetting_calls'] = [];
     $mock = new UmpireAssignmentMockDb();
+    umpire_assignment_seed_settings_actor($mock);
     Database::setInstance($mock);
     $svc = new UmpireAssignmentService();
     $svc->saveQueueWindowDays(30, 1);
@@ -1633,4 +1663,275 @@ register_test('24.2 migration seeds active decline alert template body', functio
     assert_true(strpos($source, '{hours_until_game_start}') !== false, 'Expected hours token');
     assert_true(strpos($source, 'is_active = VALUES(is_active)') !== false, 'Expected duplicate update to activate template');
     assert_true(strpos($source, "INSERT IGNORE INTO schema_migrations (version) VALUES ('049')") !== false, 'Expected migration tracking row');
+});
+
+// ---------------------------------------------------------------------------
+// Tests: Story 24.3 configurable slot labels
+// ---------------------------------------------------------------------------
+
+register_test('24.3 getSlotLabels returns defaults when settings are absent', function () {
+    unset($GLOBALS['_test_settings']['umpire_slot_1_label'], $GLOBALS['_test_settings']['umpire_slot_2_label']);
+    $mock = new UmpireAssignmentMockDb();
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $labels = $svc->getSlotLabels();
+
+    assert_equals($labels[0], 'Umpire 1', 'Expected default slot 1 label');
+    assert_equals($labels[1], 'Umpire 2', 'Expected default slot 2 label');
+});
+
+register_test('24.3 getSlotLabels falls back when persisted labels are blank', function () {
+    $GLOBALS['_test_settings'] = [
+        'umpire_slot_1_label' => '   ',
+        'umpire_slot_2_label' => '',
+    ];
+    $mock = new UmpireAssignmentMockDb();
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $labels = $svc->getSlotLabels();
+
+    assert_equals($labels[0], 'Umpire 1', 'Expected blank slot 1 setting to fall back');
+    assert_equals($labels[1], 'Umpire 2', 'Expected blank slot 2 setting to fall back');
+    unset($GLOBALS['_test_settings']);
+});
+
+register_test('24.3 saveSlotLabels rejects empty labels', function () {
+    $mock = new UmpireAssignmentMockDb();
+    umpire_assignment_seed_settings_actor($mock);
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $threw = false;
+    try {
+        $svc->saveSlotLabels('Plate', '   ', 1);
+    } catch (\InvalidArgumentException $e) {
+        $threw = true;
+    }
+    assert_true($threw, 'Expected InvalidArgumentException for empty slot 2 label');
+});
+
+register_test('24.3 saveSlotLabels rejects labels over 64 characters', function () {
+    $mock = new UmpireAssignmentMockDb();
+    umpire_assignment_seed_settings_actor($mock);
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $threw = false;
+    try {
+        $svc->saveSlotLabels(str_repeat('A', 65), 'Bases', 1);
+    } catch (\InvalidArgumentException $e) {
+        $threw = true;
+    }
+    assert_true($threw, 'Expected InvalidArgumentException for over-length slot label');
+});
+
+register_test('24.3 saveSlotLabels accepts 64 multibyte characters', function () {
+    $GLOBALS['__updateSetting_calls'] = [];
+    $GLOBALS['_test_settings'] = [
+        'umpire_slot_1_label' => 'Umpire 1',
+        'umpire_slot_2_label' => 'Umpire 2',
+    ];
+    $mock = new UmpireAssignmentMockDb();
+    umpire_assignment_seed_settings_actor($mock);
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $svc->saveSlotLabels(str_repeat('é', 64), 'Bases', 1);
+
+    $values = array_column($GLOBALS['__updateSetting_calls'], 'value', 'key');
+    assert_equals($values['umpire_slot_1_label'] ?? null, str_repeat('é', 64), 'Expected 64 multibyte characters accepted');
+    unset($GLOBALS['_test_settings']);
+});
+
+register_test('24.3 saveSlotLabels writes both setting keys for authorized actor', function () {
+    $GLOBALS['__updateSetting_calls'] = [];
+    $GLOBALS['_test_settings'] = [
+        'umpire_slot_1_label' => 'Umpire 1',
+        'umpire_slot_2_label' => 'Umpire 2',
+    ];
+    $mock = new UmpireAssignmentMockDb();
+    umpire_assignment_seed_settings_actor($mock);
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $svc->saveSlotLabels('Plate', 'Bases', 1);
+
+    $keys = array_column($GLOBALS['__updateSetting_calls'], 'key');
+    assert_true(in_array('umpire_slot_1_label', $keys, true), 'Expected slot 1 setting write');
+    assert_true(in_array('umpire_slot_2_label', $keys, true), 'Expected slot 2 setting write');
+    $values = array_column($GLOBALS['__updateSetting_calls'], 'value', 'key');
+    assert_equals($values['umpire_slot_1_label'] ?? null, 'Plate', 'Expected slot 1 value persisted');
+    assert_equals($values['umpire_slot_2_label'] ?? null, 'Bases', 'Expected slot 2 value persisted');
+    unset($GLOBALS['_test_settings']);
+});
+
+register_test('24.3 saveSlotLabels rolls back if second setting write fails', function () {
+    $GLOBALS['__updateSetting_calls'] = [];
+    $GLOBALS['__updateSetting_throw_on_key'] = 'umpire_slot_2_label';
+    $GLOBALS['_test_settings'] = [
+        'umpire_slot_1_label' => 'Umpire 1',
+        'umpire_slot_2_label' => 'Umpire 2',
+    ];
+    $mock = new UmpireAssignmentMockDb();
+    umpire_assignment_seed_settings_actor($mock);
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $threw = false;
+    try {
+        $svc->saveSlotLabels('Plate', 'Bases', 1);
+    } catch (\RuntimeException $e) {
+        $threw = true;
+    }
+
+    assert_true($threw, 'Expected failed second setting write to throw');
+    assert_true($mock->transactionStarted, 'Expected transaction to start before label writes');
+    assert_true($mock->transactionRolledBack, 'Expected transaction rollback on failed label write');
+    unset($GLOBALS['__updateSetting_throw_on_key'], $GLOBALS['_test_settings']);
+});
+
+register_test('24.3 saveSlotLabels denies unauthorized actor at service layer', function () {
+    $mock = new UmpireAssignmentMockDb();
+    umpire_assignment_seed_settings_actor($mock, 'umpire');
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $threw = false;
+    try {
+        $svc->saveSlotLabels('Plate', 'Bases', 42);
+    } catch (\RuntimeException $e) {
+        $threw = true;
+    }
+    assert_true($threw, 'Expected RuntimeException for unauthorized settings write');
+});
+
+register_test('24.3 saveQueueWindowDays denies unauthorized actor at service layer', function () {
+    $mock = new UmpireAssignmentMockDb();
+    umpire_assignment_seed_settings_actor($mock, 'umpire');
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $threw = false;
+    try {
+        $svc->saveQueueWindowDays(14, 42);
+    } catch (\RuntimeException $e) {
+        $threw = true;
+    }
+    assert_true($threw, 'Expected RuntimeException for unauthorized queue-window settings write');
+});
+
+register_test('24.3 saveDeclineLockoutHours denies unauthorized actor at service layer', function () {
+    $mock = new UmpireAssignmentMockDb();
+    umpire_assignment_seed_settings_actor($mock, 'umpire');
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $threw = false;
+    try {
+        $svc->saveDeclineLockoutHours(48, 42);
+    } catch (\RuntimeException $e) {
+        $threw = true;
+    }
+    assert_true($threw, 'Expected RuntimeException for unauthorized decline-lockout settings write');
+});
+
+register_test('24.3 getUmpireAssignments uses customized slot labels via getSlotLabels', function () {
+    $GLOBALS['_test_settings'] = [
+        'umpire_slot_1_label' => 'Plate',
+        'umpire_slot_2_label' => 'Bases',
+    ];
+    $mock = new UmpireAssignmentMockDb();
+    Database::setInstance($mock);
+    $mock->queryRows = [[
+        [
+            'game_id' => '10',
+            'game_number' => 'G-101',
+            'game_date' => '2026-07-15',
+            'game_time' => '10:00:00',
+            'location_name' => 'Field A',
+            'division_name' => 'Intermediate',
+            'home_team' => 'Hawks',
+            'away_team' => 'Eagles',
+            'slot_index' => '0',
+            'assigned_by_user_id' => '5',
+            'assignor_first_name' => 'Jane',
+            'assignor_last_name' => 'Assignor',
+            'assignor_email' => 'jane@test.com',
+            'assignor_phone' => '555-0100',
+            'filled_slots' => '2',
+        ],
+    ]];
+    $svc = new UmpireAssignmentService();
+    $result = $svc->getUmpireAssignments(42);
+
+    assert_equals($result[0]['slot_label'], 'Plate', 'Expected customized portal slot label');
+    unset($GLOBALS['_test_settings']);
+});
+
+register_test('24.3 getUmpireDeclineLog uses customized slot labels via getSlotLabels', function () {
+    $GLOBALS['_test_settings'] = [
+        'umpire_slot_1_label' => 'Plate',
+        'umpire_slot_2_label' => 'Bases',
+    ];
+    $mock = new UmpireAssignmentMockDb();
+    Database::setInstance($mock);
+    $mock->rows = [[
+        'log_id' => '100',
+        'declined_at' => '2026-06-20 14:30:00',
+        'hours_until_game_start' => '72.5',
+        'ctx_slot_index' => '1',
+        'game_id' => '10',
+        'game_number' => 'G-101',
+        'game_date' => date('Y-m-d'),
+        'game_time' => '10:00:00',
+        'location_name' => 'Field A',
+        'division_name' => 'Intermediate',
+    ]];
+    $svc = new UmpireAssignmentService();
+    $result = $svc->getUmpireDeclineLog(42);
+
+    assert_equals($result[0]['slot_label'], 'Bases', 'Expected customized decline log slot label');
+    unset($GLOBALS['_test_settings']);
+});
+
+register_test('24.3 publishGame email context uses customized slot labels via getSlotLabels', function () {
+    $GLOBALS['_test_settings']['umpire_slot_1_label'] = 'Plate';
+    $GLOBALS['_test_settings']['umpire_slot_2_label'] = 'Bases';
+
+    $mock = new UmpireAssignmentMockDb();
+    $mock->nextInsertId = 8801;
+    $mock->fetchOneRows = [
+        [
+            'game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Scheduled',
+            'division_name' => 'Junior', 'home_team' => 'Home', 'away_team' => 'Away',
+            'game_date' => '2026-07-01', 'game_time' => '18:00:00', 'location_name' => 'Field 1',
+        ],
+        ['id' => 5, 'first_name' => 'Alex', 'last_name' => 'Assignor', 'email' => 'assignor@example.test', 'phone' => '(555) 222-3333'],
+        ['template_name' => 'umpire_assignment_published', 'subject_template' => 'D8 Assignment: {game_date} {game_time} — {slot_label}', 'body_template' => 'Game {game_number} {slot_label} {fee_per_team} {assignor_phone_tel}', 'is_active' => 1],
+    ];
+    $mock->queryRows = [
+        [[
+            'assignment_id' => 1010, 'game_id' => 10, 'umpire_user_id' => 201, 'slot_index' => 0,
+            'assignment_status' => 'Draft', 'published' => 0, 'migration_mode' => 0,
+            'first_name' => 'Pat', 'last_name' => 'Blue', 'email' => 'pat@example.test', 'phone' => '555',
+        ]],
+    ];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $svc->publishGame(10, 5, null, true);
+
+    $queue = $mock->insertRows[0] ?? null;
+    assert_true(strpos($queue['data']['body'] ?? '', 'Plate') !== false, 'Expected customized slot label in publish email body');
+    unset($GLOBALS['_test_settings']['umpire_slot_1_label'], $GLOBALS['_test_settings']['umpire_slot_2_label']);
+});
+
+register_test('24.3 assignor settings source exposes slot label POST action with CSRF and input names', function () {
+    $source = file_get_contents(__DIR__ . '/../../public/admin/umpires/index.php');
+    assert_true(strpos($source, "PermissionGuard::requireRole(['admin', 'umpire_assignor'], '/login.php')") !== false, 'Expected role gate');
+    assert_true(strpos($source, "'save_slot_labels'") !== false, 'Expected save_slot_labels action');
+    assert_true(strpos($source, 'Auth::verifyCSRFToken($_POST[\'csrf_token\']') !== false, 'Expected CSRF guard on slot label save');
+    assert_true(strpos($source, 'name="umpire_slot_1_label"') !== false, 'Expected slot 1 input name');
+    assert_true(strpos($source, 'name="umpire_slot_2_label"') !== false, 'Expected slot 2 input name');
+    assert_true(strpos($source, 'Assignment Settings') !== false, 'Expected inclusive settings card heading');
+    assert_true(strpos($source, 'saveDeclineLockoutHours') !== false, 'Expected decline lockout save path preserved');
+});
+
+register_test('24.3 assignment board source renders configured slot labels in headers', function () {
+    $source = file_get_contents(__DIR__ . '/../../public/admin/umpires/board.php');
+    assert_true(strpos($source, 'getSlotLabels()') !== false, 'Expected configured slot labels from service');
+    assert_true(strpos($source, 'htmlspecialchars($slotLabels[0]') !== false, 'Expected escaped slot 1 header');
+    assert_true(strpos($source, 'htmlspecialchars($slotLabels[1]') !== false, 'Expected escaped slot 2 header');
+    assert_true(strpos($source, 'data-board-slot') !== false, 'Expected board slot behavior preserved');
 });

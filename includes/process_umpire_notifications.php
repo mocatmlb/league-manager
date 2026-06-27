@@ -20,6 +20,7 @@ if (!class_exists('Database')) {
     }
 }
 require_once __DIR__ . '/EmailService.php';
+require_once __DIR__ . '/UmpireAssignmentService.php';
 
 // Notification processing constants
 define('UMPIRE_NOTIFICATION_DEFAULT_BATCH_SIZE', 25);
@@ -135,10 +136,7 @@ function processUmpirePendingNotifications(int $limit = UMPIRE_NOTIFICATION_DEFA
 }
 
 function umpireCascadeEmailContext(array $row, array $replyTo): array {
-    $slotLabels = [
-        0 => getSetting('umpire_slot_1_label', 'Umpire 1'),
-        1 => getSetting('umpire_slot_2_label', 'Umpire 2'),
-    ];
+    $slotLabels = (new UmpireAssignmentService())->getSlotLabels();
     $slotIndex = (int) ($row['slot_index'] ?? 0);
     $umpireName = trim((string) ($row['umpire_first_name'] ?? '') . ' ' . (string) ($row['umpire_last_name'] ?? ''));
 

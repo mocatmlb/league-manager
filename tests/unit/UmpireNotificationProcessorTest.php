@@ -144,6 +144,7 @@ register_test('23.5 processor sends release email with Reply-To metadata and mar
 
     assert_equals($result['sent'], 1, 'Expected one sent row');
     assert_equals($email->calls[0]['template'] ?? null, 'umpire_cascade_cancelled', 'Expected cascade template');
+    assert_equals($email->calls[0]['context']['slot_label'] ?? null, 'Bases', 'Expected configured slot label from getSlotLabels');
     assert_equals($email->calls[0]['options']['reply_to_email'] ?? null, 'assignor@example.test', 'Expected Reply-To email');
     assert_true(strpos(strip_tags(implode(' ', $email->calls[0]['context'])), '2026') !== false, 'Expected readable context values');
     assert_true(isset($email->calls[0]['context']['game_status']), 'Expected game status context');

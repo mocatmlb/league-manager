@@ -18,6 +18,7 @@ if ($actorUserId < 1) { header('Location: /login.php'); exit; }
 
 $svc   = new UmpireAssignmentService();
 $games = $svc->getAssignmentBoard();
+$slotLabels = $svc->getSlotLabels();
 $csrfToken = Auth::generateCSRFToken();
 
 $flashMessage = $_SESSION['flash_message'] ?? '';
@@ -87,8 +88,8 @@ unset($__nav);
                                 <th>Location</th>
                                 <th>Division</th>
                                 <th>Slots Filled</th>
-                                <th>Umpire 1</th>
-                                <th>Umpire 2</th>
+                                <th><?= htmlspecialchars($slotLabels[0] ?? 'Umpire 1') ?></th>
+                                <th><?= htmlspecialchars($slotLabels[1] ?? 'Umpire 2') ?></th>
                                 <th>Status</th>
                             </tr>
                         </thead>

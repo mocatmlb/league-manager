@@ -73,10 +73,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+
+    if ($action === 'save_slot_labels') {
+        if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+            $pageError = 'Invalid security token. Please try again.';
+        } else {
+            $slot1Label = trim((string) ($_POST['umpire_slot_1_label'] ?? ''));
+            $slot2Label = trim((string) ($_POST['umpire_slot_2_label'] ?? ''));
+            try {
+                $svc->saveSlotLabels($slot1Label, $slot2Label, $actorUserId);
+                $_SESSION['flash_message'] = 'Slot labels updated.';
+                header('Location: index.php'); exit;
+            } catch (\InvalidArgumentException $e) {
+                $pageError = htmlspecialchars($e->getMessage());
+            } catch (\Throwable $e) {
+                $pageError = 'An unexpected error occurred. Please try again.';
+                error_log('[index.php] saveSlotLabels error: ' . $e->getMessage());
+            }
+        }
+    }
 }
 
 // ─── GET: load queue ──────────────────────────────────────────────────────────
 $windowDays = $svc->getQueueWindowDays();
+$slotLabels = $svc->getSlotLabels();
 $games      = $svc->getUnassignedQueue($windowDays);
 $csrfToken  = Auth::generateCSRFToken();
 ?>
@@ -129,9 +149,10 @@ unset($__nav);
         </a>
     </div>
 
-    <!-- Queue Window & Decline Lockout Settings -->
+    <!-- Assignment Settings -->
     <div class="card mb-4">
         <div class="card-body">
+            <h5 class="card-title mb-3">Assignment Settings</h5>
             <form method="POST" action="index.php" class="row g-2 align-items-end">
                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                 <input type="hidden" name="action" value="save_settings">
@@ -165,6 +186,26 @@ unset($__nav);
                         <button type="submit" class="btn btn-primary">Save</button>
                     </div>
                     <div class="form-text">Umpires cannot decline a published assignment within this window. They'll see a lockout message with assignor contact.</div>
+                </div>
+            </form>
+            <hr class="my-3">
+            <form method="POST" action="index.php" class="row g-2 align-items-end">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                <input type="hidden" name="action" value="save_slot_labels">
+                <div class="col-auto">
+                    <label class="form-label mb-1 fw-semibold">Slot Labels</label>
+                    <div class="input-group">
+                        <span class="input-group-text">Slot 1</span>
+                        <input type="text" name="umpire_slot_1_label" class="form-control"
+                            style="width:140px" maxlength="64" required
+                            value="<?= htmlspecialchars($slotLabels[0] ?? 'Umpire 1') ?>">
+                        <span class="input-group-text">Slot 2</span>
+                        <input type="text" name="umpire_slot_2_label" class="form-control"
+                            style="width:140px" maxlength="64" required
+                            value="<?= htmlspecialchars($slotLabels[1] ?? 'Umpire 2') ?>">
+                        <button type="submit" class="btn btn-primary">Save</button>
+                    </div>
+                    <div class="form-text">Labels appear on the assignment board, drawer, umpire portal, and assignment emails.</div>
                 </div>
             </form>
         </div>
