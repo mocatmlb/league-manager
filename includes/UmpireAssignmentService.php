@@ -528,13 +528,14 @@ class UmpireAssignmentService {
                 && (int) ($slot['umpire_user_id'] ?? 0) > 0;
         }));
 
-        if (count($filledDraftSlots) === 0) {
-            throw new \InvalidArgumentException('At least one filled Draft slot is required before publishing.');
+        if (count($filledSlots) === 0) {
+            throw new \InvalidArgumentException('At least one filled Draft or Published slot is required before publishing.');
         }
 
         $expectedCrewSize = $this->expectedCrewSize($game);
         $filledCrewCount = count($filledSlots);
-        $warned = $filledCrewCount < $expectedCrewSize;
+        $hasDraftToPublish = count($filledDraftSlots) > 0;
+        $warned = $hasDraftToPublish && $filledCrewCount < $expectedCrewSize;
         if ($warned && !$confirmPartial) {
             throw new UmpireAssignmentPublishConfirmationRequiredException(
                 'This game has fewer filled slots than the expected crew size.',
@@ -551,52 +552,77 @@ class UmpireAssignmentService {
         $assignor = $this->fetchAssignor($actorUserId, $actorAdminId);
         $slotLabels = $this->getSlotLabels();
         $scheduledAt = $this->scheduledAt($game);
+        $locationId = (int) ($game['location_id'] ?? 0);
         $published = 0;
+        $notified = 0;
+        $suppressed = 0;
         $emailService = null;
 
-        foreach ($filledDraftSlots as $slot) {
+        foreach ($filledSlots as $slot) {
             $slotIndex = (int) $slot['slot_index'];
+            $isDraft = (string) ($slot['assignment_status'] ?? '') === 'Draft';
             $migrationMode = (int) ($slot['migration_mode'] ?? 0) === 1;
-            $queueId = null;
-            $hash = null;
 
-            if (!$migrationMode) {
-                $emailService = $emailService ?: new EmailService();
-                $hash = $this->notificationHash($gameId, $slotIndex, (int) $slot['umpire_user_id'], $scheduledAt);
-                $email = $emailService->sendTemplateToAddressWithMetadata(
-                    'umpire_assignment_published',
-                    (string) ($slot['email'] ?? ''),
-                    $this->assignmentEmailContext($game, $slot, $slotLabels[$slotIndex] ?? ('Umpire ' . ($slotIndex + 1)), $assignor, $filledCrewCount),
-                    [
-                        'reply_to_email' => $assignor['email'] ?? '',
-                        'reply_to_name' => $assignor['name'] ?? '',
-                        'include_configured_recipients' => true,
-                    ]
-                );
-                if (!($email['success'] ?? false) || empty($email['queue_id'])) {
-                    throw new \RuntimeException('Assignment email could not be queued.');
+            if ($migrationMode) {
+                if ($isDraft) {
+                    $this->markSlotPublished($gameId, $slotIndex, null, true, $actorUserId);
+                    $published++;
                 }
-                $queueId = (int) $email['queue_id'];
+                continue;
             }
 
-            $this->markSlotPublished($gameId, $slotIndex, $hash, $migrationMode, $actorUserId);
-            $published++;
+            $umpireUserId = (int) $slot['umpire_user_id'];
+            $hash = $this->notificationHash($gameId, $slotIndex, $umpireUserId, $scheduledAt, $locationId);
+            $storedHash = trim((string) ($slot['last_notified_hash'] ?? ''));
+
+            if ($storedHash !== '' && hash_equals($storedHash, $hash)) {
+                $suppressed++;
+                continue;
+            }
+
+            $emailService = $emailService ?: new EmailService();
+            $email = $emailService->sendTemplateToAddressWithMetadata(
+                'umpire_assignment_published',
+                (string) ($slot['email'] ?? ''),
+                $this->assignmentEmailContext($game, $slot, $slotLabels[$slotIndex] ?? ('Umpire ' . ($slotIndex + 1)), $assignor, $filledCrewCount),
+                [
+                    'reply_to_email' => $assignor['email'] ?? '',
+                    'reply_to_name' => $assignor['name'] ?? '',
+                    'include_configured_recipients' => true,
+                ]
+            );
+            if (!($email['success'] ?? false) || empty($email['queue_id'])) {
+                throw new \RuntimeException('Assignment email could not be queued.');
+            }
+            $queueId = (int) $email['queue_id'];
+            $notified++;
+
+            if ($isDraft) {
+                $this->markSlotPublished($gameId, $slotIndex, $hash, false, $actorUserId);
+                $published++;
+            } else {
+                $this->markSlotNotified($gameId, $slotIndex, $hash, $actorUserId);
+            }
 
             $context = [
                 'game_id' => $gameId,
                 'slot_index' => $slotIndex,
-                'umpire_user_id' => (int) $slot['umpire_user_id'],
+                'umpire_user_id' => $umpireUserId,
                 'email_queue_id' => $queueId,
                 'actor_user_id' => $actorUserId,
                 'actor_admin_id' => $actorAdminId,
             ];
-            ActivityLogger::log('umpire.assigned', $context);
+            if ($isDraft) {
+                ActivityLogger::log('umpire.assigned', $context);
+            }
             ActivityLogger::log('umpire.published', $context);
         }
 
         return [
             'published' => $published,
             'warned' => $warned,
+            'notified' => $notified,
+            'suppressed' => $suppressed,
         ];
     }
 
@@ -1116,7 +1142,7 @@ class UmpireAssignmentService {
                 d.division_name,
                 ht.team_name AS home_team,
                 at.team_name AS away_team,
-                s.game_date, s.game_time,
+                s.game_date, s.game_time, s.location_id,
                 l.location_name
              FROM games g
              JOIN schedules s ON g.game_id = s.game_id
@@ -1221,6 +1247,7 @@ class UmpireAssignmentService {
             "SELECT
                 gua.assignment_id, gua.game_id, gua.umpire_user_id, gua.slot_index,
                 gua.assignment_status, gua.published, gua.migration_mode,
+                gua.last_notified_at, gua.last_notified_hash,
                 u.first_name, u.last_name, u.email, u.phone
              FROM game_umpire_assignments gua
              LEFT JOIN users u ON u.id = gua.umpire_user_id
@@ -1270,6 +1297,25 @@ class UmpireAssignmentService {
         throw new \InvalidArgumentException('Assignor contact information not found.');
     }
 
+    private function markSlotNotified(int $gameId, int $slotIndex, string $hash, ?int $actorUserId = null): void {
+        $this->db->query(
+            "UPDATE game_umpire_assignments
+             SET last_notified_at = NOW(),
+                 last_notified_hash = :last_notified_hash,
+                 assigned_by_user_id = COALESCE(:actor_user_id, assigned_by_user_id),
+                 modified_at = NOW()
+             WHERE game_id = :game_id
+               AND slot_index = :slot_index
+               AND assignment_status = 'Published'",
+            [
+                'actor_user_id' => $actorUserId,
+                'last_notified_hash' => $hash,
+                'game_id' => $gameId,
+                'slot_index' => $slotIndex,
+            ]
+        );
+    }
+
     private function markSlotPublished(int $gameId, int $slotIndex, ?string $hash, bool $migrationMode, ?int $actorUserId = null): void {
         if ($migrationMode) {
             $this->db->query(
@@ -1312,8 +1358,18 @@ class UmpireAssignmentService {
         );
     }
 
-    private function notificationHash(int $gameId, int $slotIndex, int $umpireUserId, string $scheduledAt): string {
-        return hash('sha256', implode('|', [$gameId, $slotIndex, $umpireUserId, $scheduledAt]));
+    /**
+     * Canonical delta signature for assignment notification state.
+     * Components: game_id|slot_index|umpire_user_id|scheduled_at|location_id (0 when unset).
+     */
+    private function notificationHash(
+        int $gameId,
+        int $slotIndex,
+        int $umpireUserId,
+        string $scheduledAt,
+        int $locationId = 0
+    ): string {
+        return hash('sha256', implode('|', [$gameId, $slotIndex, $umpireUserId, $scheduledAt, $locationId]));
     }
 
     private function scheduledAt(array $game): string {

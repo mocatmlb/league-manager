@@ -126,6 +126,33 @@ function umpire_assignment_seed_settings_actor(UmpireAssignmentMockDb $mock, str
     array_unshift($mock->fetchOneRows, ['role_name' => $role]);
 }
 
+function umpire_assignment_publish_game_row(array $overrides = []): array {
+    return array_merge([
+        'game_id' => 10,
+        'game_number' => 'G010',
+        'game_status' => 'Scheduled',
+        'division_name' => 'Junior',
+        'home_team' => 'Home',
+        'away_team' => 'Away',
+        'game_date' => '2026-07-01',
+        'game_time' => '18:00:00',
+        'location_id' => 0,
+        'location_name' => 'Field 1',
+    ], $overrides);
+}
+
+function umpire_assignment_notification_hash(
+    int $gameId,
+    int $slotIndex,
+    int $umpireUserId,
+    string $gameDate = '2026-07-01',
+    string $gameTime = '18:00:00',
+    int $locationId = 0
+): string {
+    $scheduledAt = trim($gameDate . ' ' . ($gameTime !== '' ? $gameTime : '00:00:00'));
+    return hash('sha256', implode('|', [$gameId, $slotIndex, $umpireUserId, $scheduledAt, $locationId]));
+}
+
 // ---------------------------------------------------------------------------
 // Load service under test
 // ---------------------------------------------------------------------------
@@ -773,6 +800,8 @@ register_test('23.4 publishGame publishes filled Draft slots, queues email, upda
 
     assert_equals($result['published'], 1, 'Expected one published slot');
     assert_true($result['warned'], 'Expected partial crew warning flag after confirmed partial publish');
+    assert_equals($result['notified'] ?? null, 1, 'Expected one notified slot');
+    assert_equals($result['suppressed'] ?? null, 0, 'Expected zero suppressed slots');
 
     $queue = $mock->insertRows[0] ?? null;
     assert_equals($queue['table'] ?? null, 'email_queue', 'Expected email_queue insert');
@@ -800,10 +829,10 @@ register_test('23.4 publishGame publishes filled Draft slots, queues email, upda
     unset($GLOBALS['_test_settings']['umpire_slot_1_label'], $GLOBALS['_test_settings']['umpire_slot_2_label']);
 });
 
-register_test('23.4 publishGame rejects zero filled Draft slots', function () {
+register_test('23.4 publishGame rejects zero filled Draft and Published slots', function () {
     $mock = new UmpireAssignmentMockDb();
     $mock->fetchOneRows = [
-        ['game_id' => 10, 'game_status' => 'Scheduled'],
+        umpire_assignment_publish_game_row(),
     ];
     $mock->queryRows = [[]];
     Database::setInstance($mock);
@@ -813,8 +842,9 @@ register_test('23.4 publishGame rejects zero filled Draft slots', function () {
         $svc->publishGame(10, 5, null, false);
     } catch (\InvalidArgumentException $e) {
         $threw = true;
+        assert_true(strpos($e->getMessage(), 'Draft or Published') !== false, 'Expected filled slot requirement message');
     }
-    assert_true($threw, 'Expected zero filled Draft slots to reject');
+    assert_true($threw, 'Expected zero filled slots to reject');
 });
 
 register_test('23.4 publishGame requires confirmation for partial crew', function () {
@@ -854,7 +884,15 @@ register_test('23.4 publishGame does not warn when Published plus Draft slots fi
         ['template_name' => 'umpire_assignment_published', 'subject_template' => 'D8 Assignment: {game_date} {game_time} — {slot_label}', 'body_template' => 'Game {game_number} {fee_per_team}', 'is_active' => 1],
     ];
     $mock->queryRows = [[
-        ['assignment_id' => 1010, 'umpire_user_id' => 201, 'slot_index' => 0, 'assignment_status' => 'Published', 'migration_mode' => 0, 'email' => 'plate@example.test'],
+        [
+            'assignment_id' => 1010,
+            'umpire_user_id' => 201,
+            'slot_index' => 0,
+            'assignment_status' => 'Published',
+            'migration_mode' => 0,
+            'email' => 'plate@example.test',
+            'last_notified_hash' => umpire_assignment_notification_hash(10, 0, 201),
+        ],
         ['assignment_id' => 1011, 'umpire_user_id' => 202, 'slot_index' => 1, 'assignment_status' => 'Draft', 'migration_mode' => 0, 'email' => 'base@example.test'],
     ]];
     Database::setInstance($mock);
@@ -895,11 +933,230 @@ register_test('23.4 publish AJAX endpoint has CSRF, role gate, JSON envelope, ac
     assert_true(strpos($source, "['success' => true, 'data' =>") !== false, 'Expected success JSON envelope');
 });
 
-register_test('23.4 assignment drawer source supports publish button, partial warning retry, and refresh path', function () {
+// ---------------------------------------------------------------------------
+// Tests: Story 24.4 delta notification on re-publish
+// ---------------------------------------------------------------------------
+
+register_test('24.4 publishGame allows all-Published re-publish with unchanged hashes and no emails', function () {
+    $storedHash = umpire_assignment_notification_hash(10, 0, 201);
+    $storedHashTwo = umpire_assignment_notification_hash(10, 1, 202);
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [
+        umpire_assignment_publish_game_row(),
+        ['id' => 5, 'first_name' => 'Alex', 'last_name' => 'Assignor', 'email' => 'assignor@example.test', 'phone' => '555'],
+    ];
+    $mock->queryRows = [[
+        [
+            'assignment_id' => 1010, 'umpire_user_id' => 201, 'slot_index' => 0,
+            'assignment_status' => 'Published', 'migration_mode' => 0, 'email' => 'plate@example.test',
+            'last_notified_at' => '2026-06-01 10:00:00', 'last_notified_hash' => $storedHash,
+        ],
+        [
+            'assignment_id' => 1011, 'umpire_user_id' => 202, 'slot_index' => 1,
+            'assignment_status' => 'Published', 'migration_mode' => 0, 'email' => 'base@example.test',
+            'last_notified_at' => '2026-06-01 10:00:00', 'last_notified_hash' => $storedHashTwo,
+        ],
+    ]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->publishGame(10, 5, null, false);
+
+    assert_equals($result['published'], 0, 'Expected no Draft to Published transitions');
+    assert_equals($result['notified'], 0, 'Expected no emails queued');
+    assert_equals($result['suppressed'], 2, 'Expected both slots suppressed');
+    assert_true(!$result['warned'], 'Expected no partial warning on pure re-publish');
+    assert_equals(count($mock->insertRows), 0, 'Expected no email_queue insert');
+    $sqlLog = implode("\n", $mock->lastSql);
+    assert_true(strpos($sqlLog, 'last_notified_at = NOW()') === false, 'Expected unchanged slots to preserve last_notified_at');
+});
+
+register_test('24.4 publishGame emails only changed Draft slot when other Published slot hash matches', function () {
+    $mock = new UmpireAssignmentMockDb();
+    $mock->nextInsertId = 8901;
+    $mock->fetchOneRows = [
+        umpire_assignment_publish_game_row(),
+        ['id' => 5, 'first_name' => 'Alex', 'last_name' => 'Assignor', 'email' => 'assignor@example.test', 'phone' => '555'],
+        ['template_name' => 'umpire_assignment_published', 'subject_template' => 'D8 Assignment: {game_date} {game_time} — {slot_label}', 'body_template' => 'Game {game_number}', 'is_active' => 1],
+    ];
+    $mock->queryRows = [[
+        [
+            'assignment_id' => 1010, 'umpire_user_id' => 201, 'slot_index' => 0,
+            'assignment_status' => 'Published', 'migration_mode' => 0, 'email' => 'plate@example.test',
+            'last_notified_at' => '2026-06-01 10:00:00',
+            'last_notified_hash' => umpire_assignment_notification_hash(10, 0, 201),
+        ],
+        [
+            'assignment_id' => 1011, 'umpire_user_id' => 203, 'slot_index' => 1,
+            'assignment_status' => 'Draft', 'migration_mode' => 0, 'email' => 'newbase@example.test',
+        ],
+    ]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->publishGame(10, 5, null, false);
+
+    assert_equals($result['published'], 1, 'Expected one Draft slot published');
+    assert_equals($result['notified'], 1, 'Expected one email queued');
+    assert_equals($result['suppressed'], 1, 'Expected unchanged Published slot suppressed');
+    assert_equals(count($mock->insertRows), 1, 'Expected one email_queue insert');
+    $sqlLog = implode("\n", $mock->lastSql);
+    assert_true(strpos($sqlLog, "assignment_status = 'Published'") !== false, 'Expected Draft slot published');
+    assert_true(strpos($sqlLog, 'last_notified_at = NOW()') !== false, 'Expected notified slot timestamp update');
+});
+
+register_test('24.4 publishGame re-notifies all Published slots when schedule changes', function () {
+    $oldHashOne = umpire_assignment_notification_hash(10, 0, 201, '2026-07-01', '18:00:00', 0);
+    $oldHashTwo = umpire_assignment_notification_hash(10, 1, 202, '2026-07-01', '18:00:00', 0);
+    $mock = new UmpireAssignmentMockDb();
+    $mock->nextInsertId = 8910;
+    $mock->fetchOneRows = [
+        umpire_assignment_publish_game_row(['game_date' => '2026-07-15', 'game_time' => '19:30:00']),
+        ['id' => 5, 'first_name' => 'Alex', 'last_name' => 'Assignor', 'email' => 'assignor@example.test', 'phone' => '555'],
+        ['template_name' => 'umpire_assignment_published', 'subject_template' => 'D8 Assignment: {game_date} {game_time} — {slot_label}', 'body_template' => 'Game {game_number}', 'is_active' => 1],
+        ['template_name' => 'umpire_assignment_published', 'subject_template' => 'D8 Assignment: {game_date} {game_time} — {slot_label}', 'body_template' => 'Game {game_number}', 'is_active' => 1],
+    ];
+    $mock->queryRows = [[
+        [
+            'assignment_id' => 1010, 'umpire_user_id' => 201, 'slot_index' => 0,
+            'assignment_status' => 'Published', 'migration_mode' => 0, 'email' => 'plate@example.test',
+            'last_notified_hash' => $oldHashOne,
+        ],
+        [
+            'assignment_id' => 1011, 'umpire_user_id' => 202, 'slot_index' => 1,
+            'assignment_status' => 'Published', 'migration_mode' => 0, 'email' => 'base@example.test',
+            'last_notified_hash' => $oldHashTwo,
+        ],
+    ]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->publishGame(10, 5, null, false);
+
+    assert_equals($result['published'], 0, 'Expected no status transitions');
+    assert_equals($result['notified'], 2, 'Expected both umpires re-notified');
+    assert_equals($result['suppressed'], 0, 'Expected no suppressed slots');
+    assert_equals(count($mock->insertRows), 2, 'Expected two email_queue inserts');
+    $notifySqlCount = count(array_filter($mock->lastSql, static function ($sql) {
+        return strpos($sql, "assignment_status = 'Published'") !== false
+            && strpos($sql, 'last_notified_hash = :last_notified_hash') !== false
+            && strpos($sql, "assignment_status = 'Draft'") === false;
+    }));
+    assert_true($notifySqlCount >= 2, 'Expected markSlotNotified updates for both slots');
+});
+
+register_test('24.4 publishGame re-notifies all Published slots when location_id changes', function () {
+    $oldHash = umpire_assignment_notification_hash(10, 0, 201, '2026-07-01', '18:00:00', 5);
+    $mock = new UmpireAssignmentMockDb();
+    $mock->nextInsertId = 8920;
+    $mock->fetchOneRows = [
+        umpire_assignment_publish_game_row(['location_id' => 9]),
+        ['id' => 5, 'first_name' => 'Alex', 'last_name' => 'Assignor', 'email' => 'assignor@example.test', 'phone' => '555'],
+        ['template_name' => 'umpire_assignment_published', 'subject_template' => 'D8 Assignment: {game_date} {game_time} — {slot_label}', 'body_template' => 'Game {game_number}', 'is_active' => 1],
+    ];
+    $mock->queryRows = [[
+        [
+            'assignment_id' => 1010, 'umpire_user_id' => 201, 'slot_index' => 0,
+            'assignment_status' => 'Published', 'migration_mode' => 0, 'email' => 'plate@example.test',
+            'last_notified_hash' => $oldHash,
+        ],
+    ]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->publishGame(10, 5, null, false);
+
+    assert_equals($result['notified'], 1, 'Expected location change to queue email');
+    assert_equals($result['suppressed'], 0, 'Expected no suppressed slots');
+    assert_equals(count($mock->insertRows), 1, 'Expected one email_queue insert');
+});
+
+register_test('24.4 publishGame note-only re-publish sends no emails when hashes match', function () {
+    $storedHash = umpire_assignment_notification_hash(10, 0, 201);
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [
+        umpire_assignment_publish_game_row(),
+        ['id' => 5, 'first_name' => 'Alex', 'last_name' => 'Assignor', 'email' => 'assignor@example.test', 'phone' => '555'],
+    ];
+    $mock->queryRows = [[
+        [
+            'assignment_id' => 1010, 'umpire_user_id' => 201, 'slot_index' => 0,
+            'assignment_status' => 'Published', 'migration_mode' => 0, 'email' => 'plate@example.test',
+            'last_notified_hash' => $storedHash,
+        ],
+    ]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->publishGame(10, 5, null, false);
+
+    assert_equals($result['notified'], 0, 'Expected note-only re-publish to skip emails');
+    assert_equals($result['suppressed'], 1, 'Expected unchanged slot suppressed');
+    assert_equals(count($mock->insertRows), 0, 'Expected no email_queue insert');
+});
+
+register_test('24.4 publishGame pure re-publish with partial crew does not require confirm_partial', function () {
+    $storedHash = umpire_assignment_notification_hash(10, 0, 201);
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [
+        umpire_assignment_publish_game_row(),
+        ['id' => 5, 'first_name' => 'Alex', 'last_name' => 'Assignor', 'email' => 'assignor@example.test', 'phone' => '555'],
+    ];
+    $mock->queryRows = [[
+        [
+            'assignment_id' => 1010, 'umpire_user_id' => 201, 'slot_index' => 0,
+            'assignment_status' => 'Published', 'migration_mode' => 0, 'email' => 'plate@example.test',
+            'last_notified_hash' => $storedHash,
+        ],
+    ]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->publishGame(10, 5, null, false);
+
+    assert_equals($result['notified'], 0, 'Expected unchanged partial crew re-publish without confirm');
+    assert_true(!$result['warned'], 'Expected no partial warning on pure re-publish');
+});
+
+register_test('24.4 publishGame logs umpire.published only for notified slots', function () {
+    $storedHash = umpire_assignment_notification_hash(10, 0, 201);
+    $mock = new UmpireAssignmentMockDb();
+    $mock->nextInsertId = 8930;
+    $mock->fetchOneRows = [
+        umpire_assignment_publish_game_row(),
+        ['id' => 5, 'first_name' => 'Alex', 'last_name' => 'Assignor', 'email' => 'assignor@example.test', 'phone' => '555'],
+        ['template_name' => 'umpire_assignment_published', 'subject_template' => 'D8 Assignment: {game_date} {game_time} — {slot_label}', 'body_template' => 'Game {game_number}', 'is_active' => 1],
+    ];
+    $mock->queryRows = [[
+        [
+            'assignment_id' => 1010, 'umpire_user_id' => 201, 'slot_index' => 0,
+            'assignment_status' => 'Published', 'migration_mode' => 0, 'email' => 'plate@example.test',
+            'last_notified_hash' => $storedHash,
+        ],
+        [
+            'assignment_id' => 1011, 'umpire_user_id' => 203, 'slot_index' => 1,
+            'assignment_status' => 'Draft', 'migration_mode' => 0, 'email' => 'newbase@example.test',
+        ],
+    ]];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $svc->publishGame(10, 5, null, false);
+
+    $assignedLogs = array_values(array_filter($mock->lastParams, static function ($p) {
+        return ($p['event'] ?? '') === 'umpire.assigned';
+    }));
+    $publishedLogs = array_values(array_filter($mock->lastParams, static function ($p) {
+        return ($p['event'] ?? '') === 'umpire.published';
+    }));
+    assert_equals(count($assignedLogs), 1, 'Expected assigned log only for Draft slot');
+    assert_equals(count($publishedLogs), 1, 'Expected published log only for notified slot');
+});
+
+register_test('24.4 assignment drawer source exposes re-publish when all filled slots are Published', function () {
     $source = file_get_contents(__DIR__ . '/../../public/admin/umpires/assignment-drawer.js');
     assert_true(strpos($source, 'ajax/publish.php') !== false, 'Expected publish endpoint call');
     assert_true(strpos($source, 'confirm_partial') !== false, 'Expected partial confirmation retry');
     assert_true(strpos($source, 'Publish') !== false, 'Expected Publish button text');
+    assert_true(strpos($source, 'Re-Publish') !== false, 'Expected Re-Publish button text');
+    assert_true(strpos($source, 'function hasFilledPublishedSlot(slots)') !== false, 'Expected published slot helper');
+    assert_true(strpos($source, 'function hasPublishableFilledSlot(slots)') !== false, 'Expected combined publish visibility helper');
+    assert_true(strpos($source, 'hasPublishableFilledSlot(slots || {})') !== false, 'Expected publish panel to use combined visibility gate');
+    assert_true(strpos($source, 'Re-send assignment email only for changed slots or schedule updates.') !== false, 'Expected delta helper copy');
+    assert_true(strpos($source, 'No changes to notify') !== false, 'Expected unchanged re-publish success copy');
     assert_true(strpos($source, 'updatePageRow(data)') !== false, 'Expected row refresh path');
 });
 
