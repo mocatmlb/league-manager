@@ -12,6 +12,9 @@ if (!defined('D8TL_APP')) {
 if (!class_exists('UmpireConflictChecker')) {
     require_once __DIR__ . '/UmpireConflictChecker.php';
 }
+if (!class_exists('ActivityLogger')) {
+    require_once __DIR__ . '/ActivityLogger.php';
+}
 
 final class UmpireAvailabilityService {
 
@@ -52,6 +55,72 @@ final class UmpireAvailabilityService {
         ]);
 
         return (int)$id;
+    }
+
+    /**
+     * Create one availability window per selected local date.
+     *
+     * @param string[] $dates YYYY-MM-DD local calendar dates.
+     * @return array{created: int[], skipped: string[], errors: string[]}
+     *
+     * @throws InvalidArgumentException if batch-level validation fails.
+     */
+    public function createWindowsForDates(int $umpireUserId, array $dates, ?string $startTime, ?string $endTime, ?string $notes = null): array {
+        if (count($dates) > 62) {
+            throw new InvalidArgumentException('Batch cannot exceed 62 dates.');
+        }
+
+        $dates = array_values(array_unique(array_map(static function ($date) {
+            return trim((string)$date);
+        }, $dates)));
+
+        if (empty($dates)) {
+            throw new InvalidArgumentException('At least one availability date is required.');
+        }
+
+        $isAllDay = ($startTime === null || trim($startTime) === '') && ($endTime === null || trim($endTime) === '');
+        if (!$isAllDay) {
+            $startTime = $this->validateLocalTime((string)$startTime, 'Start time');
+            $endTime = $this->validateLocalTime((string)$endTime, 'End time');
+
+            if ($startTime >= $endTime) {
+                throw new InvalidArgumentException('Start time must be before end time.');
+            }
+        }
+
+        $created = [];
+        $skipped = [];
+        $errors = [];
+
+        foreach ($dates as $date) {
+            try {
+                $date = $this->validateLocalDate($date);
+                if ($isAllDay) {
+                    $startsAt = $date . ' 00:00:00';
+                    $endsAt = DateTimeImmutable::createFromFormat('!Y-m-d', $date)
+                        ->modify('+1 day')
+                        ->format('Y-m-d') . ' 00:00:00';
+                } else {
+                    $startsAt = $date . ' ' . $startTime . ':00';
+                    $endsAt = $date . ' ' . $endTime . ':00';
+                }
+
+                if ($this->windowExists($umpireUserId, $startsAt, $endsAt)) {
+                    $skipped[] = $date;
+                    continue;
+                }
+
+                $created[] = $this->createWindow($umpireUserId, $startsAt, $endsAt, $notes);
+            } catch (InvalidArgumentException $e) {
+                $errors[] = $date;
+            }
+        }
+
+        return [
+            'created' => $created,
+            'skipped' => $skipped,
+            'errors' => $errors
+        ];
     }
 
     /**
@@ -185,6 +254,48 @@ final class UmpireAvailabilityService {
         }
 
         throw new InvalidArgumentException($label . ' must be a valid date and time.');
+    }
+
+    private function validateLocalDate(string $value): string {
+        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+        $errors = DateTimeImmutable::getLastErrors();
+        if (!$parsed instanceof DateTimeImmutable || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0))) {
+            throw new InvalidArgumentException('Date must be a valid YYYY-MM-DD calendar date.');
+        }
+
+        if ($parsed->format('Y-m-d') !== $value) {
+            throw new InvalidArgumentException('Date must be a valid YYYY-MM-DD calendar date.');
+        }
+
+        return $value;
+    }
+
+    private function validateLocalTime(string $value, string $label): string {
+        $value = trim($value);
+        if (!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $value)) {
+            throw new InvalidArgumentException($label . ' must be a valid HH:MM time.');
+        }
+
+        return $value;
+    }
+
+    private function windowExists(int $umpireUserId, string $startsAt, string $endsAt): bool {
+        $db = Database::getInstance();
+        $row = $db->fetchOne(
+            "SELECT availability_id
+             FROM umpire_availability_windows
+             WHERE umpire_user_id = :umpire_user_id
+               AND starts_at = :starts_at
+               AND ends_at = :ends_at
+             LIMIT 1",
+            [
+                'umpire_user_id' => $umpireUserId,
+                'starts_at' => $startsAt,
+                'ends_at' => $endsAt
+            ]
+        );
+
+        return (bool)$row;
     }
 
     private function validateOwnership(int $availabilityId, int $umpireUserId): void {

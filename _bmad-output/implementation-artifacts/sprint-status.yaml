@@ -1,0 +1,31 @@
+last_updated: 2026-06-27
+# 24-4 created by bmad-create-story: Delta Notification on Re-Publish
+development_status:
+  epic-22: in-progress
+  22-1-umpire-assignor-role-registration: done
+  22-2-manual-umpire-account-creation-roster-management: done
+  22-3-migration-mode-toggle-email-suppression: done
+  22-4-csv-umpire-import: done
+  epic-23: in-progress
+  23-1-unassigned-games-queue-assignment-board: done
+  23-2-assignment-drawer-assign-unassign-slots: done
+  23-3-double-book-detection-override: review
+  23-4-publish-assignments-email-notification: review
+  23-5-reschedule-cascade-release-notifications: review
+  23-6-large-roster-assignment-picker: review
+  23-7-umpire-program-eligibility-filtering: review
+  epic-24: in-progress
+  24-1-umpire-portal-my-assignments: done
+  24-2-umpire-decline-workflow: done
+  24-3-configurable-slot-labels: done
+  24-4-delta-notification-on-re-publish: done
+  24-5-assignment-quality-warnings: done
+  24-6-assignor-scr-alert: done
+  epic-25: in-progress
+  25-1-umpire-availability-entry: done
+  25-2-availability-pool-in-assignment-drawer: done
+  25-3-standalone-availability-query: ready-for-dev
+  25-4-third-party-game-creation: ready-for-dev
+  25-5-third-party-game-assignment-umpire-portal-display: ready-for-dev
+  25-6-manual-umpire-availability-management: ready-for-dev
+  25-7-visual-calendar-availability-entry: done

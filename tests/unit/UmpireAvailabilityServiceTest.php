@@ -222,6 +222,88 @@ register_test('Story 25.1 portal supports update action and modal controls', fun
     assert_true(str_contains($php, "Unsupported availability action"), 'Unsupported POST actions should not silently succeed');
 });
 
+register_test('Story 25.7 createWindowsForDates creates all-day windows from dates', function() {
+    $db = new UmpireAvailabilityMockDb();
+    Database::setInstance($db);
+    $db->queryRows[] = [];
+
+    $service = new UmpireAvailabilityService();
+    $result = $service->createWindowsForDates(123, ['2026-07-10'], null, null);
+
+    assert_equals($result['created'], [5000], 'Expected created availability id');
+    assert_equals($result['skipped'], [], 'Expected no skipped dates');
+    assert_equals($db->insertRows[0]['data']['starts_at'], '2026-07-10 00:00:00', 'Expected all-day start at local midnight');
+    assert_equals($db->insertRows[0]['data']['ends_at'], '2026-07-11 00:00:00', 'Expected all-day end at next local midnight');
+});
+
+register_test('Story 25.7 createWindowsForDates creates partial-day windows from dates and HH:MM times', function() {
+    $db = new UmpireAvailabilityMockDb();
+    Database::setInstance($db);
+    $db->queryRows[] = [];
+
+    $service = new UmpireAvailabilityService();
+    $result = $service->createWindowsForDates(123, ['2026-07-10'], '09:00', '17:00');
+
+    assert_equals($result['created'], [5000], 'Expected created availability id');
+    assert_equals($db->insertRows[0]['data']['starts_at'], '2026-07-10 09:00:00', 'Expected partial-day start datetime');
+    assert_equals($db->insertRows[0]['data']['ends_at'], '2026-07-10 17:00:00', 'Expected partial-day end datetime');
+});
+
+register_test('Story 25.7 createWindowsForDates skips duplicate all-day date without inserting', function() {
+    $db = new UmpireAvailabilityMockDb();
+    Database::setInstance($db);
+    $db->queryRows[] = [['availability_id' => 99]];
+
+    $service = new UmpireAvailabilityService();
+    $result = $service->createWindowsForDates(123, ['2026-07-10'], null, null);
+
+    assert_equals($result['created'], [], 'Expected no created ids');
+    assert_equals($result['skipped'], ['2026-07-10'], 'Expected duplicate date to be skipped');
+    assert_equals(count($db->insertRows), 0, 'Expected no insert for duplicate all-day window');
+});
+
+register_test('Story 25.7 createWindowsForDates enforces batch cap', function() {
+    $db = new UmpireAvailabilityMockDb();
+    Database::setInstance($db);
+    $dates = [];
+    for ($i = 1; $i <= 63; $i++) {
+        $dates[] = sprintf('2026-07-%02d', (($i - 1) % 28) + 1);
+    }
+
+    try {
+        (new UmpireAvailabilityService())->createWindowsForDates(123, $dates, null, null);
+        assert_true(false, 'Expected batch cap exception');
+    } catch (InvalidArgumentException $e) {
+        assert_equals($e->getMessage(), 'Batch cannot exceed 62 dates.', 'Expected batch cap error message');
+    }
+});
+
+register_test('Story 25.7 createWindowsForDates rejects reversed partial-day times', function() {
+    $db = new UmpireAvailabilityMockDb();
+    Database::setInstance($db);
+
+    try {
+        (new UmpireAvailabilityService())->createWindowsForDates(123, ['2026-07-10'], '17:00', '09:00');
+        assert_true(false, 'Expected reversed time exception');
+    } catch (InvalidArgumentException $e) {
+        assert_true(str_contains($e->getMessage(), 'Start time must be before end time.'), 'Expected reversed time validation message');
+    }
+});
+
+register_test('Story 25.7 availability page exposes calendar and batch-create contract', function() {
+    $php = file_get_contents(__DIR__ . '/../../public/umpires/availability.php');
+    assert_true(str_contains($php, 'availabilityCalendarEl'), 'Page should expose calendar container');
+    assert_true(str_contains($php, 'availabilityAllDayToggle'), 'Page should expose all-day toggle control');
+    assert_true(str_contains($php, "\$action === 'batch_create'"), 'POST handler should support batch_create action');
+    assert_true(str_contains($php, 'Auth::generateCSRFToken()'), 'Page should generate CSRF token');
+    assert_true(str_contains($php, "\$action === 'update'"), 'Regression: update action should remain present');
+    assert_true(str_contains($php, "\$action === 'delete'"), 'Regression: delete action should remain present');
+    assert_true(str_contains($php, 'fullcalendar@5.11.3/main.min.css'), 'Page should load FullCalendar v5 CSS');
+    assert_true(str_contains($php, 'fullcalendar@5.11.3/main.min.js'), 'Page should load FullCalendar v5 JS');
+    assert_true(str_contains($php, 'dateClick'), 'Page should use dateClick for non-contiguous selected dates');
+    assert_true(str_contains($php, 'selectable: false'), 'Page should avoid range selection for multi-date toggles');
+});
+
 // Implementation of service will follow to make these pass
 if (file_exists(__DIR__ . '/../../includes/UmpireAvailabilityService.php')) {
     require_once __DIR__ . '/../../includes/UmpireAvailabilityService.php';

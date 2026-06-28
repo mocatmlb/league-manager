@@ -29,15 +29,46 @@ unset($_SESSION['flash_success'], $_SESSION['flash_error']);
 
 // Handle POST actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
+    $isAjaxBatch = $action === 'batch_create';
+
     if (!Auth::verifyCSRFToken($_POST['csrf_token'] ?? '')) {
         http_response_code(403);
-        echo 'Invalid CSRF token.';
+        if ($isAjaxBatch) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Invalid CSRF token.']);
+        } else {
+            echo 'Invalid CSRF token.';
+        }
         exit;
     }
 
-    $action = $_POST['action'] ?? '';
     try {
-        if ($action === 'create') {
+        if ($action === 'batch_create') {
+            $dates = $_POST['dates'] ?? [];
+            if (!is_array($dates)) {
+                $dates = [$dates];
+            }
+
+            $isAllDay = (string)($_POST['is_all_day'] ?? '1') === '1';
+            $startTime = $isAllDay ? null : trim($_POST['start_time'] ?? '');
+            $endTime = $isAllDay ? null : trim($_POST['end_time'] ?? '');
+            $notes = trim($_POST['notes'] ?? '');
+
+            $result = $service->createWindowsForDates($userId, $dates, $startTime, $endTime, $notes);
+            if (empty($result['created']) && empty($result['skipped'])) {
+                throw new InvalidArgumentException('No availability windows were created.');
+            }
+
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => true,
+                'created' => $result['created'],
+                'skipped' => $result['skipped'],
+                'errors' => $result['errors']
+            ]);
+            exit;
+        } elseif ($action === 'create') {
             $startsAt = trim($_POST['starts_at'] ?? '');
             $endsAt = trim($_POST['ends_at'] ?? '');
             $notes = trim($_POST['notes'] ?? '');
@@ -75,6 +106,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: /umpires/availability.php');
         exit;
     } catch (Throwable $e) {
+        if ($isAjaxBatch) {
+            http_response_code(400);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            exit;
+        }
         $flashError = $e->getMessage();
     }
 }
@@ -91,6 +128,42 @@ function availabilityFormatDateTimeLocal(?string $datetime): string {
     $ts = $datetime !== null && trim($datetime) !== '' ? strtotime($datetime) : false;
     return $ts !== false ? date('Y-m-d\TH:i', $ts) : '';
 }
+
+function availabilityIsAllDayWindow(string $startsAt, string $endsAt): bool {
+    $start = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $startsAt);
+    $end = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $endsAt);
+    if (!$start || !$end) {
+        return false;
+    }
+
+    $expectedEnd = $start->modify('+1 day')->setTime(0, 0, 0);
+    return $start->format('H:i:s') === '00:00:00' && $end == $expectedEnd;
+}
+
+function availabilityFormatCalendarTime(string $datetime): string {
+    $ts = strtotime($datetime);
+    return $ts !== false ? date('g:i A', $ts) : '';
+}
+
+$calendarEvents = [];
+foreach ($windows as $window) {
+    $startsAt = (string)($window['starts_at'] ?? '');
+    $endsAt = (string)($window['ends_at'] ?? '');
+    $isAllDayWindow = availabilityIsAllDayWindow($startsAt, $endsAt);
+    $calendarEvents[] = [
+        'start' => $isAllDayWindow ? substr($startsAt, 0, 10) : $startsAt,
+        'end' => $isAllDayWindow ? substr($endsAt, 0, 10) : $endsAt,
+        'allDay' => $isAllDayWindow,
+        'title' => $isAllDayWindow
+            ? 'Available (all day)'
+            : 'Available ' . availabilityFormatCalendarTime($startsAt) . '-' . availabilityFormatCalendarTime($endsAt),
+        'backgroundColor' => $isAllDayWindow ? '#198754' : '#0d6efd',
+        'borderColor' => $isAllDayWindow ? '#198754' : '#0d6efd',
+        'extendedProps' => [
+            'availabilityId' => (int)($window['availability_id'] ?? 0)
+        ]
+    ];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -100,6 +173,7 @@ function availabilityFormatDateTimeLocal(?string $datetime): string {
     <title>My Availability — District 8 Travel League</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
     <link href="../../assets/css/style.css" rel="stylesheet">
     <style>
         .availability-card {
@@ -107,6 +181,35 @@ function availabilityFormatDateTimeLocal(?string $datetime): string {
         }
         .availability-card:hover {
             border-color: #0d6efd;
+        }
+        .availability-calendar-shell {
+            min-width: 0;
+        }
+        #availabilityCalendarEl {
+            min-height: 520px;
+        }
+        #availabilityCalendarEl .fc-toolbar {
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        #availabilityCalendarEl .fc-button,
+        .availability-save-controls .btn {
+            min-height: 44px;
+        }
+        #availabilityCalendarEl .fc-daygrid-day {
+            cursor: pointer;
+        }
+        #availabilityCalendarEl .fc-day-selected {
+            background-color: rgba(13, 110, 253, 0.15) !important;
+            box-shadow: inset 0 0 0 2px #0d6efd;
+        }
+        @media (max-width: 575.98px) {
+            #availabilityCalendarEl {
+                min-height: 460px;
+            }
+            #availabilityCalendarEl .fc-toolbar-title {
+                font-size: 1.1rem;
+            }
         }
     </style>
 </head>
@@ -143,7 +246,61 @@ function availabilityFormatDateTimeLocal(?string $datetime): string {
                     </div>
                 <?php endif; ?>
 
+                <div id="availabilityBatchAlert" class="alert alert-dismissible fade show d-none" role="alert">
+                    <span id="availabilityBatchAlertMessage"></span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+
                 <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white py-3">
+                        <h5 class="mb-0 text-primary"><i class="fas fa-calendar-alt me-2"></i>Select Available Dates</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-4 align-items-start">
+                            <div class="col-lg-8 availability-calendar-shell">
+                                <div id="availabilityCalendarEl"></div>
+                            </div>
+                            <div class="col-lg-4">
+                                <form id="availabilityBatchForm" class="availability-save-controls">
+                                    <input type="hidden" name="action" value="batch_create">
+                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+
+                                    <div class="mb-3">
+                                        <div class="text-muted small mb-1">Selected Dates</div>
+                                        <div id="availabilitySelectionSummary" class="fw-semibold">No dates selected</div>
+                                    </div>
+
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="availabilityAllDayToggle" checked>
+                                        <label class="form-check-label" for="availabilityAllDayToggle">All day</label>
+                                    </div>
+
+                                    <div id="availabilityTimeControls" class="row g-2 mb-3 d-none">
+                                        <div class="col-sm-6 col-lg-12 col-xl-6">
+                                            <label for="availabilityStartTime" class="form-label">Start</label>
+                                            <input type="time" class="form-control" id="availabilityStartTime" name="start_time" value="09:00">
+                                        </div>
+                                        <div class="col-sm-6 col-lg-12 col-xl-6">
+                                            <label for="availabilityEndTime" class="form-label">End</label>
+                                            <input type="time" class="form-control" id="availabilityEndTime" name="end_time" value="17:00">
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="availabilityBatchNotes" class="form-label">Notes (Optional)</label>
+                                        <textarea class="form-control" id="availabilityBatchNotes" name="notes" rows="2" placeholder="e.g. Available after work"></textarea>
+                                    </div>
+
+                                    <button type="submit" id="availabilityBatchSaveBtn" class="btn btn-primary w-100" disabled>
+                                        <i class="fas fa-save me-1"></i><span id="availabilityBatchSaveLabel">Save Dates</span>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm mb-4" id="availabilityWindowsCard">
                     <div class="card-header bg-white py-3">
                         <h5 class="mb-0 text-primary"><i class="fas fa-calendar-check me-2"></i>Current Availability Windows</h5>
                     </div>
@@ -184,39 +341,6 @@ function availabilityFormatDateTimeLocal(?string $datetime): string {
                                                         </button>
                                                     </form>
 
-                                                    <div class="modal fade text-start" id="editWindowModal<?= (int)$w['availability_id'] ?>" tabindex="-1" aria-labelledby="editWindowModalLabel<?= (int)$w['availability_id'] ?>" aria-hidden="true">
-                                                        <div class="modal-dialog">
-                                                            <div class="modal-content">
-                                                                <form method="post" class="needs-validation">
-                                                                    <input type="hidden" name="action" value="update">
-                                                                    <input type="hidden" name="availability_id" value="<?= (int)$w['availability_id'] ?>">
-                                                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                                                                    <div class="modal-header">
-                                                                        <h5 class="modal-title" id="editWindowModalLabel<?= (int)$w['availability_id'] ?>">Edit Availability Window</h5>
-                                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                                    </div>
-                                                                    <div class="modal-body">
-                                                                        <div class="mb-3">
-                                                                            <label for="edit_starts_at_<?= (int)$w['availability_id'] ?>" class="form-label">Starts At</label>
-                                                                            <input type="datetime-local" class="form-control" id="edit_starts_at_<?= (int)$w['availability_id'] ?>" name="starts_at" value="<?= htmlspecialchars(availabilityFormatDateTimeLocal($w['starts_at'] ?? null), ENT_QUOTES, 'UTF-8') ?>" required>
-                                                                        </div>
-                                                                        <div class="mb-3">
-                                                                            <label for="edit_ends_at_<?= (int)$w['availability_id'] ?>" class="form-label">Ends At</label>
-                                                                            <input type="datetime-local" class="form-control" id="edit_ends_at_<?= (int)$w['availability_id'] ?>" name="ends_at" value="<?= htmlspecialchars(availabilityFormatDateTimeLocal($w['ends_at'] ?? null), ENT_QUOTES, 'UTF-8') ?>" required>
-                                                                        </div>
-                                                                        <div class="mb-3">
-                                                                            <label for="edit_notes_<?= (int)$w['availability_id'] ?>" class="form-label">Notes (Optional)</label>
-                                                                            <textarea class="form-control" id="edit_notes_<?= (int)$w['availability_id'] ?>" name="notes" rows="2"><?= htmlspecialchars($w['notes'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div class="modal-footer">
-                                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                                        <button type="submit" class="btn btn-primary">Save Changes</button>
-                                                                    </div>
-                                                                </form>
-                                                            </div>
-                                                        </div>
-                                                    </div>
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>
@@ -234,6 +358,44 @@ function availabilityFormatDateTimeLocal(?string $datetime): string {
                 </div>
             </div>
         </div>
+    </div>
+
+    <div id="editWindowModals">
+        <?php foreach ($windows as $w): ?>
+            <div class="modal fade text-start" id="editWindowModal<?= (int)$w['availability_id'] ?>" tabindex="-1" aria-labelledby="editWindowModalLabel<?= (int)$w['availability_id'] ?>" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form method="post" class="needs-validation">
+                            <input type="hidden" name="action" value="update">
+                            <input type="hidden" name="availability_id" value="<?= (int)$w['availability_id'] ?>">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="editWindowModalLabel<?= (int)$w['availability_id'] ?>">Edit Availability Window</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label for="edit_starts_at_<?= (int)$w['availability_id'] ?>" class="form-label">Starts At</label>
+                                    <input type="datetime-local" class="form-control" id="edit_starts_at_<?= (int)$w['availability_id'] ?>" name="starts_at" value="<?= htmlspecialchars(availabilityFormatDateTimeLocal($w['starts_at'] ?? null), ENT_QUOTES, 'UTF-8') ?>" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit_ends_at_<?= (int)$w['availability_id'] ?>" class="form-label">Ends At</label>
+                                    <input type="datetime-local" class="form-control" id="edit_ends_at_<?= (int)$w['availability_id'] ?>" name="ends_at" value="<?= htmlspecialchars(availabilityFormatDateTimeLocal($w['ends_at'] ?? null), ENT_QUOTES, 'UTF-8') ?>" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit_notes_<?= (int)$w['availability_id'] ?>" class="form-label">Notes (Optional)</label>
+                                    <textarea class="form-control" id="edit_notes_<?= (int)$w['availability_id'] ?>" name="notes" rows="2"><?= htmlspecialchars($w['notes'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-primary">Save Changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        <?php endforeach; ?>
     </div>
 
     <!-- Add Window Modal -->
@@ -271,7 +433,187 @@ function availabilityFormatDateTimeLocal(?string $datetime): string {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
     <script>
+        var availabilityEvents = <?= json_encode($calendarEvents, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
+        var selectedDates = new Set();
+        var availabilityCalendar = null;
+
+        function showAvailabilityAlert(type, message) {
+            const alert = document.getElementById('availabilityBatchAlert');
+            if (!alert) return;
+            alert.className = 'alert alert-' + type + ' alert-dismissible fade show';
+            document.getElementById('availabilityBatchAlertMessage').textContent = message;
+        }
+
+        function updateSelectionSummary() {
+            const count = selectedDates.size;
+            const summary = document.getElementById('availabilitySelectionSummary');
+            const button = document.getElementById('availabilityBatchSaveBtn');
+            const label = document.getElementById('availabilityBatchSaveLabel');
+            const allDay = document.getElementById('availabilityAllDayToggle').checked;
+            const startTime = document.getElementById('availabilityStartTime').value;
+            const endTime = document.getElementById('availabilityEndTime').value;
+
+            if (count === 0) {
+                summary.textContent = 'No dates selected';
+                label.textContent = 'Save Dates';
+                button.disabled = true;
+                return;
+            }
+
+            const sortedDates = Array.from(selectedDates).sort();
+            const mode = allDay ? 'all day' : startTime + '-' + endTime;
+            summary.textContent = sortedDates.join(', ') + ' (' + mode + ')';
+            label.textContent = 'Save ' + count + (count === 1 ? ' Date' : ' Dates');
+            button.disabled = false;
+        }
+
+        function refreshAvailabilityContent() {
+            return fetch(window.location.href, { credentials: 'same-origin' })
+                .then(function(response) { return response.text(); })
+                .then(function(html) {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const nextWindowsCard = doc.getElementById('availabilityWindowsCard');
+                    const nextModals = doc.getElementById('editWindowModals');
+                    const windowsCard = document.getElementById('availabilityWindowsCard');
+                    const modals = document.getElementById('editWindowModals');
+
+                    if (nextWindowsCard && windowsCard) {
+                        windowsCard.innerHTML = nextWindowsCard.innerHTML;
+                    }
+                    if (nextModals && modals) {
+                        modals.innerHTML = nextModals.innerHTML;
+                    }
+
+                    try {
+                        const eventMatch = html.match(/var availabilityEvents = (.*?);[\s\S]*?var selectedDates/);
+                        if (eventMatch && availabilityCalendar) {
+                            availabilityEvents = JSON.parse(eventMatch[1]);
+                            availabilityCalendar.removeAllEvents();
+                            availabilityCalendar.addEventSource(availabilityEvents);
+                        }
+                    } catch (_) {
+                        // calendar event re-parse failed; windows table was still refreshed
+                    }
+                })
+                .catch(function() {
+                    // refresh failed silently; the save already succeeded
+                });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const calEl = document.getElementById('availabilityCalendarEl');
+            const allDayToggle = document.getElementById('availabilityAllDayToggle');
+            const timeControls = document.getElementById('availabilityTimeControls');
+            const form = document.getElementById('availabilityBatchForm');
+            const batchAlert = document.getElementById('availabilityBatchAlert');
+
+            if (batchAlert) {
+                batchAlert.addEventListener('close.bs.alert', function(e) {
+                    e.preventDefault();
+                    batchAlert.classList.add('d-none');
+                    batchAlert.classList.remove('show');
+                });
+            }
+
+            if (calEl && window.FullCalendar) {
+                availabilityCalendar = new FullCalendar.Calendar(calEl, {
+                    initialView: 'dayGridMonth',
+                    height: 'auto',
+                    selectable: false,
+                    events: availabilityEvents,
+                    headerToolbar: {
+                        start: 'prev,next today',
+                        center: 'title',
+                        end: ''
+                    },
+                    dateClick: function(info) {
+                        const date = info.dateStr;
+                        if (selectedDates.has(date)) {
+                            selectedDates.delete(date);
+                            info.dayEl.classList.remove('fc-day-selected');
+                        } else {
+                            selectedDates.add(date);
+                            info.dayEl.classList.add('fc-day-selected');
+                        }
+                        updateSelectionSummary();
+                    },
+                    dayCellDidMount: function(info) {
+                        if (selectedDates.has(info.dateStr)) {
+                            info.el.classList.add('fc-day-selected');
+                        }
+                    },
+                    eventClick: function(info) {
+                        const id = info.event.extendedProps.availabilityId;
+                        const modal = document.getElementById('editWindowModal' + id);
+                        if (modal) {
+                            bootstrap.Modal.getOrCreateInstance(modal).show();
+                        }
+                    },
+                    eventDisplay: 'block'
+                });
+                availabilityCalendar.render();
+            }
+
+            allDayToggle.addEventListener('change', function() {
+                timeControls.classList.toggle('d-none', allDayToggle.checked);
+                updateSelectionSummary();
+            });
+            document.getElementById('availabilityStartTime').addEventListener('change', updateSelectionSummary);
+            document.getElementById('availabilityEndTime').addEventListener('change', updateSelectionSummary);
+
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+                if (selectedDates.size === 0) {
+                    showAvailabilityAlert('warning', 'Select at least one date.');
+                    return;
+                }
+
+                const formData = new FormData(form);
+                formData.set('is_all_day', allDayToggle.checked ? '1' : '0');
+                Array.from(selectedDates).sort().forEach(function(date) {
+                    formData.append('dates[]', date);
+                });
+
+                fetch('/umpires/availability.php', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    body: formData
+                })
+                    .then(function(response) {
+                        return response.json().then(function(data) {
+                            if (!response.ok || !data.success) {
+                                throw new Error(data.message || 'Unable to save availability.');
+                            }
+                            return data;
+                        });
+                    })
+                    .then(function(data) {
+                        let message = data.created.length + ' availability window' + (data.created.length === 1 ? '' : 's') + ' saved.';
+                        if (data.skipped && data.skipped.length > 0) {
+                            message += ' Skipped existing dates: ' + data.skipped.join(', ') + '.';
+                        }
+                        if (data.errors && data.errors.length > 0) {
+                            message += ' Rejected invalid dates: ' + data.errors.join(', ') + '.';
+                        }
+                        showAvailabilityAlert((data.skipped && data.skipped.length > 0) || (data.errors && data.errors.length > 0) ? 'warning' : 'success', message);
+                        selectedDates.clear();
+                        document.querySelectorAll('#availabilityCalendarEl .fc-day-selected').forEach(function(cell) {
+                            cell.classList.remove('fc-day-selected');
+                        });
+                        updateSelectionSummary();
+                        return refreshAvailabilityContent();
+                    })
+                    .catch(function(error) {
+                        showAvailabilityAlert('danger', error.message);
+                    });
+            });
+
+            updateSelectionSummary();
+        });
+
         // Simple client-side validation for start < end
         document.querySelectorAll('form.needs-validation').forEach(function (form) {
             form.addEventListener('submit', function (event) {

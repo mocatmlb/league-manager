@@ -191,6 +191,13 @@ These are race conditions, missing transactions, and performance issues. See [10
 - **Roster phone not a `tel:` link** — `public/umpires/roster.php:64` — mobile users cannot tap to dial. Pre-existing in the original table.
 - **Decline link is GET, not POST** — `public/umpires/index.php:185` — state-changing operation via GET link, no CSRF protection. Pre-existing design.
 
+## Deferred from: code review of 25-7-visual-calendar-availability-entry (2026-06-27)
+
+- **Out-of-scope mega-menu CSS changes** — `public/assets/css/style.css` — uncommitted mega-menu layout/width/grid fixes in working tree alongside story 25.7; out of scope for this story, handle in a separate commit.
+- **CSRF token not refreshed in batch form after AJAX content refresh** — `public/umpires/availability.php:266` — session-based CSRF tokens do not rotate per-request in current auth implementation; risk is acceptable until token rotation is introduced.
+- **Batch cap enforced before `array_unique`** — `includes/UmpireAvailabilityService.php:69-71` — 63 identical dates hit the 62-date cap before dedup; by design per spec, not a defect.
+- **All-invalid dates batch returns generic error without per-date detail** — `public/umpires/availability.php:59-61` — "No availability windows were created." does not surface the `errors[]` array to the user; minor UX improvement, not a defect.
+
 ## Deferred from: code review of 23-2-assignment-drawer-assign-unassign-slots.md (2026-06-15)
 
 - Bootstrap CDN loaded without SRI integrity hash — `public/admin/umpires/board.php` and `index.php` load Bootstrap 5.1.3 from jsDelivr without `integrity="sha384-..."`. Pre-existing across all pages; CDN tampering would allow arbitrary JS execution on mutation pages.
