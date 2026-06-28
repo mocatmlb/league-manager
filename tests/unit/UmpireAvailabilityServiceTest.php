@@ -11,6 +11,12 @@ require_once __DIR__ . '/test-helpers.php';
 require_once __DIR__ . '/../../includes/database.php';
 require_once __DIR__ . '/../../includes/ActivityLogger.php';
 
+if (!function_exists('getSetting')) {
+    function getSetting(string $key, string $default = '') {
+        return $GLOBALS['_test_settings'][$key] ?? $default;
+    }
+}
+
 // Mock Database for testing
 class UmpireAvailabilityMockDb extends Database {
     public array $lastSql      = [];
@@ -166,6 +172,7 @@ register_test('UmpireAvailabilityService: Delete window ownership', function() {
 register_test('UmpireAvailabilityService: Pool query (int[] contract)', function() {
     $db = new UmpireAvailabilityMockDb();
     Database::setInstance($db);
+    $GLOBALS['_test_settings']['conflict_window_minutes'] = '45';
     
     // Mock pool result
     $db->queryRows[] = [['umpire_user_id' => 1], ['umpire_user_id' => 3], ['umpire_user_id' => 5]];
@@ -179,10 +186,14 @@ register_test('UmpireAvailabilityService: Pool query (int[] contract)', function
     assert_true(str_contains($sql, 'game_umpire_assignments'), 'Excludes overlapping assignments');
     assert_true(str_contains($sql, "JOIN roles r ON r.id = u.role_id AND r.name = 'umpire'"), 'Restricts pool to umpire role');
     assert_true(str_contains($sql, 'JOIN schedules s ON s.game_id = gua.game_id'), 'Uses schedules.game_id join');
-    assert_true(str_contains($sql, 'gua.assignment_status'), 'Uses assignment_status column');
+    assert_true(str_contains($sql, "gua.assignment_status IN ('Draft', 'Published')"), 'Only Draft and Published assignments block pool membership');
+    assert_true(!str_contains($sql, "gua.assignment_status != 'Cancelled'"), 'Declined and Open assignments should not block pool membership');
     assert_true(str_contains($sql, "TIMESTAMP(s.game_date, COALESCE(s.game_time, '00:00:00'))"), 'Builds schedule datetime from game_date and game_time');
+    assert_true(str_contains($sql, 'INTERVAL 2700 SECOND'), 'Uses configured conflict-window duration');
+    assert_true(!str_contains($sql, 'INTERVAL 3 HOUR'), 'Does not hardcode a three-hour overlap window');
     assert_true(!str_contains($sql, 'game_date_time'), 'Does not reference nonexistent game_date_time column');
     assert_true(!str_contains($sql, 'gua.status'), 'Does not reference nonexistent gua.status column');
+    unset($GLOBALS['_test_settings']['conflict_window_minutes']);
 
     try {
         $service->getAvailableUmpireIdsForWindow(new DateTime('2026-07-01 12:00:00'), new DateTime('2026-07-01 12:00:00'));

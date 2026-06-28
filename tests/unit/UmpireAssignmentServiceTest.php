@@ -2638,6 +2638,69 @@ register_test('25.2 getGameAssignmentDrawer differentiates in-pool vs out-of-poo
     assert_equals(count($result['roster']), 2, '25.2: Full roster should still contain both umpires');
 });
 
+register_test('25.2 availability_pool_count only counts roster-visible eligible pool members', function () {
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [
+        ['game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Scheduled',
+         'game_date' => '2026-07-01', 'game_time' => '18:00:00',
+         'division_name' => 'Junior', 'home_team' => 'Home', 'away_team' => 'Away',
+         'location_id' => 0, 'location_name' => 'Field 1', 'pending_scr_count' => 0],
+        ['id' => 7],
+        ['program_id' => 99],
+    ];
+    $mock->queryRows = [
+        [],
+        [
+            ['id' => 101, 'first_name' => 'Ann', 'last_name' => 'Blue', 'email' => 'a@t.com', 'phone' => '555', 'status' => 'active', 'umpire_level' => 'Blue Shirt', 'is_under_18' => 0, 'date_of_birth' => null],
+            ['id' => 102, 'first_name' => 'Bob', 'last_name' => 'Black', 'email' => 'b@t.com', 'phone' => '556', 'status' => 'active', 'umpire_level' => 'Black Shirt', 'is_under_18' => 0, 'date_of_birth' => null],
+        ],
+        [
+            ['umpire_user_id' => 101, 'program_id' => 99],
+            ['umpire_user_id' => 102, 'program_id' => 100],
+        ],
+        [],
+        [['umpire_user_id' => 101], ['umpire_user_id' => 102], ['umpire_user_id' => 999]],
+    ];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->getGameAssignmentDrawer(10);
+
+    assert_equals(count($result['roster']), 1, '25.2: Program eligibility filters roster before pool count');
+    assert_equals($result['roster'][0]['id'] ?? null, 101, '25.2: Eligible roster member remains visible');
+    assert_equals($result['availability_pool_count'] ?? -1, 1, '25.2: Count should match visible in-pool roster members');
+    assert_true(!($result['availability_pool_error'] ?? true), '25.2: Pool should not be marked failed');
+});
+
+register_test('25.2 getGameAssignmentDrawer falls back to full roster when availability pool fails', function () {
+    $mock = new UmpireAssignmentMockDb();
+    $mock->fetchOneRows = [
+        ['game_id' => 10, 'game_number' => 'G010', 'game_status' => 'Scheduled',
+         'game_date' => 'not-a-date', 'game_time' => '18:00:00',
+         'division_name' => 'Junior', 'home_team' => 'Home', 'away_team' => 'Away',
+         'location_id' => 0, 'location_name' => 'Field 1', 'pending_scr_count' => 0],
+        ['id' => 7],
+        ['program_id' => 0],
+    ];
+    $mock->queryRows = [
+        [],
+        [
+            ['id' => 101, 'first_name' => 'Ann', 'last_name' => 'Blue', 'email' => 'a@t.com', 'phone' => '555', 'status' => 'active', 'umpire_level' => 'Blue Shirt', 'is_under_18' => 0, 'date_of_birth' => null],
+            ['id' => 102, 'first_name' => 'Bob', 'last_name' => 'Black', 'email' => 'b@t.com', 'phone' => '556', 'status' => 'active', 'umpire_level' => 'Black Shirt', 'is_under_18' => 0, 'date_of_birth' => null],
+        ],
+        [],
+        [],
+    ];
+    Database::setInstance($mock);
+    $svc = new UmpireAssignmentService();
+    $result = $svc->getGameAssignmentDrawer(10);
+
+    assert_true($result['availability_pool_error'] ?? false, '25.2: Pool computation error should be visible in payload');
+    assert_equals($result['availability_pool_count'] ?? -1, 2, '25.2: Fallback pool count should match full visible roster');
+    foreach ($result['roster'] as $umpire) {
+        assert_true($umpire['in_pool'] ?? false, '25.2: Fallback should not hide roster members by default');
+    }
+});
+
 register_test('25.2 getGameAssignmentDrawer pool computation is additive — preserves all existing roster fields', function () {
     $mock = new UmpireAssignmentMockDb();
     $mock->fetchOneRows = [

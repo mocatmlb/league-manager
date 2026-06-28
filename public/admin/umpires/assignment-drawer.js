@@ -656,13 +656,17 @@
             results.textContent = '';
 
             if (pickerMode === 'pool') {
-                count.textContent = filtered.length + ' available of ' + fullRoster.length + ' eligible umpires';
+                if (data.availability_pool_error) {
+                    count.textContent = 'Availability pool unavailable; showing ' + filtered.length + ' of ' + fullRoster.length + ' roster umpires';
+                } else {
+                    count.textContent = filtered.length + ' available of ' + fullRoster.length + ' eligible umpires';
+                }
             } else {
                 count.textContent = filtered.length + ' of ' + fullRoster.length + ' roster umpires';
             }
 
             if (visible.length === 0) {
-                if (pickerMode === 'pool' && !pickerSearch.trim() && pickerFilter === 'all') {
+                if (pickerMode === 'pool' && !data.availability_pool_error && !pickerSearch.trim() && pickerFilter === 'all') {
                     var emptyWrap = document.createElement('div');
                     emptyWrap.className = 'text-muted py-2';
                     appendText(emptyWrap, 'div', '', 'No umpires are available for this game time.');

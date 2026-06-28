@@ -9,6 +9,10 @@ if (!defined('D8TL_APP')) {
     die('Direct access not permitted');
 }
 
+if (!class_exists('UmpireConflictChecker')) {
+    require_once __DIR__ . '/UmpireConflictChecker.php';
+}
+
 final class UmpireAvailabilityService {
 
     /**
@@ -98,8 +102,8 @@ final class UmpireAvailabilityService {
     }
 
     /**
-     * Returns an array of umpire_user_id integers for active umpires with at least one 
-     * covering availability window and no non-Cancelled overlapping game assignments.
+     * Returns an array of umpire_user_id integers for active umpires with at least one
+     * covering availability window and no Draft/Published overlapping game assignments.
      * 
      * @return int[]
      */
@@ -116,7 +120,8 @@ final class UmpireAvailabilityService {
         // Logic:
         // 1. Join users and umpire_profiles to ensure they are active umpires.
         // 2. Filter by having at least one window covering the requested range (starts_at <= requested_start AND ends_at >= requested_end).
-        // 3. Exclude anyone with a non-Cancelled assignment overlapping the requested range.
+        // 3. Exclude anyone with a Draft/Published assignment overlapping the requested range.
+        $windowSeconds = UmpireConflictChecker::assignmentWindowSeconds();
         $sql = "
             SELECT DISTINCT u.id as umpire_user_id
             FROM users u
@@ -132,15 +137,15 @@ final class UmpireAvailabilityService {
                   JOIN games g ON g.game_id = gua.game_id
                   JOIN schedules s ON s.game_id = gua.game_id
                   WHERE gua.umpire_user_id = u.id
-                    AND gua.assignment_status != 'Cancelled'
+                    AND gua.assignment_status IN ('Draft', 'Published')
                     AND g.game_status NOT IN ('Cancelled', 'Postponed')
                     AND TIMESTAMP(s.game_date, COALESCE(s.game_time, '00:00:00')) < :overlap_end
-                    AND DATE_ADD(TIMESTAMP(s.game_date, COALESCE(s.game_time, '00:00:00')), INTERVAL 3 HOUR) > :overlap_start
+                    AND DATE_ADD(
+                        TIMESTAMP(s.game_date, COALESCE(s.game_time, '00:00:00')),
+                        INTERVAL " . $windowSeconds . " SECOND
+                    ) > :overlap_start
               )
         ";
-
-        // Note: The assignment overlap check uses a 3-hour buffer as a default game duration 
-        // since exact end times aren't stored for games. This aligns with project patterns.
         
         $stmt = $db->query($sql, [
             'requested_start' => $startStr,

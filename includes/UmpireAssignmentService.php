@@ -357,9 +357,14 @@ class UmpireAssignmentService {
 
         // Story 25.2: Mark availability pool membership per umpire (AC #1, #3, #4, #5)
         $poolIds = $this->computeAvailabilityPoolIds($game);
-        $poolIdSet = array_flip($poolIds);
+        $availabilityPoolError = $poolIds === null;
+        $poolIdSet = $availabilityPoolError ? [] : array_flip(array_values(array_unique(array_map('intval', $poolIds))));
+        $availabilityPoolCount = 0;
         foreach ($roster as &$umpire) {
-            $umpire['in_pool'] = isset($poolIdSet[(int) ($umpire['id'] ?? 0)]);
+            $umpire['in_pool'] = $availabilityPoolError || isset($poolIdSet[(int) ($umpire['id'] ?? 0)]);
+            if ($umpire['in_pool']) {
+                $availabilityPoolCount++;
+            }
         }
         unset($umpire);
 
@@ -368,7 +373,8 @@ class UmpireAssignmentService {
             'slot_labels' => $this->getSlotLabels(),
             'slots' => $slots,
             'roster' => $roster,
-            'availability_pool_count' => count($poolIds),
+            'availability_pool_count' => $availabilityPoolCount,
+            'availability_pool_error' => $availabilityPoolError,
             'migration_mode' => $rosterService->isMigrationMode(),
             'warnings' => $this->collectAssignmentQualityWarnings($gameId, $slots, $game),
         ];
@@ -1259,13 +1265,14 @@ class UmpireAssignmentService {
         }
     }
 
-    private function computeAvailabilityPoolIds(array $game): array {
+    private function computeAvailabilityPoolIds(array $game): ?array {
         try {
             [$start, $end] = $this->assignmentWindow($game);
             $availService = new UmpireAvailabilityService();
             return $availService->getAvailableUmpireIdsForWindow($start, $end);
         } catch (\Throwable $e) {
-            return [];
+            error_log('Availability pool computation failed: ' . $e->getMessage());
+            return null;
         }
     }
 
