@@ -222,6 +222,9 @@ GPT-5 Codex
   - `php -l includes/nav.php`
 - 2026-06-28: Targeted unit checks passed: `php tests/unit/run-unit-tests.php --file=UmpireAvailabilityServiceTest.php` (16 passed, 0 failed).
 - 2026-06-28: Full unit suite run completed with existing unrelated baseline failures: `php tests/unit/run-unit-tests.php` (410 passed, 38 failed). Story 25.6 tests passed inside the full suite.
+- 2026-06-29: Calendar-driven admin management follow-up syntax checks passed for `includes/UmpireAvailabilityService.php`, `public/admin/umpires/availability-management.php`, and `tests/unit/UmpireAvailabilityServiceTest.php`.
+- 2026-06-29: Targeted unit checks passed: `php tests/unit/run-unit-tests.php --file=UmpireAvailabilityServiceTest.php` (17 passed, 0 failed).
+- 2026-06-29: Local route smoke used a seeded admin session against `php -S 127.0.0.1:8078 -t public`; page returned HTTP 200, and invalid-target batch POST returned JSON HTTP 400. Selected-umpire render was blocked because the local roster service had no active umpires.
 
 ### Completion Notes List
 
@@ -231,6 +234,8 @@ GPT-5 Codex
 - Extended `UmpireAvailabilityService` create/update/delete methods with backward-compatible optional `$actorUserId` and `$source` parameters and ActivityLogger payload fields, without changing `getAvailableUmpireIdsForWindow()`.
 - Added discoverability in both admin/assignor nav surfaces and active-only roster row actions while leaving umpire self-service and reserved Story 25.3 route untouched.
 - Added targeted unit coverage for audit payloads, route/nav/roster contracts, reserved-route preservation, and existing availability service regressions.
+- Added a calendar-first admin workflow modeled on Story 25.7: FullCalendar date-click selection, all-day default, optional shared hours, AJAX batch save, existing-window calendar events, and event-click access to the existing edit modal.
+- Extended `createWindowsForDates()` with backward-compatible optional audit actor/source parameters so admin batch-created windows are logged as `admin_manual`.
 
 ### File List
 

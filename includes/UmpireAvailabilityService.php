@@ -76,12 +76,27 @@ final class UmpireAvailabilityService {
     /**
      * Create one availability window per selected local date.
      *
-     * @param string[] $dates YYYY-MM-DD local calendar dates.
+     * @param string[]    $dates       YYYY-MM-DD local calendar dates.
+     * @param string|null $startTime   Optional HH:MM local start time; null with $endTime creates all-day windows.
+     * @param string|null $endTime     Optional HH:MM local end time; null with $startTime creates all-day windows.
+     * @param string|null $notes       Optional operational note visible to the umpire.
+     * @param int|null    $actorUserId Acting user ID for audit; null means umpire self-service.
+     * @param string      $source      Audit source: 'self' or 'admin_manual'.
      * @return array{created: int[], skipped: string[], errors: string[]}
      *
      * @throws InvalidArgumentException if batch-level validation fails.
      */
-    public function createWindowsForDates(int $umpireUserId, array $dates, ?string $startTime, ?string $endTime, ?string $notes = null): array {
+    public function createWindowsForDates(
+        int $umpireUserId,
+        array $dates,
+        ?string $startTime,
+        ?string $endTime,
+        ?string $notes = null,
+        ?int $actorUserId = null,
+        string $source = 'self'
+    ): array {
+        $this->validateSource($source);
+
         if (count($dates) > 62) {
             throw new InvalidArgumentException('Batch cannot exceed 62 dates.');
         }
@@ -126,7 +141,7 @@ final class UmpireAvailabilityService {
                     continue;
                 }
 
-                $created[] = $this->createWindow($umpireUserId, $startsAt, $endsAt, $notes);
+                $created[] = $this->createWindow($umpireUserId, $startsAt, $endsAt, $notes, $actorUserId, $source);
             } catch (InvalidArgumentException $e) {
                 $errors[] = $date;
             }

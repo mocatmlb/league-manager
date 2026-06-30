@@ -46,6 +46,22 @@ function formatForDatetimeLocal(?string $value): string {
     return '';
 }
 
+function isAllDayAvailabilityWindow(string $startsAt, string $endsAt): bool {
+    $start = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $startsAt);
+    $end = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $endsAt);
+    if (!$start || !$end) {
+        return false;
+    }
+
+    $expectedEnd = $start->modify('+1 day')->setTime(0, 0, 0);
+    return $start->format('H:i:s') === '00:00:00' && $end == $expectedEnd;
+}
+
+function formatCalendarTime(string $datetime): string {
+    $ts = strtotime($datetime);
+    return $ts !== false ? date('g:i A', $ts) : '';
+}
+
 function validateTargetUmpire(UmpireRosterService $rosterService, int $targetUmpireId): array {
     if ($targetUmpireId < 1) {
         throw new InvalidArgumentException('Select an active umpire.');
@@ -82,6 +98,9 @@ $targetUmpire = null;
 $windows = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
+    $isAjaxBatch = $action === 'batch_create';
+
     try {
         $csrfInput = $_POST['csrf_token'] ?? '';
         if (!is_string($csrfInput) || !Auth::verifyCSRFToken($csrfInput)) {
@@ -89,9 +108,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $targetUmpire = validateTargetUmpire($rosterService, $targetUmpireId);
-        $action = $_POST['action'] ?? '';
 
-        if ($action === 'create') {
+        if ($action === 'batch_create') {
+            $dates = $_POST['dates'] ?? [];
+            if (!is_array($dates)) {
+                $dates = [$dates];
+            }
+
+            $isAllDay = (string) ($_POST['is_all_day'] ?? '1') === '1';
+            $startTime = $isAllDay ? null : trim((string) ($_POST['start_time'] ?? ''));
+            $endTime = $isAllDay ? null : trim((string) ($_POST['end_time'] ?? ''));
+            $notes = trim((string) ($_POST['notes'] ?? ''));
+            if (strlen($notes) > 255) {
+                throw new InvalidArgumentException('Note cannot exceed 255 characters.');
+            }
+
+            $result = $availabilityService->createWindowsForDates(
+                $targetUmpireId,
+                $dates,
+                $startTime,
+                $endTime,
+                $notes !== '' ? $notes : null,
+                $actorUserId,
+                'admin_manual'
+            );
+            if (empty($result['created']) && empty($result['skipped'])) {
+                throw new InvalidArgumentException('No availability windows were created.');
+            }
+
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => true,
+                'created' => $result['created'],
+                'skipped' => $result['skipped'],
+                'errors' => $result['errors']
+            ]);
+            exit;
+        } elseif ($action === 'create') {
             $startsAt = normalizeDatetimeLocal($_POST['starts_at'] ?? '', 'Start time');
             $endsAt = normalizeDatetimeLocal($_POST['ends_at'] ?? '', 'End time');
             $notes = trim((string) ($_POST['notes'] ?? ''));
@@ -127,16 +180,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: availability-management.php?umpire_user_id=' . $targetUmpireId);
         exit;
     } catch (InvalidArgumentException $e) {
+        if ($isAjaxBatch) {
+            http_response_code($e->getMessage() === 'Invalid security token. Please try again.' ? 403 : 400);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            exit;
+        }
         $_SESSION['flash_error'] = $e->getMessage();
         header('Location: availability-management.php' . ($targetUmpireId > 0 ? '?umpire_user_id=' . $targetUmpireId : ''));
         exit;
     } catch (RuntimeException $e) {
         error_log('[availability-management.php] availability mutation error: ' . $e->getMessage());
+        if ($isAjaxBatch) {
+            http_response_code(400);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Availability window not found or could not be changed.']);
+            exit;
+        }
         $_SESSION['flash_error'] = 'Availability window not found or could not be changed.';
         header('Location: availability-management.php' . ($targetUmpireId > 0 ? '?umpire_user_id=' . $targetUmpireId : ''));
         exit;
     } catch (Throwable $e) {
         error_log('[availability-management.php] availability mutation error: ' . $e->getMessage());
+        if ($isAjaxBatch) {
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'An unexpected error occurred. Please try again.']);
+            exit;
+        }
         $_SESSION['flash_error'] = 'An unexpected error occurred. Please try again.';
         header('Location: availability-management.php' . ($targetUmpireId > 0 ? '?umpire_user_id=' . $targetUmpireId : ''));
         exit;
@@ -159,6 +230,26 @@ if ($targetUmpireId > 0) {
     }
 }
 
+$calendarEvents = [];
+foreach ($windows as $window) {
+    $startsAt = (string) ($window['starts_at'] ?? '');
+    $endsAt = (string) ($window['ends_at'] ?? '');
+    $isAllDayWindow = isAllDayAvailabilityWindow($startsAt, $endsAt);
+    $calendarEvents[] = [
+        'start' => $isAllDayWindow ? substr($startsAt, 0, 10) : $startsAt,
+        'end' => $isAllDayWindow ? substr($endsAt, 0, 10) : $endsAt,
+        'allDay' => $isAllDayWindow,
+        'title' => $isAllDayWindow
+            ? 'Available (all day)'
+            : 'Available ' . formatCalendarTime($startsAt) . '-' . formatCalendarTime($endsAt),
+        'backgroundColor' => $isAllDayWindow ? '#198754' : '#0d6efd',
+        'borderColor' => $isAllDayWindow ? '#198754' : '#0d6efd',
+        'extendedProps' => [
+            'availabilityId' => (int) ($window['availability_id'] ?? 0)
+        ]
+    ];
+}
+
 $csrfToken = Auth::generateCSRFToken();
 ?>
 <!DOCTYPE html>
@@ -169,7 +260,39 @@ $csrfToken = Auth::generateCSRFToken();
     <title>Manage Umpire Availability - D8TL</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
     <link href="../../assets/css/style.css" rel="stylesheet">
+    <style>
+        .availability-calendar-shell {
+            min-width: 0;
+        }
+        #availabilityCalendarEl {
+            min-height: 520px;
+        }
+        #availabilityCalendarEl .fc-toolbar {
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        #availabilityCalendarEl .fc-button,
+        .availability-save-controls .btn {
+            min-height: 44px;
+        }
+        #availabilityCalendarEl .fc-daygrid-day {
+            cursor: pointer;
+        }
+        #availabilityCalendarEl .fc-day-selected {
+            background-color: rgba(13, 110, 253, 0.15) !important;
+            box-shadow: inset 0 0 0 2px #0d6efd;
+        }
+        @media (max-width: 575.98px) {
+            #availabilityCalendarEl {
+                min-height: 460px;
+            }
+            #availabilityCalendarEl .fc-toolbar-title {
+                font-size: 1.1rem;
+            }
+        }
+    </style>
 </head>
 <body class="bg-light">
 
@@ -237,8 +360,61 @@ unset($__nav);
             </div>
         </div>
 
+        <div id="availabilityBatchAlert" class="alert alert-dismissible fade show d-none" role="alert">
+            <span id="availabilityBatchAlertMessage"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
         <div class="card mb-4">
-            <div class="card-header"><strong>Add Availability Window</strong></div>
+            <div class="card-header"><strong>Select Available Dates</strong></div>
+            <div class="card-body">
+                <div class="row g-4 align-items-start">
+                    <div class="col-lg-8 availability-calendar-shell">
+                        <div id="availabilityCalendarEl"></div>
+                    </div>
+                    <div class="col-lg-4">
+                        <form id="availabilityBatchForm" class="availability-save-controls">
+                            <input type="hidden" name="action" value="batch_create">
+                            <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
+                            <input type="hidden" name="umpire_user_id" value="<?= (int) $targetUmpireId ?>">
+
+                            <div class="mb-3">
+                                <div class="text-muted small mb-1">Selected Dates</div>
+                                <div id="availabilitySelectionSummary" class="fw-semibold">No dates selected</div>
+                            </div>
+
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" role="switch" id="availabilityAllDayToggle" checked>
+                                <label class="form-check-label" for="availabilityAllDayToggle">All day</label>
+                            </div>
+
+                            <div id="availabilityTimeControls" class="row g-2 mb-3 d-none">
+                                <div class="col-sm-6 col-lg-12 col-xl-6">
+                                    <label for="availabilityStartTime" class="form-label">Start</label>
+                                    <input type="time" class="form-control" id="availabilityStartTime" name="start_time" value="09:00">
+                                </div>
+                                <div class="col-sm-6 col-lg-12 col-xl-6">
+                                    <label for="availabilityEndTime" class="form-label">End</label>
+                                    <input type="time" class="form-control" id="availabilityEndTime" name="end_time" value="17:00">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="availabilityBatchNotes" class="form-label">Note</label>
+                                <textarea class="form-control" id="availabilityBatchNotes" name="notes" rows="2" maxlength="255"></textarea>
+                            </div>
+
+                            <button type="submit" id="availabilityBatchSaveBtn" class="btn btn-primary w-100" disabled>
+                                <i class="fas fa-save me-1"></i><span id="availabilityBatchSaveLabel">Save Dates</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header"><strong>Add Single Window</strong></div>
             <div class="card-body">
                 <form method="post" action="availability-management.php">
                     <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
@@ -267,7 +443,7 @@ unset($__nav);
             </div>
         </div>
 
-        <div class="card">
+        <div class="card" id="availabilityWindowsCard">
             <div class="card-header"><strong>Availability Windows</strong></div>
             <div class="card-body p-0">
                 <?php if (empty($windows)): ?>
@@ -355,5 +531,196 @@ unset($__nav);
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
+<script>
+    var availabilityEvents = <?= json_encode($calendarEvents, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
+    var selectedDates = new Set();
+    var availabilityCalendar = null;
+
+    function formatCalendarDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return year + '-' + month + '-' + day;
+    }
+
+    function showAvailabilityAlert(type, message) {
+        const alert = document.getElementById('availabilityBatchAlert');
+        const messageEl = document.getElementById('availabilityBatchAlertMessage');
+        if (!alert || !messageEl) return;
+        alert.className = 'alert alert-' + type + ' alert-dismissible fade show';
+        messageEl.textContent = message;
+    }
+
+    function updateSelectionSummary() {
+        const summary = document.getElementById('availabilitySelectionSummary');
+        const button = document.getElementById('availabilityBatchSaveBtn');
+        const label = document.getElementById('availabilityBatchSaveLabel');
+        const allDayToggle = document.getElementById('availabilityAllDayToggle');
+        const startInput = document.getElementById('availabilityStartTime');
+        const endInput = document.getElementById('availabilityEndTime');
+        if (!summary || !button || !label || !allDayToggle || !startInput || !endInput) return;
+
+        const count = selectedDates.size;
+        if (count === 0) {
+            summary.textContent = 'No dates selected';
+            label.textContent = 'Save Dates';
+            button.disabled = true;
+            return;
+        }
+
+        const mode = allDayToggle.checked ? 'all day' : startInput.value + '-' + endInput.value;
+        summary.textContent = Array.from(selectedDates).sort().join(', ') + ' (' + mode + ')';
+        label.textContent = 'Save ' + count + (count === 1 ? ' Date' : ' Dates');
+        button.disabled = false;
+    }
+
+    function refreshAvailabilityContent() {
+        return fetch(window.location.href, { credentials: 'same-origin' })
+            .then(function(response) { return response.text(); })
+            .then(function(html) {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const nextWindowsCard = doc.getElementById('availabilityWindowsCard');
+                const windowsCard = document.getElementById('availabilityWindowsCard');
+
+                if (nextWindowsCard && windowsCard) {
+                    windowsCard.innerHTML = nextWindowsCard.innerHTML;
+                }
+
+                try {
+                    const eventMatch = html.match(/var availabilityEvents = (.*?);[\s\S]*?var selectedDates/);
+                    if (eventMatch && availabilityCalendar) {
+                        availabilityEvents = JSON.parse(eventMatch[1]);
+                        availabilityCalendar.removeAllEvents();
+                        availabilityCalendar.addEventSource(availabilityEvents);
+                    }
+                } catch (_) {
+                    // The table refresh still gives the assignor the current saved windows.
+                }
+            })
+            .catch(function() {
+                // The save succeeded; avoid replacing the success message with a refresh-only failure.
+            });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const calEl = document.getElementById('availabilityCalendarEl');
+        const allDayToggle = document.getElementById('availabilityAllDayToggle');
+        const timeControls = document.getElementById('availabilityTimeControls');
+        const form = document.getElementById('availabilityBatchForm');
+        const batchAlert = document.getElementById('availabilityBatchAlert');
+
+        if (batchAlert) {
+            batchAlert.addEventListener('close.bs.alert', function(event) {
+                event.preventDefault();
+                batchAlert.classList.add('d-none');
+                batchAlert.classList.remove('show');
+            });
+        }
+
+        if (calEl && window.FullCalendar) {
+            availabilityCalendar = new FullCalendar.Calendar(calEl, {
+                initialView: 'dayGridMonth',
+                height: 'auto',
+                selectable: false,
+                events: availabilityEvents,
+                headerToolbar: {
+                    start: 'prev,next today',
+                    center: 'title',
+                    end: ''
+                },
+                dateClick: function(info) {
+                    const date = info.dateStr;
+                    if (selectedDates.has(date)) {
+                        selectedDates.delete(date);
+                        info.dayEl.classList.remove('fc-day-selected');
+                    } else {
+                        selectedDates.add(date);
+                        info.dayEl.classList.add('fc-day-selected');
+                    }
+                    updateSelectionSummary();
+                },
+                dayCellDidMount: function(info) {
+                    if (selectedDates.has(formatCalendarDate(info.date))) {
+                        info.el.classList.add('fc-day-selected');
+                    }
+                },
+                eventClick: function(info) {
+                    const id = info.event.extendedProps.availabilityId;
+                    const modal = document.getElementById('editAvailability' + id);
+                    if (modal) {
+                        bootstrap.Modal.getOrCreateInstance(modal).show();
+                    }
+                },
+                eventDisplay: 'block'
+            });
+            availabilityCalendar.render();
+        }
+
+        if (allDayToggle && timeControls) {
+            allDayToggle.addEventListener('change', function() {
+                timeControls.classList.toggle('d-none', allDayToggle.checked);
+                updateSelectionSummary();
+            });
+        }
+
+        const startInput = document.getElementById('availabilityStartTime');
+        const endInput = document.getElementById('availabilityEndTime');
+        if (startInput) startInput.addEventListener('change', updateSelectionSummary);
+        if (endInput) endInput.addEventListener('change', updateSelectionSummary);
+
+        if (form) {
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+                if (selectedDates.size === 0) {
+                    showAvailabilityAlert('warning', 'Select at least one date.');
+                    return;
+                }
+
+                const formData = new FormData(form);
+                formData.set('is_all_day', allDayToggle && allDayToggle.checked ? '1' : '0');
+                Array.from(selectedDates).sort().forEach(function(date) {
+                    formData.append('dates[]', date);
+                });
+
+                fetch('availability-management.php?umpire_user_id=<?= (int) $targetUmpireId ?>', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    body: formData
+                })
+                    .then(function(response) {
+                        return response.json().then(function(data) {
+                            if (!response.ok || !data.success) {
+                                throw new Error(data.message || 'Unable to save availability.');
+                            }
+                            return data;
+                        });
+                    })
+                    .then(function(data) {
+                        let message = data.created.length + ' availability window' + (data.created.length === 1 ? '' : 's') + ' saved.';
+                        if (data.skipped && data.skipped.length > 0) {
+                            message += ' Skipped existing dates: ' + data.skipped.join(', ') + '.';
+                        }
+                        if (data.errors && data.errors.length > 0) {
+                            message += ' Rejected invalid dates: ' + data.errors.join(', ') + '.';
+                        }
+                        showAvailabilityAlert((data.skipped && data.skipped.length > 0) || (data.errors && data.errors.length > 0) ? 'warning' : 'success', message);
+                        selectedDates.clear();
+                        document.querySelectorAll('#availabilityCalendarEl .fc-day-selected').forEach(function(cell) {
+                            cell.classList.remove('fc-day-selected');
+                        });
+                        updateSelectionSummary();
+                        return refreshAvailabilityContent();
+                    })
+                    .catch(function(error) {
+                        showAvailabilityAlert('danger', error.message);
+                    });
+            });
+        }
+
+        updateSelectionSummary();
+    });
+</script>
 </body>
 </html>

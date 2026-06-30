@@ -292,6 +292,23 @@ register_test('Story 25.7 createWindowsForDates creates partial-day windows from
     assert_equals($db->insertRows[0]['data']['ends_at'], '2026-07-10 17:00:00', 'Expected partial-day end datetime');
 });
 
+register_test('Story 25.6 admin batch availability records actor and source', function() {
+    $db = new UmpireAvailabilityMockDb();
+    Database::setInstance($db);
+    $db->queryRows[] = [];
+
+    $service = new UmpireAvailabilityService();
+    $result = $service->createWindowsForDates(123, ['2026-07-10'], null, null, 'Call confirmation', 42, 'admin_manual');
+
+    assert_equals($result['created'], [5000], 'Expected created availability id');
+    assert_equals(count($db->activityLogRows), 1, 'Expected activity log insert');
+    $context = json_decode($db->activityLogRows[0]['context'], true);
+    assert_equals($context['umpire_user_id'], 123, 'Batch audit context includes target umpire id');
+    assert_equals($context['actor_user_id'], 42, 'Batch audit context includes acting admin id');
+    assert_equals($context['source'], 'admin_manual', 'Batch audit context includes admin source');
+    assert_true(!array_key_exists('notes', $context), 'Batch audit context must not log notes text');
+});
+
 register_test('Story 25.7 createWindowsForDates skips duplicate all-day date without inserting', function() {
     $db = new UmpireAvailabilityMockDb();
     Database::setInstance($db);
@@ -360,10 +377,18 @@ register_test('Story 25.6 manual availability management page and navigation con
     assert_true(str_contains($php, 'getUmpire($targetUmpireId)'), 'Page validates target umpire through roster service');
     assert_true(str_contains($php, "\$targetUmpire['status'] !== 'active'"), 'Page rejects non-active umpire targets');
     assert_true(str_contains($php, 'Auth::verifyCSRFToken'), 'POST mutations verify CSRF');
+    assert_true(str_contains($php, "\$action === 'batch_create'"), 'Page supports calendar batch_create mutation');
+    assert_true(str_contains($php, 'createWindowsForDates('), 'Page uses service batch helper for calendar selections');
     assert_true(str_contains($php, 'createWindow('), 'Page supports create mutation');
     assert_true(str_contains($php, 'updateWindow('), 'Page supports update mutation');
     assert_true(str_contains($php, 'deleteWindow('), 'Page supports delete mutation');
     assert_true(str_contains($php, "'admin_manual'"), 'Page tags admin-originated service calls');
+    assert_true(str_contains($php, 'availabilityCalendarEl'), 'Page exposes calendar container');
+    assert_true(str_contains($php, 'availabilityAllDayToggle'), 'Page exposes all-day toggle control');
+    assert_true(str_contains($php, 'fullcalendar@5.11.3/main.min.css'), 'Page loads FullCalendar v5 CSS');
+    assert_true(str_contains($php, 'fullcalendar@5.11.3/main.min.js'), 'Page loads FullCalendar v5 JS');
+    assert_true(str_contains($php, 'dateClick'), 'Page uses dateClick for non-contiguous selected dates');
+    assert_true(str_contains($php, 'selectable: false'), 'Page avoids range selection for multi-date toggles');
     assert_true(str_contains($php, 'availability-management.php?umpire_user_id='), 'Successful mutations redirect back to selected umpire');
     assert_true(str_contains($php, 'htmlspecialchars'), 'Page escapes rendered values');
 
