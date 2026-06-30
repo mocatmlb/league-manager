@@ -1,4 +1,4 @@
-last_updated: 2026-06-27
+last_updated: 2026-06-28  # updated by code review
 # 24-4 created by bmad-create-story: Delta Notification on Re-Publish
 development_status:
   epic-22: in-progress
@@ -27,5 +27,5 @@ development_status:
   25-3-standalone-availability-query: ready-for-dev
   25-4-third-party-game-creation: ready-for-dev
   25-5-third-party-game-assignment-umpire-portal-display: ready-for-dev
-  25-6-manual-umpire-availability-management: ready-for-dev
+  25-6-manual-umpire-availability-management: done
   25-7-visual-calendar-availability-entry: done

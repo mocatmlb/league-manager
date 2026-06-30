@@ -198,6 +198,15 @@ These are race conditions, missing transactions, and performance issues. See [10
 - **Batch cap enforced before `array_unique`** — `includes/UmpireAvailabilityService.php:69-71` — 63 identical dates hit the 62-date cap before dedup; by design per spec, not a defect.
 - **All-invalid dates batch returns generic error without per-date detail** — `public/umpires/availability.php:59-61` — "No availability windows were created." does not surface the `errors[]` array to the user; minor UX improvement, not a defect.
 
+## Deferred from: code review of 25-6-manual-umpire-availability-management.md (2026-06-28)
+
+- **CDN links without SRI attributes** — `public/admin/umpires/availability-management.php:149-150` — Bootstrap and Font Awesome loaded from CDN without `integrity`/`crossorigin` attributes; pre-existing pattern across all pages.
+- **Nav items visible to all admin roles regardless of umpire_assignor** — `includes/nav.php:123` — "Manage Availability" link visible to any admin in the mega-menu; clicking produces a permission redirect for admins who lack `umpire_assignor`; pre-existing nav behavior pattern for role-gated links.
+- **Service-level umpireUserId < 1 not validated** — `includes/UmpireAvailabilityService.php` — page validates before calling service; defense-in-depth guard would add safety if service is called directly in the future.
+- **TOCTOU: row deleted between validateOwnership and update/delete** — `includes/UmpireAvailabilityService.php` — negligible risk in practice; affected rows check could surface silent no-ops if desired.
+- **createWindowsForDates internal createWindow calls omit actorUserId/source** — `includes/UmpireAvailabilityService.php:122` — audit records show `null`/`'self'` if admin page ever routes through this method; admin page currently does not call it.
+- **normalizeDatetimeLocal duplicates service parsing logic** — `public/admin/umpires/availability-management.php:19` — two independent datetime parsers; a format change in the service won't automatically update the page helper; no current bug.
+
 ## Deferred from: code review of 23-2-assignment-drawer-assign-unassign-slots.md (2026-06-15)
 
 - Bootstrap CDN loaded without SRI integrity hash — `public/admin/umpires/board.php` and `index.php` load Bootstrap 5.1.3 from jsDelivr without `integrity="sha384-..."`. Pre-existing across all pages; CDN tampering would allow arbitrary JS execution on mutation pages.

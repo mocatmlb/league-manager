@@ -26,12 +26,16 @@ class UmpireAvailabilityMockDb extends Database {
     public array $updateRows   = [];
     public array $deleteRows   = [];
     public int $nextInsertId   = 5000;
+    public array $activityLogRows = [];
 
     public function __construct() {}
 
     public function query($sql, $params = []) {
         $this->lastSql[]    = $sql;
         $this->lastParams[] = $params;
+        if (str_contains($sql, 'INSERT INTO activity_log')) {
+            $this->activityLogRows[] = $params;
+        }
         $rows = !empty($this->queryRows) ? array_shift($this->queryRows) : [];
         return new UmpireAvailabilityMockStmt($rows);
     }
@@ -132,6 +136,24 @@ register_test('UmpireAvailabilityService: Create window validation', function() 
     }
 });
 
+register_test('Story 25.6 audit payload records actor and source for manual admin create', function() {
+    $db = new UmpireAvailabilityMockDb();
+    Database::setInstance($db);
+
+    $service = new UmpireAvailabilityService();
+    $id = $service->createWindow(123, '2026-07-01T08:00', '2026-07-01T12:00', 'Call confirmation', 42, 'admin_manual');
+
+    assert_equals($id, 5000, 'Returns new insert ID');
+    assert_equals($db->insertRows[0]['data']['starts_at'], '2026-07-01 08:00:00', 'Accepts datetime-local format');
+    assert_equals(count($db->activityLogRows), 1, 'Expected activity log insert');
+    $context = json_decode($db->activityLogRows[0]['context'], true);
+    assert_equals($context['availability_id'], 5000, 'Audit context includes availability id');
+    assert_equals($context['umpire_user_id'], 123, 'Audit context includes target umpire id');
+    assert_equals($context['actor_user_id'], 42, 'Audit context includes acting admin id');
+    assert_equals($context['source'], 'admin_manual', 'Audit context includes source');
+    assert_true(!array_key_exists('notes', $context), 'Audit context must not log notes text');
+});
+
 register_test('UmpireAvailabilityService: Update window ownership', function() {
     $db = new UmpireAvailabilityMockDb();
     Database::setInstance($db);
@@ -153,6 +175,27 @@ register_test('UmpireAvailabilityService: Update window ownership', function() {
     } catch (RuntimeException $e) {
         assert_true(str_contains($e->getMessage(), 'not found or not owned'), 'Correct error message');
     }
+});
+
+register_test('Story 25.6 audit payload records actor and source for manual admin update and delete', function() {
+    $db = new UmpireAvailabilityMockDb();
+    Database::setInstance($db);
+
+    $service = new UmpireAvailabilityService();
+    $db->queryRows[] = [['availability_id' => 10, 'umpire_user_id' => 123]];
+    $service->updateWindow(10, 123, '2026-07-01T09:00', '2026-07-01T13:00', 'Updated by phone', 42, 'admin_manual');
+
+    $db->queryRows[] = [['availability_id' => 10, 'umpire_user_id' => 123]];
+    $service->deleteWindow(10, 123, 42, 'admin_manual');
+
+    assert_equals(count($db->activityLogRows), 2, 'Expected update and delete audit logs');
+    $updateContext = json_decode($db->activityLogRows[0]['context'], true);
+    $deleteContext = json_decode($db->activityLogRows[1]['context'], true);
+    assert_equals($updateContext['actor_user_id'], 42, 'Update audit includes actor');
+    assert_equals($updateContext['source'], 'admin_manual', 'Update audit includes source');
+    assert_equals($deleteContext['actor_user_id'], 42, 'Delete audit includes actor');
+    assert_equals($deleteContext['source'], 'admin_manual', 'Delete audit includes source');
+    assert_true(!array_key_exists('notes', $updateContext), 'Update audit must not log notes text');
 });
 
 register_test('UmpireAvailabilityService: Delete window ownership', function() {
@@ -302,6 +345,37 @@ register_test('Story 25.7 availability page exposes calendar and batch-create co
     assert_true(str_contains($php, 'fullcalendar@5.11.3/main.min.js'), 'Page should load FullCalendar v5 JS');
     assert_true(str_contains($php, 'dateClick'), 'Page should use dateClick for non-contiguous selected dates');
     assert_true(str_contains($php, 'selectable: false'), 'Page should avoid range selection for multi-date toggles');
+});
+
+register_test('Story 25.6 manual availability management page and navigation contract', function() {
+    $projectRoot = __DIR__ . '/../..';
+    $pagePath = $projectRoot . '/public/admin/umpires/availability-management.php';
+    assert_true(file_exists($pagePath), 'Manual availability management page should exist');
+
+    $php = file_get_contents($pagePath);
+    assert_true(str_contains($php, "PermissionGuard::requireRole('umpire_assignor', '/login.php')"), 'Page uses assignor role guard');
+    assert_true(str_contains($php, 'Auth::getCurrentUser()'), 'Page uses current authenticated admin/assignor');
+    assert_true(!str_contains($php, 'coach_user_id'), 'Admin page must not use umpire portal session key');
+    assert_true(str_contains($php, "\$_GET['umpire_user_id']"), 'Page accepts target umpire via GET');
+    assert_true(str_contains($php, 'getUmpire($targetUmpireId)'), 'Page validates target umpire through roster service');
+    assert_true(str_contains($php, "\$targetUmpire['status'] !== 'active'"), 'Page rejects non-active umpire targets');
+    assert_true(str_contains($php, 'Auth::verifyCSRFToken'), 'POST mutations verify CSRF');
+    assert_true(str_contains($php, 'createWindow('), 'Page supports create mutation');
+    assert_true(str_contains($php, 'updateWindow('), 'Page supports update mutation');
+    assert_true(str_contains($php, 'deleteWindow('), 'Page supports delete mutation');
+    assert_true(str_contains($php, "'admin_manual'"), 'Page tags admin-originated service calls');
+    assert_true(str_contains($php, 'availability-management.php?umpire_user_id='), 'Successful mutations redirect back to selected umpire');
+    assert_true(str_contains($php, 'htmlspecialchars'), 'Page escapes rendered values');
+
+    $nav = file_get_contents($projectRoot . '/includes/nav.php');
+    assert_equals(substr_count($nav, 'availability-management.php'), 2, 'Nav should expose Manage Availability in admin and assignor menus');
+    assert_true(str_contains($nav, "isActiveNav('availability-management', 'umpires')"), 'Nav active state includes availability-management');
+
+    $roster = file_get_contents($projectRoot . '/public/admin/umpires/roster.php');
+    assert_true(str_contains($roster, "availability-management.php?umpire_user_id="), 'Roster exposes per-umpire availability action');
+    assert_true(str_contains($roster, "\$umpire['status'] === 'active'"), 'Roster gates availability action to active umpires');
+
+    assert_true(!file_exists($projectRoot . '/public/admin/umpires/availability.php'), 'Reserved Story 25.3 admin availability route must not be created');
 });
 
 // Implementation of service will follow to make these pass

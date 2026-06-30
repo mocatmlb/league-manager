@@ -422,6 +422,10 @@ unset($__nav);
                                         </button>
 
                                         <?php if ($umpire['status'] === 'active'): ?>
+                                            <a href="availability-management.php?umpire_user_id=<?= (int) $umpire['id'] ?>"
+                                               class="btn btn-outline-info btn-sm" title="Manage Availability">
+                                                <i class="fas fa-calendar-check"></i> Availability
+                                            </a>
                                             <form method="POST" action="roster.php" class="d-inline"
                                                 onsubmit="return confirm('Deactivate <?= addslashes($name) ?>?')">
                                                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">

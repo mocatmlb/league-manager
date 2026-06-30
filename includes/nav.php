@@ -123,6 +123,10 @@ $rootPath = getPathToRoot();
                                            href="<?php echo $rootPath; ?>admin/umpires/roster.php">
                                             <i class="fas fa-id-card"></i> Umpire Roster
                                         </a>
+                                        <a class="dropdown-item <?php echo isActiveNav('availability-management', 'umpires'); ?>"
+                                           href="<?php echo $rootPath; ?>admin/umpires/availability-management.php">
+                                            <i class="fas fa-calendar-check"></i> Manage Availability
+                                        </a>
                                         <a class="dropdown-item <?php echo isActiveNav('import', 'umpires'); ?>"
                                            href="<?php echo $rootPath; ?>admin/umpires/import.php">
                                             <i class="fas fa-file-csv"></i> Import Umpires
@@ -276,6 +280,12 @@ $rootPath = getPathToRoot();
                                     <a class="dropdown-item <?php echo isActiveNav('roster', 'umpires'); ?>"
                                        href="<?php echo $rootPath; ?>admin/umpires/roster.php">
                                         <i class="fas fa-users"></i> Umpire Roster
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item <?php echo isActiveNav('availability-management', 'umpires'); ?>"
+                                       href="<?php echo $rootPath; ?>admin/umpires/availability-management.php">
+                                        <i class="fas fa-calendar-check"></i> Manage Availability
                                     </a>
                                 </li>
                                 <li>

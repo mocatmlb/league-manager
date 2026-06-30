@@ -36,9 +36,23 @@ final class UmpireAvailabilityService {
     /**
      * Create a new availability window.
      *
+     * @param int         $umpireUserId The target umpire's user ID.
+     * @param string      $startsAt     Window start datetime (Y-m-d H:i:s, Y-m-d H:i, or ISO 8601 Y-m-d\TH:i[s]).
+     * @param string      $endsAt       Window end datetime (same formats).
+     * @param string|null $notes        Optional operational note visible to the umpire.
+     * @param int|null    $actorUserId  Acting user ID for audit; null means umpire self-service.
+     * @param string      $source       Audit source: 'self' (umpire portal) or 'admin_manual' (admin page).
      * @throws InvalidArgumentException if validation fails.
      */
-    public function createWindow(int $umpireUserId, string $startsAt, string $endsAt, ?string $notes = null): int {
+    public function createWindow(
+        int $umpireUserId,
+        string $startsAt,
+        string $endsAt,
+        ?string $notes = null,
+        ?int $actorUserId = null,
+        string $source = 'self'
+    ): int {
+        $this->validateSource($source);
         [$startsAt, $endsAt] = $this->validateWindow($startsAt, $endsAt);
 
         $db = Database::getInstance();
@@ -51,7 +65,9 @@ final class UmpireAvailabilityService {
 
         ActivityLogger::log('umpire.availability.created', [
             'availability_id' => $id,
-            'umpire_user_id'   => $umpireUserId
+            'umpire_user_id'   => $umpireUserId,
+            'actor_user_id'    => $actorUserId,
+            'source'           => $source
         ]);
 
         return (int)$id;
@@ -126,10 +142,26 @@ final class UmpireAvailabilityService {
     /**
      * Update an existing availability window, enforcing ownership.
      *
+     * @param int         $availabilityId The window's primary key.
+     * @param int         $umpireUserId   The target umpire's user ID (ownership check).
+     * @param string      $startsAt       New window start datetime.
+     * @param string      $endsAt         New window end datetime.
+     * @param string|null $notes          Optional operational note visible to the umpire.
+     * @param int|null    $actorUserId    Acting user ID for audit; null means umpire self-service.
+     * @param string      $source         Audit source: 'self' or 'admin_manual'.
      * @throws InvalidArgumentException if validation fails.
      * @throws RuntimeException if window not found or not owned by the user.
      */
-    public function updateWindow(int $availabilityId, int $umpireUserId, string $startsAt, string $endsAt, ?string $notes = null): void {
+    public function updateWindow(
+        int $availabilityId,
+        int $umpireUserId,
+        string $startsAt,
+        string $endsAt,
+        ?string $notes = null,
+        ?int $actorUserId = null,
+        string $source = 'self'
+    ): void {
+        $this->validateSource($source);
         $this->validateOwnership($availabilityId, $umpireUserId);
         [$startsAt, $endsAt] = $this->validateWindow($startsAt, $endsAt);
 
@@ -147,14 +179,28 @@ final class UmpireAvailabilityService {
 
         ActivityLogger::log('umpire.availability.updated', [
             'availability_id' => $availabilityId,
-            'umpire_user_id'   => $umpireUserId
+            'umpire_user_id'   => $umpireUserId,
+            'actor_user_id'    => $actorUserId,
+            'source'           => $source
         ]);
     }
 
     /**
      * Delete an availability window, enforcing ownership.
+     *
+     * @param int      $availabilityId The window's primary key.
+     * @param int      $umpireUserId   The target umpire's user ID (ownership check).
+     * @param int|null $actorUserId    Acting user ID for audit; null means umpire self-service.
+     * @param string   $source         Audit source: 'self' or 'admin_manual'.
+     * @throws RuntimeException if window not found or not owned by the user.
      */
-    public function deleteWindow(int $availabilityId, int $umpireUserId): void {
+    public function deleteWindow(
+        int $availabilityId,
+        int $umpireUserId,
+        ?int $actorUserId = null,
+        string $source = 'self'
+    ): void {
+        $this->validateSource($source);
         $this->validateOwnership($availabilityId, $umpireUserId);
 
         $db = Database::getInstance();
@@ -166,7 +212,9 @@ final class UmpireAvailabilityService {
 
         ActivityLogger::log('umpire.availability.deleted', [
             'availability_id' => $availabilityId,
-            'umpire_user_id'   => $umpireUserId
+            'umpire_user_id'   => $umpireUserId,
+            'actor_user_id'    => $actorUserId,
+            'source'           => $source
         ]);
     }
 
@@ -244,7 +292,7 @@ final class UmpireAvailabilityService {
     }
 
     private function parseLocalDateTime(string $value, string $label): DateTimeImmutable {
-        $formats = ['Y-m-d H:i:s', 'Y-m-d H:i'];
+        $formats = ['Y-m-d H:i:s', 'Y-m-d H:i', 'Y-m-d\TH:i:s', 'Y-m-d\TH:i'];
         foreach ($formats as $format) {
             $parsed = DateTimeImmutable::createFromFormat('!' . $format, $value);
             $errors = DateTimeImmutable::getLastErrors();
@@ -296,6 +344,13 @@ final class UmpireAvailabilityService {
         );
 
         return (bool)$row;
+    }
+
+    private function validateSource(string $source): void {
+        static $allowed = ['self', 'admin_manual'];
+        if (!in_array($source, $allowed, true)) {
+            throw new InvalidArgumentException("Invalid audit source '{$source}'.");
+        }
     }
 
     private function validateOwnership(int $availabilityId, int $umpireUserId): void {
