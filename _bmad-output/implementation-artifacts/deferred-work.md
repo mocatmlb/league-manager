@@ -211,3 +211,7 @@ These are race conditions, missing transactions, and performance issues. See [10
 
 - Bootstrap CDN loaded without SRI integrity hash — `public/admin/umpires/board.php` and `index.php` load Bootstrap 5.1.3 from jsDelivr without `integrity="sha384-..."`. Pre-existing across all pages; CDN tampering would allow arbitrary JS execution on mutation pages.
 - `updatePageRow` cannot restore queue rows absent from server-rendered HTML — when a game is fully assigned at page load, its `<tr>` is not rendered; unassigning slots via drawer cannot surface it without a full page reload. Known SPA-on-server-render limitation; Story 3.8 permits full reload as fallback but the JS doesn't trigger one in this case.
+
+## Deferred from: code review of 25-3-standalone-availability-query.md (2026-06-30)
+
+- **Interpolated `$windowSeconds` in SQL** — `UmpireAvailabilityService::getAvailabilityPoolForWindow()` interpolates `assignmentWindowSeconds()` into the SQL string. While functionally safe in the current stack, this violates the parameterization pattern. Pre-existing in neighboring methods. [includes/UmpireAvailabilityService.php:453]

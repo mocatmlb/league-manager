@@ -158,8 +158,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($availabilityId < 1) {
                 throw new InvalidArgumentException('Invalid availability window.');
             }
-            $startsAt = normalizeDatetimeLocal($_POST['starts_at'] ?? '', 'Start time');
-            $endsAt = normalizeDatetimeLocal($_POST['ends_at'] ?? '', 'End time');
+            $isAllDay = (string) ($_POST['is_all_day'] ?? '0') === '1';
+            if ($isAllDay) {
+                [$startsAt, $endsAt] = (new UmpireAvailabilityService())->normalizeAllDayFromDate($_POST['starts_at'] ?? '');
+            } else {
+                $startsAt = normalizeDatetimeLocal($_POST['starts_at'] ?? '', 'Start time');
+                $endsAt = normalizeDatetimeLocal($_POST['ends_at'] ?? '', 'End time');
+            }
             $notes = trim((string) ($_POST['notes'] ?? ''));
             if (strlen($notes) > 255) {
                 throw new InvalidArgumentException('Note cannot exceed 255 characters.');
@@ -461,7 +466,10 @@ unset($__nav);
                             </thead>
                             <tbody>
                                 <?php foreach ($windows as $window): ?>
-                                    <?php $windowId = (int) $window['availability_id']; ?>
+                                    <?php
+                                    $windowId = (int) $window['availability_id'];
+                                    $editIsAllDay = isAllDayAvailabilityWindow((string)($window['starts_at'] ?? ''), (string)($window['ends_at'] ?? ''));
+                                    ?>
                                     <tr>
                                         <td><?= h($window['starts_at'] ?? '') ?></td>
                                         <td><?= h($window['ends_at'] ?? '') ?></td>
@@ -490,18 +498,23 @@ unset($__nav);
                                                     <h5 class="modal-title" id="editAvailabilityLabel<?= $windowId ?>">Edit Availability Window</h5>
                                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                                 </div>
-                                                <form method="post" action="availability-management.php">
+                                                <form method="post" action="availability-management.php" class="availability-edit-form">
                                                     <div class="modal-body">
                                                         <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
                                                         <input type="hidden" name="action" value="update">
                                                         <input type="hidden" name="umpire_user_id" value="<?= (int) $targetUmpireId ?>">
                                                         <input type="hidden" name="availability_id" value="<?= $windowId ?>">
+                                                        <div class="form-check form-switch mb-3">
+                                                            <input class="form-check-input availability-edit-all-day-toggle" type="checkbox" role="switch"
+                                                                id="editAllDay<?= $windowId ?>" name="is_all_day" value="1" <?= $editIsAllDay ? 'checked' : '' ?>>
+                                                            <label class="form-check-label" for="editAllDay<?= $windowId ?>">All day</label>
+                                                        </div>
                                                         <div class="mb-3">
                                                             <label for="editStart<?= $windowId ?>" class="form-label">Start</label>
                                                             <input type="datetime-local" id="editStart<?= $windowId ?>" name="starts_at"
                                                                 class="form-control" required value="<?= h(formatForDatetimeLocal($window['starts_at'] ?? '')) ?>">
                                                         </div>
-                                                        <div class="mb-3">
+                                                        <div class="mb-3 availability-edit-end-wrapper">
                                                             <label for="editEnd<?= $windowId ?>" class="form-label">End</label>
                                                             <input type="datetime-local" id="editEnd<?= $windowId ?>" name="ends_at"
                                                                 class="form-control" required value="<?= h(formatForDatetimeLocal($window['ends_at'] ?? '')) ?>">
@@ -587,6 +600,7 @@ unset($__nav);
                 if (nextWindowsCard && windowsCard) {
                     windowsCard.innerHTML = nextWindowsCard.innerHTML;
                 }
+                initializeAvailabilityEditForms();
 
                 try {
                     const eventMatch = html.match(/var availabilityEvents = (.*?);[\s\S]*?var selectedDates/);
@@ -602,6 +616,27 @@ unset($__nav);
             .catch(function() {
                 // The save succeeded; avoid replacing the success message with a refresh-only failure.
             });
+    }
+
+    function initializeAvailabilityEditForms() {
+        document.querySelectorAll('.availability-edit-form').forEach(function(editForm) {
+            if (editForm.dataset.allDayBound === '1') return;
+
+            const toggle = editForm.querySelector('.availability-edit-all-day-toggle');
+            const endWrapper = editForm.querySelector('.availability-edit-end-wrapper');
+            const endInput = editForm.querySelector('input[name="ends_at"]');
+            if (!toggle || !endWrapper || !endInput) return;
+
+            function syncEditAllDay() {
+                endWrapper.classList.toggle('d-none', toggle.checked);
+                endInput.disabled = toggle.checked;
+                endInput.required = !toggle.checked;
+            }
+
+            toggle.addEventListener('change', syncEditAllDay);
+            editForm.dataset.allDayBound = '1';
+            syncEditAllDay();
+        });
     }
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -720,6 +755,7 @@ unset($__nav);
         }
 
         updateSelectionSummary();
+        initializeAvailabilityEditForms();
     });
 </script>
 </body>

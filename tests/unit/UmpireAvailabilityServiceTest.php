@@ -83,7 +83,7 @@ class UmpireAvailabilityMockStmt {
 register_test('UmpireAvailabilityService: List windows for umpire', function() {
     $db = new UmpireAvailabilityMockDb();
     Database::setInstance($db);
-    
+
     $mockRows = [
         ['availability_id' => 1, 'starts_at' => '2026-07-01 08:00:00', 'ends_at' => '2026-07-01 12:00:00'],
         ['availability_id' => 2, 'starts_at' => '2026-07-02 08:00:00', 'ends_at' => '2026-07-02 12:00:00'],
@@ -246,6 +246,65 @@ register_test('UmpireAvailabilityService: Pool query (int[] contract)', function
     }
 });
 
+register_test('Story 25.3 availability pool display query contract', function() {
+    $db = new UmpireAvailabilityMockDb();
+    Database::setInstance($db);
+    $GLOBALS['_test_settings']['conflict_window_minutes'] = '45';
+
+    $db->queryRows[] = [[
+        'user_id' => 7,
+        'first_name' => 'Ava',
+        'last_name' => 'Blue',
+        'email' => 'ava@example.test',
+        'phone' => '555-0107',
+        'umpire_level' => 'Blue Shirt',
+        'is_under_18' => 1,
+        'current_game_load' => 2,
+    ]];
+
+    $service = new UmpireAvailabilityService();
+    $rows = $service->getAvailabilityPoolForWindow(new DateTime('2026-07-01 10:00:00'), new DateTime('2026-07-01 12:00:00'));
+
+    assert_equals(count($rows), 1, 'Expected one display row');
+    assert_equals($rows[0]['user_id'], 7, 'Display row keeps user id');
+    assert_equals($rows[0]['first_name'], 'Ava', 'Display row includes first name');
+    assert_equals($rows[0]['phone'], '555-0107', 'Display row includes phone');
+    assert_equals($rows[0]['umpire_level'], 'Blue Shirt', 'Display row includes umpire level');
+    assert_equals($rows[0]['is_under_18'], 1, 'Display row normalizes under-18 flag');
+    assert_equals($rows[0]['current_game_load'], 2, 'Display row includes current D8 assignment load');
+
+    $sql = $db->lastSql[0];
+    assert_true(str_contains($sql, 'umpire_availability_windows'), 'Display query uses availability table');
+    assert_true(str_contains($sql, "JOIN roles r ON r.id = u.role_id AND r.name = 'umpire'"), 'Display query restricts to umpire role');
+    assert_true(str_contains($sql, "gua.assignment_status IN ('Draft', 'Published')"), 'Display query blocks Draft and Published assignments');
+    assert_true(str_contains($sql, "g.game_status NOT IN ('Cancelled', 'Postponed')"), 'Display query ignores Cancelled/Postponed games');
+    assert_true(str_contains($sql, "TIMESTAMP(s.game_date, COALESCE(s.game_time, '00:00:00'))"), 'Display query builds schedule datetime from live schema');
+    assert_true(str_contains($sql, 'COUNT(load_gua.assignment_id) AS current_game_load'), 'Display query calculates load with one aggregate join');
+    assert_true(str_contains($sql, 'INTERVAL 2700 SECOND'), 'Display query uses configured assignment window duration');
+    assert_true(!str_contains($sql, 'game_date_time'), 'Display query must not reference nonexistent game_date_time column');
+    assert_true(!str_contains($sql, 'gua.status'), 'Display query must not reference nonexistent gua.status column');
+    assert_true(!str_contains($sql, 'notes'), 'Display query must not expose availability notes');
+    assert_equals($db->lastParams[0]['requested_start'], '2026-07-01 10:00:00', 'Display query start parameter is normalized');
+    assert_equals($db->lastParams[0]['requested_end'], '2026-07-01 12:00:00', 'Display query end parameter is normalized');
+
+    // All-day normalization contract
+    [$s, $e] = $service->normalizeAllDayFromDate('2026-07-01');
+    assert_equals($s, '2026-07-01 00:00:00', 'All-day starts at midnight');
+    assert_equals($e, '2026-07-02 00:00:00', 'All-day ends next day midnight');
+
+    [$s, $e] = $service->normalizeAllDayFromDate('2026-07-01T10:00');
+    assert_equals($s, '2026-07-01 00:00:00', 'All-day from datetime-local normalized to date midnight');
+
+    unset($GLOBALS['_test_settings']['conflict_window_minutes']);
+
+    try {
+        $service->getAvailabilityPoolForWindow(new DateTime('2026-07-01 12:00:00'), new DateTime('2026-07-01 12:00:00'));
+        assert_true(false, 'Should throw for zero-length requested display window');
+    } catch (InvalidArgumentException $e) {
+        assert_true(str_contains($e->getMessage(), 'must end after it starts'), 'Correct display-window validation message');
+    }
+});
+
 register_test('Story 25.1 migration uses compatible FK and rerun-safe index placement', function() {
     $sql = file_get_contents(__DIR__ . '/../../database/migrations/051_create_umpire_availability_windows.sql');
     assert_true(str_contains($sql, '`umpire_user_id` INT NOT NULL'), 'FK column should match signed users.id');
@@ -263,6 +322,22 @@ register_test('Story 25.1 portal supports update action and modal controls', fun
     assert_true(str_contains($php, 'Edit Availability Window'), 'Page should render edit modal');
     assert_true(str_contains($php, 'data-bs-dismiss="modal"'), 'Cancel buttons should dismiss modals');
     assert_true(str_contains($php, "Unsupported availability action"), 'Unsupported POST actions should not silently succeed');
+});
+
+register_test('Availability edit modals support all-day updates', function() {
+    $portal = file_get_contents(__DIR__ . '/../../public/umpires/availability.php');
+    assert_true(str_contains($portal, "name=\"is_all_day\""), 'Portal edit modal should expose all-day toggle');
+    assert_true(str_contains($portal, 'normalizeAllDayFromDate'), 'Portal update handler should use service for all-day edits');
+    assert_true(str_contains($portal, "(\$_POST['is_all_day'] ?? '0') === '1'"), 'Portal update handler should read all-day POST flag');
+    assert_true(str_contains($portal, 'availability-edit-all-day-toggle'), 'Portal edit JS should bind all-day toggle');
+    assert_true(str_contains($portal, 'endInput.disabled = toggle.checked'), 'Portal edit JS should disable end time for all-day edits');
+
+    $admin = file_get_contents(__DIR__ . '/../../public/admin/umpires/availability-management.php');
+    assert_true(str_contains($admin, "name=\"is_all_day\""), 'Admin edit modal should expose all-day toggle');
+    assert_true(str_contains($admin, 'normalizeAllDayFromDate'), 'Admin update handler should use service for all-day edits');
+    assert_true(str_contains($admin, "(\$_POST['is_all_day'] ?? '0') === '1'"), 'Admin update handler should read all-day POST flag');
+    assert_true(str_contains($admin, 'availability-edit-all-day-toggle'), 'Admin edit JS should bind all-day toggle');
+    assert_true(str_contains($admin, 'endInput.disabled = toggle.checked'), 'Admin edit JS should disable end time for all-day edits');
 });
 
 register_test('Story 25.7 createWindowsForDates creates all-day windows from dates', function() {
@@ -400,7 +475,22 @@ register_test('Story 25.6 manual availability management page and navigation con
     assert_true(str_contains($roster, "availability-management.php?umpire_user_id="), 'Roster exposes per-umpire availability action');
     assert_true(str_contains($roster, "\$umpire['status'] === 'active'"), 'Roster gates availability action to active umpires');
 
-    assert_true(!file_exists($projectRoot . '/public/admin/umpires/availability.php'), 'Reserved Story 25.3 admin availability route must not be created');
+    assert_true(file_exists($projectRoot . '/public/admin/umpires/availability.php'), 'Story 25.3 availability query route should exist');
+    $queryPage = file_get_contents($projectRoot . '/public/admin/umpires/availability.php');
+    assert_true(str_contains($queryPage, 'getAvailabilityPoolForWindow('), 'Query page should use display pool service method');
+    assert_true(str_contains($queryPage, "PermissionGuard::requireRole('umpire_assignor', '/login.php')") || str_contains($queryPage, "PermissionGuard::requireRole(['admin', 'umpire_assignor'], '/login.php')"), 'Query page should be assignor/admin guarded');
+    assert_true(str_contains($queryPage, "\$_GET['date']"), 'Query page should read date from GET');
+    assert_true(str_contains($queryPage, "\$_GET['time']"), 'Query page should read time from GET');
+    assert_true(str_contains($queryPage, 'UmpireConflictChecker::assignmentWindowSeconds()'), 'Query page should use assignment window duration');
+    assert_true(str_contains($queryPage, 'minute duration'), 'Query page should show window duration');
+    assert_true(str_contains($queryPage, 'No umpires are available'), 'Query page should render empty state');
+    assert_true(str_contains($queryPage, 'htmlspecialchars'), 'Query page should escape rendered values');
+    assert_true(!str_contains($queryPage, 'Auth::verifyCSRFToken'), 'Read-only query page should not use CSRF mutation flow');
+
+    assert_equals(substr_count($nav, 'availability-management.php'), 2, 'Nav should still expose Manage Availability in admin and assignor menus');
+    assert_equals(substr_count($nav, 'admin/umpires/availability.php'), 2, 'Nav should expose Availability Query in admin and assignor menus');
+    assert_true(str_contains($nav, "isActiveNav('availability', 'umpires')"), 'Nav active state includes availability query');
+    assert_true(str_contains($nav, 'Availability Query'), 'Nav labels the standalone query route');
 });
 
 // Implementation of service will follow to make these pass

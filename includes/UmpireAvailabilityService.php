@@ -127,10 +127,7 @@ final class UmpireAvailabilityService {
             try {
                 $date = $this->validateLocalDate($date);
                 if ($isAllDay) {
-                    $startsAt = $date . ' 00:00:00';
-                    $endsAt = DateTimeImmutable::createFromFormat('!Y-m-d', $date)
-                        ->modify('+1 day')
-                        ->format('Y-m-d') . ' 00:00:00';
+                    [$startsAt, $endsAt] = $this->normalizeAllDayFromDate($date);
                 } else {
                     $startsAt = $date . ' ' . $startTime . ':00';
                     $endsAt = $date . ' ' . $endTime . ':00';
@@ -152,6 +149,30 @@ final class UmpireAvailabilityService {
             'skipped' => $skipped,
             'errors' => $errors
         ];
+    }
+
+    /**
+     * Normalizes an all-day window from a single date or datetime-local string.
+     *
+     * @return string[] [starts_at, ends_at] in Y-m-d H:i:s format.
+     */
+    public function normalizeAllDayFromDate(string $input): array {
+        $input = trim($input);
+        // Try YYYY-MM-DD
+        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $input);
+        if (!$parsed) {
+            // Try YYYY-MM-DDTHH:MM
+            $parsed = DateTimeImmutable::createFromFormat('!Y-m-d\TH:i', $input);
+        }
+
+        $errors = DateTimeImmutable::getLastErrors();
+        if (!$parsed instanceof DateTimeImmutable || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0))) {
+            throw new InvalidArgumentException('Date must be a valid calendar date.');
+        }
+
+        $start = $parsed->setTime(0, 0, 0);
+        $end = $start->modify('+1 day');
+        return [$start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s')];
     }
 
     /**
@@ -291,6 +312,85 @@ final class UmpireAvailabilityService {
             $ids[] = (int)$row['umpire_user_id'];
         }
         return $ids;
+    }
+
+    /**
+     * Returns display-ready active umpire rows for the standalone availability query.
+     */
+    public function getAvailabilityPoolForWindow(DateTimeInterface $startsAt, DateTimeInterface $endsAt): array {
+        if ($startsAt >= $endsAt) {
+            throw new InvalidArgumentException('Requested availability window must end after it starts.');
+        }
+
+        $db = Database::getInstance();
+        $startStr = $startsAt->format('Y-m-d H:i:s');
+        $endStr = $endsAt->format('Y-m-d H:i:s');
+        $windowSeconds = UmpireConflictChecker::assignmentWindowSeconds();
+
+        $sql = "
+            SELECT DISTINCT
+                u.id AS user_id,
+                u.first_name,
+                u.last_name,
+                u.email,
+                u.phone,
+                up.umpire_level,
+                up.is_under_18,
+                COALESCE(loads.current_game_load, 0) AS current_game_load
+            FROM users u
+            JOIN roles r ON r.id = u.role_id AND r.name = 'umpire'
+            JOIN umpire_profiles up ON up.user_id = u.id
+            JOIN umpire_availability_windows aw ON aw.umpire_user_id = u.id
+            LEFT JOIN (
+                SELECT load_gua.umpire_user_id, COUNT(load_gua.assignment_id) AS current_game_load
+                FROM game_umpire_assignments load_gua
+                JOIN games load_g ON load_g.game_id = load_gua.game_id
+                WHERE load_gua.assignment_status IN ('Draft', 'Published')
+                  AND load_g.game_status NOT IN ('Cancelled', 'Postponed')
+                GROUP BY load_gua.umpire_user_id
+            ) loads ON loads.umpire_user_id = u.id
+            WHERE u.status = 'active'
+              AND aw.starts_at <= :requested_start
+              AND aw.ends_at >= :requested_end
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM game_umpire_assignments gua
+                  JOIN games g ON g.game_id = gua.game_id
+                  JOIN schedules s ON s.game_id = gua.game_id
+                  WHERE gua.umpire_user_id = u.id
+                    AND gua.assignment_status IN ('Draft', 'Published')
+                    AND g.game_status NOT IN ('Cancelled', 'Postponed')
+                    AND TIMESTAMP(s.game_date, COALESCE(s.game_time, '00:00:00')) < :overlap_end
+                    AND DATE_ADD(
+                        TIMESTAMP(s.game_date, COALESCE(s.game_time, '00:00:00')),
+                        INTERVAL " . $windowSeconds . " SECOND
+                    ) > :overlap_start
+              )
+            ORDER BY u.last_name ASC, u.first_name ASC, u.id ASC
+        ";
+
+        $stmt = $db->query($sql, [
+            'requested_start' => $startStr,
+            'requested_end' => $endStr,
+            'overlap_start' => $startStr,
+            'overlap_end' => $endStr,
+        ]);
+
+        $rows = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $rows[] = [
+                'user_id' => (int)($row['user_id'] ?? 0),
+                'first_name' => (string)($row['first_name'] ?? ''),
+                'last_name' => (string)($row['last_name'] ?? ''),
+                'email' => (string)($row['email'] ?? ''),
+                'phone' => (string)($row['phone'] ?? ''),
+                'umpire_level' => (string)($row['umpire_level'] ?? ''),
+                'is_under_18' => (int)($row['is_under_18'] ?? 0),
+                'current_game_load' => (int)($row['current_game_load'] ?? 0),
+            ];
+        }
+
+        return $rows;
     }
 
     private function validateWindow(string $startsAt, string $endsAt): array {

@@ -115,6 +115,10 @@ $rootPath = getPathToRoot();
                                            href="<?php echo $rootPath; ?>admin/umpires/board.php">
                                             <i class="fas fa-table-columns"></i> Assignment Board
                                         </a>
+                                        <a class="dropdown-item <?php echo isActiveNav('availability', 'umpires'); ?>"
+                                           href="<?php echo $rootPath; ?>admin/umpires/availability.php">
+                                            <i class="fas fa-search"></i> Availability Query
+                                        </a>
                                         <a class="dropdown-item <?php echo isActiveNav('settings', 'umpires'); ?>"
                                            href="<?php echo $rootPath; ?>admin/umpires/settings.php">
                                             <i class="fas fa-cog"></i> Umpire Settings
@@ -268,6 +272,12 @@ $rootPath = getPathToRoot();
                                     <a class="dropdown-item <?php echo isActiveNav('board', 'umpires'); ?>"
                                        href="<?php echo $rootPath; ?>admin/umpires/board.php">
                                         <i class="fas fa-table-columns"></i> Assignment Board
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item <?php echo isActiveNav('availability', 'umpires'); ?>"
+                                       href="<?php echo $rootPath; ?>admin/umpires/availability.php">
+                                        <i class="fas fa-search"></i> Availability Query
                                     </a>
                                 </li>
                                 <li>
